@@ -1,0 +1,10 @@
+== a lane was in flight through the gap ==
+{
+  "present": true,
+  "marker": "2026-09-12T10:00:00+01:00",
+  "gap_seconds": 7200,
+  "had_lane": true,
+  "report": true
+}
+== no live row now, but M07 closed after the marker, so the gap still counts ==
+{"present":true,"marker":"2026-09-12T10:00:00+01:00","gap_seconds":7200,"had_lane":true,"report":true}

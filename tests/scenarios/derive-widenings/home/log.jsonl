@@ -1,0 +1,3 @@
+{"at":"2026-09-12T08:00:00+01:00","kind":"widening","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"rule":"Bash(sw_vers:*)","permissions_file":"/h/projects/Fixture/permissions.json"}
+{"at":"2026-09-12T09:00:00+01:00","kind":"widening","project":"Other","milestone":"M01","session":"o1","attempt":1,"rule":"Bash(xcodebuild:*)","permissions_file":"/h/projects/Other/permissions.json"}
+{"at":"2026-09-12T10:00:00+01:00","kind":"widening","project":"Fixture","milestone":"M07","session":"f7","attempt":1,"rule":"Bash(plutil:*)","permissions_file":"/h/projects/Fixture/permissions.json"}

@@ -1,0 +1,2 @@
+{"at":"2026-09-12T11:00:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M03","session":"f3","attempt":1,"name":"Baton · Fixture · M03","model":"fable","remote":false,"worktree":"/w","branch":"m03","worktree_reused":false,"settings":"/s","prompt_path":"/p/1.txt","prompt_sha256":"h"}
+{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"outcome":"stopped","reason":"api-error","error":"rate_limit","written_by":"stop-failure","archive":"/a/x.json"}

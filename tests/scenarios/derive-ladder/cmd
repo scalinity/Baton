@@ -1,0 +1,7 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== M02: a no-handover consume and a confirmed crash since the dispatch =="
+derive_ladder Fixture M02 1 | jq .
+echo "== M07: the session came back, so the ladder reset =="
+derive_ladder Fixture M07 1 | jq -c .
+echo "== M03: a refused resume is the third kind of failure ending =="
+derive_ladder Fixture M03 1 | jq -c .

@@ -1,0 +1,2 @@
+. "$ROOT/tests/lib-load.sh"
+derive_widenings Fixture | jq .

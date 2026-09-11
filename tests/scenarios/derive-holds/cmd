@@ -1,0 +1,5 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== holds =="
+derive_holds | jq .
+echo "== the dispatch hold =="
+derive_dispatch_hold | jq .

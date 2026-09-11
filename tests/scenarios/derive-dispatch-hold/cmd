@@ -1,0 +1,3 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== one model limited: only that model is held, and fableReserve holds its own =="
+derive_dispatch_hold | jq .

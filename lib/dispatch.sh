@@ -62,7 +62,6 @@ settings_compose() {
   sc_perm=$BATON_HOME/projects/$1/permissions.json
   sc_out=$BATON_HOME/settings/$1-$2.json
   [ -f "$sc_perm" ] || { echo "$sc_perm is missing"; return 1; }
-  mkdir -p "$BATON_HOME/settings"
   sc_json=$(jq -e --arg env "BATON_HOME='$BATON_HOME' BATON_PROJECT='$1' BATON_MILESTONE='$2'" --arg bin "$BATON_HOME/bin" '
     if ((.permissions.deny // []) | length) == 0
       then error("permissions.deny is empty; a bypassPermissions session needs the two deny classes") else . end
@@ -74,6 +73,7 @@ settings_compose() {
           Stop:        [{ hooks: [{ type: "command", command: "\($env) \($bin)/stop-gate" }] }],
           StopFailure: [{ hooks: [{ type: "command", command: "\($env) \($bin)/stop-failure" }] }] } }' \
     "$sc_perm" 2>&1) || { echo "$sc_perm: $sc_json"; return 1; }
+  mkdir -p "$BATON_HOME/settings"
   printf '%s\n' "$sc_json" > "$sc_out.tmp"
   mv "$sc_out.tmp" "$sc_out"
   printf '%s\n' "$sc_out"
@@ -168,7 +168,7 @@ dispatch_one() {
   [ "$do_remote" = false ] || { echo "baton: $do_id is Remote: yes and remote dispatch is not built yet (M07)" >&2; return 2; }
   do_attempt=$(attempt_of "$do_project" "$do_id") || { echo "baton: $do_attempt" >&2; return 1; }
   do_attempt=$((do_attempt + 1))
-  do_name="Baton · $do_project · $do_id"
+  do_name=$(session_name "$do_project" "$do_id")
 
   do_wt=$(worktree_ensure "$do_path" "$do_id") || { dispatch_failed "$do_project" "$do_id" worktree "$do_wt"; return 1; }
   do_wt_path=$(printf '%s' "$do_wt" | jq -r .worktree)
@@ -180,7 +180,8 @@ dispatch_one() {
 
   do_brief=docs/milestones/$do_id.md
   do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
-  do_inflight=$(inflight_json "$do_project" "$do_rows") || { echo "baton: $do_inflight" >&2; return 1; }
+  do_inflight=$(derive_in_flight "$do_project" "$do_rows") || { echo "baton: $do_inflight" >&2; return 1; }
+  do_inflight=$(printf '%s' "$do_inflight" | jq -c .in_flight)
   do_also=$(printf '%s' "$do_inflight" | jq -r --arg me "$do_id" --argjson plan "$do_plan" '
     ($plan.milestones | map(select(.status == "done") | .id)) as $done
     | map(select(.milestone as $m | $m != $me and (($done | index($m)) == null)))
@@ -235,12 +236,13 @@ verb_dispatch() {
   printf '%s' "$vd_plan" | plan_row "$2" > /dev/null 2>&1 || { echo "baton: $2 is not in $1's plan" >&2; exit 2; }
   vd_rows=$(rows_json)
   if ! printf '%s' "$vd_plan" | plan_eligible | grep -Fqx "$2"; then
-    vd_inflight=$(inflight_json "$1" "$vd_rows") || { echo "baton: $vd_inflight" >&2; exit 1; }
+    vd_inflight=$(derive_in_flight "$1" "$vd_rows") || { echo "baton: $vd_inflight" >&2; exit 1; }
+    vd_inflight=$(printf '%s' "$vd_inflight" | jq -c .in_flight)
     echo "baton: $2 is not eligible; the plan reads:" >&2
     printf '%s' "$vd_plan" | plan_render "$1" "$vd_inflight" | awk -v id="$2" '$1 == id' >&2
     exit 2
   fi
-  vd_name="Baton · $1 · $2"
+  vd_name=$(session_name "$1" "$2")
   if printf '%s' "$vd_rows" | jq -e --arg n "$vd_name" 'any(.[]; .name == $n and .pid != null)' > /dev/null; then
     echo "baton: a live session named \"$vd_name\" already exists; nothing dispatched" >&2
     exit 2

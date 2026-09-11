@@ -76,16 +76,6 @@ rows_json() {
   printf '%s' "$rj_out" | jq -c 'if type == "array" then . else [] end' 2>/dev/null || echo '[]'
 }
 
-# inflight_json <project> <rows json>: the newest dispatch event of every milestone of the project
-# whose session has a live row (a pid), as a JSON array. M02's derivation 1 replaces this.
-inflight_json() {
-  ij_log=$(log_json) || { echo "$ij_log"; return 1; }
-  printf '%s' "$ij_log" | jq -c --arg p "$1" --argjson rows "$2" '
-    [ .[] | select(.kind == "dispatch" and .project == $p) ]
-    | group_by(.milestone) | map(last)
-    | map(select(.session as $s | any($rows[]; .pid != null and .sessionId == $s)))'
-}
-
 # prompt_normalise: stdin to stdout, stripping exactly one trailing newline and nothing else.
 # The one rule for both sides of the takeover comparison: the sidecar file (which ends in a
 # newline because it is a text file) and the transcript record's text (which does not, because

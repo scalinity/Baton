@@ -1,0 +1,7 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== Fixture M01: two attempts, attempt 2 resumed twice (refused does not count) =="
+derive_attempt Fixture M01 | jq .
+echo "== attempt 1 of the same milestone =="
+derive_attempt Fixture M01 1 | jq -c .
+echo "== Other's own M01 is counted apart (INV-07) =="
+derive_attempt Other M01 | jq -c .

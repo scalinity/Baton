@@ -1,0 +1,75 @@
+== every project ==
+{
+  "in_flight": [
+    {
+      "project": "Other",
+      "milestone": "M01",
+      "attempt": 1,
+      "dispatch_at": "2026-09-12T08:01:00+01:00",
+      "model": "fable",
+      "remote": false,
+      "worktree": "/w/Other-M01",
+      "branch": "m01",
+      "session": "o1",
+      "since": "2026-09-12T08:01:00+01:00",
+      "row": {
+        "pid": 501,
+        "id": "0bado1",
+        "sessionId": "o1",
+        "name": "Baton · Other · M01",
+        "status": "busy",
+        "state": "working"
+      },
+      "pid": 501
+    },
+    {
+      "project": "Fixture",
+      "milestone": "M02",
+      "attempt": 2,
+      "dispatch_at": "2026-09-12T10:05:00+01:00",
+      "model": "opus",
+      "effort": "high",
+      "remote": false,
+      "worktree": "/w/Fixture-M02",
+      "branch": "m02",
+      "session": "f2c",
+      "since": "2026-09-12T11:00:00+01:00",
+      "row": {
+        "pid": 502,
+        "id": "0badf2c",
+        "sessionId": "f2c",
+        "name": "Baton · Fixture · M02",
+        "status": "busy",
+        "state": "waiting",
+        "waitingFor": "input needed"
+      },
+      "pid": 502
+    }
+  ],
+  "no_row": [
+    {
+      "project": "Fixture",
+      "milestone": "M03",
+      "attempt": 1,
+      "dispatch_at": "2026-09-12T11:30:00+01:00",
+      "model": "fable",
+      "remote": false,
+      "worktree": "/w/Fixture-M03",
+      "branch": "m03",
+      "session": "f3",
+      "since": "2026-09-12T11:30:00+01:00",
+      "row": {
+        "pid": null,
+        "id": "0badf3",
+        "sessionId": "f3",
+        "name": "Baton · Fixture · M03",
+        "status": "idle",
+        "state": "working"
+      }
+    }
+  ]
+}
+== Other alone ==
+{"in_flight":[{"project":"Other","milestone":"M01","attempt":1,"dispatch_at":"2026-09-12T08:01:00+01:00","model":"fable","remote":false,"worktree":"/w/Other-M01","branch":"m01","session":"o1","since":"2026-09-12T08:01:00+01:00","row":{"pid":501,"id":"0bado1","sessionId":"o1","name":"Baton · Other · M01","status":"busy","state":"working"},"pid":501}],"no_row":[]}
+== the fork chain ==
+f2c

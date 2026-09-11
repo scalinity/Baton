@@ -1,0 +1,3 @@
+{"baton":1,"project":"@TMP@/Fixture","milestone":"M02","session":"11111111-2222-4333-8444-555555555555","outcome":"stopped",
+ "reason":"blocked","blocked_by":"M01","detail":"M01's reader is not on main yet",
+ "written_at":"2026-09-11T22:00:00Z"}

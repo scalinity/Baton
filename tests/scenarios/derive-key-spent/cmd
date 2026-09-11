@@ -1,0 +1,12 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== stall: notified before the session came back, so the key is re-armed =="
+derive_key_spent Fixture M02 1 stall | jq .
+echo "== long-running: notified after the reset, so it is spent =="
+derive_key_spent Fixture M02 1 long-running | jq -c .
+echo "== blocked_by, keyed on the named blocker =="
+derive_key_spent Fixture M02 1 blocked_by M01 | jq -c .
+derive_key_spent Fixture M02 1 blocked_by M03 | jq -c .
+echo "== an api-error is the hook's word, not the session's, so it resets nothing =="
+derive_key_spent Fixture M07 1 stall | jq -c .
+echo "== a takeover resets, because the person coming in is new information =="
+derive_key_spent Fixture M06 1 stall | jq -c .

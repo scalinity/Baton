@@ -1,0 +1,39 @@
+== every project ==
+{
+  "parked": [
+    {
+      "at": "2026-09-12T02:41:18+01:00",
+      "project": "Fixture",
+      "milestone": "M02",
+      "session": "f2",
+      "attempt": 1,
+      "class": "asking",
+      "scope": "lane",
+      "carries": {
+        "question": "Expose the formatter, or keep it internal?",
+        "options": [
+          "expose",
+          "internal"
+        ],
+        "recommendation": "expose"
+      },
+      "channel": [
+        "notification"
+      ]
+    },
+    {
+      "at": "2026-09-12T05:00:00+01:00",
+      "project": "Other",
+      "class": "plan-unparseable",
+      "scope": "project",
+      "carries": {
+        "detail": "the Model column is missing from the header"
+      },
+      "channel": [
+        "notification"
+      ]
+    }
+  ]
+}
+== Fixture alone ==
+[{"milestone":"M02","class":"asking"}]

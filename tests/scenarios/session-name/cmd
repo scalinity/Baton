@@ -1,0 +1,3 @@
+. "$ROOT/lib/templates.sh"
+session_name Fixture M02; echo
+session_name Baton M02; echo

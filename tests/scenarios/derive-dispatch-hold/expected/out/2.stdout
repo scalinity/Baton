@@ -1,0 +1,18 @@
+== one model limited: only that model is held, and fableReserve holds its own ==
+{
+  "held_models": [
+    "fable",
+    "opus"
+  ],
+  "all": false,
+  "causes": [
+    {
+      "model": "fable",
+      "cause": "fableReserve"
+    },
+    {
+      "model": "opus",
+      "cause": "rate_limit"
+    }
+  ]
+}
