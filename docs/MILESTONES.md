@@ -28,7 +28,7 @@ Rules for every session (also in `CLAUDE.md`):
 | ID | Title | Depends on | Model | Effort | Remote | Status | User-visible result | Destroys anything? |
 |---|---|---|---|---|---|---|---|---|
 | M01 | Plan reader and hand-run dispatch | – | fable | | | done | `baton plan Baton` prints the graph; `baton dispatch Baton M02` creates the worktree, composes the settings file and the slot line, writes the prompt sidecar, runs `claude --bg` and logs the dispatch; the three hooks and the install script exist | No (creates a worktree and a branch) |
-| M02 | The inbox and the log | M01 | opus | | | | The inbox is consumed: provenance, `merged_as`, brief pointers, archive with the consumed-at suffix, rejection; the whole event table and the fifteen derivations exist with fixtures; `baton status` prints the view | No |
+| M02 | The inbox and the log | M01 | opus | | | done | The inbox is consumed: provenance, `merged_as`, brief pointers, archive with the consumed-at suffix, rejection; the whole event table and the fifteen derivations exist with fixtures; `baton status` prints the view | No |
 | M03 | The tick under launchd | M02 | opus | | | | `baton tick` runs the eight steps under the lock and writes the marker; rows are reconciled (crash, stall, question, takeover, gap); the plist runs it every minute through the granted shell; caffeinate is armed | No (loads a LaunchAgent) |
 | M04 | Waits, the ladder and continuations | M03 | opus | | | | An API error is waited out and resumed flagless with the continue template; a `no-handover` climbs the ladder; a copy fork is recorded; the per-model hold bites | No |
 | M05 | Escalations, answer, allow, takeover | M04 | opus | | | | Every escalation class parks and reaches the Mac as a three-part message; `baton answer` delivers a ruling; `baton allow` widens in place; a takeover stands Baton off and hands back | No |
@@ -69,7 +69,7 @@ except M07 and M08, which are acceptance and onboarding.
 | Milestone | The person's part |
 |---|---|
 | M01 | Starts the session by hand with the kickoff prompt; runs `sh install.sh` and the setup facts REQ-SETUP-01 to 03 after reading the merge; reads the printed handover. |
-| M02 | `baton dispatch Baton M02`; watches through `claude agents` and `Claude.app`; on completion reads the handover and runs `sh install.sh`. |
+| M02 | `baton dispatch Baton M02`; watches through `claude agents` and `Claude.app`; on completion reads the handover and runs `sh install.sh`. ||||| done 
 | M03 | `baton dispatch Baton M03`; same; then loads the plist and confirms `baton status` prints a last tick. Runs the live proofs 36–38 the brief names. |
 | M04 | The tick dispatches it. The person watches: a stopped session is still theirs to notice from `baton status` and `Claude.app`, because the ladder does not exist yet. Installs after the merge. |
 | M05 | The tick dispatches it; the person watches for the same reason; installs after the merge. |
