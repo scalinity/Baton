@@ -1,0 +1,3 @@
+home2=$(cd "$SHIM/.." && pwd)/home2
+BATON_HOME="$home2" sh "$ROOT/install.sh"
+cd "$home2/.." && find home2 -type f | grep -v "^home2/bin/" | sort && ls home2/bin home2/bin/lib && jq -c .permissions.deny home2/projects/Baton/permissions.json && jq -c . home2/config.json && cat home2/projects/Baton/project.json

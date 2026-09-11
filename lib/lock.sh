@@ -11,9 +11,9 @@ lock_take() {
     echo "baton: lock held at $BATON_HOME/lock (pid $lk_pid, since $lk_at); nothing done" >&2
     exit 75
   fi
+  trap lock_release EXIT
   printf '%s\n' "$$" > "$BATON_HOME/lock/pid"
   printf '%s\n' "$(baton_now)" > "$BATON_HOME/lock/at"
-  trap lock_release EXIT
 }
 
 lock_release() {

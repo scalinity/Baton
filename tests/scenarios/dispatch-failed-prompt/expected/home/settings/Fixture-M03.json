@@ -12,7 +12,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "BATON_HOME=@TMP@/home BATON_PROJECT=Fixture BATON_MILESTONE=M03 @TMP@/home/bin/statusline"
+    "command": "BATON_HOME='@TMP@/home' BATON_PROJECT='Fixture' BATON_MILESTONE='M03' @TMP@/home/bin/statusline"
   },
   "hooks": {
     "Stop": [
@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "BATON_HOME=@TMP@/home BATON_PROJECT=Fixture BATON_MILESTONE=M03 @TMP@/home/bin/stop-gate"
+            "command": "BATON_HOME='@TMP@/home' BATON_PROJECT='Fixture' BATON_MILESTONE='M03' @TMP@/home/bin/stop-gate"
           }
         ]
       }
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "BATON_HOME=@TMP@/home BATON_PROJECT=Fixture BATON_MILESTONE=M03 @TMP@/home/bin/stop-failure"
+            "command": "BATON_HOME='@TMP@/home' BATON_PROJECT='Fixture' BATON_MILESTONE='M03' @TMP@/home/bin/stop-failure"
           }
         ]
       }

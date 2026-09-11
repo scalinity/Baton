@@ -16,8 +16,8 @@ artifact=$BATON_HOME/inbox/$milestone-$sid.json
 [ -f "$artifact" ] && exit 0
 
 project=${BATON_PROJECT:-}
-if [ -f "$BATON_HOME/projects/$BATON_PROJECT/project.json" ]; then
-  project=$(jq -r '.path' "$BATON_HOME/projects/$BATON_PROJECT/project.json")
+if [ -n "$project" ] && [ -f "$BATON_HOME/projects/$project/project.json" ]; then
+  project=$(jq -r .path "$BATON_HOME/projects/$project/project.json")
 fi
 mkdir -p "$BATON_HOME/inbox"
 printf '%s' "$payload" | jq -c --arg p "$project" --arg m "$milestone" --arg s "$sid" \

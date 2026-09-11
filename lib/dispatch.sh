@@ -5,35 +5,18 @@
 # on stdout and returns non-zero, so a caller captures once and branches on the status.
 set -eu
 
-# rows_json: claude agents --json as a JSON array; [] when the listing cannot be read.
-rows_json() {
-  rj_out=$("$BATON_CLAUDE" agents --json 2>/dev/null) || rj_out='[]'
-  printf '%s' "$rj_out" | jq -c 'if type == "array" then . else [] end' 2>/dev/null || echo '[]'
-}
-
-# inflight_json <project>: the newest dispatch event of every milestone of the project whose
-# session has a live row (a pid), as a JSON array. M02's derivation 1 replaces this.
-inflight_json() {
-  if [ ! -f "$BATON_HOME/log.jsonl" ]; then echo '[]'; return 0; fi
-  rows_json | jq -c --arg p "$1" --slurpfile log "$BATON_HOME/log.jsonl" '
-    . as $rows
-    | [ $log[] | select(.kind == "dispatch" and .project == $p) ]
-    | group_by(.milestone) | map(last)
-    | map(select(.session as $s | any($rows[]; .pid != null and .sessionId == $s)))'
-}
-
 # row_for_id <id>: the agents row whose id is <id> and which carries a pid, polled for up to
 # thirty seconds because the row appears a beat after backgrounded is printed. A worker that
 # crashes before init never gets a row; the service records that in its own log as
-# "bg settled <id> (crashed): <detail>" (item 47), so the poll reads that line and stops early.
-# Prints the row, or the failure's detail.
+# "bg settled <id> (crashed): <detail>" (item 47, D-027), so the poll reads that line and stops
+# early. Prints the row, or the failure's detail.
 row_for_id() {
   rf_i=0
   while [ "$rf_i" -lt 60 ]; do
     rf_row=$(rows_json | jq -ce --arg id "$1" 'map(select(.id == $id and .pid != null)) | first // empty' 2>/dev/null) \
       && { printf '%s\n' "$rf_row"; return 0; }
     if [ -f "$BATON_DAEMON_LOG" ]; then
-      rf_settled=$(grep "bg settled $1 (crashed): " "$BATON_DAEMON_LOG" | tail -1 | sed 's/.*(crashed): //') || true
+      rf_settled=$(grep -F "bg settled $1 (crashed): " "$BATON_DAEMON_LOG" | tail -1 | sed 's/.*(crashed): //') || true
       if [ -n "$rf_settled" ]; then
         echo "session $1 was backgrounded and crashed before init: $rf_settled"
         return 1
@@ -71,34 +54,41 @@ worktree_ensure() {
 
 # settings_compose <project> <milestone>: the dispatched settings file at
 # settings/<project>-<milestone>.json from the project's permissions.json: the mode as
-# documentation, allow and deny copied, no ask rules, the three hooks carrying the project key
-# and milestone on their command lines and pointing at the installed relay. Prints the path.
+# documentation, allow and deny copied, no ask rules, the three hooks carrying Baton's home, the
+# project key and the milestone on their command lines and pointing at the installed relay. A
+# permissions.json without deny rules fails the stage: a bypassPermissions session without the
+# rail is not dispatched. Prints the path.
 settings_compose() {
   sc_perm=$BATON_HOME/projects/$1/permissions.json
   sc_out=$BATON_HOME/settings/$1-$2.json
   [ -f "$sc_perm" ] || { echo "$sc_perm is missing"; return 1; }
   mkdir -p "$BATON_HOME/settings"
-  sc_json=$(jq -e --arg env "BATON_HOME=$BATON_HOME BATON_PROJECT=$1 BATON_MILESTONE=$2" --arg bin "$BATON_HOME/bin" '
-    { permissions: { defaultMode: "bypassPermissions",
-                     allow: (.permissions.allow // []),
-                     deny: (.permissions.deny // []) },
-      statusLine: { type: "command", command: "\($env) \($bin)/statusline" },
-      hooks: {
-        Stop:        [{ hooks: [{ type: "command", command: "\($env) \($bin)/stop-gate" }] }],
-        StopFailure: [{ hooks: [{ type: "command", command: "\($env) \($bin)/stop-failure" }] }] } }' \
-    "$sc_perm" 2>&1) || { echo "$sc_perm does not parse: $sc_json"; return 1; }
+  sc_json=$(jq -e --arg env "BATON_HOME='$BATON_HOME' BATON_PROJECT='$1' BATON_MILESTONE='$2'" --arg bin "$BATON_HOME/bin" '
+    if ((.permissions.deny // []) | length) == 0
+      then error("permissions.deny is empty; a bypassPermissions session needs the two deny classes") else . end
+    | { permissions: { defaultMode: "bypassPermissions",
+                       allow: (.permissions.allow // []),
+                       deny: .permissions.deny },
+        statusLine: { type: "command", command: "\($env) \($bin)/statusline" },
+        hooks: {
+          Stop:        [{ hooks: [{ type: "command", command: "\($env) \($bin)/stop-gate" }] }],
+          StopFailure: [{ hooks: [{ type: "command", command: "\($env) \($bin)/stop-failure" }] }] } }' \
+    "$sc_perm" 2>&1) || { echo "$sc_perm: $sc_json"; return 1; }
   printf '%s\n' "$sc_json" > "$sc_out.tmp"
   mv "$sc_out.tmp" "$sc_out"
   printf '%s\n' "$sc_out"
 }
 
-# prompt_from_brief <path> <brief> <heading>: the first fenced block after the line
+# prompt_from_brief <path> <brief> <heading>: the first fenced block under the line
 # "## <heading>" in the brief as it is on main — git show, never the working tree, so a person
-# mid-edit cannot change what a session receives. Prints the block's body.
+# mid-edit cannot change what a session receives. The search ends at the next "## " heading.
+# Prints the block's body.
 prompt_from_brief() {
   pb_text=$(git -C "$1" show "main:$2" 2>&1) || { echo "brief $2 is not on main: $pb_text"; return 1; }
-  pb_body=$(printf '%s\n' "$pb_text" | awk -v h="## $3" '
-    !found && $0 == h { found = 1; next }
+  pb_body=$(printf '%s\n' "$pb_text" | HEADING="## $3" awk '
+    function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
+    !found && trim($0) == ENVIRON["HEADING"] { found = 1; next }
+    found && !infence && /^## / { exit }
     found && !infence && /^```/ { infence = 1; next }
     found && infence && /^```/ { closed = 1; exit }
     found && infence { print }
@@ -109,8 +99,8 @@ prompt_from_brief() {
 # slot_line <prompt> <paragraph>: replaces the one paragraph beginning WHAT ELSE IS IN FLIGHT.
 # with <paragraph> and prints the result; fails if the prompt has no such paragraph.
 slot_line() {
-  sl_out=$(printf '%s\n' "$1" | awk -v rep="$2" '
-    /^WHAT ELSE IS IN FLIGHT\./ { print rep; skipping = 1; replaced = 1; next }
+  sl_out=$(printf '%s\n' "$1" | REP="$2" awk '
+    /^WHAT ELSE IS IN FLIGHT\./ { print ENVIRON["REP"]; skipping = 1; replaced = 1; next }
     skipping && !/^[ \t]*$/ { next }
     skipping { skipping = 0 }
     { print }
@@ -133,7 +123,7 @@ claude_bg() {
   bg_id=$(printf '%s\n' "$bg_stdout" | LC_ALL=en_US.UTF-8 awk '$1 == "backgrounded" && $3 ~ /^[0-9a-f]+$/ { print $3; exit }')
 }
 
-# dispatch_failed_classify <stderr>: the stage of a dispatch that produced no session, from the
+# dispatch_failed_classify <text>: the stage of a dispatch that produced no session, from the
 # four strings known from the binary; launch by default. The specific strings are matched before
 # the service line because the binary prints "Starting background service…" on the way to them.
 dispatch_failed_classify() {
@@ -152,23 +142,32 @@ caffeinate_hold() {
   "$BATON_CAFFEINATE" -i -w "$1" < /dev/null > /dev/null 2>&1 &
 }
 
-# dispatch_failed <project> <milestone> <stage> <detail>: the event and the message.
+# dispatch_failed <project> <milestone> <stage> <detail>: the event and the message. The detail
+# is the one field an outside process sizes (a whole stderr), so it is cut to 2000 bytes and
+# marked, keeping the line under log_event's 4 KB refusal.
 dispatch_failed() {
-  log_event dispatch_failed "$1" "$2" "" "" "$(jq -nc --arg s "$3" --arg d "$4" '{stage: $s, detail: $d}')"
-  echo "baton: dispatch of $1 $2 failed at $3: $4" >&2
+  df_detail=$4
+  df_truncated=false
+  if [ "$(printf '%s' "$df_detail" | wc -c | tr -d ' ')" -gt 2000 ]; then
+    df_detail=$(printf '%s' "$df_detail" | head -c 2000)
+    df_truncated=true
+  fi
+  log_event dispatch_failed "$1" "$2" "" "" "$(jq -nc --arg s "$3" --arg d "$df_detail" --argjson t "$df_truncated" \
+    '{stage: $s, detail: $d} | if $t then . + {detail_truncated: true} else . end')"
+  echo "baton: dispatch of $1 $2 failed at $3: $df_detail" >&2
 }
 
-# dispatch_one <project> <milestone> <plan json>: step 8 for one milestone.
+# dispatch_one <project> <milestone> <plan json> <rows json>: step 8 for one milestone.
 dispatch_one() {
-  do_project=$1; do_id=$2; do_plan=$3
-  do_pj=$BATON_HOME/projects/$do_project/project.json
-  do_path=$(jq -er .path "$do_pj")
+  do_project=$1; do_id=$2; do_plan=$3; do_rows=$4
+  do_path=$(project_path "$do_project")
   do_row=$(printf '%s' "$do_plan" | plan_row "$do_id")
   do_model=$(printf '%s' "$do_row" | jq -r .model)
   do_effort=$(printf '%s' "$do_row" | jq -r .effort)
   do_remote=$(printf '%s' "$do_row" | jq -r .remote)
   [ "$do_remote" = false ] || { echo "baton: $do_id is Remote: yes and remote dispatch is not built yet (M07)" >&2; return 2; }
-  do_attempt=$(( $(attempt_of "$do_project" "$do_id") + 1 ))
+  do_attempt=$(attempt_of "$do_project" "$do_id") || { echo "baton: $do_attempt" >&2; return 1; }
+  do_attempt=$((do_attempt + 1))
   do_name="Baton · $do_project · $do_id"
 
   do_wt=$(worktree_ensure "$do_path" "$do_id") || { dispatch_failed "$do_project" "$do_id" worktree "$do_wt"; return 1; }
@@ -181,9 +180,10 @@ dispatch_one() {
 
   do_brief=docs/milestones/$do_id.md
   do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
-  do_also=$(inflight_json "$do_project" | jq -r --arg me "$do_id" --argjson plan "$do_plan" '
+  do_inflight=$(inflight_json "$do_project" "$do_rows") || { echo "baton: $do_inflight" >&2; return 1; }
+  do_also=$(printf '%s' "$do_inflight" | jq -r --arg me "$do_id" --argjson plan "$do_plan" '
     ($plan.milestones | map(select(.status == "done") | .id)) as $done
-    | map(select(.milestone != $me and (($done | index(.milestone)) == null)))
+    | map(select(.milestone as $m | $m != $me and (($done | index($m)) == null)))
     | map("\(.milestone) (worktree \(.worktree | split("/") | last), brief docs/milestones/\(.milestone).md)")
     | join(", ")')
   do_slot=$(slot_line_text "$do_wt_path" "$do_branch" "$do_path" "$do_also" "$do_attempt" "$do_commit")
@@ -219,34 +219,31 @@ dispatch_one() {
 
   echo "backgrounded · $bg_id · $do_name"
   echo "session   $do_session (attempt $do_attempt)"
-  echo "worktree  $do_wt_path (branch $do_branch$([ "$do_reused" = true ] && echo ", reused at $do_commit"))"
+  if [ "$do_reused" = true ]; then
+    echo "worktree  $do_wt_path (branch $do_branch, reused at $do_commit)"
+  else
+    echo "worktree  $do_wt_path (branch $do_branch)"
+  fi
   echo "settings  $do_settings"
   echo "prompt    $do_prompt_path"
 }
 
 # verb_dispatch <project> <milestone>: refuse unless the plan makes the milestone eligible;
-# refuse if a live row already carries its name; then dispatch_one.
+# refuse if a live row already carries its name; then dispatch_one. Rows are read once here.
 verb_dispatch() {
-  vd_pj=$BATON_HOME/projects/$1/project.json
-  [ -f "$vd_pj" ] || { echo "baton: no project '$1' registered under $BATON_HOME/projects/" >&2; exit 2; }
-  vd_path=$(jq -er .path "$vd_pj") && vd_planrel=$(jq -er .plan "$vd_pj") \
-    || { echo "baton: $vd_pj lacks path or plan" >&2; exit 2; }
-  vd_file=$vd_path/$vd_planrel
-  [ -r "$vd_file" ] || { echo "baton: plan file $vd_file cannot be read" >&2; exit 1; }
-  if ! vd_plan=$(plan_tables "$vd_file"); then
-    printf '%s' "$vd_plan" | jq -r '"baton: plan \(.table) table, row \(.row), cell \(.cell): \(.detail)"' >&2
-    exit 1
-  fi
+  vd_plan=$(plan_of_project "$1") || { vd_st=$?; echo "$vd_plan" >&2; exit $vd_st; }
   printf '%s' "$vd_plan" | plan_row "$2" > /dev/null 2>&1 || { echo "baton: $2 is not in $1's plan" >&2; exit 2; }
-  if ! printf '%s' "$vd_plan" | plan_eligible | grep -qx "$2"; then
+  vd_rows=$(rows_json)
+  if ! printf '%s' "$vd_plan" | plan_eligible | grep -Fqx "$2"; then
+    vd_inflight=$(inflight_json "$1" "$vd_rows") || { echo "baton: $vd_inflight" >&2; exit 1; }
     echo "baton: $2 is not eligible; the plan reads:" >&2
-    printf '%s' "$vd_plan" | plan_render "$1" "$(inflight_json "$1")" | grep "^$2 " >&2
+    printf '%s' "$vd_plan" | plan_render "$1" "$vd_inflight" | awk -v id="$2" '$1 == id' >&2
     exit 2
   fi
   vd_name="Baton · $1 · $2"
-  if rows_json | jq -e --arg n "$vd_name" 'any(.[]; .name == $n and .pid != null)' > /dev/null; then
+  if printf '%s' "$vd_rows" | jq -e --arg n "$vd_name" 'any(.[]; .name == $n and .pid != null)' > /dev/null; then
     echo "baton: a live session named \"$vd_name\" already exists; nothing dispatched" >&2
     exit 2
   fi
-  dispatch_one "$1" "$2" "$vd_plan"
+  dispatch_one "$1" "$2" "$vd_plan" "$vd_rows"
 }

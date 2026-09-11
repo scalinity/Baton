@@ -10,7 +10,7 @@ S=${BATON_SHIM:?}
 record() {
   line="[cwd $PWD] claude"
   for a in "$@"; do
-    if [ "${#a}" -gt 200 ]; then a="<prompt ${#a} chars>"; fi
+    if [ "${#a}" -gt 200 ]; then a="<prompt>"; fi
     case "$a" in *" "*|*"·"*) line="$line '$a'" ;; *) line="$line $a" ;; esac
   done
   printf '%s\n' "$line" >> "$S/calls.log"

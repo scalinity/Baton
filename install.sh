@@ -39,16 +39,20 @@ if [ ! -f "$BATON_HOME/projects/$project/project.json" ]; then
 fi
 if [ ! -f "$BATON_HOME/projects/$project/permissions.json" ]; then
   # Two deny classes and nothing else (REQ-PERM-04): privilege escalation, and Baton's own state by
-  # named path — everything under BATON_HOME except inbox/. The // form is an absolute path.
+  # named path — everything under BATON_HOME except inbox/. The // form is an absolute path for the
+  # tools that take one; the Bash fragments catch a shell command that names the path, and can
+  # never be complete (D-026).
   jq -n --arg h "/$BATON_HOME" '
     { permissions: {
         allow: ["Bash(sh tests/run.sh:*)", "Bash(jq:*)"],
         deny: (
           ["Bash(sudo:*)", "Bash(su:*)", "Bash(doas:*)", "Bash(osascript * administrator privileges*)"]
-          + ["Read(\($h)/log.jsonl)", "Edit(\($h)/log.jsonl)", "Write(\($h)/log.jsonl)", "Bash(*.baton/log.jsonl*)"]
+          + ["Read(\($h)/log.jsonl)", "Edit(\($h)/log.jsonl)", "Write(\($h)/log.jsonl)"]
           + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock" ]
              | map("Edit(\($h)/\(.)/**)", "Write(\($h)/\(.)/**)"))
           + ["Edit(\($h)/config.json)", "Write(\($h)/config.json)", "Edit(\($h)/last-tick)", "Write(\($h)/last-tick)"]
+          + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick" ]
+             | map("Bash(*.baton/\(.)*)"))
         ) } }' > "$BATON_HOME/projects/$project/permissions.json"
 fi
 

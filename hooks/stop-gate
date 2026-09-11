@@ -42,9 +42,9 @@ if ! printf '%s' "$payload" | jq -e '.stop_hook_active == true' > /dev/null; the
 fi
 
 # The second stop: record the ending ourselves and let go.
-project=$BATON_PROJECT
-if [ -f "$BATON_HOME/projects/$BATON_PROJECT/project.json" ]; then
-  project=$(jq -r '.path' "$BATON_HOME/projects/$BATON_PROJECT/project.json")
+project=${BATON_PROJECT:-}
+if [ -n "$project" ] && [ -f "$BATON_HOME/projects/$project/project.json" ]; then
+  project=$(jq -r .path "$BATON_HOME/projects/$project/project.json")
 fi
 mkdir -p "$BATON_HOME/inbox"
 jq -nc --arg p "$project" --arg m "$milestone" --arg s "$sid" --arg d "$message" \

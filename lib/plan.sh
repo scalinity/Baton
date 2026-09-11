@@ -19,9 +19,10 @@ plan_fail() {
 #   M <row> <ID> <Depends on> <Model> <Effort> <Remote> <Status>
 #   G <row> <Gate> <Holds> <Cleared>
 #   T <table>                      the table was found
-#   E <table> <row> <cell> <detail> a structural failure (a required column missing)
-# Extra columns are ignored; \| inside a cell is an escaped pipe; the first table with each
-# header cell wins.
+#   E <table> <row> <cell> <detail> a structural failure: a required column missing, a row short
+# Extra columns are ignored; \| inside a cell is an escaped pipe; a row without a trailing pipe
+# still counts its last part as a cell; a body row with fewer cells than the header fails; the
+# first table with each header cell wins.
 plan_extract() {
   awk -v OFS="$plan_us" '
     function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
@@ -29,6 +30,7 @@ plan_extract() {
       split("", C)
       gsub(/\\\|/, "\001", line)
       n = split(line, parts, "|")
+      if (trim(parts[n]) != "") n++
       nc = 0
       for (i = 2; i < n; i++) { c = trim(parts[i]); gsub(/\001/, "|", c); C[++nc] = c }
       return nc
@@ -41,6 +43,7 @@ plan_extract() {
         print "E", table, "header", want[i], "column \"" want[i] "\" is missing from the header"
         exit 0
       }
+      need[table] = nc
       print "T", table
     }
     /^[ \t]*\|/ {
@@ -53,6 +56,11 @@ plan_extract() {
       if (state == "m-sep") { state = "m"; row = 0; next }
       if (state == "g-sep") { state = "g"; row = 0; next }
       row++
+      table = (state == "m") ? "milestones" : "gates"
+      if (nc < need[table]) {
+        print "E", table, (C[1] != "" ? C[1] : "#" row), "-", "the row has " nc " cells and the header has " need[table]
+        exit 0
+      }
       if (state == "m") print "M", row, C[col["ID"]], C[col["Depends on"]], C[col["Model"]], C[col["Effort"]], C[col["Remote"]], C[col["Status"]]
       if (state == "g") print "G", row, C[col["Gate"]], C[col["Holds"]], C[col["Cleared"]]
       next
@@ -75,6 +83,7 @@ parse_depends() {
     -|—) return 0 ;;
     '') return 1 ;;
   esac
+  set -f
   for pd_tok in $pd_cell; do
     if printf '%s' "$pd_tok" | grep -Eq '^M[0-9]+-M[0-9]+$'; then
       pd_lo=${pd_tok%-M*}; pd_lo=${pd_lo#M}
@@ -82,16 +91,17 @@ parse_depends() {
       pd_width=${#pd_lo}
       pd_lo=$(printf '%s' "$pd_lo" | sed 's/^0*//'); pd_lo=${pd_lo:-0}
       pd_hi=$(printf '%s' "$pd_hi" | sed 's/^0*//'); pd_hi=${pd_hi:-0}
-      [ "$pd_lo" -le "$pd_hi" ] || return 1
+      [ "$pd_lo" -le "$pd_hi" ] || { set +f; return 1; }
       pd_i=$pd_lo
       while [ "$pd_i" -le "$pd_hi" ]; do
         printf "M%0${pd_width}d\n" "$pd_i"
         pd_i=$((pd_i + 1))
       done
     else
-      parse_id "$pd_tok" || return 1
+      parse_id "$pd_tok" || { set +f; return 1; }
     fi
   done
+  set +f
 }
 
 # parse_model <cell> <models json>: an alias from config.json's models (printed as its value) or a
@@ -148,6 +158,8 @@ plan_tables() {
         pt_effort=$(parse_effort "$pt_e") || { plan_fail milestones "$pt_rowname" Effort "\"$pt_e\" is not blank or low|medium|high|xhigh|max"; return 1; }
         pt_remote=$(parse_remote "$pt_f") || { plan_fail milestones "$pt_rowname" Remote "\"$pt_f\" is not blank or yes"; return 1; }
         pt_status=$(parse_status "$pt_g") || { plan_fail milestones "$pt_rowname" Status "\"$pt_g\" is not blank, done or held"; return 1; }
+        printf '%s' "$pt_ms" | jq -e --arg id "$pt_b" 'any(.[]; .id == $id) | not' > /dev/null \
+          || { plan_fail milestones "$pt_rowname" ID "\"$pt_b\" appears twice"; return 1; }
         pt_ms=$(printf '%s' "$pt_ms" | jq -c --arg row "$pt_a" --arg id "$pt_b" --argjson dep "$pt_dep" \
           --arg model "$pt_model" --arg effort "$pt_effort" --argjson remote "$pt_remote" --arg status "$pt_status" \
           '. + [{row: ($row | tonumber), id: $id, depends: $dep, model: $model, effort: $effort, remote: $remote, status: $status}]')
@@ -171,9 +183,7 @@ RAW
 }
 
 # The readers below take plan_tables' document on stdin.
-plan_rows()  { jq -c '.milestones[]'; }
-plan_gates() { jq -c '.gates[]'; }
-plan_row()   { jq -ce --arg id "$1" '.milestones[] | select(.id == $id)'; }
+plan_row() { jq -ce --arg id "$1" '.milestones[] | select(.id == $id)'; }
 
 # plan_eligible: ids whose dependencies all read done, whose Status is blank, and which no
 # uncleared gate holds. One per line, in row order.
@@ -189,8 +199,8 @@ plan_eligible() {
 
 # plan_render <project> <inflight json>: the graph, one line per milestone, on stdin.
 plan_render() {
-  jq -r --arg inflight "$2" '
-    ($inflight | fromjson | map(.milestone)) as $flying
+  jq -r --argjson inflight "$2" '
+    ($inflight | map(.milestone)) as $flying
     | (.milestones | map(select(.status == "done") | .id)) as $done
     | (.gates | map(select(.cleared == ""))) as $open
     | .milestones[]
@@ -206,23 +216,36 @@ plan_render() {
     | "\(.id)  \($state)  model \(.model)  effort \(if .effort == "" then "-" else .effort end)  remote \(if .remote then "yes" else "no" end)"'
 }
 
-# verb_plan <project>: project.json → the plan file → the graph; every Model cell validated by
-# the parse; the project's widening events newest first. Writes nothing.
-verb_plan() {
-  vp_pj=$BATON_HOME/projects/$1/project.json
-  [ -f "$vp_pj" ] || { echo "baton: no project '$1' registered under $BATON_HOME/projects/" >&2; exit 2; }
-  vp_path=$(jq -er .path "$vp_pj") && vp_plan=$(jq -er .plan "$vp_pj") \
-    || { echo "baton: $vp_pj lacks path or plan" >&2; exit 2; }
-  vp_file=$vp_path/$vp_plan
-  [ -r "$vp_file" ] || { echo "baton: plan file $vp_file cannot be read" >&2; exit 1; }
-  if ! vp_tables=$(plan_tables "$vp_file"); then
-    printf '%s' "$vp_tables" | jq -r '"baton: plan \(.table) table, row \(.row), cell \(.cell): \(.detail)"' >&2
-    exit 1
+# project_path <project>: the registered canonical checkout.
+project_path() {
+  jq -er .path "$BATON_HOME/projects/$1/project.json" 2>/dev/null
+}
+
+# plan_of_project <project>: project.json → the plan file → plan_tables' document; on failure
+# the message a verb prints, with status 2 for a registration problem and 1 for a plan problem.
+plan_of_project() {
+  pp_pj=$BATON_HOME/projects/$1/project.json
+  [ -f "$pp_pj" ] || { echo "baton: no project '$1' registered under $BATON_HOME/projects/"; return 2; }
+  pp_path=$(jq -er .path "$pp_pj" 2>/dev/null) && pp_plan=$(jq -er .plan "$pp_pj" 2>/dev/null) \
+    || { echo "baton: $pp_pj lacks path or plan"; return 2; }
+  pp_file=$pp_path/$pp_plan
+  [ -r "$pp_file" ] || { echo "baton: plan file $pp_file cannot be read"; return 1; }
+  if ! pp_tables=$(plan_tables "$pp_file"); then
+    printf '%s' "$pp_tables" | jq -r '"baton: plan \(.table) table, row \(.row), cell \(.cell): \(.detail)"'
+    return 1
   fi
-  echo "plan $1: $vp_file"
-  printf '%s' "$vp_tables" | plan_render "$1" "$(inflight_json "$1")"
+  printf '%s\n' "$pp_tables"
+}
+
+# verb_plan <project>: the graph as the tick sees it; every Model cell validated by the parse;
+# the project's widening events newest first. Writes nothing.
+verb_plan() {
+  vp_tables=$(plan_of_project "$1") || { vp_st=$?; echo "$vp_tables" >&2; exit $vp_st; }
+  echo "plan $1: $(project_path "$1")/$(jq -r .plan "$BATON_HOME/projects/$1/project.json")"
+  vp_inflight=$(inflight_json "$1" "$(rows_json)") || { echo "baton: $vp_inflight" >&2; exit 1; }
+  printf '%s' "$vp_tables" | plan_render "$1" "$vp_inflight"
   printf '%s' "$vp_tables" | jq -r '.gates[] | "gate \"\(.gate)\" holds \(.holds | join(", "))\(if .cleared == "" then "" else ", cleared by " + .cleared end)"'
-  vp_w=$(widenings_json "$1")
+  vp_w=$(widenings_json "$1") || { echo "baton: $vp_w" >&2; exit 1; }
   if [ "$(printf '%s' "$vp_w" | jq length)" -eq 0 ]; then
     echo "widenings: none"
   else

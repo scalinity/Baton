@@ -1,0 +1,1 @@
+BATON_MILESTONE=T01 "$ROOT/hooks/stop-gate" < "$ROOT/tests/payloads/stop-active.json"

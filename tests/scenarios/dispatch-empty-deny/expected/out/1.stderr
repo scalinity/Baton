@@ -1,0 +1,1 @@
+baton: dispatch of Fixture M02 failed at settings: @TMP@/home/projects/Fixture/permissions.json: jq: error (at @TMP@/home/projects/Fixture/permissions.json:1): permissions.deny is empty; a bypassPermissions session needs the two deny classes
