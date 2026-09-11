@@ -1,0 +1,9 @@
+You are implementing milestone M02 of Fixture. One line that never changes.
+
+WHAT ELSE IS IN FLIGHT. You are working in @TMP@/Fixture-M02 on branch m02; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Nothing else is in flight. Stage only your own paths; never git add -A. This is attempt 2 at this milestone; a previous attempt left work on this branch at ba9a434683f005ec6296bfcd5674a8f2379f51ab, and the brief may hold completion evidence, which the recovery clause covers. Do not start the milestone after this one.
+
+STARTUP ORDER. Read CLAUDE.md, then the brief.
+
+CONSTRAINTS. Stage only your own paths; never git add -A.
+
+CLOSE-OUT. Write ~/.baton/inbox/M02-$CLAUDE_CODE_SESSION_ID.json and print it last in a baton fence. Do not start M03.

@@ -1,0 +1,2 @@
+. "$ROOT/lib/log.sh"
+log_event probe Fixture M02 "" "" '{"note": "must be refused"}'

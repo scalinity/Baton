@@ -1,0 +1,30 @@
+#!/bin/sh
+# StopFailure: fires instead of Stop on an API error. Writes the api-error artifact — outcome
+# stopped, reason api-error, the error, its details when present, and the last assistant message
+# as the detail. Output and exit code are ignored by the CLI. A handover the session already wrote
+# is left alone: the session's own word outranks the hook's.
+set -eu
+BATON_HOME=${BATON_HOME:-$HOME/.baton}
+BATON_DATE=${BATON_DATE:-date}
+
+payload=$(cat)
+sid=$(printf '%s' "$payload" | jq -r '.session_id // empty')
+milestone=${BATON_MILESTONE:-}
+[ -n "$sid" ] && [ -n "$milestone" ] || exit 0
+
+artifact=$BATON_HOME/inbox/$milestone-$sid.json
+[ -f "$artifact" ] && exit 0
+
+project=${BATON_PROJECT:-}
+if [ -f "$BATON_HOME/projects/$BATON_PROJECT/project.json" ]; then
+  project=$(jq -r '.path' "$BATON_HOME/projects/$BATON_PROJECT/project.json")
+fi
+mkdir -p "$BATON_HOME/inbox"
+printf '%s' "$payload" | jq -c --arg p "$project" --arg m "$milestone" --arg s "$sid" \
+  --arg at "$("$BATON_DATE" -u +%Y-%m-%dT%H:%M:%SZ)" '
+  {baton: 1, project: $p, milestone: $m, session: $s, outcome: "stopped", reason: "api-error",
+   error: (.error // "unknown")}
+  + (if has("error_details") and .error_details != null then {error_details: .error_details} else {} end)
+  + {detail: (.last_assistant_message // ""), written_at: $at}' > "$artifact.tmp"
+mv "$artifact.tmp" "$artifact"
+exit 0

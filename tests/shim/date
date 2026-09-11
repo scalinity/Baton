@@ -1,0 +1,4 @@
+#!/bin/sh
+# The clock shim: prints the scenario's now whatever the format asked for.
+set -eu
+cat "${BATON_SHIM:?}/now"

@@ -1,0 +1,1 @@
+BATON_PROJECT=Fixture BATON_MILESTONE=T01 "$ROOT/hooks/stop-gate" < "$ROOT/tests/payloads/stop-file.json"

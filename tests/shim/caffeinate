@@ -1,0 +1,4 @@
+#!/bin/sh
+# The caffeinate shim: records its argv and exits.
+set -eu
+printf 'caffeinate %s\n' "$*" >> "${BATON_SHIM:?}/calls.log"

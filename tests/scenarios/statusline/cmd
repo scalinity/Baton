@@ -1,0 +1,1 @@
+BATON_PROJECT=Fixture BATON_MILESTONE=T01 "$ROOT/hooks/statusline" < "$ROOT/tests/payloads/statusline.json"

@@ -1,0 +1,58 @@
+#!/bin/sh
+# baton — the relay's one script. Verb dispatch only; every verb's work lives under lib/.
+# The four seams are read here, once, and exported for the libraries and the shims.
+set -eu
+
+BATON_CLAUDE=${BATON_CLAUDE:-/Users/danny/.local/bin/claude}
+BATON_DATE=${BATON_DATE:-date}
+BATON_CAFFEINATE=${BATON_CAFFEINATE:-/usr/bin/caffeinate}
+BATON_HOME=${BATON_HOME:-$HOME/.baton}
+export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_HOME
+
+here=$(cd "$(dirname "$0")" && pwd)
+# In the checkout the libraries sit beside bin/; in the installed relay they sit under bin/lib/.
+if [ -d "$here/lib" ]; then BATON_LIB=$here/lib; else BATON_LIB=$here/../lib; fi
+. "$BATON_LIB/lock.sh"
+. "$BATON_LIB/log.sh"
+. "$BATON_LIB/plan.sh"
+. "$BATON_LIB/templates.sh"
+. "$BATON_LIB/dispatch.sh"
+
+usage() {
+  cat <<USAGE
+usage: baton <verb> ...
+  tick                               not yet: M03
+  answer <milestone> <ruling | n>    not yet: M05
+  status                             not yet: M02
+  plan <project>                     print the graph as the tick sees it; validate every Model cell
+  dispatch <project> <milestone>     step 8 by hand: worktree, settings, prompt, claude --bg, one event
+  allow <milestone> '<rule>'         not yet: M05
+USAGE
+}
+
+verb=${1:-}
+case "$verb" in
+  plan)
+    [ $# -eq 2 ] || { usage >&2; exit 2; }
+    lock_take
+    verb_plan "$2"
+    ;;
+  dispatch)
+    [ $# -eq 3 ] || { usage >&2; exit 2; }
+    lock_take
+    verb_dispatch "$2" "$3"
+    ;;
+  tick|answer|status|allow)
+    echo "baton: $verb is not built yet" >&2
+    usage >&2
+    exit 2
+    ;;
+  ''|help|-h|--help)
+    usage
+    ;;
+  *)
+    echo "baton: unknown verb '$verb'" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

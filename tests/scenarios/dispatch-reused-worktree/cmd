@@ -1,0 +1,4 @@
+"$BATON" dispatch Fixture M02
+# Before the second run the session's process is gone: the row stays but loses its pid, which is
+# the crash tell. The second dispatch then reuses the worktree as attempt 2.
+jq 'map(.pid = null)' "$SHIM/rows.json" > "$SHIM/rows.json.tmp" && mv "$SHIM/rows.json.tmp" "$SHIM/rows.json"

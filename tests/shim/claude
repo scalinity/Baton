@@ -1,0 +1,50 @@
+#!/bin/sh
+# The claude shim: plays the roles the relay sees. State under $BATON_SHIM: rows.json (what
+# agents --json answers), calls.log (every call's argv, one line each), now, and the knobs a
+# scenario sets — bg.stderr (printed on stderr by --bg) and bg.fail (--bg prints no backgrounded
+# line and exits with the file's number).
+set -eu
+S=${BATON_SHIM:?}
+
+record() {
+  line="[cwd $PWD] claude"
+  for a in "$@"; do
+    if [ "${#a}" -gt 200 ]; then a="<prompt ${#a} chars>"; fi
+    case "$a" in *" "*|*"·"*) line="$line '$a'" ;; *) line="$line $a" ;; esac
+  done
+  printf '%s\n' "$line" >> "$S/calls.log"
+}
+
+case "${1:-}" in
+  agents)
+    record "$@"
+    cat "$S/rows.json"
+    ;;
+  --bg)
+    record "$@"
+    name=; shift
+    while [ $# -gt 1 ]; do
+      case "$1" in -n) name=$2; shift ;; esac
+      shift
+    done
+    if [ -f "$S/bg.stderr" ]; then cat "$S/bg.stderr" >&2; fi
+    if [ -f "$S/bg.fail" ]; then exit "$(cat "$S/bg.fail")"; fi
+    n=$(cat "$S/bg.count" 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" > "$S/bg.count"
+    id=$(printf '0badc0d%d' "$n")
+    printf 'backgrounded · %s · %s\n' "$id" "$name"
+    printf '  claude agents             list sessions\n  claude attach %s    open in this terminal\n  claude logs %s      show recent output\n  claude stop %s      stop this session\n' "$id" "$id" "$id"
+    jq -c --arg id "$id" --arg name "$name" --arg cwd "$PWD" --arg n "$n" \
+      '. + [{pid: (4240 + ($n | tonumber)), id: $id, cwd: $cwd, kind: "background", startedAt: 1789200000000,
+             sessionId: "\($id)-0000-4000-8000-000000000000", name: $name, status: "busy", state: "working"}]' \
+      "$S/rows.json" > "$S/rows.json.tmp"
+    mv "$S/rows.json.tmp" "$S/rows.json"
+    ;;
+  stop)
+    record "$@"
+    ;;
+  *)
+    record "$@"
+    echo "shim: unplayed call: $*" >&2
+    exit 1
+    ;;
+esac
