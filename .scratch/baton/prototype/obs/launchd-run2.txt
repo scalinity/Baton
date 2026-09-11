@@ -1,0 +1,23 @@
+=== Run C pass 2 ===
+at:   2026-09-11T09:41:36Z
+LANG: [UNSET]  LC_ALL: [UNSET]
+
+--- TCC: which shell operations work under ~/Documents? ---
+ls dir:        ls: /Users/danny/Documents/Apps/Baton/.scratch/trial/project: Operation not permitted
+cat README:    cat: /Users/danny/Documents/Apps/Baton/.scratch/trial/project/README.md: Operation not permitted
+test -r README: YES
+stat README:   129 bytes
+git -C status: fatal: Unable to read current working directory: Operation not permitted
+git -C log:    fatal: Unable to read current working directory: Operation not permitted
+write probe:   OK
+
+--- item 17: caffeinate -i -w <pid>, id parsed in C locale ---
+backgrounded · c9b61164 · Baton trial L
+parsed id: [c9b61164]
+row pid: [83325]
+caffeinate pid: 83999 watching 83325
+caffeinate alive after 3s: YES
+   PreventUserIdleSystemSleep     1
+   pid 781(powerd): [0x0003f3bb00019670] 14:19:22 PreventUserIdleSystemSleep named: "Powerd - Prevent sleep while display is on"  
+
+=== pass 2 exiting 2026-09-11T09:41:48Z ===

@@ -1,0 +1,71 @@
+{
+  "permissions": {
+    "defaultMode": "auto",
+    "allow": [
+      "Bash(xcodebuild:*)",
+      "Bash(sw_vers:*)"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(osascript * administrator privileges*)"
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "BATON_MILESTONE=T01 BATON_PROJECT=/Users/danny/Documents/Apps/Baton/.scratch/trial/project /Users/danny/Documents/Apps/Baton/.scratch/baton/prototype/hooks/statusline.sh"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BATON_MILESTONE=T01 BATON_PROJECT=/Users/danny/Documents/Apps/Baton/.scratch/trial/project /Users/danny/Documents/Apps/Baton/.scratch/baton/prototype/hooks/stop-gate.sh"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BATON_MILESTONE=T01 BATON_PROJECT=/Users/danny/Documents/Apps/Baton/.scratch/trial/project /Users/danny/Documents/Apps/Baton/.scratch/baton/prototype/hooks/stop-failure.sh"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BATON_MILESTONE=T01 BATON_PROJECT=/Users/danny/Documents/Apps/Baton/.scratch/trial/project /Users/danny/Documents/Apps/Baton/.scratch/baton/prototype/hooks/permission-request.sh"
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BATON_MILESTONE=T01 BATON_PROJECT=/Users/danny/Documents/Apps/Baton/.scratch/trial/project /Users/danny/Documents/Apps/Baton/.scratch/baton/prototype/hooks/permission-denied.sh"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BATON_MILESTONE=T01 BATON_PROJECT=/Users/danny/Documents/Apps/Baton/.scratch/trial/project /Users/danny/Documents/Apps/Baton/.scratch/baton/prototype/hooks/notification.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

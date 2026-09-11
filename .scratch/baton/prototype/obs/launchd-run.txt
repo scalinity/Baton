@@ -1,0 +1,54 @@
+=== Run C: launchd context ===
+at:    2026-09-11T09:39:43Z
+PATH:  [/usr/bin:/bin:/usr/sbin:/sbin]
+HOME:  [/Users/danny]
+USER:  [danny]
+uid:   501  ppid: 1
+
+--- TCC: can this job READ ~/Documents? ---
+read ~/Documents trial project: NO (ls: /Users/danny/Documents/Apps/Baton/.scratch/trial/project: Operation not permitted)
+read ~/.baton: YES
+
+--- item 12: is claude on launchd's PATH, and does the absolute path work? ---
+claude on PATH: NO
+absolute path --version: 2.1.268 (Claude Code)
+
+--- item 13: daemon status BEFORE dispatch ---
+not running
+
+bg sessions:
+  sock dir:     /tmp/cc-daemon-501/4724c2aa
+  control.sock: unreachable (connect ENOENT /tmp/cc-daemon-501/4724c2aa/control.sock)
+  bg workers:   0 in roster.json (control unreachable)
+  roster.json:  updated 279s ago
+  daemon.log:   3.1KB at /Users/danny/.claude/daemon.log
+
+--- item 12 + 15: dispatch by absolute path (needs Keychain) ---
+cwd now: /Users/danny/Documents/Apps/Baton/.scratch/trial/project
+Starting background service…
+backgrounded · 2e0ab096 · Baton trial K
+  claude agents             list sessions
+  claude attach 2e0ab096    open in this terminal
+  claude logs 2e0ab096      show recent output
+  claude stop 2e0ab096      stop this session
+parsed id: []
+
+--- item 13: daemon status AFTER dispatch ---
+pid:     83297
+version: 2.1.268
+uptime:  0s
+origin:  transient — started on-demand by `claude --bg` (pid 83277) in /Users/danny/Documents/Apps/Baton/.scratch/trial/project
+config:  /Users/danny/.claude/daemon.json
+
+--- item 17: caffeinate -i -w <pid> ---
+row pid: []
+no pid in row - cannot caffeinate
+
+--- row as the script sees it ---
+{"pid":83310,"id":"2e0ab096","cwd":"/Users/danny/Documents/Apps/Baton/.scratch/trial/project","kind":"background","startedAt":1789119601445,"sessionId":"2e0ab096-0620-4d6f-8f8a-ad1c5d19c11f","name":"Baton trial K","status":"idle","state":"done"}
+
+--- item 32: osascript -> Messages ---
+SENT: participant form succeeded
+osascript exit code: 0
+
+=== script exiting at 2026-09-11T09:40:14Z ===

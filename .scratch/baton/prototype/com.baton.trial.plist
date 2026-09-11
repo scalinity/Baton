@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.baton.trial</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>/Users/danny/Documents/Apps/Baton/.scratch/baton/prototype/launchd-probe.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>AbandonProcessGroup</key>
+    <true/>
+    <key>StandardErrorPath</key>
+    <string>/Users/danny/Documents/Apps/Baton/.scratch/baton/prototype/obs/launchd-stderr.txt</string>
+    <key>StandardOutPath</key>
+    <string>/Users/danny/Documents/Apps/Baton/.scratch/baton/prototype/obs/launchd-stdout.txt</string>
+</dict>
+</plist>

@@ -1,0 +1,1 @@
+/bin/sh: /Users/danny/Documents/Apps/Baton/.scratch/baton/prototype/launchd-probe.sh: Operation not permitted
