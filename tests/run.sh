@@ -115,7 +115,14 @@ for sc in "$here"/scenarios/*/; do
   fi
   find "$tmp/got" -type f -exec sed -i '' "s|$tmp|@TMP@|g; s|$commit|@COMMIT@|g; s|$offmain|@OFFMAIN@|g" {} +
 
-  if d=$(diff -r "$sc/expected" "$tmp/got" 2>&1); then
+  # git cannot hold an empty directory, so a scenario whose inbox ends empty would compare
+  # against an expected/ that has no inbox at all on a fresh checkout. Neither side may
+  # depend on something the repository cannot represent: prune empty directories from both,
+  # and diff a pruned copy of expected/ rather than expected/ itself.
+  cp -R "$sc/expected" "$tmp/want" 2>/dev/null || mkdir "$tmp/want"
+  find "$tmp/want" "$tmp/got" -type d -empty -delete 2>/dev/null || true
+
+  if d=$(diff -r "$tmp/want" "$tmp/got" 2>&1); then
     echo "ok    $name"
   else
     echo "FAIL  $name"
