@@ -27,7 +27,7 @@ Rules for every session (also in `CLAUDE.md`):
 
 | ID | Title | Depends on | Model | Effort | Remote | Status | User-visible result | Destroys anything? |
 |---|---|---|---|---|---|---|---|---|
-| M01 | Plan reader and hand-run dispatch | – | fable | | | | `baton plan Baton` prints the graph; `baton dispatch Baton M02` creates the worktree, composes the settings file and the slot line, writes the prompt sidecar, runs `claude --bg` and logs the dispatch; the three hooks and the install script exist | No (creates a worktree and a branch) |
+| M01 | Plan reader and hand-run dispatch | – | fable | | | done | `baton plan Baton` prints the graph; `baton dispatch Baton M02` creates the worktree, composes the settings file and the slot line, writes the prompt sidecar, runs `claude --bg` and logs the dispatch; the three hooks and the install script exist | No (creates a worktree and a branch) |
 | M02 | The inbox and the log | M01 | opus | | | | The inbox is consumed: provenance, `merged_as`, brief pointers, archive with the consumed-at suffix, rejection; the whole event table and the fifteen derivations exist with fixtures; `baton status` prints the view | No |
 | M03 | The tick under launchd | M02 | opus | | | | `baton tick` runs the eight steps under the lock and writes the marker; rows are reconciled (crash, stall, question, takeover, gap); the plist runs it every minute through the granted shell; caffeinate is armed | No (loads a LaunchAgent) |
 | M04 | Waits, the ladder and continuations | M03 | opus | | | | An API error is waited out and resumed flagless with the continue template; a `no-handover` climbs the ladder; a copy fork is recorded; the per-model hold bites | No |

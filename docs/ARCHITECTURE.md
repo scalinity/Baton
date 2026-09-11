@@ -96,9 +96,10 @@ which is the other reason the running copy lives under `~/.baton/`.
 **The composed settings file**, `~/.baton/settings/<project>-<milestone>.json`. The mode rides the
 flag (`--permission-mode bypassPermissions`); `defaultMode` is repeated as documentation. Allow and
 deny are copied from the project's `permissions.json`; no `ask` rules. Three hooks, each carrying
-the project key and milestone as environment on its command line, each pointing at the installed
-relay. The prototype's `settings-A.json` and `hooks/` under `.scratch/baton/prototype/` are the
-working example this is cut from.
+Baton's home, the project key and the milestone as environment on its command line, each pointing
+at the installed relay. The prototype's `settings-A.json` and `hooks/` under
+`.scratch/baton/prototype/` are the working example this is cut from; `settings_compose` in
+`lib/dispatch.sh` writes it.
 
 ```json
 {
@@ -109,31 +110,44 @@ working example this is cut from.
       "Bash(sudo:*)", "Bash(su:*)", "Bash(doas:*)",
       "Bash(osascript * administrator privileges*)",
       "Read(//Users/danny/.baton/log.jsonl)", "Edit(//Users/danny/.baton/log.jsonl)", "Write(//Users/danny/.baton/log.jsonl)",
+      "Bash(*.baton/log.jsonl*)",
       "Edit(//Users/danny/.baton/archive/**)", "Write(//Users/danny/.baton/archive/**)",
       "Edit(//Users/danny/.baton/rejected/**)", "Write(//Users/danny/.baton/rejected/**)",
       "Edit(//Users/danny/.baton/prompts/**)", "Write(//Users/danny/.baton/prompts/**)",
       "Edit(//Users/danny/.baton/settings/**)", "Write(//Users/danny/.baton/settings/**)",
       "Edit(//Users/danny/.baton/projects/**)", "Write(//Users/danny/.baton/projects/**)",
-      "Edit(//Users/danny/.baton/bin/**)", "Write(//Users/danny/.baton/bin/**)"
+      "Edit(//Users/danny/.baton/bin/**)", "Write(//Users/danny/.baton/bin/**)",
+      "Edit(//Users/danny/.baton/status/**)", "Write(//Users/danny/.baton/status/**)",
+      "Edit(//Users/danny/.baton/lock/**)", "Write(//Users/danny/.baton/lock/**)",
+      "Edit(//Users/danny/.baton/config.json)", "Write(//Users/danny/.baton/config.json)",
+      "Edit(//Users/danny/.baton/last-tick)", "Write(//Users/danny/.baton/last-tick)",
+      "Bash(*.baton/archive*)", "Bash(*.baton/rejected*)", "Bash(*.baton/prompts*)",
+      "Bash(*.baton/settings*)", "Bash(*.baton/projects*)", "Bash(*.baton/status*)",
+      "Bash(*.baton/lock*)", "Bash(*.baton/config.json*)", "Bash(*.baton/last-tick*)"
     ]
   },
   "statusLine": {
     "type": "command",
-    "command": "BATON_PROJECT=Baton BATON_MILESTONE=M02 /Users/danny/.baton/bin/statusline"
+    "command": "BATON_HOME='/Users/danny/.baton' BATON_PROJECT='Baton' BATON_MILESTONE='M02' /Users/danny/.baton/bin/statusline"
   },
   "hooks": {
     "Stop": [{ "hooks": [{ "type": "command",
-      "command": "BATON_PROJECT=Baton BATON_MILESTONE=M02 /Users/danny/.baton/bin/stop-gate" }] }],
+      "command": "BATON_HOME='/Users/danny/.baton' BATON_PROJECT='Baton' BATON_MILESTONE='M02' /Users/danny/.baton/bin/stop-gate" }] }],
     "StopFailure": [{ "hooks": [{ "type": "command",
-      "command": "BATON_PROJECT=Baton BATON_MILESTONE=M02 /Users/danny/.baton/bin/stop-failure" }] }]
+      "command": "BATON_HOME='/Users/danny/.baton' BATON_PROJECT='Baton' BATON_MILESTONE='M02' /Users/danny/.baton/bin/stop-failure" }] }]
   }
 }
 ```
 
-The exact deny-rule forms for Baton's state paths are M01's to settle from the prototype's working
-example; the two classes are fixed ("Where an escalation goes" §3): privilege escalation, and
-Baton's own state by named path — a session writes `~/.baton/inbox/` and nothing else under
-`~/.baton/`. Under `bypassPermissions` the allow rules allow nothing and cost nothing; they are kept
+The deny list above is the one `install.sh` writes for Baton (D-026). The two classes are fixed
+("Where an escalation goes" §3): privilege escalation, and Baton's own state by named path — a
+session writes `~/.baton/inbox/` and nothing else under `~/.baton/`. The path forms are
+`Read|Edit|Write(//<absolute path>)` for the tools that take a path and `Bash(*.baton/<name>*)` for
+a shell command that names the path (`bin` excepted, so a session can run `baton status`); each
+named path is one rule, so a directory the list does not name (one a session creates itself under
+`~/.baton/`) is not denied, and a Bash fragment is never complete, which is the stated limit of the
+class. A `permissions.json` with no deny rules fails the `settings` stage rather than dispatching
+without the rail. Under `bypassPermissions` the allow rules allow nothing and cost nothing; they are kept
 so that a hand-started session under `default` passing the same file behaves as a dispatched one.
 
 **The status feed**, `~/.baton/status/<session_id>.json`: the statusLine command's stdin, verbatim.
@@ -280,8 +294,8 @@ stream the note goes to is live item 46; capture both.
 
 ### 4.4 The injected hooks
 
-Three, from `--settings`, each a shell script under `~/.baton/bin/` taking `BATON_PROJECT` and
-`BATON_MILESTONE` from its environment and the hook payload on stdin. The prototype's
+Three, from `--settings`, each a shell script under `~/.baton/bin/` taking `BATON_HOME`,
+`BATON_PROJECT` and `BATON_MILESTONE` from its environment and the hook payload on stdin. The prototype's
 `.scratch/baton/prototype/hooks/{stop-gate,stop-failure,statusline}.sh` are the working examples
 and the captured payloads under `obs/` are their fixtures.
 
@@ -628,21 +642,32 @@ is the transcript record's own `timestamp`, carried exactly as it arrived.
 | `BATON_DATE` | `date` | prints the scenario's `now`, advanced per tick by the runner |
 | `BATON_CAFFEINATE` | `/usr/bin/caffeinate` | appends its argv to `calls.log` and exits |
 | `BATON_HOME` | `~/.baton` | the scenario's own state directory |
+| `BATON_DAEMON_LOG` | `~/.claude/daemon.log` | the service's own log, read only for `bg settled <id> (crashed): <detail>` when a backgrounded worker never gets a row (item 47); the claude shim writes the line when told to |
 
 **Scenarios** under `tests/scenarios/<name>/`:
 
 ```
-project/          a fixture project: a git repo with docs/MILESTONES.md, docs/milestones/M*.md, CLAUDE.md
-home/             the BATON_HOME to start from: projects/, inbox/, log.jsonl, status/, last-tick
-rows.json         what claude agents --json answers
-now               the clock's first reading
-expected/         the BATON_HOME after one tick (diffed), and calls.log
+cmd               the commands to run, sourced twice with $BATON, $ROOT, $SCENARIO and $SHIM set
+home/             the BATON_HOME to start from: config.json, projects/, inbox/, log.jsonl, status/;
+                  @TMP@ in any file becomes the scenario's temporary root
+rows.json         what claude agents --json answers first
+now               the clock's reading
+shim/             optional: the claude shim's knobs (bg.stderr, bg.fail, bg.norow, bg.settled)
+project/          optional: a fixture project (CLAUDE.md, docs/MILESTONES.md, docs/milestones/M*.md);
+                  tests/project/ otherwise
+expected/         home/ (without lock/), out/<run>.{stdout,stderr,status} for both runs, calls.log
 ```
 
-`tests/run.sh` copies `home/` to a temporary directory, points the seams at it, runs `baton tick`,
-diffs against `expected/`, then runs `baton tick` again and asserts an empty diff. Hook tests pipe
-`tests/payloads/*.json` (copied from the prototype's `obs/`) into each hook and diff the file it
-wrote. launchd is never in the tests.
+`tests/run.sh` copies the fixture project to `<tmp>/Fixture` and commits it once on `main` at a
+fixed date and identity (so its hash is the same on every run), copies `home/`, points the seams at
+the shims, runs `cmd` twice, then diffs the state left behind — `home/` without the lock, both
+runs' streams and exit codes, and the shims' `calls.log` — against `expected/` with the temporary
+root written as `@TMP@`. A `dispatch` event's `prompt_sha256` is recomputed from its sidecar under
+the one rule and replaced by `sha256-matches-sidecar` or a mismatch note before the diff, because
+the sidecar carries the temporary path. `BATON_TESTS_FREEZE=yes sh tests/run.sh` rewrites every
+`expected/` from the run, for a fixture whose output has been read and judged right. Hook scenarios
+pipe `tests/payloads/*.json` (copied from the prototype's `obs/`, two constructed) into a hook
+through `cmd`. launchd is never in the tests.
 
 ---
 
@@ -666,7 +691,7 @@ edit, or by typing into a session, and `status` is the view.
 
 | Milestone | Introduces | Consumes |
 |---|---|---|
-| M01 | `bin/baton` (verb dispatch), `lib/lock.sh`, `lib/log.sh` (`log_event`, `attempt_of`, the envelope), `lib/plan.sh` (`plan_tables`, `plan_row`, `plan_eligible`, token parsers), `lib/dispatch.sh` (`worktree_ensure`, `settings_compose`, `slot_line`, `prompt_from_brief`, `sidecar_write`, `claude_bg`, `caffeinate_hold`), `lib/templates.sh` (the slot line), `hooks/stop-gate`, `hooks/stop-failure`, `hooks/statusline`, `install.sh`, `tests/run.sh`, `tests/shim/claude`, the seams, `~/.baton/` layout, `config.json`, `projects/Baton/`; verbs `plan`, `dispatch`; events `dispatch`, `dispatch_failed` | – |
+| M01 | `bin/baton` (verb dispatch; reads the five seams once and exports them). `lib/lock.sh`: `lock_take`, `lock_release`. `lib/log.sh`: `baton_now`; `log_event <kind> <project> <milestone> <session> <attempt> [<fields json>]` (the one append; an empty envelope argument is absent from the line; refuses without the lock or over 4 KB); `attempt_of <project> <milestone>` (the count of `dispatch` events; the next attempt is that plus one); `prompt_normalise` (stdin to stdout, strips exactly one trailing newline); `prompt_sha256 <file>`; `sidecar_write <session> <text>` (prints `<path> <sha256>`); `widenings_json <project>`. `lib/plan.sh`: `plan_tables <file>` (one JSON document `{milestones: [{row, id, depends[], model, effort, remote, status}], gates: [{row, gate, holds[], cleared}]}`; on the first bad cell prints `{error: "plan-unparseable", table, row, cell, detail}` with status 1); `plan_rows`, `plan_gates`, `plan_row <id>`, `plan_eligible` (ids, one per line) and `plan_render <project> <inflight json>` on that document from stdin; `parse_id`, `parse_depends`, `parse_model <cell> <models json>`, `parse_effort`, `parse_remote`, `parse_status`, `parse_cleared`; `verb_plan`. `lib/dispatch.sh`: `rows_json`; `inflight_json <project>`; `row_for_id <id>`; `worktree_ensure <path> <milestone>` (prints `{worktree, branch, reused, commit}`); `settings_compose <project> <milestone>` (prints the path); `prompt_from_brief <path> <brief> <heading>`; `slot_line <prompt> <paragraph>`; `claude_bg <worktree> <name> <model> <effort> <settings> <prompt>` (sets `bg_status`, `bg_stdout`, `bg_stderr`, `bg_id`); `dispatch_failed_classify <text>`; `caffeinate_hold <pid>`; `dispatch_failed <project> <milestone> <stage> <detail>`; `dispatch_one <project> <milestone> <plan json>`; `verb_dispatch`. `lib/templates.sh`: `slot_line_text <worktree> <branch> <canonical> <also> <attempt> <commit>`. The convention every fallible function follows: its result on stdout on success, its failure detail on stdout with a non-zero status. The hand-run verb reads the brief at `docs/milestones/<milestone>.md` under `## Copy-ready session prompt`. `hooks/stop-gate`, `hooks/stop-failure`, `hooks/statusline`; `install.sh`; `tests/run.sh`, `tests/shim/{claude,date,caffeinate}`, `tests/project/`, `tests/payloads/`, 27 scenarios; the five seams; `~/.baton/` layout, `config.json`, `projects/Baton/`; verbs `plan`, `dispatch`; events `dispatch`, `dispatch_failed` | – |
 | M02 | `lib/inbox.sh` (`inbox_consume`, `artifact_check`, `merged_as_verify`, `brief_pointer_check`, `archive_move`, `reject_move`), `lib/derive.sh` (derivations 1–15), `lib/status.sh`, verb `status`; events `consumed`, `rejected`; the `written_by` field; the first `escalation` writer (rejection) | M01 |
 | M03 | `lib/rows.sh` (`rows_read`, `crash_check`, `stall_check`, `question_check`, `takeover_check`, `gap_check`), the tick verb with the eight steps, the marker, `com.baton.tick.plist`, the granted shell, `caffeinate` re-arming, `notify` (the Mac message); events `crash_sighting`, `takeover`, `notification` (`stall`, `long-running`, `gap`, `takeover-silent`), `self_check_failed`, `worktree_pruned` (reserved) | M02 |
 | M04 | `lib/stops.sh` (`route_ending`, `wait_due`, `ladder_position`, `resume_session`, the api-error split, the continue and finish templates), `lib/templates.sh` (continue, finish); events `resume`, `copy_fork`, `wait_retry`, `hold` (`rate_limit`, `billing_error`), `hold_lifted`, `notification` (`rate_limit`, `transient`, `unrecoverable`, `billing_error`, `blocked_by`, `distant_wait_for`) | M03 |
