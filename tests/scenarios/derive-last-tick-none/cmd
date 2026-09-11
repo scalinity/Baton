@@ -1,0 +1,3 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== the marker is the tick's clock; without one there is no tick yet =="
+derive_last_tick | jq .

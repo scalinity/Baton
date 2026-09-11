@@ -1,0 +1,18 @@
+{
+  "widenings": [
+    {
+      "at": "2026-09-12T10:00:00+01:00",
+      "project": "Fixture",
+      "milestone": "M07",
+      "rule": "Bash(plutil:*)",
+      "permissions_file": "/h/projects/Fixture/permissions.json"
+    },
+    {
+      "at": "2026-09-12T08:00:00+01:00",
+      "project": "Fixture",
+      "milestone": "M02",
+      "rule": "Bash(sw_vers:*)",
+      "permissions_file": "/h/projects/Fixture/permissions.json"
+    }
+  ]
+}

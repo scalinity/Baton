@@ -1,0 +1,23 @@
+{
+  "taken_over": [
+    {
+      "project": "Fixture",
+      "milestone": "M03",
+      "attempt": 1,
+      "session": "f3",
+      "transcript": "@TMP@/transcripts/-Fixture/f3.jsonl",
+      "first_unmatched_at": "2026-09-12T09:15:44.812Z",
+      "first_unmatched_uuid": "u3b",
+      "typed_count": 2
+    }
+  ],
+  "orphaned": [
+    {
+      "project": "Fixture",
+      "milestone": "M04",
+      "attempt": 1,
+      "session": "f4",
+      "path": "@TMP@/transcripts/-Fixture/f4.orphaned-1789200000-ab12cd.jsonl"
+    }
+  ]
+}

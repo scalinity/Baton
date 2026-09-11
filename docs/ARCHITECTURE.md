@@ -211,13 +211,19 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    - Read the kickoff prompt from the brief on `main` and replace part 2 whole with the slot line
      (§4.3); write the body to `~/.baton/prompts/<session>/<n>.txt` and hash it.
    - Run, with the worktree as `cwd` and `LC_ALL` set:
-     `claude --bg -n "Baton · <project> · <milestone>" --model <Model> [--effort <Effort>]
+     `claude --bg -n "<session name>" --model <Model> [--effort <Effort>]
      --permission-mode bypassPermissions --settings <file> "<prompt>"`; parse `backgrounded · <id>`
      from stdout. No line → `dispatch_failed` (§6.2).
    - `Remote: yes`: the same command with `--remote-control` and no prompt, `claude stop <id>`, then
      a flagless `claude --bg --resume <uuid> "<prompt>"`.
    - Read the row's `pid` from `claude agents --json`; start `caffeinate -i -w <pid>` detached.
    - Log the `dispatch` event.
+
+**The session name** is `Baton · <project> · <milestone>`, except when the project key is `Baton`
+itself, where the prefix has already named the project and the name is `Baton · M02`. The prefix is
+the only ownership marker a row carries and is never dropped; the key is only not repeated
+(D-036). `session_name` in `lib/templates.sh` composes it, and the refusal to dispatch over a live
+row of the same name reads the same function.
 
 Then the marker, after the lock is released.
 
@@ -364,9 +370,13 @@ The two bits per class: retry, and notify now. ("What stops a session" §1, amen
 6. in flight — `<project>/<milestone>`, session, model, attempt, elapsed since the latest
    dispatch-or-resume event, and any live notification (`stalled`, `<n> h`);
 7. silent waits — a `blocked_by` whose blocker is in flight or eligible, and a distant `wait_for`;
-8. an open gap, if one was reported and nothing has cleared it.
+8. an open gap, if one was reported and nothing has cleared it;
+9. what is waiting in the inbox — one line per artifact Baton has not acted on, with its outcome.
 
-Whole file, every time; no flags; no denials line.
+Whole file, every time; no flags; no denials line. A section with nothing in it prints nothing, so
+the file is as short as the state is quiet. Line 9 exists because the move is the consumption: a
+file still in the inbox is a handover Baton has not read, and nothing else in the view would say so
+(D-035).
 
 ---
 
@@ -439,7 +449,7 @@ Eighteen kinds. Fields listed are those beyond the envelope.
 | `dispatch` | `name`, `model`, `effort`, `remote`, `worktree`, `branch`, `worktree_reused`, `worktree_commit`, `settings`, `prompt_path`, `prompt_sha256` | the attempt count; the ladder's reset point; in flight; the long-running clock; the takeover candidate set; the cap; **the model actually run**, for grading after the fact | — |
 | `dispatch_failed` | `stage` (`worktree`\|`settings`\|`prompt`\|`launch`\|`service`), `detail`; no `session` | the second consecutive for a `(project, milestone)` escalates, lane scope; `stage: service` escalates, project scope | — |
 | `consumed` | `outcome`, `reason` or `error`, `written_by` (`session`\|`stop-gate`\|`stop-failure`), `merged_as`, `blocked_by`, `archive` | every ending's routing; the ladder's reset; the notification keys' reset; the terminal test for in flight; the wait's start before its first retry | — |
-| `rejected` | `path` (under `~/.baton/rejected/`), `reason` | the lane escalation that follows a rejection (the log is the record, so no sidecar) | — |
+| `rejected` | `path` (where the file came to rest: `~/.baton/rejected/` for a rejected file, `~/.baton/archive/` for a rejected `eligible[]` entry of a file that was consumed), `reason` (the rule's name) | the lane escalation that follows a rejection (the log is the record, so no sidecar) | — |
 | `resume` | `resume_kind` (`continue`\|`finish`\|`ruling`), `resume`, `class`, `outcome` (`delivered`\|`forked`\|`refused`), `prompt_path`, `prompt_sha256` | the resume count; the ladder (`refused` is a failure ending); the long-running clock; the takeover candidate set | — |
 | `copy_fork` | `from_session`, `note` | the session currently carrying an attempt | — |
 | `wait_retry` | `error`, `since`, `retry` | the dispatch hold; the 1 h and 2 h notification ceilings; the six-hour `caffeinate -i -t` bound; `status`'s next-retry line | — |
@@ -526,10 +536,22 @@ exists, the lane escalates with the sibling's path rather than being scanned.
 Each is one sentence over §6.2's table; M01's and M02's tests are these sentences turned into
 fixtures.
 
+**The contract every derivation keeps** (D-031). One function per sentence in `lib/derive.sh`, each
+printing exactly one JSON object on stdout with its result under a named key, so a reader picks a
+field and never parses text; a list result is an array under that key. A field a derivation has no
+value for is absent, never null, the same discipline the envelope keeps. The rows arrive as a JSON
+argument and the transcripts through `BATON_TRANSCRIPTS`, so every fixture is a directory and no
+fixture starts a process. An empty `<project>` argument means every registered project. All time
+arithmetic goes through `iso_epoch`, which converts an ISO 8601 string in `awk`: a string Baton
+wrote is not an outside thing, and the date seam answers the scenario's `now` whatever it is asked.
+
 1. **In flight, per project.** Every `dispatch` whose `(project, milestone, attempt)` has no later
    `consumed` with `outcome: complete` and no later `dispatch` for the same `(project, milestone)`,
    resolved through the fork chain to its current session (§6.1), **intersected with rows in
-   `claude agents --json` that carry a `pid`**.
+   `claude agents --json` that carry a `pid`**. The document names both halves of that one join —
+   `in_flight` and `no_row` — because the crash rule is exactly the complement and rebuilding it
+   would replay the fork chain a second time. **Liveness is the `pid` and never the `state`**: a
+   crash reads `pid: null` while `state` still reads `working`.
 2. **Parked, and why.** Every `escalation` with no later `resolution` naming its `at`. Its `scope`
    says whether the lane or every lane of that project is held; its `class`, the first line of its
    `carries`, and the verb for that class are what `status` prints and what `baton answer` resolves
@@ -643,18 +665,23 @@ is the transcript record's own `timestamp`, carried exactly as it arrived.
 | `BATON_CAFFEINATE` | `/usr/bin/caffeinate` | appends its argv to `calls.log` and exits |
 | `BATON_HOME` | `~/.baton` | the scenario's own state directory |
 | `BATON_DAEMON_LOG` | `~/.claude/daemon.log` | the service's own log, read only for `bg settled <id> (crashed): <detail>` when a backgrounded worker never gets a row (item 47); the claude shim writes the line when told to |
+| `BATON_TRANSCRIPTS` | `~/.claude/projects` | the tree derivation 3 globs for `*/<session>.jsonl`; a scenario's own `transcripts/` directory, so a transcript read is a file read and no fixture starts a session (D-032) |
 
 **Scenarios** under `tests/scenarios/<name>/`:
 
 ```
-cmd               the commands to run, sourced twice with $BATON, $ROOT, $SCENARIO and $SHIM set
+cmd               the commands to run, sourced twice with $BATON, $ROOT, $SCENARIO and $SHIM set;
+                  a scenario testing a library function rather than a verb sources tests/lib-load.sh
 home/             the BATON_HOME to start from: config.json, projects/, inbox/, log.jsonl, status/;
-                  @TMP@ in any file becomes the scenario's temporary root
+                  @TMP@ in any file becomes the scenario's temporary root and @COMMIT@ the fixture
+                  project's one commit, which is what a handover's merged_as names
 rows.json         what claude agents --json answers first
 now               the clock's reading
 shim/             optional: the claude shim's knobs (bg.stderr, bg.fail, bg.norow, bg.settled)
 project/          optional: a fixture project (CLAUDE.md, docs/MILESTONES.md, docs/milestones/M*.md);
                   tests/project/ otherwise
+transcripts/      optional: the tree BATON_TRANSCRIPTS points at, one folder per checkout holding
+                  <session>.jsonl; an empty tree otherwise, which is a lane with no transcript
 expected/         home/ (without lock/), out/<run>.{stdout,stderr,status} for both runs, calls.log
 ```
 
@@ -692,7 +719,7 @@ edit, or by typing into a session, and `status` is the view.
 | Milestone | Introduces | Consumes |
 |---|---|---|
 | M01 | `bin/baton` (verb dispatch; reads the five seams once and exports them). `lib/lock.sh`: `lock_take`, `lock_release`. `lib/log.sh`: `baton_now`; `log_event <kind> <project> <milestone> <session> <attempt> [<fields json>]` (the one append; an empty envelope argument is absent from the line; refuses without the lock or over 4 KB); `attempt_of <project> <milestone>` (the count of `dispatch` events; the next attempt is that plus one); `prompt_normalise` (stdin to stdout, strips exactly one trailing newline); `prompt_sha256 <file>`; `sidecar_write <session> <text>` (prints `<path> <sha256>`); `widenings_json <project>`. `lib/plan.sh`: `plan_tables <file>` (one JSON document `{milestones: [{row, id, depends[], model, effort, remote, status}], gates: [{row, gate, holds[], cleared}]}`; on the first bad cell prints `{error: "plan-unparseable", table, row, cell, detail}` with status 1); `plan_rows`, `plan_gates`, `plan_row <id>`, `plan_eligible` (ids, one per line) and `plan_render <project> <inflight json>` on that document from stdin; `parse_id`, `parse_depends`, `parse_model <cell> <models json>`, `parse_effort`, `parse_remote`, `parse_status`, `parse_cleared`; `verb_plan`. `lib/dispatch.sh`: `rows_json`; `inflight_json <project>`; `row_for_id <id>`; `worktree_ensure <path> <milestone>` (prints `{worktree, branch, reused, commit}`); `settings_compose <project> <milestone>` (prints the path); `prompt_from_brief <path> <brief> <heading>`; `slot_line <prompt> <paragraph>`; `claude_bg <worktree> <name> <model> <effort> <settings> <prompt>` (sets `bg_status`, `bg_stdout`, `bg_stderr`, `bg_id`); `dispatch_failed_classify <text>`; `caffeinate_hold <pid>`; `dispatch_failed <project> <milestone> <stage> <detail>`; `dispatch_one <project> <milestone> <plan json>`; `verb_dispatch`. `lib/templates.sh`: `slot_line_text <worktree> <branch> <canonical> <also> <attempt> <commit>`. The convention every fallible function follows: its result on stdout on success, its failure detail on stdout with a non-zero status. The hand-run verb reads the brief at `docs/milestones/<milestone>.md` under `## Copy-ready session prompt`. `hooks/stop-gate`, `hooks/stop-failure`, `hooks/statusline`; `install.sh`; `tests/run.sh`, `tests/shim/{claude,date,caffeinate}`, `tests/project/`, `tests/payloads/`, 27 scenarios; the five seams; `~/.baton/` layout, `config.json`, `projects/Baton/`; verbs `plan`, `dispatch`; events `dispatch`, `dispatch_failed` | – |
-| M02 | `lib/inbox.sh` (`inbox_consume`, `artifact_check`, `merged_as_verify`, `brief_pointer_check`, `archive_move`, `reject_move`), `lib/derive.sh` (derivations 1–15), `lib/status.sh`, verb `status`; events `consumed`, `rejected`; the `written_by` field; the first `escalation` writer (rejection) | M01 |
+| M02 | `lib/inbox.sh`: `project_key_of <path>`; `merged_as_verify <path> <sha>`; `brief_pointer_check <path> <brief> <heading>`; `written_by_of <outcome> <reason>`; `stop_route <reason>` (the REQ-STOP-12 table as data; M04 attaches the actions); `artifact_ids <file>`; `artifact_check <file>` (prints `{artifact, project, written_by, dropped[]}`, or `{rule, detail}` with status 1); `escalate_rejection <project> <milestone> <session> <attempt> <rule> <path>`; `attempt_for_session <project> <milestone> <session>`; `archive_move <file> <consumed-at>`; `reject_move <file>`; `reject <file> <rule> <detail>`; `inbox_consume <rows json>`; `consume_one <file> <check doc> <rows json>`. `lib/derive.sh`: `config_num <key> <default>`; `iso_epoch <timestamp>`; `now_epoch`; `transcript_of <session>`; `orphaned_of <session>`; `typed_hashes <transcript>`; `lanes_open <project> <log json>`; `current_session <project> <milestone> <attempt>`; `lane_of_session <session>`; and the fifteen — `derive_in_flight <project> <rows>` (`{in_flight[], no_row[]}`), `derive_parked <project>`, `derive_taken_over <project> <rows>` (`{taken_over[], orphaned[]}`), `derive_consumed <project>` (`{consumed[], waiting[]}`), `derive_waits <project>`, `derive_holds`, `derive_caffeinate <project> <rows>` (`{wake[], timed[]}`), `derive_last_tick`, `derive_ladder <project> <milestone> <attempt>`, `derive_attempt <project> <milestone> [<attempt>]`, `derive_key_spent <project> <milestone> <attempt> <class> [<key>]`, `derive_dispatch_hold`, `derive_answer_candidates <milestone>`, `derive_widenings <project>`, `derive_gap <rows>`. Every one prints one keyed JSON object; an empty `<project>` means every project (D-031). `lib/status.sh`: `duration`, `nth`, `field`, `verb_for`, `one_line`, `silent_waits <project> <rows>`, `status_render <rows json>`, `verb_status`. `lib/templates.sh`: `session_name <project> <milestone>` (D-036). `tests/consume-once.sh`, `tests/lib-load.sh`, the `transcripts/` fixture and the `@COMMIT@` substitution in `tests/run.sh`; verb `status`; events `consumed`, `rejected`, `escalation` (class `other`, rejection only); the `written_by` field; the sixth seam `BATON_TRANSCRIPTS` | M01 |
 | M03 | `lib/rows.sh` (`rows_read`, `crash_check`, `stall_check`, `question_check`, `takeover_check`, `gap_check`), the tick verb with the eight steps, the marker, `com.baton.tick.plist`, the granted shell, `caffeinate` re-arming, `notify` (the Mac message); events `crash_sighting`, `takeover`, `notification` (`stall`, `long-running`, `gap`, `takeover-silent`), `self_check_failed`, `worktree_pruned` (reserved) | M02 |
 | M04 | `lib/stops.sh` (`route_ending`, `wait_due`, `ladder_position`, `resume_session`, the api-error split, the continue and finish templates), `lib/templates.sh` (continue, finish); events `resume`, `copy_fork`, `wait_retry`, `hold` (`rate_limit`, `billing_error`), `hold_lifted`, `notification` (`rate_limit`, `transient`, `unrecoverable`, `billing_error`, `blocked_by`, `distant_wait_for`) | M03 |
 | M05 | `lib/escalate.sh` (`escalate`, `resolve`, `message_render`, `answer_resolve`, `allow_write`), verbs `answer`, `allow`, the ruling label; events `escalation` (every class), `resolution`, `widening`, `notification` (`prompt-lost`); the `question` class from rows | M04 |

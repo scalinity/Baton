@@ -1,0 +1,3 @@
+{"parentUuid":null,"type":"user","promptSource":"typed","uuid":"u7a","timestamp":"2026-09-12T07:00:00.000Z","message":{"role":"user","content":"KICKOFF M07: implement the seventh milestone."}}
+{"parentUuid":null,"type":"user","promptSource":"typed","uuid":"u7b","timestamp":"2026-09-12T08:30:00.000Z","message":{"role":"user","content":"hold on, I want to look at this"}}
+{"parentUuid":null,"type":"user","promptSource":"typed","uuid":"u7c","timestamp":"2026-09-12T10:00:01.000Z","message":{"role":"user","content":"RULING: continue. The formatter stays internal."}}

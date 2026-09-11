@@ -7,9 +7,10 @@
 # outside the shims.
 #
 # A scenario holds: cmd (sourced twice; $BATON, $ROOT, $SCENARIO, $SHIM are set), home/ (the
-# BATON_HOME to start from; @TMP@ in any file is replaced), rows.json (what agents --json answers
+# BATON_HOME to start from; @TMP@ and @COMMIT@ in any file are replaced), rows.json (what agents --json answers
 # first), now (the clock), optional shim/ (the claude shim's knobs), optional project/ (a fixture
-# project; tests/project/ otherwise), and expected/.
+# project; tests/project/ otherwise), optional transcripts/ (the tree BATON_TRANSCRIPTS points at),
+# and expected/.
 #
 # BATON_TESTS_FREEZE=<name> rewrites that one scenario's expected/ from the run, for output that
 # has been read and judged right; BATON_TESTS_FREEZE=all does it for every scenario and is for a
@@ -52,16 +53,25 @@ for sc in "$here"/scenarios/*/; do
   commit=$(git -C "$tmp/Fixture" rev-parse HEAD)
 
   cp -R "$sc/home" "$tmp/home"
-  find "$tmp/home" -type f -exec sed -i '' "s|@TMP@|$tmp|g" {} +
+  # @COMMIT@ as well as @TMP@, because a handover artifact names the commit it merged as and the
+  # fixture repository's hash is only known once it has been committed.
+  find "$tmp/home" -type f -exec sed -i '' "s|@TMP@|$tmp|g; s|@COMMIT@|$commit|g" {} +
   cp "$sc/rows.json" "$tmp/shim/rows.json"
   cp "$sc/now" "$tmp/shim/now"
   if [ -d "$sc/shim" ]; then cp "$sc"/shim/* "$tmp/shim/"; fi
   find "$tmp/shim" -type f -exec sed -i '' "s|@TMP@|$tmp|g" {} +
   : > "$tmp/shim/calls.log"
 
+  # The transcripts a derivation reads, as a directory: ~/.claude/projects with one folder per
+  # checkout, found by glob and never by a path derived from the project. A scenario without one
+  # gets an empty tree, which is a lane with no transcript.
+  if [ -d "$sc/transcripts" ]; then cp -R "$sc/transcripts" "$tmp/transcripts"; else mkdir "$tmp/transcripts"; fi
+  find "$tmp/transcripts" -type f -exec sed -i '' "s|@TMP@|$tmp|g" {} +
+
   for run in 1 2; do
     ( export BATON_HOME="$tmp/home" BATON_CLAUDE="$here/shim/claude" BATON_DATE="$here/shim/date" \
              BATON_CAFFEINATE="$here/shim/caffeinate" BATON_SHIM="$tmp/shim" BATON_DAEMON_LOG="$tmp/shim/daemon.log" \
+             BATON_TRANSCRIPTS="$tmp/transcripts" \
              BATON="$root/bin/baton" ROOT="$root" SCENARIO="$sc" SHIM="$tmp/shim"
       cd "$tmp"
       set +e

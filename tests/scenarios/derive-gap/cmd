@@ -1,0 +1,5 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== a lane was in flight through the gap =="
+derive_gap "$(rows_json)" | jq .
+echo "== the same gap with nothing to do is not one =="
+derive_gap '[]' | jq -c .

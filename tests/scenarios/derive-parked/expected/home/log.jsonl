@@ -1,0 +1,4 @@
+{"at":"2026-09-12T02:41:18+01:00","kind":"escalation","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"class":"asking","scope":"lane","carries":{"question":"Expose the formatter, or keep it internal?","options":["expose","internal"],"recommendation":"expose"},"channel":["notification"]}
+{"at":"2026-09-12T03:00:00+01:00","kind":"escalation","project":"Fixture","milestone":"M07","session":"f7","attempt":1,"class":"other","scope":"lane","carries":{"rule":"merged-as","path":"/r/M07-f7.json"},"channel":["notification"]}
+{"at":"2026-09-12T04:00:00+01:00","kind":"resolution","project":"Fixture","milestone":"M07","session":"f7","attempt":1,"how":"ruling","escalation_at":"2026-09-12T03:00:00+01:00"}
+{"at":"2026-09-12T05:00:00+01:00","kind":"escalation","project":"Other","class":"plan-unparseable","scope":"project","carries":{"detail":"the Model column is missing from the header"},"channel":["notification"]}

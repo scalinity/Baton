@@ -1,0 +1,3 @@
+[{"pid":501,"id":"0bado1","sessionId":"o1","name":"Baton · Other · M01","status":"busy","state":"working"},
+ {"pid":502,"id":"0badf2c","sessionId":"f2c","name":"Baton · Fixture · M02","status":"busy","state":"waiting","waitingFor":"input needed"},
+ {"pid":null,"id":"0badf3","sessionId":"f3","name":"Baton · Fixture · M03","status":"idle","state":"working"}]

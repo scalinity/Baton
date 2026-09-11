@@ -1,0 +1,5 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== every project =="
+derive_parked "" | jq .
+echo "== Fixture alone =="
+derive_parked Fixture | jq -c '[ .parked[] | {milestone, class} ]'

@@ -1,0 +1,10 @@
+== a lane was in flight through the gap ==
+{
+  "present": true,
+  "marker": "2026-09-12T10:00:00+01:00",
+  "gap_seconds": 7200,
+  "had_lane": true,
+  "report": true
+}
+== the same gap with nothing to do is not one ==
+{"present":true,"marker":"2026-09-12T10:00:00+01:00","gap_seconds":7200,"had_lane":false,"report":false}

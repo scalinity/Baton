@@ -1,0 +1,17 @@
+{
+  "waits": [
+    {
+      "project": "Fixture",
+      "milestone": "M02",
+      "attempt": 1,
+      "session": "f2",
+      "error": "rate_limit",
+      "retries": 3,
+      "since": "2026-09-12T10:00:00+01:00",
+      "last_at": "2026-09-12T11:50:00+01:00",
+      "elapsed_seconds": 7200,
+      "next_retry_epoch": 1789211100,
+      "due": false
+    }
+  ]
+}

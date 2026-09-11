@@ -1,0 +1,3 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude stop 0badc0d1
+[cwd @TMP@] claude agents --json

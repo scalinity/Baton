@@ -1,0 +1,7 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== every project =="
+derive_in_flight "" "$(rows_json)" | jq .
+echo "== Other alone =="
+derive_in_flight Other "$(rows_json)" | jq -c .
+echo "== the fork chain =="
+current_session Fixture M02 2

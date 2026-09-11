@@ -1,0 +1,37 @@
+{
+  "consumed": [
+    {
+      "at": "2026-09-12T09:00:00+01:00",
+      "project": "Fixture",
+      "milestone": "M01",
+      "session": "f1",
+      "attempt": 1,
+      "outcome": "complete",
+      "written_by": "session",
+      "merged_as": "abc1234",
+      "archive": "@TMP@/home/archive/M01-f1-2026-09-12T09:00:00+01:00.json",
+      "archive_present": true
+    },
+    {
+      "at": "2026-09-12T10:00:00+01:00",
+      "project": "Fixture",
+      "milestone": "M02",
+      "session": "f2",
+      "attempt": 1,
+      "outcome": "stopped",
+      "reason": "api-error",
+      "error": "rate_limit",
+      "written_by": "stop-failure",
+      "archive": "@TMP@/home/archive/M02-f2-2026-09-12T10:00:00+01:00.json",
+      "archive_present": false
+    }
+  ],
+  "waiting": [
+    {
+      "file": "M03-f3.json",
+      "milestone": "M03",
+      "session": "f3",
+      "outcome": "asking"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+== M01 is parked in two projects: ambiguous ==
+{
+  "milestone": "M01",
+  "count": 2,
+  "candidates": [
+    "Fixture/M01",
+    "Other/M01"
+  ]
+}
+== M02 is parked once ==
+{"milestone":"M02","count":1}
+== M19 is parked nowhere ==
+{"milestone":"M19","count":0,"candidates":[]}

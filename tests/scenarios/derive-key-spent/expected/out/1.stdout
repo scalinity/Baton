@@ -1,0 +1,15 @@
+== stall: notified before the session came back, so the key is re-armed ==
+{
+  "project": "Fixture",
+  "milestone": "M02",
+  "attempt": 1,
+  "class": "stall",
+  "key": "",
+  "reset_at": "2026-09-12T09:00:00+01:00",
+  "spent": false
+}
+== long-running: notified after the reset, so it is spent ==
+{"project":"Fixture","milestone":"M02","attempt":1,"class":"long-running","key":"","reset_at":"2026-09-12T09:00:00+01:00","spent":true,"at":"2026-09-12T09:30:00+01:00"}
+== blocked_by, keyed on the named blocker ==
+{"project":"Fixture","milestone":"M02","attempt":1,"class":"blocked_by","key":"M01","reset_at":"2026-09-12T09:00:00+01:00","spent":true,"at":"2026-09-12T10:00:00+01:00"}
+{"project":"Fixture","milestone":"M02","attempt":1,"class":"blocked_by","key":"M03","reset_at":"2026-09-12T09:00:00+01:00","spent":false}

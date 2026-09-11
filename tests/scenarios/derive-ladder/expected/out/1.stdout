@@ -1,0 +1,11 @@
+== M02: two failure endings since the dispatch ==
+{
+  "project": "Fixture",
+  "milestone": "M02",
+  "attempt": 1,
+  "reset_at": "2026-09-12T08:00:00+01:00",
+  "failures": 2,
+  "next": "redispatch"
+}
+== M07: the session came back, so the ladder reset ==
+{"project":"Fixture","milestone":"M07","attempt":1,"reset_at":"2026-09-12T09:30:00+01:00","failures":0,"next":"none"}

@@ -8,7 +8,8 @@ BATON_DATE=${BATON_DATE:-date}
 BATON_CAFFEINATE=${BATON_CAFFEINATE:-/usr/bin/caffeinate}
 BATON_HOME=${BATON_HOME:-$HOME/.baton}
 BATON_DAEMON_LOG=${BATON_DAEMON_LOG:-$HOME/.claude/daemon.log}
-export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_HOME BATON_DAEMON_LOG
+BATON_TRANSCRIPTS=${BATON_TRANSCRIPTS:-$HOME/.claude/projects}
+export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_HOME BATON_DAEMON_LOG BATON_TRANSCRIPTS
 
 here=$(cd "$(dirname "$0")" && pwd)
 # In the checkout the libraries sit beside bin/; in the installed relay they sit under bin/lib/.
@@ -18,13 +19,16 @@ if [ -d "$here/lib" ]; then BATON_LIB=$here/lib; else BATON_LIB=$here/../lib; fi
 . "$BATON_LIB/plan.sh"
 . "$BATON_LIB/templates.sh"
 . "$BATON_LIB/dispatch.sh"
+. "$BATON_LIB/derive.sh"
+. "$BATON_LIB/inbox.sh"
+. "$BATON_LIB/status.sh"
 
 usage() {
   cat <<USAGE
 usage: baton <verb> ...
   tick                               not yet: M03
   answer <milestone> <ruling | n>    not yet: M05
-  status                             not yet: M02
+  status                             the one view: parks, takeovers, waits, holds, in flight, the inbox
   plan <project>                     print the graph as the tick sees it; validate every Model cell
   dispatch <project> <milestone>     step 8 by hand: worktree, settings, prompt, claude --bg, one event
   allow <milestone> '<rule>'         not yet: M05
@@ -43,7 +47,12 @@ case "$verb" in
     lock_take
     verb_dispatch "$2" "$3"
     ;;
-  tick|answer|status|allow)
+  status)
+    [ $# -eq 1 ] || { usage >&2; exit 2; }
+    lock_take
+    verb_status
+    ;;
+  tick|answer|allow)
     echo "baton: $verb is not built yet" >&2
     usage >&2
     exit 2

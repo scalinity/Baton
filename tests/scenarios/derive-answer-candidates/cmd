@@ -1,0 +1,7 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== M01 is parked in two projects: ambiguous =="
+derive_answer_candidates M01 | jq '{milestone, count, candidates: [ .candidates[] | "\(.project)/\(.milestone)" ]}'
+echo "== M02 is parked once =="
+derive_answer_candidates M02 | jq -c '{milestone, count}'
+echo "== M19 is parked nowhere =="
+derive_answer_candidates M19 | jq -c .

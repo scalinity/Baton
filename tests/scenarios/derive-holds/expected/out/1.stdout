@@ -1,0 +1,48 @@
+== holds ==
+{
+  "holds": [
+    {
+      "at": "2026-09-12T09:00:00+01:00",
+      "project": "Fixture",
+      "model": "fable",
+      "cause": "fableReserve",
+      "reading": 83,
+      "status_file": "/st/f2.json"
+    },
+    {
+      "at": "2026-09-12T09:30:00+01:00",
+      "project": "Fixture",
+      "model": "opus",
+      "cause": "rate_limit"
+    },
+    {
+      "at": "2026-09-12T11:00:00+01:00",
+      "project": "Fixture",
+      "model": "sonnet",
+      "cause": "rate_limit"
+    }
+  ]
+}
+== the dispatch hold ==
+{
+  "held_models": [
+    "fable",
+    "opus",
+    "sonnet"
+  ],
+  "all": true,
+  "causes": [
+    {
+      "model": "fable",
+      "cause": "fableReserve"
+    },
+    {
+      "model": "opus",
+      "cause": "rate_limit"
+    },
+    {
+      "model": "sonnet",
+      "cause": "rate_limit"
+    }
+  ]
+}

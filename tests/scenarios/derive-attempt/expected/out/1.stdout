@@ -1,0 +1,12 @@
+== Fixture M01: two attempts, attempt 2 resumed twice (refused does not count) ==
+{
+  "project": "Fixture",
+  "milestone": "M01",
+  "attempt": 2,
+  "resumes_for": 2,
+  "resumes": 2
+}
+== attempt 1 of the same milestone ==
+{"project":"Fixture","milestone":"M01","attempt":2,"resumes_for":1,"resumes":0}
+== Other's own M01 is counted apart (INV-07) ==
+{"project":"Other","milestone":"M01","attempt":1,"resumes_for":1,"resumes":0}

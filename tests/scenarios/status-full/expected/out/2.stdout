@@ -1,0 +1,14 @@
+last tick 2026-09-12T10:00:00+01:00 (2 h 0 m ago)
+project park  Other · plan-unparseable · the Model column is missing from the header · fix it; the next tick re-reads it
+parked  Fixture/M02 · asking · Expose the formatter, or keep it internal? · baton answer M02 "<ruling>"
+taken over  Fixture/M03 at 2026-09-12T09:15:44.812Z; hand back with baton answer M03 "continue"
+waiting  Fixture/M04 · rate_limit · 1 h 30 m since 2026-09-12T10:30:00+01:00 · retry due
+hold  opus · rate_limit
+hold  fable · fableReserve · reading 83
+in flight  Fixture/M03 · f3 · fable · attempt 1 · 4 h 0 m
+in flight  Other/M01 · o1 · opus · attempt 1 · 3 h 55 m · input needed
+in flight  Fixture/M07 · f7 · no live row
+blocked  Fixture/M05 · waiting on M02
+waiting for  Fixture/M03 · waits for M05 · not eligible yet
+gap  Baton was not running for 2 h 0 m, measured against 2026-09-12T10:00:00+01:00
+inbox  M06-f6.json · asking · not yet consumed
