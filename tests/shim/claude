@@ -2,7 +2,8 @@
 # The claude shim: plays the roles the relay sees. State under $BATON_SHIM: rows.json (what
 # agents --json answers), calls.log (every call's argv, one line each), now, and the knobs a
 # scenario sets — bg.stderr (printed on stderr by --bg) and bg.fail (--bg prints no backgrounded
-# line and exits with the file's number).
+# line and exits with the file's number), bg.norow (no row appears, as for a worker that crashed
+# before init) and bg.settled (the line the service writes to its daemon.log for such a crash).
 set -eu
 S=${BATON_SHIM:?}
 
@@ -33,11 +34,16 @@ case "${1:-}" in
     id=$(printf '0badc0d%d' "$n")
     printf 'backgrounded · %s · %s\n' "$id" "$name"
     printf '  claude agents             list sessions\n  claude attach %s    open in this terminal\n  claude logs %s      show recent output\n  claude stop %s      stop this session\n' "$id" "$id" "$id"
-    jq -c --arg id "$id" --arg name "$name" --arg cwd "$PWD" --arg n "$n" \
-      '. + [{pid: (4240 + ($n | tonumber)), id: $id, cwd: $cwd, kind: "background", startedAt: 1789200000000,
-             sessionId: "\($id)-0000-4000-8000-000000000000", name: $name, status: "busy", state: "working"}]' \
-      "$S/rows.json" > "$S/rows.json.tmp"
-    mv "$S/rows.json.tmp" "$S/rows.json"
+    if [ ! -f "$S/bg.norow" ]; then
+      jq -c --arg id "$id" --arg name "$name" --arg cwd "$PWD" --arg n "$n" \
+        '. + [{pid: (4240 + ($n | tonumber)), id: $id, cwd: $cwd, kind: "background", startedAt: 1789200000000,
+               sessionId: "\($id)-0000-4000-8000-000000000000", name: $name, status: "busy", state: "working"}]' \
+        "$S/rows.json" > "$S/rows.json.tmp"
+      mv "$S/rows.json.tmp" "$S/rows.json"
+    fi
+    if [ -f "$S/bg.settled" ]; then
+      printf '[2026-09-12T00:00:00.100Z] [bg] bg settled %s (crashed): %s\n' "$id" "$(cat "$S/bg.settled")" >> "$S/daemon.log"
+    fi
     ;;
   stop)
     record "$@"

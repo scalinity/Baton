@@ -1,6 +1,6 @@
 #!/bin/sh
 # The standing check. Every scenario under tests/scenarios/<name>/ is run twice against a copy of
-# its fixtures with the four seams pointed at the shims, and the state it leaves — BATON_HOME
+# its fixtures with the seams pointed at the shims, and the state it leaves — BATON_HOME
 # without the lock, the two runs' streams and exit codes, and the shims' calls.log — is diffed
 # against expected/ with the temporary root written as @TMP@. One line per scenario; the diff on
 # a failure. launchd is never in the tests; no scenario starts a process outside the shims.
@@ -47,7 +47,7 @@ for sc in "$here"/scenarios/*/; do
 
   for run in 1 2; do
     ( export BATON_HOME="$tmp/home" BATON_CLAUDE="$here/shim/claude" BATON_DATE="$here/shim/date" \
-             BATON_CAFFEINATE="$here/shim/caffeinate" BATON_SHIM="$tmp/shim" \
+             BATON_CAFFEINATE="$here/shim/caffeinate" BATON_SHIM="$tmp/shim" BATON_DAEMON_LOG="$tmp/shim/daemon.log" \
              BATON="$root/bin/baton" ROOT="$root" SCENARIO="$sc" SHIM="$tmp/shim"
       cd "$tmp"
       set +e

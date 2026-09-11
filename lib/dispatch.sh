@@ -23,12 +23,22 @@ inflight_json() {
 }
 
 # row_for_id <id>: the agents row whose id is <id> and which carries a pid, polled for up to
-# thirty seconds because the row appears a beat after backgrounded is printed. Prints the row.
+# thirty seconds because the row appears a beat after backgrounded is printed. A worker that
+# crashes before init never gets a row; the service records that in its own log as
+# "bg settled <id> (crashed): <detail>" (item 47), so the poll reads that line and stops early.
+# Prints the row, or the failure's detail.
 row_for_id() {
   rf_i=0
   while [ "$rf_i" -lt 60 ]; do
     rf_row=$(rows_json | jq -ce --arg id "$1" 'map(select(.id == $id and .pid != null)) | first // empty' 2>/dev/null) \
       && { printf '%s\n' "$rf_row"; return 0; }
+    if [ -f "$BATON_DAEMON_LOG" ]; then
+      rf_settled=$(grep "bg settled $1 (crashed): " "$BATON_DAEMON_LOG" | tail -1 | sed 's/.*(crashed): //') || true
+      if [ -n "$rf_settled" ]; then
+        echo "session $1 was backgrounded and crashed before init: $rf_settled"
+        return 1
+      fi
+    fi
     rf_i=$((rf_i + 1))
     sleep 0.5
   done
@@ -187,7 +197,7 @@ dispatch_one() {
     return 1
   fi
 
-  do_agent=$(row_for_id "$bg_id") || { dispatch_failed "$do_project" "$do_id" launch "$do_agent"; return 1; }
+  do_agent=$(row_for_id "$bg_id") || { dispatch_failed "$do_project" "$do_id" "$(dispatch_failed_classify "$do_agent")" "$do_agent"; return 1; }
   do_session=$(printf '%s' "$do_agent" | jq -r .sessionId)
   do_pid=$(printf '%s' "$do_agent" | jq -r .pid)
 
