@@ -242,7 +242,8 @@ plan_of_project() {
 verb_plan() {
   vp_tables=$(plan_of_project "$1") || { vp_st=$?; echo "$vp_tables" >&2; exit $vp_st; }
   echo "plan $1: $(project_path "$1")/$(jq -r .plan "$BATON_HOME/projects/$1/project.json")"
-  vp_inflight=$(inflight_json "$1" "$(rows_json)") || { echo "baton: $vp_inflight" >&2; exit 1; }
+  vp_inflight=$(derive_in_flight "$1" "$(rows_json)") || { echo "baton: $vp_inflight" >&2; exit 1; }
+  vp_inflight=$(printf '%s' "$vp_inflight" | jq -c .in_flight)
   printf '%s' "$vp_tables" | plan_render "$1" "$vp_inflight"
   printf '%s' "$vp_tables" | jq -r '.gates[] | "gate \"\(.gate)\" holds \(.holds | join(", "))\(if .cleared == "" then "" else ", cleared by " + .cleared end)"'
   vp_w=$(widenings_json "$1") || { echo "baton: $vp_w" >&2; exit 1; }

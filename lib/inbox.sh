@@ -39,11 +39,11 @@ brief_pointer_check() {
     END { exit (found ? 0 : 1) }' || { echo "$2 on main has no heading \"## $3\""; return 1; }
 }
 
-# written_by_of <outcome> <reason>: who wrote the artifact, derived from the reason and never
-# stored on the file. The Stop gate writes no-handover and the StopFailure hook writes api-error;
-# everything else is the session's own word (D-032).
+# written_by_of <reason>: who wrote the artifact, derived from the reason and never stored on the
+# file. The Stop gate writes no-handover and the StopFailure hook writes api-error; everything else
+# is the session's own word (D-033).
 written_by_of() {
-  case "$2" in
+  case "$1" in
     no-handover) echo stop-gate ;;
     api-error) echo stop-failure ;;
     *) echo session ;;
@@ -157,7 +157,7 @@ artifact_check() {
       ;;
   esac
 
-  jq -nc --argjson a "$ac_a" --arg k "$ac_key" --arg w "$(written_by_of "$ac_outcome" "$ac_reason")" \
+  jq -nc --argjson a "$ac_a" --arg k "$ac_key" --arg w "$(written_by_of "$ac_reason")" \
     --argjson d "$ac_dropped" '{artifact: $a, project: $k, written_by: $w, dropped: $d}'
 }
 
@@ -199,8 +199,11 @@ reject_move() {
   printf '%s\n' "$rm_dest"
 }
 
-# reject <file> <rule> <detail>: the move, the rejected event and the lane escalation, in that
-# order, so that a tick killed between them leaves the file where the log says it is.
+# reject <file> <rule> <detail>: the move first, then the rejected event and the lane escalation.
+# The move leads because the move is what makes the decision once — the file leaves the inbox and
+# the next tick's glob cannot find it again (INV-06). A tick killed between the move and the event
+# loses the record, and that is the accepted trade: a file sitting in rejected/ with no event is
+# visible and harmless, while a file rejected twice would escalate the same lane twice.
 reject() {
   rj_ids=$(artifact_ids "$1")
   rj_milestone=$(printf '%s' "$rj_ids" | jq -r .milestone)
@@ -232,7 +235,16 @@ inbox_consume() {
     if ic_ok=$(artifact_check "$ic_f"); then
       consume_one "$ic_f" "$ic_ok" "$1"
     else
-      reject "$ic_f" "$(printf '%s' "$ic_ok" | jq -r .rule)" "$(printf '%s' "$ic_ok" | jq -r .detail)"
+      # jq answers an empty document with an empty string and a zero status, so a check that died
+      # without naming a rule would reject the file under a blank rule and say nothing useful. Name
+      # that case instead, so a bug in the checks is visible in the log rather than silent.
+      ic_rule=$(printf '%s' "$ic_ok" | jq -r '.rule // empty' 2>/dev/null || true)
+      ic_detail=$(printf '%s' "$ic_ok" | jq -r '.detail // empty' 2>/dev/null || true)
+      if [ -z "$ic_rule" ]; then
+        ic_rule=check-failed
+        ic_detail="the checks ended without naming a rule; they printed: $ic_ok"
+      fi
+      reject "$ic_f" "$ic_rule" "$ic_detail"
     fi
   done
   # A .tmp is a handover half-written. Its session having no live row with a pid says the writer

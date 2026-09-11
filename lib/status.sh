@@ -122,6 +122,8 @@ status_render() {
     "taken over  \(.project)/\(.milestone) at \(.first_unmatched_at // "?"); hand back with baton answer \(.milestone) \"continue\""'
   printf '%s' "$sr_over" | jq -r '.orphaned[] |
     "taken over  \(.project)/\(.milestone) · transcript orphaned at \(.path) · not scanned"'
+  printf '%s' "$sr_over" | jq -r '.unreadable[] |
+    "taken over  \(.project)/\(.milestone) · transcript \(.path) will not parse · not scanned"'
 
   # 5. Waits and holds: the error, the elapsed from since, the next retry read from the last
   # retry; then each hold with its model and cause.

@@ -180,7 +180,8 @@ dispatch_one() {
 
   do_brief=docs/milestones/$do_id.md
   do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
-  do_inflight=$(inflight_json "$do_project" "$do_rows") || { echo "baton: $do_inflight" >&2; return 1; }
+  do_inflight=$(derive_in_flight "$do_project" "$do_rows") || { echo "baton: $do_inflight" >&2; return 1; }
+  do_inflight=$(printf '%s' "$do_inflight" | jq -c .in_flight)
   do_also=$(printf '%s' "$do_inflight" | jq -r --arg me "$do_id" --argjson plan "$do_plan" '
     ($plan.milestones | map(select(.status == "done") | .id)) as $done
     | map(select(.milestone as $m | $m != $me and (($done | index($m)) == null)))
@@ -235,7 +236,8 @@ verb_dispatch() {
   printf '%s' "$vd_plan" | plan_row "$2" > /dev/null 2>&1 || { echo "baton: $2 is not in $1's plan" >&2; exit 2; }
   vd_rows=$(rows_json)
   if ! printf '%s' "$vd_plan" | plan_eligible | grep -Fqx "$2"; then
-    vd_inflight=$(inflight_json "$1" "$vd_rows") || { echo "baton: $vd_inflight" >&2; exit 1; }
+    vd_inflight=$(derive_in_flight "$1" "$vd_rows") || { echo "baton: $vd_inflight" >&2; exit 1; }
+    vd_inflight=$(printf '%s' "$vd_inflight" | jq -c .in_flight)
     echo "baton: $2 is not eligible; the plan reads:" >&2
     printf '%s' "$vd_plan" | plan_render "$1" "$vd_inflight" | awk -v id="$2" '$1 == id' >&2
     exit 2

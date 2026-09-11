@@ -19,5 +19,14 @@
       "session": "f4",
       "path": "@TMP@/transcripts/-Fixture/f4.orphaned-1789200000-ab12cd.jsonl"
     }
+  ],
+  "unreadable": [
+    {
+      "project": "Fixture",
+      "milestone": "M05",
+      "attempt": 1,
+      "session": "f5",
+      "path": "@TMP@/transcripts/-Fixture/f5.jsonl"
+    }
   ]
 }

@@ -73,13 +73,19 @@ orphaned_of() {
 # typed_hashes <transcript>: one line per typed record — "<at> <uuid> <sha256>" in file order.
 # Typed is type user, promptSource typed, not meta and not a compact summary; compaction appends
 # and never rewrites. The text is normalised and hashed the one way the sidecar was (D-025).
+# A transcript that does not parse — a line half-written while the session was mid-append — fails
+# the read rather than returning what parsed so far: a truncated list can lose the newest typed
+# record, and the newest typed record is the whole of the takeover decision. Reading it short would
+# report a lane a person is typing into as clean, which is the one thing INV-04 forbids.
 typed_hashes() {
-  jq -c 'select(.type == "user" and .promptSource == "typed"
-                and (.isMeta != true) and (.isCompactSummary != true))
-         | {at: .timestamp, uuid: .uuid,
-            text: (if (.message.content | type) == "string" then .message.content
-                   else ([.message.content[]? | select(.type == "text") | .text] | join("")) end)}' \
-    "$1" 2>/dev/null | while IFS= read -r th_rec; do
+  th_recs=$(jq -c 'select(.type == "user" and .promptSource == "typed"
+                          and (.isMeta != true) and (.isCompactSummary != true))
+                   | {at: .timestamp, uuid: .uuid,
+                      text: (if (.message.content | type) == "string" then .message.content
+                             else ([.message.content[]? | select(.type == "text") | .text] | join("")) end)}' \
+             "$1" 2>/dev/null) || return 1
+  [ -n "$th_recs" ] || return 0
+  printf '%s\n' "$th_recs" | while IFS= read -r th_rec; do
     th_sum=$(printf '%s' "$th_rec" | jq -r .text | prompt_normalise | shasum -a 256 | awk '{ print $1 }')
     printf '%s %s %s\n' "$(printf '%s' "$th_rec" | jq -r '.at // ""')" \
       "$(printf '%s' "$th_rec" | jq -r '.uuid // ""')" "$th_sum"
@@ -168,11 +174,12 @@ derive_parked() {
 # sent: the record's normalised text hashed the one way and compared against prompt_sha256 of
 # every dispatch and resume of the (project, milestone) — not the session alone, because a copy
 # fork's transcript is a byte-for-byte copy of its parent's rewritten to the new id. A lane whose
-# only transcript is an .orphaned- sibling is not scanned; it escalates with the sibling's path.
+# only transcript is an .orphaned- sibling is not scanned; it escalates with the sibling's path. A
+# lane whose transcript will not parse is named too, rather than counted as not taken over.
 derive_taken_over() {
   dt_log=$(log_json) || { echo "$dt_log"; return 1; }
   dt_flight=$(derive_in_flight "$1" "$2" | jq -c '.in_flight')
-  dt_over='[]'; dt_orphan='[]'
+  dt_over='[]'; dt_orphan='[]'; dt_unreadable='[]'
   dt_n=$(printf '%s' "$dt_flight" | jq length)
   dt_i=0
   while [ "$dt_i" -lt "$dt_n" ]; do
@@ -191,7 +198,11 @@ derive_taken_over() {
     dt_sent=$(printf '%s' "$dt_log" | jq -r --arg p "$dt_project" --arg m "$dt_milestone" '
       .[] | select((.kind == "dispatch" or .kind == "resume") and .project == $p and .milestone == $m)
       | .prompt_sha256 // empty')
-    dt_typed=$(typed_hashes "$dt_file")
+    if ! dt_typed=$(typed_hashes "$dt_file"); then
+      dt_unreadable=$(printf '%s' "$dt_unreadable" | jq -c --argjson l "$dt_lane" --arg f "$dt_file" \
+        '. + [{project: $l.project, milestone: $l.milestone, attempt: $l.attempt, session: $l.session, path: $f}]')
+      continue
+    fi
     [ -n "$dt_typed" ] || continue
     dt_count=$(printf '%s\n' "$dt_typed" | wc -l | tr -d ' ')
     dt_newest=$(printf '%s\n' "$dt_typed" | tail -1 | awk '{ print $3 }')
@@ -205,7 +216,8 @@ derive_taken_over() {
              transcript: $f, first_unmatched_at: $a, first_unmatched_uuid: $u, typed_count: $c}
             | with_entries(select(.value != "")) ]')
   done
-  jq -nc --argjson o "$dt_over" --argjson r "$dt_orphan" '{taken_over: $o, orphaned: $r}'
+  jq -nc --argjson o "$dt_over" --argjson r "$dt_orphan" --argjson u "$dt_unreadable" \
+    '{taken_over: $o, orphaned: $r, unreadable: $u}'
 }
 
 # 4. Which handovers were consumed. The archive is the answer, not the log: a file still in the
