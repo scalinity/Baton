@@ -361,14 +361,18 @@ The two bits per class: retry, and notify now. ("What stops a session" §1, amen
 
 ### 5.3 What `status` prints, in order
 
-1. the last tick, from the marker; the hardware condition (lid open or clamshell) on the same line;
+1. the last tick, from the marker; the hardware condition (lid open or clamshell) on the same line
+   — M03's, which is where the tick and its clock arrive;
 2. project-scope parks — all dispatch held for a project, with the class and the verb;
 3. parked lanes — `<project>/<milestone> · <class> · <the one line the person read> · <the verb>`;
 4. taken-over lanes — `taken over at <time>; hand back with baton answer <M> "continue"`;
 5. waits and holds — the `error`, the elapsed time from `since`, the next retry, each hold with its
    model and cause;
 6. in flight — `<project>/<milestone>`, session, model, attempt, elapsed since the latest
-   dispatch-or-resume event, and any live notification (`stalled`, `<n> h`);
+   dispatch-or-resume event, and any live notification (`stalled`, `<n> h`) — M03's, which is what
+   writes those notifications; until then the line carries the row's own `waitingFor`. Only lanes
+   with a live row are printed: derivation 1's `no_row` is the crash rule's input, not a state, and
+   it holds sessions Baton itself stopped;
 7. silent waits — a `blocked_by` whose blocker is in flight or eligible, and a distant `wait_for`;
 8. an open gap, if one was reported and nothing has cleared it;
 9. what is waiting in the inbox — one line per artifact Baton has not acted on, with its outcome.
@@ -541,7 +545,9 @@ printing exactly one JSON object on stdout with its result under a named key, so
 field and never parses text; a list result is an array under that key. A field a derivation has no
 value for is absent, never null, the same discipline the envelope keeps. The rows arrive as a JSON
 argument and the transcripts through `BATON_TRANSCRIPTS`, so every fixture is a directory and no
-fixture starts a process. An empty `<project>` argument means every registered project. All time
+fixture starts a process. An empty `<project>` argument means every registered project, for the
+derivations that scan across projects (1 to 5, 7 and 15); the rest name a project, a milestone or a
+class and take it as given. All time
 arithmetic goes through `iso_epoch`, which converts an ISO 8601 string in `awk`: a string Baton
 wrote is not an outside thing, and the date seam answers the scenario's `now` whatever it is asked.
 
@@ -562,9 +568,12 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
 4. **Which handovers were consumed.** **The archive is the answer, not the log.** Consumption is
    idempotent *by the move*: a file still in `~/.baton/inbox/` has not been acted on, and one in
    `~/.baton/archive/` has. The log records what each consumption *decided*. The join is by field,
-   not by reconstruction: the `consumed` event's `archive` holds the archived filename **verbatim**,
-   and the event's own `at` is that `<consumed-at>`; a reader joins on the field and never rebuilds
-   the name from parts.
+   not by reconstruction: the `consumed` event's `archive` holds the archived file's path
+   **verbatim**; a reader joins on the field and never rebuilds the name from parts. The name's
+   `<consumed-at>` and the event's own `at` are two readings of the clock and can differ by a
+   second, which is why nothing joins on them matching. The join runs both ways: the derivation
+   also names every file in `archive/` and `rejected/` that no event claims, which is what a tick
+   killed between the move and its event leaves behind and which nothing else would show.
 5. **Each active wait and its first-failure time.** The newest `consumed` with `reason: api-error`
    for a `(project, milestone, attempt)` that has no later `consumed` with `written_by: session` and
    no later `dispatch`. Its start is the `since` its `wait_retry` events carry — and **before the
@@ -593,7 +602,9 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
     information; an `api-error` artifact is written by the hook and not by the session, so a
     fifteen-minute wait cycle never re-arms anything.
 12. **The dispatch hold**: derivation 6. No dispatch on a model with an active `rate_limit` or
-    `billing_error` hold; on every model once a second model is held.
+    `billing_error` hold; on every model once a second model is held. A `fableReserve` hold holds
+    its own model and counts toward nothing: the reserve is about one model's share of a window,
+    not about the account being unable to answer.
 13. **`baton answer <milestone>`**: derivation 2, filtered by milestone across every project. Exactly
     one match acts; more than one refuses and prints `<project>/<milestone>`; none refuses with
     "nothing is waiting on `<milestone>`".
@@ -601,7 +612,14 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
     each naming the rule and the milestone that earned it.
 15. **The gap**: `now` minus `~/.baton/last-tick`. Reported as a `notification` with class `gap`
     only when derivations 1, 2 or 5 show a lane was in flight, waiting or parked during it. Keyed on
-    the marker value it was measured against, so one outage reports once.
+    the marker value it was measured against, so one outage reports once. **The threshold is two
+    intervals**, not one: the marker holds the `at` of the tick that completed and is written after
+    the lock is released, so at the next tick it is already a full interval old plus that tick's own
+    elapsed time, and one interval would report on every tick with an open lane — while the key,
+    being the marker value, changes every tick and so would suppress nothing. **"During it" is not
+    "now"**: a lane that ran through the outage and finished before the read still means Baton was
+    not running while something needed it, so the window counts lanes open now plus anything that
+    closed after the marker.
 
 **The recovery test is idempotence**: tick twice against the same log, agents listing, inbox, plan
 file and git check, and the second tick changes nothing. Every derivation above is a pure function
@@ -661,7 +679,7 @@ is the transcript record's own `timestamp`, carried exactly as it arrived.
 | Variable | Default | The shim's role |
 |---|---|---|
 | `BATON_CLAUDE` | `/Users/danny/.local/bin/claude` | `--bg` prints `backgrounded · <id>` (and `Starting background service…` on stderr when told to) and later writes an inbox artifact from the scenario; `agents --json` answers from `rows.json`; `stop` and `--bg --resume` append their argv to `calls.log`; a scenario can make `--bg --resume` print a `note:` copy-fork line |
-| `BATON_DATE` | `date` | prints the scenario's `now`, advanced per tick by the runner |
+| `BATON_DATE` | `date` | prints the scenario's `now`, one reading for both runs: the clock is frozen, so the second run's diff shows what the run itself changed and nothing the clock did |
 | `BATON_CAFFEINATE` | `/usr/bin/caffeinate` | appends its argv to `calls.log` and exits |
 | `BATON_HOME` | `~/.baton` | the scenario's own state directory |
 | `BATON_DAEMON_LOG` | `~/.claude/daemon.log` | the service's own log, read only for `bg settled <id> (crashed): <detail>` when a backgrounded worker never gets a row (item 47); the claude shim writes the line when told to |
@@ -719,7 +737,7 @@ edit, or by typing into a session, and `status` is the view.
 | Milestone | Introduces | Consumes |
 |---|---|---|
 | M01 | `bin/baton` (verb dispatch; reads the five seams once and exports them). `lib/lock.sh`: `lock_take`, `lock_release`. `lib/log.sh`: `baton_now`; `log_event <kind> <project> <milestone> <session> <attempt> [<fields json>]` (the one append; an empty envelope argument is absent from the line; refuses without the lock or over 4 KB); `attempt_of <project> <milestone>` (the count of `dispatch` events; the next attempt is that plus one); `prompt_normalise` (stdin to stdout, strips exactly one trailing newline); `prompt_sha256 <file>`; `sidecar_write <session> <text>` (prints `<path> <sha256>`); `widenings_json <project>`. `lib/plan.sh`: `plan_tables <file>` (one JSON document `{milestones: [{row, id, depends[], model, effort, remote, status}], gates: [{row, gate, holds[], cleared}]}`; on the first bad cell prints `{error: "plan-unparseable", table, row, cell, detail}` with status 1); `plan_rows`, `plan_gates`, `plan_row <id>`, `plan_eligible` (ids, one per line) and `plan_render <project> <inflight json>` on that document from stdin; `parse_id`, `parse_depends`, `parse_model <cell> <models json>`, `parse_effort`, `parse_remote`, `parse_status`, `parse_cleared`; `verb_plan`. `lib/dispatch.sh`: `rows_json`; `inflight_json <project>` (a placeholder, removed by M02); `row_for_id <id>`; `worktree_ensure <path> <milestone>` (prints `{worktree, branch, reused, commit}`); `settings_compose <project> <milestone>` (prints the path); `prompt_from_brief <path> <brief> <heading>`; `slot_line <prompt> <paragraph>`; `claude_bg <worktree> <name> <model> <effort> <settings> <prompt>` (sets `bg_status`, `bg_stdout`, `bg_stderr`, `bg_id`); `dispatch_failed_classify <text>`; `caffeinate_hold <pid>`; `dispatch_failed <project> <milestone> <stage> <detail>`; `dispatch_one <project> <milestone> <plan json>`; `verb_dispatch`. `lib/templates.sh`: `slot_line_text <worktree> <branch> <canonical> <also> <attempt> <commit>`. The convention every fallible function follows: its result on stdout on success, its failure detail on stdout with a non-zero status. The hand-run verb reads the brief at `docs/milestones/<milestone>.md` under `## Copy-ready session prompt`. `hooks/stop-gate`, `hooks/stop-failure`, `hooks/statusline`; `install.sh`; `tests/run.sh`, `tests/shim/{claude,date,caffeinate}`, `tests/project/`, `tests/payloads/`, 27 scenarios; the five seams; `~/.baton/` layout, `config.json`, `projects/Baton/`; verbs `plan`, `dispatch`; events `dispatch`, `dispatch_failed` | – |
-| M02 | `lib/inbox.sh`: `project_key_of <path>`; `merged_as_verify <path> <sha>`; `brief_pointer_check <path> <brief> <heading>`; `written_by_of <outcome> <reason>`; `stop_route <reason>` (the REQ-STOP-12 table as data; M04 attaches the actions); `artifact_ids <file>`; `artifact_check <file>` (prints `{artifact, project, written_by, dropped[]}`, or `{rule, detail}` with status 1); `escalate_rejection <project> <milestone> <session> <attempt> <rule> <path>`; `attempt_for_session <project> <milestone> <session>`; `archive_move <file> <consumed-at>`; `reject_move <file>`; `reject <file> <rule> <detail>`; `inbox_consume <rows json>`; `consume_one <file> <check doc> <rows json>`. `lib/derive.sh`: `config_num <key> <default>`; `iso_epoch <timestamp>`; `now_epoch`; `transcript_of <session>`; `orphaned_of <session>`; `typed_hashes <transcript>`; `lanes_open <project> <log json>`; `current_session <project> <milestone> <attempt>`; `lane_of_session <session>`; and the fifteen — `derive_in_flight <project> <rows>` (`{in_flight[], no_row[]}`), `derive_parked <project>`, `derive_taken_over <project> <rows>` (`{taken_over[], orphaned[]}`), `derive_consumed <project>` (`{consumed[], waiting[]}`), `derive_waits <project>`, `derive_holds`, `derive_caffeinate <project> <rows>` (`{wake[], timed[]}`), `derive_last_tick`, `derive_ladder <project> <milestone> <attempt>`, `derive_attempt <project> <milestone> [<attempt>]`, `derive_key_spent <project> <milestone> <attempt> <class> [<key>]`, `derive_dispatch_hold`, `derive_answer_candidates <milestone>`, `derive_widenings <project>`, `derive_gap <rows>`. Every one prints one keyed JSON object; an empty `<project>` means every project (D-031). `lib/status.sh`: `duration`, `nth`, `field`, `verb_for`, `one_line`, `silent_waits <project> <rows>`, `status_render <rows json>`, `verb_status`. `lib/templates.sh`: `session_name <project> <milestone>` (D-036). `tests/consume-once.sh`, `tests/lib-load.sh`, the `transcripts/` fixture and the `@COMMIT@` substitution in `tests/run.sh`; verb `status`; events `consumed`, `rejected`, `escalation` (class `other`, rejection only); the `written_by` field; the sixth seam `BATON_TRANSCRIPTS`. **Removes** M01's placeholder `inflight_json`: `verb_plan`, `dispatch_one` and `verb_dispatch` read `derive_in_flight`'s `in_flight` instead, which is what the placeholder stood in for | M01 |
+| M02 | `lib/inbox.sh`: `project_key_of <path>`; `merged_as_verify <path> <sha>`; `brief_pointer_check <path> <brief> <heading>`; `written_by_of <reason>`; `stop_route <reason>` (the REQ-STOP-12 table as data; M04 attaches the actions); `artifact_ids <file>`; `artifact_check <file>` (prints `{artifact, project, written_by, dropped[]}`, or `{rule, detail}` with status 1); `escalate_rejection <project> <milestone> <session> <attempt> <rule> <path>`; `attempt_for_session <project> <milestone> <session>`; `archive_move <file> <consumed-at>`; `reject_move <file>`; `reject <file> <rule> <detail>`; `inbox_consume <rows json>`; `consume_one <file> <check doc> <rows json>`. `lib/derive.sh`: `config_num <key> <default>`; `iso_epoch <timestamp>`; `now_epoch`; `session_id_ok <session>`; `transcript_of <session>`; `orphaned_of <session>`; `typed_hashes <transcript>`; `lanes_open <project> <log json>`; `current_session <project> <milestone> <attempt>`; `lane_of_session <session>`; and the fifteen — `derive_in_flight <project> <rows>` (`{in_flight[], no_row[]}`), `derive_parked <project>`, `derive_taken_over <project> <rows>` (`{taken_over[], orphaned[], unreadable[]}`), `derive_consumed <project>` (`{consumed[], waiting[], unrecorded[]}`), `derive_waits <project>`, `derive_holds`, `derive_caffeinate <project> <rows>` (`{wake[], timed[]}`), `derive_last_tick`, `derive_ladder <project> <milestone> <attempt>`, `derive_attempt <project> <milestone> [<attempt>]`, `derive_key_spent <project> <milestone> <attempt> <class> [<key>]`, `derive_dispatch_hold`, `derive_answer_candidates <milestone>`, `derive_widenings <project>`, `derive_gap <rows>`. Every one prints one keyed JSON object; an empty `<project>` means every project (D-031). `lib/status.sh`: `duration`, `nth`, `field`, `verb_for`, `one_line`, `silent_waits <project> <rows>`, `status_render <rows json>`, `verb_status`. `lib/templates.sh`: `session_name <project> <milestone>` (D-036). `tests/consume-once.sh`, `tests/lib-load.sh`, the `transcripts/` fixture and the `@COMMIT@` substitution in `tests/run.sh`; verb `status`; events `consumed`, `rejected`, `escalation` (class `other`, rejection only); the `written_by` field; the sixth seam `BATON_TRANSCRIPTS`. **Removes** M01's placeholder `inflight_json`: `verb_plan`, `dispatch_one` and `verb_dispatch` read `derive_in_flight`'s `in_flight` instead, which is what the placeholder stood in for | M01 |
 | M03 | `lib/rows.sh` (`rows_read`, `crash_check`, `stall_check`, `question_check`, `takeover_check`, `gap_check`), the tick verb with the eight steps, the marker, `com.baton.tick.plist`, the granted shell, `caffeinate` re-arming, `notify` (the Mac message); events `crash_sighting`, `takeover`, `notification` (`stall`, `long-running`, `gap`, `takeover-silent`), `self_check_failed`, `worktree_pruned` (reserved) | M02 |
 | M04 | `lib/stops.sh` (`route_ending`, `wait_due`, `ladder_position`, `resume_session`, the api-error split, the continue and finish templates), `lib/templates.sh` (continue, finish); events `resume`, `copy_fork`, `wait_retry`, `hold` (`rate_limit`, `billing_error`), `hold_lifted`, `notification` (`rate_limit`, `transient`, `unrecoverable`, `billing_error`, `blocked_by`, `distant_wait_for`) | M03 |
 | M05 | `lib/escalate.sh` (`escalate`, `resolve`, `message_render`, `answer_resolve`, `allow_write`), verbs `answer`, `allow`, the ruling label; events `escalation` (every class), `resolution`, `widening`, `notification` (`prompt-lost`); the `question` class from rows | M04 |

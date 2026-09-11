@@ -9,7 +9,7 @@
 set -eu
 
 # The tick's interval, the same sixty seconds the launchd job carries as StartInterval (M03).
-# A marker older than one interval is a gap; the two must be kept equal.
+# A gap is a marker two intervals old (see derivation 15); M03 must keep the plist and this equal.
 BATON_TICK_SECONDS=60
 
 # config_num <key> <default>: one number out of config.json.
@@ -43,7 +43,10 @@ iso_epoch() {
       if (rest != "" && rest != "Z") {
         sign = (substr(rest, 1, 1) == "-") ? -1 : 1
         if (substr(rest, 1, 1) != "+" && substr(rest, 1, 1) != "-") exit 1
-        off = sign * ((substr(rest, 2, 2) + 0) * 3600 + (substr(rest, length(rest) - 1, 2) + 0) * 60)
+        # +HH, +HHMM and +HH:MM. Reading the last two characters as minutes would read the hours
+        # twice for the first of those.
+        om = (length(rest) == 3) ? 0 : (substr(rest, length(rest) - 1, 2) + 0)
+        off = sign * ((substr(rest, 2, 2) + 0) * 3600 + om * 60)
       }
       printf "%d\n", days_from_civil(y, mo, d) * 86400 + hh * 3600 + mi * 60 + ss - off
       exit 0
@@ -53,9 +56,21 @@ iso_epoch() {
 # now_epoch: Baton's own clock, in seconds.
 now_epoch() { iso_epoch "$(baton_now)"; }
 
+# session_id_ok <session>: a session id is hexadecimal and hyphens, nothing else. The provenance
+# check is an id match (REQ-ARTIFACT-05), so a string that is not an id cannot be one: `..` is not
+# a glob character, and without this an artifact naming `../<folder>/<other session>` would find a
+# transcript by path traversal and pass a check that is supposed to prove the id exists.
+session_id_ok() {
+  case "$1" in
+    ''|*[!0-9a-fA-F-]*) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
 # transcript_of <session>: the transcript found by glob — never a path derived from the project
 # (REQ-ARTIFACT-05). Prints the path, or nothing with status 1.
 transcript_of() {
+  session_id_ok "$1" || return 1
   for to_f in "$BATON_TRANSCRIPTS"/*/"$1".jsonl; do
     if [ -f "$to_f" ]; then printf '%s\n' "$to_f"; return 0; fi
   done
@@ -64,6 +79,7 @@ transcript_of() {
 
 # orphaned_of <session>: the .orphaned-<ts>-<hash>.jsonl sibling, when that is all there is.
 orphaned_of() {
+  session_id_ok "$1" || return 1
   for oo_f in "$BATON_TRANSCRIPTS"/*/"$1".orphaned-*.jsonl; do
     if [ -f "$oo_f" ]; then printf '%s\n' "$oo_f"; return 0; fi
   done
@@ -85,10 +101,13 @@ typed_hashes() {
                              else ([.message.content[]? | select(.type == "text") | .text] | join("")) end)}' \
              "$1" 2>/dev/null) || return 1
   [ -n "$th_recs" ] || return 0
+  # Three fixed columns: a record missing its timestamp or uuid prints a dash rather than nothing,
+  # because an empty leading field would shift the columns and put the hash where awk reads the
+  # uuid — and the hash column is the whole of the takeover comparison.
   printf '%s\n' "$th_recs" | while IFS= read -r th_rec; do
     th_sum=$(printf '%s' "$th_rec" | jq -r .text | prompt_normalise | shasum -a 256 | awk '{ print $1 }')
-    printf '%s %s %s\n' "$(printf '%s' "$th_rec" | jq -r '.at // ""')" \
-      "$(printf '%s' "$th_rec" | jq -r '.uuid // ""')" "$th_sum"
+    printf '%s %s %s\n' "$(printf '%s' "$th_rec" | jq -r '(.at // "") | if . == "" then "-" else . end')" \
+      "$(printf '%s' "$th_rec" | jq -r '(.uuid // "") | if . == "" then "-" else . end')" "$th_sum"
   done
 }
 
@@ -119,8 +138,8 @@ lanes_open() {
 }
 
 # current_session <project> <milestone> <attempt>: the session currently carrying the attempt —
-# the newest of that attempt's dispatch.session and every later copy_fork.session (§6.1). The one
-# sentence every derivation needing a live session id goes through.
+# the newest of that attempt's dispatch.session and every later copy_fork.session (§6.1). The
+# rule lanes_open applies inline for every open lane; this is the same sentence for one lane.
 current_session() {
   cs_log=$(log_json) || { echo "$cs_log"; return 1; }
   printf '%s' "$cs_log" | jq -r --arg p "$1" --arg m "$2" --argjson a "$3" '
@@ -178,7 +197,8 @@ derive_parked() {
 # lane whose transcript will not parse is named too, rather than counted as not taken over.
 derive_taken_over() {
   dt_log=$(log_json) || { echo "$dt_log"; return 1; }
-  dt_flight=$(derive_in_flight "$1" "$2" | jq -c '.in_flight')
+  dt_flight=$(derive_in_flight "$1" "$2") || { echo "$dt_flight"; return 1; }
+  dt_flight=$(printf '%s' "$dt_flight" | jq -c '.in_flight')
   dt_over='[]'; dt_orphan='[]'; dt_unreadable='[]'
   dt_n=$(printf '%s' "$dt_flight" | jq length)
   dt_i=0
@@ -214,7 +234,7 @@ derive_taken_over() {
       --arg f "$dt_file" --arg a "${dt_first% *}" --arg u "${dt_first#* }" '
       . + [ {project: $l.project, milestone: $l.milestone, attempt: $l.attempt, session: $l.session,
              transcript: $f, first_unmatched_at: $a, first_unmatched_uuid: $u, typed_count: $c}
-            | with_entries(select(.value != "")) ]')
+            | with_entries(select(.value != "" and .value != "-")) ]')
   done
   jq -nc --argjson o "$dt_over" --argjson r "$dt_orphan" --argjson u "$dt_unreadable" \
     '{taken_over: $o, orphaned: $r, unreadable: $u}'
@@ -223,26 +243,38 @@ derive_taken_over() {
 # 4. Which handovers were consumed. The archive is the answer, not the log: a file still in the
 # inbox has not been acted on, one in the archive has, and the move is the consumption. The log
 # records what each consumption decided; the join is by field — the consumed event's archive holds
-# the archived filename verbatim and a reader never rebuilds the name from parts.
+# the archived file's path verbatim and a reader never rebuilds the name from parts. The join runs
+# both ways: `unrecorded` names every file in archive/ and rejected/ that no event claims, which is
+# what a tick killed between the move and its event leaves behind, and which nothing else would
+# show — derivation 1 would read such a lane as still open and M03's crash rule as a crash.
 derive_consumed() {
   dc_log=$(log_json) || { echo "$dc_log"; return 1; }
   dc_waiting='[]'
   for dc_f in "$BATON_HOME"/inbox/*.json; do
     [ -f "$dc_f" ] || continue
+    # -s so a file holding more than one JSON document yields one value rather than two, which
+    # --argjson refuses; an unreadable file contributes its name alone.
     dc_waiting=$(printf '%s' "$dc_waiting" | jq -c --arg f "$(basename "$dc_f")" \
-      --argjson a "$(jq -c '{milestone, session, outcome}' "$dc_f" 2>/dev/null || echo '{}')" \
+      --argjson a "$(jq -cs 'if (.[0] | type) == "object" then .[0] | {milestone, session, outcome} else {} end' \
+                       "$dc_f" 2>/dev/null || echo '{}')" \
       '. + [ ({file: $f} + $a) | with_entries(select(.value != null)) ]')
   done
-  printf '%s' "$dc_log" | jq -c --arg p "$1" --arg home "$BATON_HOME" --argjson w "$dc_waiting" \
-    --argjson present "$(ls "$BATON_HOME/archive" 2>/dev/null | jq -Rsc 'split("\n") | map(select(length > 0))')" '
-    { consumed: [ .[] | select(.kind == "consumed" and ($p == "" or .project == $p))
-                  | {at, project, milestone, session, attempt, outcome, reason, error,
-                     written_by, merged_as, blocked_by, archive}
-                  | with_entries(select(.value != null))
-                  | . as $c
-                  | (($c.archive // "") | sub("^.*/"; "")) as $name
-                  | $c + {archive_present: (($present | index($name)) != null)} ],
-      waiting: $w }'
+  printf '%s' "$dc_log" | jq -c --arg p "$1" --argjson w "$dc_waiting" \
+    --argjson present "$(ls "$BATON_HOME/archive" 2>/dev/null | jq -Rsc 'split("\n") | map(select(length > 0))')" \
+    --argjson rejects "$(ls "$BATON_HOME/rejected" 2>/dev/null | jq -Rsc 'split("\n") | map(select(length > 0))')" '
+    [ .[] | select(.kind == "consumed" and ($p == "" or .project == $p))
+      | {at, project, milestone, session, attempt, outcome, reason, error,
+         written_by, merged_as, blocked_by, archive}
+      | with_entries(select(.value != null))
+      | . as $c
+      | (($c.archive // "") | sub("^.*/"; "")) as $name
+      | $c + {archive_present: (($present | index($name)) != null)} ] as $consumed
+    | [ .[] | select(.kind == "rejected") | (.path // "") | sub("^.*/"; "") ] as $claimed
+    | [ $consumed[] | (.archive // "") | sub("^.*/"; "") ] as $archived
+    | { consumed: $consumed,
+        waiting: $w,
+        unrecorded: ( [ $present[] | select(($archived | index(.)) == null) | {file: ., where: "archive"} ]
+                    + [ $rejects[] | select(($claimed  | index(.)) == null) | {file: ., where: "rejected"} ] ) }'
 }
 
 # 5. Each active wait and its first-failure time. The newest consumed with reason api-error for a
@@ -303,12 +335,17 @@ derive_holds() {
 }
 
 # 7. Each caffeinate holder to re-arm. For each in-flight lane, -i -w against the pid in the
-# current row — the log stores no pid, because a supervisor restart gives the session a new one.
+# current row — the log stores no pid, because a restart of the background service gives
+# the session a new one.
 # For each active wait, -i -t for the remainder of caffeinateMaxHours measured from its since.
 derive_caffeinate() {
   dcf_max=$(( $(config_num caffeinateMaxHours 6) * 3600 ))
-  dcf_wake=$(derive_in_flight "$1" "$2" | jq -c '[ .in_flight[] | {project, milestone, session, pid} ]')
-  dcf_timed=$(derive_waits "$1" | jq -c --argjson max "$dcf_max" '
+  # Capture before piping: a derivation that fails prints its detail on stdout with a non-zero
+  # status (D-030), and a pipe straight into jq would hand that detail to jq and lose it.
+  dcf_flight=$(derive_in_flight "$1" "$2") || { echo "$dcf_flight"; return 1; }
+  dcf_waits=$(derive_waits "$1") || { echo "$dcf_waits"; return 1; }
+  dcf_wake=$(printf '%s' "$dcf_flight" | jq -c '[ .in_flight[] | {project, milestone, session, pid} ]')
+  dcf_timed=$(printf '%s' "$dcf_waits" | jq -c --argjson max "$dcf_max" '
     [ .waits[] | {project, milestone, attempt, since,
                   remaining_seconds: ([$max - .elapsed_seconds, 0] | max)} ]')
   jq -nc --argjson w "$dcf_wake" --argjson t "$dcf_timed" '{wake: $w, timed: $t}'
@@ -375,7 +412,7 @@ derive_key_spent() {
                         or (.kind == "consumed" and .written_by == "session")) ] | last) as $reset
     | ([ $ev[] | select(.kind == "notification" and .class == $c and ($k == "" or .key == $k))
          | select(.i > ($reset.i // -1)) ] | last) as $spent
-    | {project: $p, milestone: $m, attempt: $a, class: $c, key: $k,
+    | {project: $p, milestone: $m, attempt: $a, class: $c, key: (if $k == "" then null else $k end),
        reset_at: $reset.at, spent: ($spent != null), at: $spent.at}
     | with_entries(select(.value != null))'
 }
@@ -413,17 +450,36 @@ derive_widenings() {
 # 15. The gap: now minus the marker. Reported only when derivations 1, 2 or 5 show a lane was in
 # flight, waiting or parked during it — a gap with nothing to do is not one — and keyed on the
 # marker value it was measured against, so one outage reports once.
+#
+# The threshold is two intervals, not one. The marker holds the at of the tick that completed and
+# is written after the lock is released, so at the next tick it is already a full interval old
+# plus that tick's own elapsed time; one interval would report on every tick that has any open
+# lane, and the once-only key is the marker value, which changes every tick, so nothing would
+# suppress it. Two intervals means a tick was actually missed.
+#
+# "During it" is not "now": a lane that was in flight through the outage and finished before this
+# read still means Baton was not running while something needed it. So the window counts lanes open
+# now, plus anything that closed after the marker.
 derive_gap() {
   dg_tick=$(derive_last_tick) || { echo "$dg_tick"; return 1; }
   if [ "$(printf '%s' "$dg_tick" | jq -r .present)" != true ]; then
     echo '{"present":false,"report":false}'
     return 0
   fi
-  dg_flight=$(derive_in_flight "" "$1" | jq '.in_flight | length')
-  dg_parked=$(derive_parked "" | jq '.parked | length')
-  dg_waits=$(derive_waits "" | jq '.waits | length')
+  dg_marker=$(printf '%s' "$dg_tick" | jq -r .last_tick)
+  dg_f=$(derive_in_flight "" "$1") || { echo "$dg_f"; return 1; }
+  dg_p=$(derive_parked "") || { echo "$dg_p"; return 1; }
+  dg_w=$(derive_waits "") || { echo "$dg_w"; return 1; }
+  dg_log=$(log_json) || { echo "$dg_log"; return 1; }
+  dg_open=$(( $(printf '%s' "$dg_f" | jq '.in_flight | length') \
+            + $(printf '%s' "$dg_p" | jq '.parked | length') \
+            + $(printf '%s' "$dg_w" | jq '.waits | length') ))
+  dg_closed=$(printf '%s' "$dg_log" | jq --arg m "$dg_marker" '
+    [ .[] | select(.at > $m)
+      | select((.kind == "consumed" and (.outcome == "complete" or .written_by == "session"))
+               or .kind == "resolution") ] | length')
   printf '%s' "$dg_tick" | jq -c --argjson interval "$BATON_TICK_SECONDS" \
-    --argjson lanes "$((dg_flight + dg_parked + dg_waits))" '
+    --argjson lanes "$((dg_open + dg_closed))" '
     {present: true, marker: .last_tick, gap_seconds: .age_seconds, had_lane: ($lanes > 0),
-     report: (.age_seconds > $interval and $lanes > 0)}'
+     report: (.age_seconds >= 2 * $interval and $lanes > 0)}'
 }

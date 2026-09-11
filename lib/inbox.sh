@@ -10,6 +10,7 @@ set -eu
 # project_key_of <path>: the registered project whose canonical checkout is exactly <path>. The
 # project key is the directory name under projects/, which is the basename of that checkout.
 project_key_of() {
+  [ -n "$1" ] || return 1
   for pk_pj in "$BATON_HOME"/projects/*/project.json; do
     [ -f "$pk_pj" ] || continue
     pk_path=$(jq -r '.path // empty' "$pk_pj" 2>/dev/null) || continue
@@ -20,12 +21,28 @@ project_key_of() {
 
 # merged_as_verify <path> <sha>: the claim an artifact makes about its own merge, verified and
 # never trusted (INV-03). Prints nothing on success; the detail on failure.
+#
+# The claim must be a commit id, not a name for one. git resolves `main`, `HEAD`, `@` and
+# `main~0` as readily as a hash, and every one of them is an ancestor of `main` by definition, so a
+# check that only asks git to resolve the string is satisfied by a constant and proves nothing
+# about the session's merge (D-037). So: hexadecimal, long enough to name a commit, resolving to a
+# commit whose full id it is a prefix of — a ref name can never satisfy the last of those — and
+# only then the ancestry, run against the resolved id.
 merged_as_verify() {
-  git -C "$1" rev-parse --verify --quiet "$2^{commit}" > /dev/null 2>&1 \
+  case "$2" in
+    '') echo "the artifact names no merge commit"; return 1 ;;
+    *[!0-9a-f]*) echo "\"$2\" is a name, not a commit id; merged_as must be the merge commit"; return 1 ;;
+  esac
+  [ "${#2}" -ge 7 ] || { echo "\"$2\" is too short to name a commit"; return 1; }
+  mv_full=$(git -C "$1" rev-parse --verify --quiet "$2^{commit}" 2>/dev/null) \
     || { echo "$2 is not a commit in $1"; return 1; }
+  case "$mv_full" in
+    "$2"*) ;;
+    *) echo "$2 resolves to $mv_full, so it is a name and not that commit's id"; return 1 ;;
+  esac
   git -C "$1" rev-parse --verify --quiet "main^{commit}" > /dev/null 2>&1 \
     || { echo "$1 has no main branch"; return 1; }
-  git -C "$1" merge-base --is-ancestor "$2" main \
+  git -C "$1" merge-base --is-ancestor "$mv_full" main \
     || { echo "$2 is not an ancestor of main in $1"; return 1; }
 }
 
@@ -90,7 +107,11 @@ artifact_check() {
     elif ((.project // "") == "") then "project is missing"
     elif ((.milestone // "") == "") then "milestone is missing"
     elif ((.session // "") == "") then "session is missing"
+    elif ((.written_at // "") == "") then "written_at is missing"
     elif ((.outcome // "") == "") then "outcome is missing"
+    # index() on an array with an array argument is a subsequence search, so ["asking"] would
+    # satisfy it; the type test is what makes this an enum check.
+    elif ((.outcome | type) != "string") then "outcome is \(.outcome | type), not a string"
     elif (.outcome as $o | (["complete", "asking", "stopped"] | index($o)) == null)
       then "outcome \"\(.outcome)\" is not complete, asking or stopped"
     else "" end')
@@ -107,7 +128,10 @@ artifact_check() {
            '{rule: "unregistered-project", detail: $d}'; return 1; }
 
   ac_outcome=$(printf '%s' "$ac_a" | jq -r .outcome)
-  ac_reason=$(printf '%s' "$ac_a" | jq -r '.reason // ""')
+  # A reason belongs to a stopped artifact and to no other. Read on a complete one it would make
+  # written_by read stop-failure and derive_waits report a wait on a lane that finished.
+  ac_reason=''
+  [ "$ac_outcome" != stopped ] || ac_reason=$(printf '%s' "$ac_a" | jq -r '.reason // ""')
   ac_dropped='[]'
   case "$ac_outcome" in
     complete)
@@ -120,17 +144,24 @@ artifact_check() {
       ac_n=$(printf '%s' "$ac_a" | jq '.eligible | length')
       ac_i=0
       while [ "$ac_i" -lt "$ac_n" ]; do
-        ac_e=$(printf '%s' "$ac_a" | jq -c ".eligible[$ac_i]")
+        ac_e=$(printf '%s' "$ac_a" | jq -c "(.eligible[$ac_i] | if type == \"object\" then . else {} end)")
         ac_i=$((ac_i + 1))
-        ac_bp=$(printf '%s' "$ac_e" | jq -r '.brief.path // ""')
-        ac_bh=$(printf '%s' "$ac_e" | jq -r '.brief.heading // ""')
-        if [ -z "$ac_bp" ] || [ -z "$ac_bh" ]; then
+        # The optional form, because // catches a null but not an error: .brief.path on a string
+        # brief raises one, which under set -eu would kill the whole check and reject the file
+        # rather than the entry.
+        ac_bp=$(printf '%s' "$ac_e" | jq -r '(.brief?.path? // "") | if type == "string" then . else "" end')
+        ac_bh=$(printf '%s' "$ac_e" | jq -r '(.brief?.heading? // "") | if type == "string" then . else "" end')
+        ac_em=$(printf '%s' "$ac_e" | jq -r '(.milestone? // "") | if type == "string" then . else "" end')
+        if [ -z "$ac_em" ]; then
+          ac_detail="the entry names no milestone"
+        elif [ -z "$ac_bp" ] || [ -z "$ac_bh" ]; then
           ac_detail="the entry carries no brief path and heading"
         elif ac_detail=$(brief_pointer_check "$ac_path" "$ac_bp" "$ac_bh"); then
           continue
         fi
         ac_dropped=$(printf '%s' "$ac_dropped" | jq -c --argjson e "$ac_e" --arg d "$ac_detail" \
-          '. + [{milestone: $e.milestone, path: $e.brief.path, heading: $e.brief.heading, detail: $d}
+          '. + [{milestone: ($e.milestone? // null), path: ($e.brief?.path? // null),
+                 heading: ($e.brief?.heading? // null), detail: $d}
                 | with_entries(select(.value != null))]')
       done
       ;;
@@ -211,12 +242,13 @@ reject() {
   rj_project=$(project_key_of "$(printf '%s' "$rj_ids" | jq -r '.project // ""')" 2>/dev/null || echo '')
   rj_attempt=''
   if [ -n "$rj_project" ]; then
-    rj_attempt=$(attempt_for_session "$rj_project" "$rj_milestone" "$rj_session")
+    rj_attempt=$(attempt_for_session "$rj_project" "$rj_milestone" "$rj_session") \
+      || { echo "baton: $rj_attempt" >&2; return 1; }
   else
     # A file that cannot name its own project — truncated, unparseable, or naming a checkout Baton
     # does not know — still belongs to a lane if Baton dispatched the session, and the log says so.
     # Without a lane the escalation has no verb, so this is what makes the rejection answerable.
-    rj_lane=$(lane_of_session "$rj_session")
+    rj_lane=$(lane_of_session "$rj_session") || { echo "baton: $rj_lane" >&2; return 1; }
     rj_project=$(printf '%s' "$rj_lane" | jq -r '.project // empty')
     rj_attempt=$(printf '%s' "$rj_lane" | jq -r '.attempt // empty')
   fi
@@ -270,14 +302,19 @@ consume_one() {
   co_session=$(printf '%s' "$co_a" | jq -r .session)
   co_outcome=$(printf '%s' "$co_a" | jq -r .outcome)
   co_reason=$(printf '%s' "$co_a" | jq -r '.reason // ""')
-  co_attempt=$(attempt_for_session "$co_project" "$co_milestone" "$co_session")
+  co_attempt=$(attempt_for_session "$co_project" "$co_milestone" "$co_session") \
+    || { echo "baton: $co_attempt" >&2; return 1; }
   co_note=$co_outcome
 
   # An asking session is stopped at once, so that the ruling M05 delivers resumes it under the
   # same id rather than racing a session that is still holding the prompt open. The verb takes the
   # background job's id, which only the row carries; a session with no live row is already stopped.
+  # Only a session Baton dispatched is ever stopped: an empty attempt means no dispatch event names
+  # this session, and Baton never stops what it did not start.
   if [ "$co_outcome" = asking ]; then
-    co_job=$(printf '%s' "$3" | jq -r --arg s "$co_session" 'map(select(.sessionId == $s)) | first | .id // empty')
+    co_job=''
+    [ -z "$co_attempt" ] || co_job=$(printf '%s' "$3" | jq -r --arg s "$co_session" \
+      'map(select(.sessionId == $s and .pid != null)) | first | .id // empty')
     if [ -n "$co_job" ]; then
       "$BATON_CLAUDE" stop "$co_job" > /dev/null 2>&1 || true
       co_note="asking, stopped $co_job"
@@ -291,14 +328,27 @@ consume_one() {
   if [ "$co_outcome" = complete ]; then
     co_note="complete, merged_as $(printf '%s' "$co_a" | jq -r .merged_as)"
   fi
+  # REQ-ARTIFACT-03: a missing context on an asking artifact is a warning, not a rejection. This is
+  # where the person hears it.
+  if [ "$co_outcome" = asking ] && ! printf '%s' "$co_a" | jq -e 'has("context")' > /dev/null; then
+    co_note="$co_note, no context"
+  fi
+
+  # The event is composed before the move, and the three fields an outside process sizes — error,
+  # detail's neighbours blocked_by and merged_as — are cut the way dispatch_failed cuts its detail.
+  # log_event refuses a line at 4 KB, and a refusal after the move would leave an archived file
+  # with no consumed event, which derivation 1 then reads as a lane still open.
+  co_fields=$(printf '%s' "$co_a" | jq -c --arg w "$co_written_by" '
+    (if .outcome == "stopped" then {outcome, reason, error, blocked_by} else {outcome, merged_as} end)
+    | with_entries(select(.value != null))
+    | with_entries(if (.value | type) == "string" and (.value | length) > 500
+                   then .value |= (.[0:500] + "…") else . end)
+    | . + {written_by: $w}')
 
   co_at=$(baton_now)
   co_archive=$(archive_move "$1" "$co_at")
   log_event consumed "$co_project" "$co_milestone" "$co_session" "$co_attempt" \
-    "$(printf '%s' "$co_a" | jq -c --arg w "$co_written_by" --arg a "$co_archive" '
-       {outcome, reason, error, merged_as, blocked_by}
-       | with_entries(select(.value != null))
-       | . + {written_by: $w, archive: $a}')"
+    "$(printf '%s' "$co_fields" | jq -c --arg a "$co_archive" '. + {archive: $a}')"
   printf 'consumed  %s → %s (%s)\n' "$(basename "$1")" "$co_archive" "$co_note"
 
   # A brief pointer that is not on main rejects that entry, not the file: the handover is still
@@ -308,7 +358,7 @@ consume_one() {
   while [ "$co_i" -lt "$co_dn" ]; do
     co_d=$(printf '%s' "$2" | jq -c ".dropped[$co_i]")
     co_i=$((co_i + 1))
-    co_dm=$(printf '%s' "$co_d" | jq -r .milestone)
+    co_dm=$(printf '%s' "$co_d" | jq -r '.milestone // ""')
     log_event rejected "$co_project" "$co_dm" "" "" \
       "$(jq -nc --arg p "$co_archive" '{path: $p, reason: "brief-pointer"}')"
     escalate_rejection "$co_project" "$co_dm" "" "" brief-pointer "$co_archive"

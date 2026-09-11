@@ -6,5 +6,5 @@
   "had_lane": true,
   "report": true
 }
-== the same gap with nothing to do is not one ==
-{"present":true,"marker":"2026-09-12T10:00:00+01:00","gap_seconds":7200,"had_lane":false,"report":false}
+== no live row now, but M07 closed after the marker, so the gap still counts ==
+{"present":true,"marker":"2026-09-12T10:00:00+01:00","gap_seconds":7200,"had_lane":true,"report":true}

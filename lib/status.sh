@@ -19,50 +19,60 @@ duration() {
 }
 
 # nth <json array> <n>: one element, compactly, so a caller can read its fields.
-nth() { printf '%s' "$1" | jq -c ".[$2]"; }
+nth() { printf '%s' "$1" | jq -c --argjson n "$2" '.[$n]'; }
 
-# field <json object> <path> [<default>]: one field, or the default when it is absent.
-field() { printf '%s' "$1" | jq -r "$2 // \"${3:-}\""; }
+# field <json object> <path> [<default>]: one field, or the default when it is absent. The path is
+# a literal at every call site and has to be part of the program; the default is data and goes
+# through --arg, so a value carrying a quote cannot reshape the program.
+field() { printf '%s' "$1" | jq -r --arg d "${3:-}" "$2 // \$d"; }
 
 # verb_for <class> <milestone>: the baton command that resolves a park of that class. A lane park
 # resolves by a ruling; a project-scope park is cleared by the edit that fixes what failed, which
 # the next tick re-reads (REQ-ESC-05).
 verb_for() {
   case "$1" in
-    plan-unreadable|plan-unparseable|main-broken|baton-unhealthy|dispatch_failed)
+    plan-unreadable|plan-unparseable|main-broken|baton-unhealthy|dispatch-failed)
       echo "fix it; the next tick re-reads it" ;;
     *) printf 'baton answer %s "<ruling>"' "$2" ;;
   esac
 }
 
 # one_line <carries json>: the one line a person read — the question when the escalation carries
-# one, else its detail, else the rule and the path a rejection carries.
+# one, else its detail, else the rule and the path a rejection carries. Literally one line: a
+# question is carried verbatim (REQ-ARTIFACT-03) and may run to several, and §5.3 line 3 is one
+# line per park. The whole of it reaches the person through M03's notification.
 one_line() {
   printf '%s' "$1" | jq -r '
-    if type != "object" then tostring
-    elif has("question") then .question
-    elif has("detail") then .detail
-    elif has("rule") then "\(.rule) · \(.path // "")"
-    else (to_entries | map("\(.key) \(.value | tostring)") | join(", ")) end' 2>/dev/null \
+    ( if type != "object" then tostring
+      elif has("question") then .question
+      elif has("detail") then .detail
+      elif has("rule") then "\(.rule) · \(.path // "")"
+      else (to_entries | map("\(.key) \(.value | tostring)") | join(", ")) end )
+    | split("\n")[0]' 2>/dev/null \
     || printf '%s' "$1"
 }
 
 # silent_waits <project> <rows json>: §5.3 line 7 for one project — a blocked_by nothing has
-# redispatched since, and a wait_for in the newest archived complete handover that names a
-# milestone which is neither done, eligible nor in flight. A project whose plan does not parse is
-# skipped here; reporting that is the self-check's job (M03).
+# redispatched since AND whose blocker is in flight or eligible, and a wait_for in the newest
+# archived complete handover that names a milestone which is neither done, eligible nor in flight.
+# A blocked lane whose blocker is done, held or parked is not a silent wait: it is waiting on a
+# person, which the parked line already says. A project whose plan does not parse is skipped here;
+# reporting that is the self-check's job (M03).
 silent_waits() {
   sw_log=$(log_json) || return 0
-  printf '%s' "$sw_log" | jq -r --arg p "$1" '
-    [ to_entries[] | {i: .key} + .value | select(.project == $p) ] as $ev
-    | $ev[] | select(.kind == "consumed" and .reason == "blocked" and .blocked_by != null) | . as $c
-    | select(($ev | any(.kind == "dispatch" and .milestone == $c.milestone and .i > $c.i)) | not)
-    | "blocked  \($c.project)/\($c.milestone) · waiting on \($c.blocked_by)"'
-
   sw_plan=$(plan_of_project "$1" 2>/dev/null) || return 0
   sw_done=$(printf '%s' "$sw_plan" | jq -c '[ .milestones[] | select(.status == "done") | .id ]')
   sw_eligible=$(printf '%s' "$sw_plan" | plan_eligible | jq -Rsc 'split("\n") | map(select(length > 0))')
-  sw_flying=$(derive_in_flight "$1" "$2" | jq -c '[ .in_flight[] | .milestone ]')
+  sw_flying=$(derive_in_flight "$1" "$2") || { echo "$sw_flying"; return 1; }
+  sw_flying=$(printf '%s' "$sw_flying" | jq -c '[ .in_flight[] | .milestone ]')
+
+  printf '%s' "$sw_log" | jq -r --arg p "$1" --argjson el "$sw_eligible" --argjson fly "$sw_flying" '
+    [ to_entries[] | {i: .key} + .value | select(.project == $p) ] as $ev
+    | $ev[] | select(.kind == "consumed" and .reason == "blocked" and .blocked_by != null) | . as $c
+    | select(($ev | any(.kind == "dispatch" and .milestone == $c.milestone and .i > $c.i)) | not)
+    | select($c.blocked_by as $b | ($el | index($b)) != null or ($fly | index($b)) != null)
+    | "blocked  \($c.project)/\($c.milestone) · waiting on \($c.blocked_by)"'
+
   sw_newest=$(derive_consumed "$1" | jq -r '
     [ .consumed[] | select(.outcome == "complete" and .archive_present) ] | last | .archive // empty')
   [ -n "$sw_newest" ] || return 0
@@ -156,8 +166,10 @@ status_render() {
       "$(field "$sr_l" .attempt '?')" "$(duration "$((sr_now - sr_since))")" \
       "$(printf '%s' "$sr_l" | jq -r 'if (.row.waitingFor // "") != "" then " · \(.row.waitingFor)" else "" end')"
   done
-  printf '%s' "$sr_flight" | jq -r '.no_row[] |
-    "in flight  \(.project)/\(.milestone) · \(.session) · no live row"'
+  # Only lanes with a live row are printed here. derive_in_flight's other half, no_row, is the
+  # crash rule's input and not a state: it holds a session Baton itself stopped on an asking
+  # consume and one that ended with a declared stop, and printing those as in flight would show a
+  # parked lane twice and call a finished one running. M03 acts on no_row; §5.3 line 6 is this.
 
   # 7. Silent waits, per registered project.
   for sr_pj in "$BATON_HOME"/projects/*/project.json; do
@@ -173,7 +185,7 @@ status_render() {
   fi
 
   # 9. What is waiting in the inbox. The move is the consumption, so a file still here has not
-  # been acted on; between ticks that is a handover Baton has not yet read (D-033).
+  # been acted on; between ticks that is a handover Baton has not yet read (D-035).
   sr_consumed=$(derive_consumed "") || { echo "$sr_consumed"; return 1; }
   printf '%s' "$sr_consumed" | jq -r '.waiting[] |
     "inbox  \(.file) · \(.outcome // "unreadable") · not yet consumed"'

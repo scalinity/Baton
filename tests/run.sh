@@ -51,11 +51,16 @@ for sc in "$here"/scenarios/*/; do
        GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example GIT_COMMITTER_DATE=2026-09-01T00:00:00+0000 \
        git commit -q -m "fixture" )
   commit=$(git -C "$tmp/Fixture" rev-parse HEAD)
+  # A commit that is a real commit and is not on main, so the merged_as ancestry check can
+  # be failed by a claim git can resolve — which is the lie INV-03 exists to catch.
+  offmain=$(GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@example GIT_AUTHOR_DATE=2026-09-01T00:00:00+0000 \
+            GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example GIT_COMMITTER_DATE=2026-09-01T00:00:00+0000 \
+            git -C "$tmp/Fixture" commit-tree "$commit^{tree}" -p "$commit" -m off-main)
 
   cp -R "$sc/home" "$tmp/home"
   # @COMMIT@ as well as @TMP@, because a handover artifact names the commit it merged as and the
   # fixture repository's hash is only known once it has been committed.
-  find "$tmp/home" -type f -exec sed -i '' "s|@TMP@|$tmp|g; s|@COMMIT@|$commit|g" {} +
+  find "$tmp/home" -type f -exec sed -i '' "s|@TMP@|$tmp|g; s|@COMMIT@|$commit|g; s|@OFFMAIN@|$offmain|g" {} +
   cp "$sc/rows.json" "$tmp/shim/rows.json"
   cp "$sc/now" "$tmp/shim/now"
   if [ -d "$sc/shim" ]; then cp "$sc"/shim/* "$tmp/shim/"; fi
@@ -108,7 +113,7 @@ for sc in "$here"/scenarios/*/; do
     done < "$tmp/got/home/log.jsonl"
     mv "$tmp/got/home/log.jsonl.checked" "$tmp/got/home/log.jsonl"
   fi
-  find "$tmp/got" -type f -exec sed -i '' "s|$tmp|@TMP@|g; s|$commit|@COMMIT@|g" {} +
+  find "$tmp/got" -type f -exec sed -i '' "s|$tmp|@TMP@|g; s|$commit|@COMMIT@|g; s|$offmain|@OFFMAIN@|g" {} +
 
   if d=$(diff -r "$sc/expected" "$tmp/got" 2>&1); then
     echo "ok    $name"

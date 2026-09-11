@@ -1,5 +1,5 @@
 . "$ROOT/tests/lib-load.sh"
 echo "== a lane was in flight through the gap =="
 derive_gap "$(rows_json)" | jq .
-echo "== the same gap with nothing to do is not one =="
+echo "== no live row now, but M07 closed after the marker, so the gap still counts =="
 derive_gap '[]' | jq -c .

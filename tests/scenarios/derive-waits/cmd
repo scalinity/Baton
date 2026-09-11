@@ -1,2 +1,3 @@
 . "$ROOT/tests/lib-load.sh"
+echo "== M02 waits; M07's session came back and M03 was redispatched, so neither does =="
 derive_waits Fixture | jq .

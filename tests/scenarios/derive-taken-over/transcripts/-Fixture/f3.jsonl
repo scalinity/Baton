@@ -1,2 +1,6 @@
 {"parentUuid":null,"type":"user","promptSource":"typed","uuid":"u3a","timestamp":"2026-09-12T07:00:00.000Z","message":{"role":"user","content":"KICKOFF M03: implement the third milestone."}}
-{"parentUuid":null,"type":"user","promptSource":"typed","uuid":"u3b","timestamp":"2026-09-12T09:15:44.812Z","message":{"role":"user","content":"actually, do the opposite and tell me why"}}
+{"parentUuid":null,"type":"assistant","uuid":"u3x","timestamp":"2026-09-12T07:01:00.000Z","message":{"role":"assistant","content":"working"}}
+{"parentUuid":null,"type":"user","promptSource":"typed","uuid":"u3m","timestamp":"2026-09-12T07:02:00.000Z","message":{"role":"user","content":"a meta record"},"isMeta":true}
+{"parentUuid":null,"type":"user","promptSource":"typed","uuid":"u3c","timestamp":"2026-09-12T07:03:00.000Z","message":{"role":"user","content":"a compact summary"},"isCompactSummary":true}
+{"parentUuid":null,"type":"user","promptSource":"hook","uuid":"u3h","timestamp":"2026-09-12T07:04:00.000Z","message":{"role":"user","content":"not typed"}}
+{"parentUuid":null,"type":"user","promptSource":"typed","uuid":"u3b","timestamp":"2026-09-12T09:15:44.812Z","message":{"role":"user","content":[{"type":"text","text":"actually, do the "},{"type":"text","text":"opposite and tell me why"}]}}
