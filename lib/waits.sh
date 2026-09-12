@@ -235,14 +235,17 @@ reserve_check() {
   rck_model=$(jq -r '.models.fable // "fable"' "$BATON_HOME/config.json" 2>/dev/null || echo fable)
   rck_doc=$(reserve_reading)
   rck_bites=$(printf '%s' "$rck_doc" | jq --argjson r "$rck_reserve" '$r < 100 and (.reading // -1) >= $r')
-  rck_open=$(derive_holds) || { echo "$rck_open" >&2; return 1; }
-  rck_open=$(printf '%s' "$rck_open" | jq 'any(.holds[]; .cause == "fableReserve")')
+  rck_holds=$(derive_holds) || { echo "$rck_holds" >&2; return 1; }
+  rck_open=$(printf '%s' "$rck_holds" | jq 'any(.holds[]; .cause == "fableReserve")')
   if [ "$rck_bites" = true ] && [ "$rck_open" = false ]; then
     log_event hold "" "" "" "" "$(printf '%s' "$rck_doc" | jq -c --arg m "$rck_model" \
       '{model: $m, cause: "fableReserve", reading, status_file}')" || return 1
     printf 'hold      %s · fableReserve · the seven-day window reads %s%%, at or above the reserve of %s\n' \
       "$rck_model" "$(printf '%s' "$rck_doc" | jq -r .reading)" "$rck_reserve"
   elif [ "$rck_bites" = false ] && [ "$rck_open" = true ]; then
+    # Lifted under the model the hold was written with, which derivation 6 matches on: a `models.fable`
+    # edited while the hold stood would otherwise write a lift that closes nothing, on every tick.
+    rck_model=$(printf '%s' "$rck_holds" | jq -r 'first(.holds[] | select(.cause == "fableReserve") | .model)')
     log_event hold_lifted "" "" "" "" "$(jq -nc --arg m "$rck_model" '{model: $m, cause: "fableReserve"}')" || return 1
     printf 'lifted    %s · fableReserve · the seven-day window reads below the reserve, or no reading stands\n' "$rck_model"
   fi

@@ -1,0 +1,2 @@
+echo "== the reserve hold was written for fable, and config.json now maps fable to a full id: the reading of 40 lifts the hold it names, once =="
+"$BATON" tick
