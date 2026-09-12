@@ -44,9 +44,9 @@ answer_options() {
     [ .[] | select(.kind == "consumed" and .project == $p and .milestone == $m
                    and .session == $s and .outcome == "asking") ] | last | .archive // empty')
   if [ -n "$ano_arch" ] && [ -f "$ano_arch" ]; then
-    jq -c '[ .options[]? | tostring ]' "$ano_arch" 2>/dev/null && return 0
+    jq -c '(.options // []) | (if type == "array" then . else [.] end) | map(tostring)' "$ano_arch" 2>/dev/null && return 0
   fi
-  printf '%s' "$4" | jq -c '[ .options[]? | tostring ]'
+  printf '%s' "$4" | jq -c '(.options // []) | (if type == "array" then . else [.] end) | map(tostring)'
 }
 
 # answer_deliver <park json> <ruling or option number> <rows json>: the ruling's return.

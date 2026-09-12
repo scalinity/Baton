@@ -1,0 +1,4 @@
+echo "== a question at the length and in the script a session really writes, a string where the options"
+echo "   array belongs and an excerpt in the context: the session is stopped, so the lane must be parked =="
+"$BATON" tick
+"$BATON" status | grep '^parked' | cut -c1-80

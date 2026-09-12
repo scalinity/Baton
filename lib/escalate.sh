@@ -306,19 +306,37 @@ message_render() {
 # asking_carries <artifact json>: what an `asking` escalation carries — the question verbatim, its
 # options, the recommendation and the context pointer the contract asks for (REQ-ARTIFACT-03).
 #
-# Every field is cut, because every one of them is a session's own prose at whatever length it
-# took and the log's line is 4 KB. The options are cut hardest and are capped in number, and that
-# costs nothing: `baton answer <M> <n>` expands the number from the **archived artifact** and not
-# from this record, so a truncated option list shortens the message and never the answer.
+# **Every field is cut, and cut in bytes**, because every one is a session's own prose at whatever
+# length and in whatever script it took, and the log refuses a line at 4096 bytes and not at 4096
+# characters. A question of five hundred characters in Japanese is fifteen hundred bytes; cutting by
+# code points would pass it and the refusal would be the first defence after all. `cut` keeps a
+# string whole when it fits its budget and otherwise takes as many characters as the budget holds
+# even at four bytes each, so the bound is exact whatever the text is. The budgets sum to about
+# 2.3 KB, which leaves the envelope and the re-read room under the line.
+#
+# The shapes are forced as well as the lengths. `options` is a list in the contract and a session
+# can still write a string, which jq cannot iterate — measured, that aborted the carries and lost
+# the park — so a lone value becomes a list of one. `context` keeps the two fields the contract
+# names and nothing a session pasted beside them.
+#
+# The options are cut hardest and capped at six, and that costs nothing: `baton answer <M> <n>`
+# expands the number from the **archived artifact**, not from this record, so a shortened list
+# shortens the message and never the answer.
 asking_carries() {
   printf '%s' "$1" | jq -c '
+    def cut($n): tostring
+      | if utf8bytelength <= $n then .
+        elif (.[0:$n] | utf8bytelength) <= $n then .[0:$n] + "…"
+        else .[0:($n / 4 | floor)] + "…" end;
     {question, options, recommendation, context}
     | with_entries(select(.value != null))
-    | (if has("question") then .question |= (tostring | if length > 500 then .[0:500] + "…" else . end) else . end)
-    | (if has("recommendation") then .recommendation |= (tostring | if length > 200 then .[0:200] + "…" else . end) else . end)
-    | (if has("options") then .options |= ([ .[0:9][] | tostring
-                                             | if length > 200 then .[0:200] + "…" else . end ]) else . end)
-    | (if has("context") then .context |= (if type == "object" then . else {path: tostring} end) else . end)'
+    | (if has("question") then .question |= cut(600) else . end)
+    | (if has("recommendation") then .recommendation |= cut(150) else . end)
+    | (if has("options") then .options |= ((if type == "array" then . else [.] end) | [ .[0:6][] | cut(150) ]) else . end)
+    | (if has("context") then .context |= (if type == "object"
+                                           then {path: (.path // "" | cut(300)), heading: (.heading // "" | cut(150))}
+                                                | with_entries(select(.value != ""))
+                                           else {path: cut(300)} end) else . end)'
 }
 
 # ending_escalate <project> <milestone> <session> <attempt> <artifact json> <class> <archive path>:
@@ -329,15 +347,18 @@ asking_carries() {
 # question, its options and its recommendation are the session's own words, and re-reading them
 # from the archive a step later would be reading a file to learn what was just parsed. The consume
 # is once by the move (INV-06), so the park is written once for the same reason.
+#
+# **The park is not optional once the session has been stopped.** An `asking` consume stops the
+# session before it parks the lane, and no later rule looks at an asking consume again — the crash
+# rule passes it by and the ladder counts no failure — so a park that could not be written would be
+# a stopped session with no park, no message and no verb, for as long as Baton runs. Whatever made
+# the full carries fail, a carries of one sentence and the archive's path is written instead; it is
+# small enough that only a missing lock refuses it, and the question is in the file it names.
 ending_escalate() {
   end_class=$6
   case "$end_class" in
     asking)
-      end_carries=$(asking_carries "$5")
-      if ! printf '%s' "$end_carries" | jq -e 'has("question")' > /dev/null; then
-        end_carries=$(printf '%s' "$end_carries" | jq -c \
-          '. + {detail: "the session ended asking and its artifact carries no question"}')
-      fi ;;
+      end_carries=$(asking_carries "$5" 2>/dev/null) || end_carries='' ;;
     *)
       end_detail=$(artifact_detail "$7")
       [ -n "$end_detail" ] || end_detail="the session gave no detail"
@@ -347,7 +368,12 @@ ending_escalate() {
       esac
       end_carries=$(jq -nc --arg d "$end_detail" --arg a "$7" '{detail: $d, archive: $a}') ;;
   esac
-  escalate "$1" "$2" "$3" "$4" "$end_class" lane "$end_carries"
+  if [ -n "$end_carries" ] && escalate "$1" "$2" "$3" "$4" "$end_class" lane "$end_carries"; then
+    return 0
+  fi
+  echo "baton: $1/$2 the $end_class park did not fit its full carries; parking it with a pointer to $7" >&2
+  escalate "$1" "$2" "$3" "$4" "$end_class" lane \
+    "$(jq -nc --arg a "$7" '{detail: "the session stopped with words Baton could not carry whole; they are in the archived artifact", archive: $a}')"
 }
 
 # edit_reread_check <project> <plan json>: REQ-ESC-05's third route, and the one only the tick can

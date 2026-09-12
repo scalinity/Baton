@@ -1,0 +1,2 @@
+osascript -e 'display notification "the session stopped with words Baton could not carry whole; they are in the archived artifact · baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · asking"'
+osascript -e 'display notification "the session stopped with words Baton could not carry whole; they are in the archived artifact · baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · asking"'

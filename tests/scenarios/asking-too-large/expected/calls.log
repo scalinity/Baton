@@ -1,0 +1,7 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude stop 0badf2
+osascript -e 'display notification "フォーマッタを公開すべきか、内部に留めるべきか。フォーマッタを公開すべきか、内部に留めるべきか。フォーマッタを公開すべきか、内部に留めるべきか。フォーマッタを公開すべきか、内部に留めるべきか。フォーマッタを公開すべきか、内部に留めるべきか。フォーマッタを公開すべきか、内部に留めるべきか。フォーマッタ…  1 expose it, or keep it internal · baton answer M02 <n>" with title "Baton · Fixture/M02 · asking"'
+caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json

@@ -1,0 +1,6 @@
+. "$ROOT/tests/lib-load.sh"
+lock_take
+echo "== the session is already stopped when the park is written, so a carries that cannot be built"
+echo "   still parks the lane, with a pointer to the archive, rather than parking nothing =="
+ending_escalate Fixture M02 f2 1 'this is not the artifact JSON it should be' asking "$BATON_HOME/archive/M02-f2-x.json" || echo "status $?"
+jq -c 'select(.kind == "escalation") | {class, carries}' "$BATON_HOME/log.jsonl"
