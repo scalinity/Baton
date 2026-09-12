@@ -254,9 +254,9 @@ row of the same name reads the same function.
 performs. It looks only at worktrees `git worktree list --porcelain` names at exactly
 `../<Project>-<milestone>` for a milestone the plan has, and removes one with `git worktree remove`,
 never `--force`, only when all three hold: the milestone's `Status` reads `done`; no live session
-belongs to it — no in-flight lane for the milestone, no live row named for it, no live row whose
-`cwd` is the worktree or under it; and the newest archived `complete` handover for the milestone has
-a `merged_as` that `merged_as_verify` accepts. A listed worktree whose directory is already gone
+belongs to it — no open lane for the milestone, with or without a pid, no live row named for it, no live row whose
+`cwd` is the worktree or under it; and the newest archived `complete` handover for the milestone, with no
+dispatch or ending newer than it, has a `merged_as` that `merged_as_verify` accepts. A guard it cannot answer refuses. A listed worktree whose directory is already gone
 passes through the same guards and the same command, which drops its registration. The branch is
 kept, and the act is a `worktree_pruned` event. A `done` worktree it refuses prints a line.
 

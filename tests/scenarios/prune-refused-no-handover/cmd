@@ -1,0 +1,4 @@
+[ -f "$SHIM/worktree.made" ] || { git -C Fixture worktree add -q ../Fixture-M01 -b m01 main && : > "$SHIM/worktree.made"; }
+echo "== M01 reads done and no session belongs to Fixture-M01, but no complete handover for M01 was ever archived: nothing verifies the merge, so the worktree is left =="
+"$BATON" tick
+if [ -d Fixture-M01 ]; then echo "Fixture-M01 is on disk"; else echo "Fixture-M01 is gone"; fi

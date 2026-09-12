@@ -1,0 +1,3 @@
+== a live row whose cwd is not a string makes the second guard unanswerable: it refuses rather than passes ==
+prune     Fixture/M01 · @TMP@/Fixture-M01 is done but a session may belong to it (the rows, which could not be read) · left in place
+Fixture-M01 is on disk

@@ -1,0 +1,3 @@
+== M01's complete handover is on main, but a later ending for M01 says its merge failed: that handover is not the worktree's last word, so it is left ==
+prune     Fixture/M01 · @TMP@/Fixture-M01 is done but the milestone has a dispatch or an ending newer than its complete handover · left in place
+Fixture-M01 is on disk

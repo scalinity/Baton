@@ -1,0 +1,3 @@
+== M01 reads done and no session belongs to Fixture-M01, but no complete handover for M01 was ever archived: nothing verifies the merge, so the worktree is left ==
+prune     Fixture/M01 · @TMP@/Fixture-M01 is done but no complete handover for it is archived · left in place
+Fixture-M01 is on disk

@@ -67,18 +67,32 @@ worktree_ensure() {
 # worktree a person made anywhere else is never looked at. Then three guards, each of which refuses:
 #
 #   1. the milestone's `Status` reads `done`;
-#   2. no live session belongs to it — no in-flight lane for the milestone by derivation 1, which
-#      follows copy forks to the session carrying the lane; no live row named for it; and no live row
-#      whose working directory is the worktree or under it, which is what a person's own session
-#      started there looks like;
-#   3. the archived `complete` handover for the milestone names a `merged_as` that `merged_as_verify`
-#      accepts: a commit id and not a name, and an ancestor of `main`.
+#   2. no session belongs to it — no open lane for the milestone, whether or not its session has a
+#      pid right now (a lane in a wait has none, and its resume lands in this worktree); no live row
+#      named for it; and no live row whose working directory is the worktree or under it, which is
+#      what a person's own session started there looks like;
+#   3. the newest archived `complete` handover for the milestone names a `merged_as` that
+#      `merged_as_verify` accepts — a commit id and not a name, and an ancestor of `main` — and no
+#      dispatch or consumed ending for the milestone is newer than it, so the merge on `main` is this
+#      worktree's last word and not an older attempt's.
+#
+# Every guard fails closed: a question it could not answer — a jq that errored on a row it did not
+# expect — refuses, because the cost of a wrong refusal is a directory left until the next tick and
+# the cost of a wrong removal is the work.
 #
 # Never on `Status` alone: a close-out that wrote `done` a step early and then failed its merge left a
 # cell reading `done` over the only copy of the work, and it has no `complete` handover to pass the
 # third guard. The removal is `git worktree remove` without `--force`, so git's own refusal of a tree
 # with modified or untracked files stands as a fourth; the branch is not deleted, so a commit made
 # after the merge is still on it.
+#
+# The candidate is matched by exact string against the path git prints, as `worktree_ensure` composed
+# it from `project.json`. A checkout registered through a symlink never matches, and the prune then
+# never acts — the safe direction, and the reason no path is resolved here.
+#
+# The removal comes before the `worktree_pruned` event, unlike a copy fork's record (D-059): a tick
+# killed between them loses the record of a removal the next tick cannot repeat, while an event
+# written first would claim a removal that may not have happened.
 #
 # A worktree git lists whose directory is already gone is passed through the same guards and the same
 # command, which then drops the registration and touches nothing on disk. That is `git worktree
@@ -93,7 +107,8 @@ worktree_prune() {
   wp_list=$(git -C "$wp_path" worktree list --porcelain 2>&1) \
     || { echo "prune     $1 · git worktree list failed: $wp_list"; return 0; }
   wp_paths=$(printf '%s\n' "$wp_list" | sed -n 's/^worktree //p')
-  wp_flight=$(derive_in_flight "$1" "$3") || { echo "$wp_flight" >&2; return 1; }
+  wp_log=$(log_json) || { echo "$wp_log" >&2; return 1; }
+  wp_open=$(lanes_open "$1" "$wp_log") || { echo "$wp_open" >&2; return 1; }
   wp_consumed=$(derive_consumed "$1") || { echo "$wp_consumed" >&2; return 1; }
   while IFS= read -r wp_wt; do
     case "$wp_wt" in "$wp_prefix"*) ;; *) continue ;; esac
@@ -102,11 +117,25 @@ worktree_prune() {
     wp_row=$(printf '%s' "$2" | plan_row "$wp_id" 2>/dev/null) || continue
     # 1.
     [ "$(printf '%s' "$wp_row" | jq -r '.status // ""')" = done ] || continue
-    # 2.
-    if printf '%s' "$wp_flight" | jq -e --arg m "$wp_id" 'any(.in_flight[]; .milestone == $m)' > /dev/null \
-       || printf '%s' "$3" | jq -e --arg n "$(session_name "$1" "$wp_id")" --arg w "$wp_wt" '
-            any(.[]; .pid != null and (.name == $n or .cwd == $w or ((.cwd // "") | startswith($w + "/"))))' > /dev/null; then
-      echo "prune     $1/$wp_id · $wp_wt is done but a live session belongs to it · left in place"
+    # 2. Each answer is read as text and only `false` lets the prune go on.
+    wp_lane=$(printf '%s' "$wp_open" | jq -r --arg m "$wp_id" 'any(.[]; .milestone == $m)' 2>/dev/null) || wp_lane=unreadable
+    wp_live=$(printf '%s' "$3" | jq -r --arg n "$(session_name "$1" "$wp_id")" --arg w "$wp_wt" '
+      if any(.[]; .pid != null and .name == $n) then "named"
+      elif any(.[]; .pid != null and (.cwd == $w or ((.cwd // "") | startswith($w + "/")))) then "inside"
+      else "false" end' 2>/dev/null) || wp_live=unreadable
+    if [ "$wp_lane" != false ]; then
+      [ "$wp_lane" = true ] && wp_who="an open lane for $wp_id" || wp_who="the lanes, which could not be read"
+    elif [ "$wp_live" != false ]; then
+      case "$wp_live" in
+        named)  wp_who="a live row named for $wp_id" ;;
+        inside) wp_who="a live row working inside it" ;;
+        *)      wp_who="the rows, which could not be read" ;;
+      esac
+    else
+      wp_who=''
+    fi
+    if [ -n "$wp_who" ]; then
+      echo "prune     $1/$wp_id · $wp_wt is done but a session may belong to it ($wp_who) · left in place"
       continue
     fi
     # 3.
@@ -116,6 +145,16 @@ worktree_prune() {
     [ -z "$wp_archive" ] || wp_merged=$(jq -r '.merged_as // empty' "$wp_archive" 2>/dev/null) || wp_merged=''
     if [ -z "$wp_merged" ]; then
       echo "prune     $1/$wp_id · $wp_wt is done but no complete handover for it is archived · left in place"
+      continue
+    fi
+    wp_newer=$(printf '%s' "$wp_log" | jq -r --arg p "$1" --arg m "$wp_id" --arg a "$wp_archive" '
+      [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
+      | ([ $ev[] | select(.kind == "consumed" and .archive == $a) ] | last | .i) as $at
+      | if $at == null then "true"
+        else any($ev[]; (.kind == "dispatch" or .kind == "consumed") and .i > $at) | tostring end' 2>/dev/null) \
+      || wp_newer=true
+    if [ "$wp_newer" != false ]; then
+      echo "prune     $1/$wp_id · $wp_wt is done but the milestone has a dispatch or an ending newer than its complete handover · left in place"
       continue
     fi
     if ! wp_why=$(merged_as_verify "$wp_path" "$wp_merged"); then
