@@ -265,13 +265,17 @@ dispatch_run() {
     drn_p=$(printf '%s' "$drn_c" | jq -r .project)
     drn_m=$(printf '%s' "$drn_c" | jq -r .milestone)
     drn_plan=$(printf '%s' "$2" | jq -c --arg k "$drn_p" '.[$k]')
-    if printf '%s' "$drn_c" | jq -e 'has("override")' > /dev/null; then
-      plan_override_once "$drn_p" "$drn_m" "$(printf '%s' "$drn_c" | jq -c .override)" || continue
-    fi
     drn_before=$(attempt_of "$drn_p" "$drn_m") || { echo "$drn_before" >&2; return 1; }
     dispatch_try "$drn_p" "$drn_m" "$drn_plan" "$3"
     drn_after=$(attempt_of "$drn_p" "$drn_m") || { echo "$drn_after" >&2; return 1; }
-    [ "$drn_after" -le "$drn_before" ] || drn_total=$((drn_total + 1))
+    [ "$drn_after" -gt "$drn_before" ] || continue
+    drn_total=$((drn_total + 1))
+    # The override follows the dispatch it records, so a dispatch that failed leaves no record of the
+    # plan having overruled a `held` into a session that never started.
+    if printf '%s' "$drn_c" | jq -e 'has("override")' > /dev/null; then
+      plan_override_once "$drn_p" "$drn_m" "$(printf '%s' "$drn_c" | jq -c .override)" \
+        || echo "override  $drn_p/$drn_m · the plan_override for this dispatch could not be written" >&2
+    fi
   done
 }
 

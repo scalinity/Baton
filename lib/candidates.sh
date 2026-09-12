@@ -175,8 +175,9 @@ plan_override_once() {
 # dispositions_intersect <project> <plan json> <rows json>: step 6 for one project, acted on. Writes
 # the resolutions, the withheld overrides and the two escalations, and prints {candidates, lines}:
 # the milestones step 7 may dispatch, each with its order key and any override to record at dispatch,
-# and what a person reads in launchd.out. The dispatched override is written by the dispatch, not
-# here, so that a candidate the cap holds back leaves no record of a dispatch that did not happen.
+# and what a person reads in launchd.out. The dispatched override is written after the dispatch, not
+# here, so that neither a candidate the cap holds back nor a dispatch that failed leaves a record of a
+# dispatch that did not happen.
 #
 # An `omitted` or `disagreement` park ends when its condition does — a handover that now lists the
 # milestone, a dependency that now reads done, a newer handover that no longer says run — because

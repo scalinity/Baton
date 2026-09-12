@@ -1,13 +1,13 @@
 == the handover says held: the plan shows M07's gate cleared by D-003 and holds M02 by no gate, so both dispatch, each with one plan_override ==
-override  Fixture/M07 · the handover says held by "cleared gate" and the plan does not hold it, cleared by D-003 · dispatched
 backgrounded · 0badc0d1 · Baton · Fixture · M07
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
 worktree  @TMP@/Fixture-M07 (branch m07)
 settings  @TMP@/home/settings/Fixture-M07.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
-override  Fixture/M02 · the handover says held by "v0.1 ships" and the plan does not hold it · dispatched
+override  Fixture/M07 · the handover says held by "cleared gate" and the plan does not hold it, cleared by D-003 · dispatched
 backgrounded · 0badc0d2 · Baton · Fixture · M02
 session   0badc0d2-0000-4000-8000-000000000000 (attempt 1)
 worktree  @TMP@/Fixture-M02 (branch m02)
 settings  @TMP@/home/settings/Fixture-M02.json
 prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
+override  Fixture/M02 · the handover says held by "v0.1 ships" and the plan does not hold it · dispatched

@@ -207,7 +207,7 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    `wait` or `held`: `run` → a candidate; `wait` → honoured while any `wait_for` is not `done`,
    dispatched the moment all read `done`, a distant `wait_for` notifying once; `held` on a milestone
    the plan makes eligible — its gate cleared, or a gate the plan does not name → the plan wins,
-   dispatch, `plan_override` (`dispatched_over_held`, written by the dispatch); `run` on a milestone
+   dispatch, `plan_override` (`dispatched_over_held`, written once the dispatch happened); `run` on a milestone
    the plan holds (`Status: held` or an uncleared gate) → the plan wins, withheld, `plan_override`
    (`withheld_over_run`). An override is written once per milestone, direction and gate since the
    milestone's newest dispatch. Exactly two things escalate, lane scope, by milestone name: a `run`
