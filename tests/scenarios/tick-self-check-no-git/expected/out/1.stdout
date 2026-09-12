@@ -1,0 +1,1 @@
+self-check  NotARepo · git -C @TMP@/NotARepo rev-parse HEAD failed: fatal: not a git repository (or any of the parent directories): .git

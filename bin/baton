@@ -46,7 +46,10 @@ case "$verb" in
     [ $# -eq 1 ] || { usage >&2; exit 2; }
     # The one verb that clears a stale lock rather than refusing over it: a lock past the interval
     # whose holder is gone would otherwise stop the relay until a person noticed (REQ-TICK-03).
+    # The report runs after the break, so it speaks only for a lock still held by a live process —
+    # a hand run that is taking its time — and `launchd.out` then says why the tick did nothing.
     stale=$(lock_stale_break)
+    lock_stale_report
     lock_take
     verb_tick "$stale"
     ;;

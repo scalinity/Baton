@@ -1,0 +1,4 @@
+# A directory with a plan file the tick can read and parse, and no git repository under it.
+mkdir -p NotARepo/docs
+cp Fixture/docs/MILESTONES.md NotARepo/docs/MILESTONES.md
+"$BATON" tick
