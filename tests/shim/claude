@@ -3,7 +3,9 @@
 # agents --json answers), calls.log (every call's argv, one line each), now, and the knobs a
 # scenario sets — bg.stderr (printed on stderr by --bg) and bg.fail (--bg prints no backgrounded
 # line and exits with the file's number), bg.norow (no row appears, as for a worker that crashed
-# before init) and bg.settled (the line the service writes to its daemon.log for such a crash).
+# before init), bg.settled (the line the service writes to its daemon.log for such a crash), and
+# resume.note, resume.stream and resume.status (what --bg --resume prints, on which stream, with
+# which exit code).
 set -eu
 S=${BATON_SHIM:?}
 
@@ -23,6 +25,33 @@ case "${1:-}" in
     ;;
   --bg)
     record "$@"
+    # The resume roles. A scenario sets resume.note to the exact line the CLI prints — the success
+    # line by default, or one of the copy-fork note: variants captured live (item 46) — resume.stream
+    # to send it to stderr instead of stdout, and resume.status to make the command exit non-zero.
+    # A note naming a copy also puts the copy's row in the listing, because that is what a fork
+    # leaves behind: a second live session under a new id, which the next tick must see.
+    if [ "${2:-}" = --resume ]; then
+      sid=${3:-}
+      if [ -f "$S/resume.note" ]; then note=$(cat "$S/resume.note")
+      else note="note: woke session $sid with its saved options (-n, --settings, --model, --permission-mode)"
+      fi
+      case "$note" in
+        *"started a copy as "*)
+          copy=$(printf '%s' "$note" | sed -n 's/.*started a copy as \([0-9a-f]*\).*/\1/p')
+          jq -c --arg id "$copy" --arg cwd "$PWD" \
+            '. + [{pid: 4299, id: $id, cwd: $cwd, kind: "background", startedAt: 1789200000000,
+                   sessionId: $id, name: "Baton · Fixture · M02", status: "busy", state: "working"}]' \
+            "$S/rows.json" > "$S/rows.json.tmp"
+          mv "$S/rows.json.tmp" "$S/rows.json"
+          ;;
+      esac
+      if [ "$(cat "$S/resume.stream" 2>/dev/null || echo stdout)" = stderr ]; then
+        printf '%s\n' "$note" >&2
+      else
+        printf '%s\n' "$note"
+      fi
+      exit "$(cat "$S/resume.status" 2>/dev/null || echo 0)"
+    fi
     name=; shift
     while [ $# -gt 1 ]; do
       case "$1" in -n) name=$2; shift ;; esac

@@ -1,0 +1,2 @@
+echo "== no transcript for the crashed id, so attempt 2 starts from the brief instead =="
+"$BATON" tick

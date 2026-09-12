@@ -1,0 +1,5 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "blocked by M03, which is in flight; Baton redispatches this lane when the plan reads it done" with title "Baton · Fixture/M07 · blocked_by"'
+caffeinate -i -w 4243
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4243

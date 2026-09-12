@@ -1,0 +1,2 @@
+echo "== M02 waits for M06, which is neither done, eligible nor in flight =="
+"$BATON" tick

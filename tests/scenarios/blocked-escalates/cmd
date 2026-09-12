@@ -1,0 +1,2 @@
+echo "== M05 is held by a person, so nothing is coming to unblock this lane =="
+"$BATON" tick

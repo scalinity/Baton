@@ -1,0 +1,5 @@
+== M07 is eligible on opus with a run disposition, and neither limited model is opus ==
+== the shared-limit rule is the only thing withholding it ==
+hold      claude-opus-5 · rate_limit · no dispatch on it while the wait stands
+hold      haiku · rate_limit · no dispatch on it while the wait stands
+hold      all · a second model is limited, so the limit is shared and every model is held

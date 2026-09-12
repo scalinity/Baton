@@ -5,15 +5,17 @@
 # inbox, the plan file and one git check — so a sleep, a restart or a killed process leaves the
 # same inputs for the next run and every tick is a recovery.
 #
-# Three steps are holes this milestone leaves named rather than filled, so that the milestone which
-# fills each one adds a body and does not rewrite the spine:
-#   step 4  waits, retries and rulings are M04's; M03 does only the caffeinate re-arm, which writes
-#           no event, so the step still logs nothing.
-#   step 6  M03 dispatches a `run` disposition and nothing else. `wait`, `held` against a cleared
-#           gate, and the two things that escalate — a `run` the plan makes ineligible, and a
+# Two steps are still holes named rather than filled, so that the milestone which fills each one
+# adds a body and does not rewrite the spine:
+#   step 6  a `run` disposition dispatches and nothing else. `wait`, `held` against a cleared gate,
+#           and the two things that escalate — a `run` the plan makes ineligible, and a
 #           plan-eligible milestone no handover lists — are M06's.
-#   step 7  the holds, the reserve and the cap are M06's. M03 applies neither, which is safe only
-#           because the one plan Baton drives before M06 has a single lane.
+#   step 7  the dispatch hold bites from M04 (REQ-STOP-13); `fableReserve` and the cap are M06's,
+#           which is safe only because the one plan Baton drives before M06 has a single lane.
+#
+# Step 4 was M03's third hole and is M04's body: `stops_run` in lib/stops.sh acts on every ending —
+# the wait and its retry, the ladder, the copy fork, the declared stops — beside the caffeinate
+# re-arm that was all the step held before.
 set -eu
 
 # lock_stale_report: one line when the lock exists and is older than the interval, printed before
@@ -190,7 +192,7 @@ caffeinate_rearm() {
 # Step 5, eligibility, is the plan's alone: every id in `Depends on` reads done, `Status` is blank,
 # and no uncleared gate holds it. Step 6 intersects that with the disposition in force, which is
 # the one in the newest archived `complete` handover of the project that lists the milestone, and
-# in this milestone only `run` dispatches. Step 7 applies neither a hold nor the cap.
+# only `run` dispatches. Step 7 applies the dispatch hold and not yet the reserve or the cap.
 #
 # One exclusion is not policy and belongs here rather than to M06: a milestone Baton already has an
 # open attempt at is not a candidate. The plan reads `Status` blank for a milestone in flight — in
@@ -226,6 +228,11 @@ tick_dispatchable() {
     # A Remote: yes milestone is M07's two-step dispatch. Skipped here rather than refused inside
     # dispatch_one, which would print to launchd.err every sixty seconds until M07 lands.
     printf '%s' "$2" | plan_row "$td_id" | jq -e '.remote != true' > /dev/null || continue
+    # Step 7's dispatch hold (REQ-STOP-13): a model with an active rate_limit or billing_error wait
+    # takes no new session, and once a second model is limited the limit is shared and none does.
+    # Withheld silently and on purpose — the hold already wrote its own event and its own message,
+    # and a line per candidate per minute would bury it.
+    hold_bites "$(printf '%s' "$2" | plan_row "$td_id" | jq -r '.model // ""')" && continue
     td_name=$(session_name "$1" "$td_id")
     printf '%s' "$3" | jq -e --arg n "$td_name" 'any(.[]; .name == $n and .pid != null)' > /dev/null && continue
     printf '%s\n' "$td_id"
@@ -269,6 +276,10 @@ tick_project() {
   stall_check "$1" "$3" "$tp_off" || return 1
   long_running_check "$1" "$3" || return 1
   question_check "$1" "$3" "$tp_off" || return 1
+  # Step 4. After the row checks, because a crash confirmed a moment ago is an ending this step
+  # acts on, and before the caffeinate re-arm, because a wait this step starts is one the re-arm
+  # then holds the Mac awake for.
+  stops_run "$1" "$2" "$3" "$tp_off" || return 1
   caffeinate_rearm "$1" "$3" || return 1
   tp_ids=$(tick_dispatchable "$1" "$2" "$3") || return 1
   printf '%s\n' "$tp_ids" | while IFS= read -r tp_id; do
@@ -329,6 +340,12 @@ tick_run() {
   # 2. Consume the inbox. Moving the call is all this is: inbox_consume is M02's, it takes the lock
   #    and nothing else, and the lock is already held here.
   inbox_consume "$tr_rows" "$tr_rows_ok"
+
+  # The dispatch hold, once, before any project's step 4. A usage limit is a fact about the account
+  # and not about a lane: the model one project's session was refused on is the model every
+  # project's next dispatch would be refused on, so applying it per project would let whichever
+  # project ran second spend the request the first had already learned was refused.
+  holds_apply
 
   # 3 to 8, per project.
 

@@ -1,0 +1,2 @@
+echo "== the supervisor gave the crashed session a pid again, so it is stopped before the resume =="
+"$BATON" tick

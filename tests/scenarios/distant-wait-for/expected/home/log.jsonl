@@ -1,0 +1,2 @@
+{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"f1","attempt":1,"outcome":"complete","written_by":"session","archive":"@TMP@/home/archive/M01-f1-a.json"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"notification","project":"Fixture","milestone":"M02","class":"distant_wait_for","key":"M01-f1-a.json|M06","wait_for":"M06","handover":"M01-f1-a.json","detail":"waits for M06, which is neither done, eligible nor in flight, so this lane is not moving on its own"}

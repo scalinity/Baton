@@ -1,0 +1,6 @@
+== the stop did not take, so the resume started a copy on the other stream ==
+hold      opus · rate_limit · no dispatch on it while the wait stands
+retry     Fixture/M02 · rate_limit · retry 1 · forked
+== the attempt is unchanged and the copy now carries it ==
+{"project":"Fixture","milestone":"M02","attempt":1,"resumes_for":1,"resumes":1}
+1a2b3c4d

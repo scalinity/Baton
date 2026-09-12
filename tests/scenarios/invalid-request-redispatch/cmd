@@ -1,0 +1,4 @@
+echo "== the context is what failed, so nothing is resumed and attempt 2 starts fresh =="
+"$BATON" tick
+echo "== no resume was issued =="
+grep -c -- '--resume' "$SHIM/calls.log" || true

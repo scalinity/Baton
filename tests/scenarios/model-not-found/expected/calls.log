@@ -1,0 +1,5 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "the model opus was refused; edit the Model cell for M02 in docs/MILESTONES.md and the next tick redispatches" with title "Baton · Fixture/M02 · model_not_found"'
+caffeinate -i -t 120
+[cwd @TMP@] claude agents --json
+caffeinate -i -t 120

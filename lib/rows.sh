@@ -204,8 +204,20 @@ crash_check() {
       | ([ $ev[] | select(.kind == "dispatch" or .kind == "resume") ] | last) as $reset
       | [ $ev[] | select(.kind == "crash_sighting" and .i > ($reset.i // -1)) ] as $sightings
       | { mine: ([ $sightings[] | select(.at == $now) ] | length),
+          reset_at: $reset.at,
           previous: ([ $sightings[] | select(.at != $now) ] | last) }')
     [ "$(printf '%s' "$cc_sight" | jq -r .mine)" = 0 ] || continue
+    # A lane Baton dispatched or resumed within the last two intervals is starting up, not crashed.
+    # The row takes a beat to carry a pid again — `state: failed` was measured arriving up to
+    # seventy seconds after a process died, and a resumed session is the same transition in reverse
+    # — so sighting one here would confirm a crash on the session the previous tick just brought
+    # back, and the ladder would climb on its own remedy. Two intervals is the same window a first
+    # sighting expires in, for the same reason: it is how long a fact about a row takes to settle.
+    cc_reset=$(printf '%s' "$cc_sight" | jq -r '.reset_at // ""')
+    if [ -n "$cc_reset" ]; then
+      cc_reset=$(iso_epoch "$cc_reset") || { echo "$cc_reset" >&2; return 1; }
+      [ $((cc_now - cc_reset)) -ge "$cc_window" ] || continue
+    fi
     cc_sight=$(printf '%s' "$cc_sight" | jq -c '.previous // {}')
     cc_prev=$(printf '%s' "$cc_sight" | jq -r '.sighting // ""')
     # Only a first sighting expires. A confirmation stands until the attempt's next dispatch or

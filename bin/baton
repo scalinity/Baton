@@ -26,6 +26,8 @@ if [ -d "$here/lib" ]; then BATON_LIB=$here/lib; else BATON_LIB=$here/../lib; fi
 . "$BATON_LIB/inbox.sh"
 . "$BATON_LIB/rows.sh"
 . "$BATON_LIB/status.sh"
+. "$BATON_LIB/stops.sh"
+. "$BATON_LIB/waits.sh"
 . "$BATON_LIB/tick.sh"
 
 usage() {

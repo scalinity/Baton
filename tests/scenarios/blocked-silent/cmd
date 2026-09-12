@@ -1,0 +1,2 @@
+echo "== the blocker is in flight, so the wait resolves itself and the person hears once =="
+"$BATON" tick

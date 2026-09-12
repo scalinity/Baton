@@ -12,4 +12,6 @@
 . "$ROOT/lib/inbox.sh"
 . "$ROOT/lib/rows.sh"
 . "$ROOT/lib/status.sh"
+. "$ROOT/lib/stops.sh"
+. "$ROOT/lib/waits.sh"
 . "$ROOT/lib/tick.sh"

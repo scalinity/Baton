@@ -1,0 +1,18 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== every API error, split on the error alone (REQ-STOP-02) =="
+for e in rate_limit billing_error overloaded server_error max_output_tokens invalid_request \
+         model_not_found authentication_failed oauth_org_not_allowed account_on_hold \
+         cloud_credential_error unknown a_value_a_later_cli_adds; do
+  printf '%-24s %s\n' "$e" "$(route_ending stopped api-error "$e")"
+done
+echo "== the declared stops (REQ-STOP-12) =="
+for r in no-handover unfinished blocked merge-failed main-broken other; do
+  printf '%-24s %s\n' "$r" "$(route_ending stopped "$r" '')"
+done
+echo "== the two outcomes that are not stops =="
+printf '%-24s %s\n' complete "$(route_ending complete '' '')"
+printf '%-24s %s\n' asking "$(route_ending asking '' '')"
+echo "== the ceilings, in seconds; -1 is a notify bit that is not a ceiling =="
+for n in now 1h 2h at-escalation when-distant no; do
+  printf '%-24s %s\n' "$n" "$(ceiling_seconds "$n")"
+done

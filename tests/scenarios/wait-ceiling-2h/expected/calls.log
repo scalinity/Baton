@@ -1,0 +1,7 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "rate_limit since 2026-09-12T09:50:00+01:00, waiting 2 h 10 m; Baton keeps resuming every 15 minutes and stops for nothing" with title "Baton · Fixture/M02 · rate_limit"'
+caffeinate -i -w 4240
+caffeinate -i -t 120
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4240
+caffeinate -i -t 120
