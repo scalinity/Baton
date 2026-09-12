@@ -1,0 +1,7 @@
+== the plan now reads M03 done, so the blocker is gone and the lane goes again ==
+redispatch Fixture/M07 · M03 reads done, so the blocker is gone
+backgrounded · 0badc0d1 · Baton · Fixture · M07
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/Fixture-M07 (branch m07)
+settings  @TMP@/home/settings/Fixture-M07.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
