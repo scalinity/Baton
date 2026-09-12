@@ -121,12 +121,20 @@ fork_session() {
   return 1
 }
 
-# artifact_detail <archived path>: the `detail` of an archived artifact. The consumed event records
-# what an ending decided and not what it said, so the sentence a person needs — the split, the last
-# assistant message — is read back from the archive, which derivation 4 calls the answer.
+# artifact_detail <archived path>: the `detail` of an archived artifact, cut to 500 characters. The
+# consumed event records what an ending decided and not what it said, so the sentence a person needs
+# — the split, the last assistant message — is read back from the archive, which derivation 4 calls
+# the answer.
+#
+# The cut is the point. This is prose a session wrote at whatever length it took, and an escalation
+# carries two of them at once: uncut, one `unfinished-twice` measured 28,757 bytes and `log_event`
+# refused it, so the park that stops the retries was never written while the Mac message went out
+# anyway — one notification a minute until morning, with nothing in the log to answer. A writer
+# bounds its own fields, exactly as `dispatch_failed` bounds a stderr and `consume_one` bounds its
+# own; the 4 KB refusal is the last defence and not the first.
 artifact_detail() {
   [ -f "$1" ] || return 0
-  jq -r '.detail // ""' "$1" 2>/dev/null || true
+  jq -r '(.detail // "") | if length > 500 then .[0:500] + "…" else . end' "$1" 2>/dev/null || true
 }
 
 # resume_session <project> <milestone> <attempt> <session> <job> <kind> <class>: the one way Baton
@@ -183,6 +191,10 @@ resume_session() {
     rs_outcome=refused
     rs_note=$(printf '%s\n' "$rs_both" | grep -v '^[[:space:]]*$' | head -1 || true)
     [ -n "$rs_note" ] || rs_note="the resume printed nothing and exited $rs_status"
+    # The `resume` event records that it was refused; the table fixes its fields and the reason is
+    # not one of them. So the reason goes where a dispatch failure's detail already goes, which is
+    # the one place a person looking at why the ladder is climbing will find it.
+    echo "baton: $rs_p/$rs_m the resume was refused: $rs_note" >&2
   fi
 
   rs_side=$(sidecar_write "$rs_s" "$rs_text")
@@ -474,9 +486,11 @@ distant_wait_for_check() {
     | "\($e.milestone) \($w)"' "$dwf_file" \
   | while read -r dwf_m dwf_w; do
       [ -n "$dwf_m" ] || continue
-      if printf '%s' "$dwf_log" | jq -e --arg k "$dwf_key|$dwf_w" --arg m "$dwf_m" \
+      # Scoped by project like every other key: two projects can each archive a handover with the
+      # same basename naming the same milestone, and the second must not be silenced by the first.
+      if printf '%s' "$dwf_log" | jq -e --arg k "$dwf_key|$dwf_w" --arg m "$dwf_m" --arg p "$1" \
            'any(.[]; .kind == "notification" and .class == "distant_wait_for"
-                     and .milestone == $m and .key == $k)' > /dev/null; then
+                     and .project == $p and .milestone == $m and .key == $k)' > /dev/null; then
         continue
       fi
       dwf_detail="waits for $dwf_w, which is neither done, eligible nor in flight, so this lane is not moving on its own"
@@ -572,7 +586,10 @@ stops_run() {
     esac
   done
 
-  # 2. The ladder, over every open lane.
+  # 2. The ladder, over every open lane. The parks are re-read first: a section above may have
+  # written one, and a lane parked twice in a tick is a lane `baton answer` then refuses to act on
+  # because two escalations carry its name.
+  srn_parked=$(derive_parked "$1") || { echo "$srn_parked" >&2; return 1; }
   srn_log=$(log_json) || { echo "$srn_log" >&2; return 1; }
   srn_open=$(lanes_open "$1" "$srn_log") || { echo "$srn_open" >&2; return 1; }
   srn_n=$(printf '%s' "$srn_open" | jq length); srn_i=0
@@ -590,7 +607,8 @@ stops_run() {
     ladder_step "$1" "$srn_m" "$srn_a" "$2" "$3" "$srn_pos"
   done
 
-  # 3. The declared stops that have not been acted on.
+  # 3. The declared stops that have not been acted on, against the parks as they now stand.
+  srn_parked=$(derive_parked "$1") || { echo "$srn_parked" >&2; return 1; }
   srn_declared=$(declared_open "$1") || { echo "$srn_declared" >&2; return 1; }
   srn_n=$(printf '%s' "$srn_declared" | jq length); srn_i=0
   while [ "$srn_i" -lt "$srn_n" ]; do

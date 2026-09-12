@@ -81,11 +81,18 @@ class_or_fail() {
 # escalation_write <project> <milestone> <session> <attempt> <class> <scope> <carries json>:
 # the escalation event and its Mac message. M05's `escalate` subsumes this when the verbs that
 # resolve a park arrive; until then this is the one place an escalation is written.
+#
+# The message is raised only if the event was written. `log_event` refuses a line at 4 KB and refuses
+# one without the lock, and a message with no event behind it is worse than neither: every once-only
+# rule in Baton reads the log, so an escalation nothing recorded is a park that does not exist — the
+# lane is never held, the retries never stop, and the same message goes out on every tick with
+# nothing in the record to answer it. Measured on an `unfinished-twice` carrying two splits a
+# session had really written. So the pair is atomic, and the failure is loud where it can be seen.
 escalation_write() {
   class_or_fail escalation "$5" || return 1
   fields_or_fail escalation_write "$7" || return 1
   log_event escalation "$1" "$2" "$3" "$4" "$(jq -nc --arg c "$5" --arg s "$6" --argjson carries "$7" \
-    '{class: $c, scope: $s, carries: $carries, channel: ["notification"]}')"
+    '{class: $c, scope: $s, carries: $carries, channel: ["notification"]}')" || return 1
   notify "$(notify_title "$1" "$2" "$5")" "$(one_line "$7")"
 }
 
@@ -96,6 +103,6 @@ notification_write() {
   class_or_fail notification "$5" || return 1
   fields_or_fail notification_write "$7" || return 1
   log_event notification "$1" "$2" "$3" "$4" "$(jq -nc --arg c "$5" --arg k "$6" --argjson f "$7" \
-    '{class: $c} | if $k != "" then . + {key: $k} else . end | . + $f')"
+    '{class: $c} | if $k != "" then . + {key: $k} else . end | . + $f')" || return 1
   notify "$(notify_title "$1" "$2" "$5")" "$(one_line "$7")"
 }
