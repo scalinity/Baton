@@ -219,6 +219,12 @@ stall_check() {
     sc_attempt=$(printf '%s' "$sc_l" | jq -r '.attempt // ""')
     stood_off "$sc_session" "$3" && continue
     inbox_holds "$sc_session" && continue
+    # A lane with no attempt is skipped rather than notified, as the crash and long-running checks
+    # skip one: derive_key_spent takes the attempt as a JSON number, and passing it nothing fails
+    # the derivation, which under set -eu would take the whole tick down — and with it the marker —
+    # over one malformed line in the log. Baton's own dispatch always stamps an attempt, so this is
+    # the guard against a hand-written event and not against anything Baton writes.
+    [ -n "$sc_attempt" ] || continue
     printf '%s' "$sc_l" | jq -e '(.row.status // "") != "waiting"' > /dev/null || continue
     sc_mtime=$(transcript_mtime "$sc_session") || continue
     sc_age=$((sc_now - sc_mtime))
