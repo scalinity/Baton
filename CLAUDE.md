@@ -42,9 +42,9 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
    decision entry; leave the session's worktree (`../Baton-M<nn>`) in place, so the session can be
    resumed later; commit. Then run `sh install.sh` from the canonical checkout, so the tick that
    consumes this handover and dispatches the next milestone runs the relay just merged (D-079). The
-   script copies the plist but never loads it: if this merge changed `launchd/com.baton.tick.plist`,
-   say so in the completion evidence and the final message, because launchd reads it only on a
-   reload, which is a person's act.
+   script never replaces an installed launchd agent that differs from `launchd/com.baton.tick.plist`
+   and never loads one: if it prints that the agent differs, quote the line in the completion
+   evidence and the final message, because copying the agent and reloading it is a person's act.
 4. Write `~/.baton/inbox/M<nn>-$CLAUDE_CODE_SESSION_ID.json` — `.tmp` first, then rename — per
    `CONTRACT.md` clause 4: `baton: 1`, `project` `/Users/danny/Documents/Apps/Baton` (the canonical
    checkout, never the worktree), `milestone`, `session`, `outcome`, `merged_as` (the merge commit
