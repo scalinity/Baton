@@ -101,9 +101,10 @@ answer_deliver() {
   #
   # A `question` park is the exception, because no payload carries its words: the row says only that
   # the session is waiting for input. Quoting the park's detail there would hand the session Baton's
-  # own sentence about a row as though it were what the session asked — measured live, and worse
-  # than useless to a session whose pending `AskUserQuestion` call was never written to its
-  # transcript and so is not in the context a resume restores.
+  # own sentence about a row as though it were what the session asked — measured live. The session
+  # can usually see its own question: the second probe's call was on disk and came back on the
+  # resume as `[Request interrupted by user for tool use]`. The first probe's was not in its
+  # transcript when the stop landed, so the label points at the call rather than relying on it.
   case "$and_class" in
     question) and_q="the question you put with AskUserQuestion in this session, whose words no payload carries to Baton" ;;
     *) and_q=$(printf '%s' "$and_carries" | jq -r '.question // .detail // "" | split("\n") | join(" ")') ;;
