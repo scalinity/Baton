@@ -47,6 +47,13 @@ case "${1:-}" in
             "$S/rows.json" > "$S/rows.json.tmp"
           mv "$S/rows.json.tmp" "$S/rows.json"
           ;;
+        *"woke session "*)
+          # The session is running again under its own id, so the pid a stop took comes back.
+          jq -c --arg s "$sid" 'map(if .sessionId == $s and has("stoppedPid")
+                                    then (.pid = .stoppedPid | del(.stoppedPid)) else . end)' \
+            "$S/rows.json" > "$S/rows.json.tmp"
+          mv "$S/rows.json.tmp" "$S/rows.json"
+          ;;
       esac
       [ ! -f "$S/bg.color" ] || note=$(printf '%s' "$note" | sed "s/\\([0-9a-f]\\{8\\}\\)/$(printf '\033')[36m\\1$(printf '\033')[39m/g")
       if [ "$(cat "$S/resume.stream" 2>/dev/null || echo stdout)" = stderr ]; then
@@ -84,6 +91,14 @@ case "${1:-}" in
     ;;
   stop)
     record "$@"
+    # A stop takes the pid off the row and leaves the row, which is what the real CLI does once the
+    # stop lands: liveness is the pid. The pid is kept beside the row so a resume can give it back,
+    # and a scenario's later `agents --json` reads the session as stopped in between — which is
+    # what `stop_settle` waits for before it resumes.
+    jq -c --arg id "${2:-}" 'map(if .id == $id and .pid != null
+                                 then . + {stoppedPid: .pid, pid: null} else . end)' \
+      "$S/rows.json" > "$S/rows.json.tmp"
+    mv "$S/rows.json.tmp" "$S/rows.json"
     ;;
   *)
     record "$@"

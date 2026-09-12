@@ -137,6 +137,32 @@ artifact_detail() {
   jq -r '(.detail // "") | if length > 500 then .[0:500] + "…" else . end' "$1" 2>/dev/null || true
 }
 
+# stop_settle <session>: waits, for up to thirty seconds, until no row carrying the session has a
+# pid — the moment a `claude stop` has taken effect. Non-zero when it has not by then.
+#
+# **A stop is not synchronous, and a resume issued before it lands forks.** M04 measured it once
+# (item 46): `claude stop` returned `stopped 19fb4653` and a flagless resume a moment later met a
+# session the CLI still called "already running in the background". M05's live proof met it on the
+# path that matters most: a ruling delivered to a session parked at `AskUserQuestion` — the one kind
+# of session that is certain to be running when Baton speaks to it — landed in a copy under a new
+# id, filed under the resuming process's working directory, while the original was stopped behind
+# it. The fork classifier recorded that correctly; this is what keeps it from being the normal case.
+#
+# Liveness is the pid and never the state (derivation 1), so the row may linger with `pid: null`
+# and that is already stopped. The bound is `row_for_id`'s, for the same reason in reverse: a fact
+# about a row takes a beat to settle, and past the bound the resume goes ahead and the classifier is
+# still there to catch a fork.
+stop_settle() {
+  sts_i=0
+  while [ "$sts_i" -lt 60 ]; do
+    rows_json | jq -e --arg s "$1" 'any(.[]; .sessionId == $s and .pid != null)' > /dev/null 2>&1 \
+      || return 0
+    sts_i=$((sts_i + 1))
+    sleep 0.5
+  done
+  return 1
+}
+
 # resume_count_next <project> <milestone> <attempt>: "<attempt> <resume>" — derivation 10's attempt
 # count, and the number the next resume of that attempt carries.
 #
@@ -187,7 +213,10 @@ resume_session() {
     *)      rs_text=$(template_continue "$rs_class" "$rs_m" "$rs_a" "$rs_r") ;;
   esac
 
-  [ -z "$rs_job" ] || "$BATON_CLAUDE" stop "$rs_job" > /dev/null 2>&1 || true
+  if [ -n "$rs_job" ]; then
+    "$BATON_CLAUDE" stop "$rs_job" > /dev/null 2>&1 || true
+    stop_settle "$rs_s" || echo "baton: $rs_p/$rs_m session $rs_s still had a live row after the stop; resuming anyway, and a fork is what the classifier below is for" >&2
+  fi
 
   rs_tmp=$(mktemp "${TMPDIR:-/tmp}/baton-resume.XXXXXX")
   set +e

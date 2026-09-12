@@ -1,0 +1,5 @@
+echo "== the session was stopped a minute ago and its row still carries the pid and input needed:"
+echo "   the lane is already parked by the artifact, so the row check parks nothing a second time =="
+"$BATON" tick
+echo "== and so the answer finds exactly one lane =="
+"$BATON" answer M02 1 || echo "status $?"

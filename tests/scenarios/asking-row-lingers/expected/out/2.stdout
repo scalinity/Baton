@@ -1,0 +1,5 @@
+== the session was stopped a minute ago and its row still carries the pid and input needed:
+   the lane is already parked by the artifact, so the row check parks nothing a second time ==
+question  Fixture/M02 · f2 · waiting for input
+== and so the answer finds exactly one lane ==
+ruling    Fixture/M02 · f2 · question · delivered

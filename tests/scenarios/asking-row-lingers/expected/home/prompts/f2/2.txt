@@ -1,0 +1,5 @@
+Baton resumed this session to deliver a ruling. M02, attempt 1, resume 2. You asked at 2026-09-12T12:00:00+01:00: the question you put with AskUserQuestion in this session, whose words no payload carries to Baton. The ruling below is decided: do not re-open it, do not ask again, and do not weigh alternatives against it.
+
+expose it
+
+Continue from where the last turn ended. The handover artifact is still owed.

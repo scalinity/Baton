@@ -98,7 +98,16 @@ answer_deliver() {
   # a bare ruling can land on a question the model no longer holds. A park that carries no question
   # — a merge that failed, a ladder that ended — is quoted by what it does carry, which is the
   # sentence the person read when they decided.
-  and_q=$(printf '%s' "$and_carries" | jq -r '.question // .detail // "" | split("\n") | join(" ")')
+  #
+  # A `question` park is the exception, because no payload carries its words: the row says only that
+  # the session is waiting for input. Quoting the park's detail there would hand the session Baton's
+  # own sentence about a row as though it were what the session asked — measured live, and worse
+  # than useless to a session whose pending `AskUserQuestion` call was never written to its
+  # transcript and so is not in the context a resume restores.
+  case "$and_class" in
+    question) and_q="the question you put with AskUserQuestion in this session, whose words no payload carries to Baton" ;;
+    *) and_q=$(printf '%s' "$and_carries" | jq -r '.question // .detail // "" | split("\n") | join(" ")') ;;
+  esac
   [ -n "$and_q" ] || and_q="(the park carried no words of its own)"
   # Both numbers from one reading, so the label and the event it is logged beside cannot disagree.
   # The attempt is the derived count and not the park's stamp: a park written for a session Baton
