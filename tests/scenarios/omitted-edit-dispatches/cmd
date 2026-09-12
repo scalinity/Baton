@@ -1,0 +1,12 @@
+echo "== M02 dispatches and M07, eligible and unlisted, parks as omitted =="
+"$BATON" tick
+echo "== a person refreshes M07's prompt on main rather than holding it: the edit ends the park, and the plan's word is to dispatch =="
+if [ ! -f "$SHIM/brief.edited" ]; then
+  sed -i '' 's/^CONSTRAINTS\./CONSTRAINTS. Refreshed by hand./' Fixture/docs/milestones/M07.md
+  git -C Fixture add docs/milestones/M07.md
+  GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@example GIT_AUTHOR_DATE=2026-09-01T01:00:00+0000 \
+  GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example GIT_COMMITTER_DATE=2026-09-01T01:00:00+0000 \
+    git -C Fixture commit -q -m "refresh M07"
+  : > "$SHIM/brief.edited"
+fi
+"$BATON" tick

@@ -1,0 +1,3 @@
+{ "cap": 3, "fableReserve": 80, "stallMinutes": 30, "longRunningHours": 6,
+  "retryMinutes": 15, "caffeinateMaxHours": 6,
+  "models": { "fable": "fable", "opus": "opus", "sonnet": "sonnet", "haiku": "haiku" } }

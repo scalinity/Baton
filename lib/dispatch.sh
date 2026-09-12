@@ -59,6 +59,87 @@ worktree_ensure() {
     '{worktree: $w, branch: $b, reused: $r, commit: $c}'
 }
 
+# worktree_prune <project> <plan json> <rows json>: removes a milestone worktree a close-out left
+# behind, and nothing else. The one destructive act Baton performs (REQ-DISPATCH-03, D-013).
+#
+# A worktree is a candidate only when git lists it at exactly the path `worktree_ensure` makes —
+# `../<Project>-<milestone>` beside the canonical checkout, for a milestone the plan names — so a
+# worktree a person made anywhere else is never looked at. Then three guards, each of which refuses:
+#
+#   1. the milestone's `Status` reads `done`;
+#   2. no live session belongs to it — no in-flight lane for the milestone by derivation 1, which
+#      follows copy forks to the session carrying the lane; no live row named for it; and no live row
+#      whose working directory is the worktree or under it, which is what a person's own session
+#      started there looks like;
+#   3. the archived `complete` handover for the milestone names a `merged_as` that `merged_as_verify`
+#      accepts: a commit id and not a name, and an ancestor of `main`.
+#
+# Never on `Status` alone: a close-out that wrote `done` a step early and then failed its merge left a
+# cell reading `done` over the only copy of the work, and it has no `complete` handover to pass the
+# third guard. The removal is `git worktree remove` without `--force`, so git's own refusal of a tree
+# with modified or untracked files stands as a fourth; the branch is not deleted, so a commit made
+# after the merge is still on it.
+#
+# A worktree git lists whose directory is already gone is passed through the same guards and the same
+# command, which then drops the registration and touches nothing on disk. That is `git worktree
+# prune`'s own judgement of such an entry — git lists it as `prunable` — applied to this one path
+# rather than to every stale registration in the repository, some of which may be a person's.
+#
+# Prints a line for what it removed, and for a `done` worktree it refused, which is an anomaly worth
+# a line in launchd.out; a worktree whose milestone is not `done` is the normal case and says nothing.
+worktree_prune() {
+  wp_path=$(project_path "$1") || return 0
+  wp_prefix=$(dirname "$wp_path")/$(basename "$wp_path")-
+  wp_list=$(git -C "$wp_path" worktree list --porcelain 2>&1) \
+    || { echo "prune     $1 · git worktree list failed: $wp_list"; return 0; }
+  wp_paths=$(printf '%s\n' "$wp_list" | sed -n 's/^worktree //p')
+  wp_flight=$(derive_in_flight "$1" "$3") || { echo "$wp_flight" >&2; return 1; }
+  wp_consumed=$(derive_consumed "$1") || { echo "$wp_consumed" >&2; return 1; }
+  while IFS= read -r wp_wt; do
+    case "$wp_wt" in "$wp_prefix"*) ;; *) continue ;; esac
+    wp_id=${wp_wt#"$wp_prefix"}
+    case "$wp_id" in */*) continue ;; esac
+    wp_row=$(printf '%s' "$2" | plan_row "$wp_id" 2>/dev/null) || continue
+    # 1.
+    [ "$(printf '%s' "$wp_row" | jq -r '.status // ""')" = done ] || continue
+    # 2.
+    if printf '%s' "$wp_flight" | jq -e --arg m "$wp_id" 'any(.in_flight[]; .milestone == $m)' > /dev/null \
+       || printf '%s' "$3" | jq -e --arg n "$(session_name "$1" "$wp_id")" --arg w "$wp_wt" '
+            any(.[]; .pid != null and (.name == $n or .cwd == $w or ((.cwd // "") | startswith($w + "/"))))' > /dev/null; then
+      echo "prune     $1/$wp_id · $wp_wt is done but a live session belongs to it · left in place"
+      continue
+    fi
+    # 3.
+    wp_archive=$(printf '%s' "$wp_consumed" | jq -r --arg m "$wp_id" \
+      '[ .consumed[] | select(.milestone == $m and .outcome == "complete" and .archive_present) ] | last | .archive // empty')
+    wp_merged=''
+    [ -z "$wp_archive" ] || wp_merged=$(jq -r '.merged_as // empty' "$wp_archive" 2>/dev/null) || wp_merged=''
+    if [ -z "$wp_merged" ]; then
+      echo "prune     $1/$wp_id · $wp_wt is done but no complete handover for it is archived · left in place"
+      continue
+    fi
+    if ! wp_why=$(merged_as_verify "$wp_path" "$wp_merged"); then
+      echo "prune     $1/$wp_id · $wp_wt is done but its merged_as does not verify: $wp_why · left in place"
+      continue
+    fi
+    wp_gone=no
+    [ -e "$wp_wt" ] || wp_gone=yes
+    if ! wp_out=$(git -C "$wp_path" worktree remove "$wp_wt" 2>&1); then
+      echo "prune     $1/$wp_id · git refused to remove $wp_wt: $wp_out · left in place"
+      continue
+    fi
+    log_event worktree_pruned "$1" "$wp_id" "" "" \
+      "$(jq -nc --arg w "$wp_wt" --arg m "$wp_merged" '{worktree: $w, merged_as: $m}')" || return 1
+    if [ "$wp_gone" = yes ]; then
+      echo "pruned    $1/$wp_id · $wp_wt was already gone; its registration is dropped"
+    else
+      echo "pruned    $1/$wp_id · $wp_wt removed, merged as $wp_merged"
+    fi
+  done <<EOF
+$wp_paths
+EOF
+}
+
 # settings_compose <project> <milestone>: the dispatched settings file at
 # settings/<project>-<milestone>.json from the project's permissions.json: the mode as
 # documentation, allow and deny copied, no ask rules, the three hooks carrying Baton's home, the

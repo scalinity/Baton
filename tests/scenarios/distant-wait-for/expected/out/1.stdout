@@ -1,2 +1,3 @@
 == M02 waits for M06, which is neither done, eligible nor in flight ==
 waiting   Fixture/M02 · waits for M06, which nothing is going to finish
+omitted  Fixture/M07 · no archived handover of Fixture lists M07, though the plan makes it eligible · the lane is parked

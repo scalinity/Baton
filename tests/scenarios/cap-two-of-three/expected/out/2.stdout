@@ -1,0 +1,5 @@
+== three candidates in two projects, a cap of two: Other/M02 first on plan row order, then Fixture/M07, the project with fewer in flight and the first of its handover's order; Fixture/M02 waits ==
+== the second run finds both in flight and the cap full, so Fixture/M02 still waits ==
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Other/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+in flight  Fixture/M07 · 0badc0d2-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s

@@ -1,0 +1,5 @@
+[ -f "$SHIM/worktree.made" ] || { git -C Fixture worktree add -q ../Fixture-M02 -b m02 main && : > "$SHIM/worktree.made"; }
+echo "== M02's close-out wrote done a step early and then its merge failed: no complete handover passes the third guard, so the work stays, and so does the park =="
+"$BATON" tick
+if [ -d Fixture-M02 ]; then echo "Fixture-M02 is on disk"; else echo "Fixture-M02 is gone"; fi
+"$BATON" status

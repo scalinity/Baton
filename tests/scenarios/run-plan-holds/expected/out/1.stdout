@@ -1,0 +1,4 @@
+== the cap is 0, so nothing dispatches and the plan's answer to each run is the whole of the output ==
+== M05 reads held and an open gate holds M04: each is withheld with one plan_override, and neither escalates ==
+override  Fixture/M04 · the handover says run and the plan holds it by gate "v0.1 ships" · withheld
+override  Fixture/M05 · the handover says run and the plan holds it · withheld

@@ -49,7 +49,9 @@ answer_options() {
   printf '%s' "$4" | jq -c '(.options // []) | (if type == "array" then . else [.] end) | map(tostring)'
 }
 
-# answer_deliver <park json> <ruling or option number> <rows json>: the ruling's return.
+# answer_deliver <park json> <ruling or option number> <rows json> [<cascade: yes|no>]: the ruling's
+# return. A delivered `main-broken` ruling is then carried to every other `main-broken` park of the
+# project (`main_broken_cascade`), unless the call is that cascade's own.
 #
 # An option number expands to that option's text verbatim before delivery, so the session receives
 # a ruling and never a digit — it may have compacted since it asked, and a digit means nothing to a
@@ -126,7 +128,12 @@ answer_deliver() {
   printf 'ruling    %s/%s · %s · %s · %s\n' "$and_p" "$and_m" "$and_s" "$and_class" "$and_outcome"
   case "$and_outcome" in
     delivered|forked)
-      resolve "$and_p" "$and_m" "$and_s" "$and_a" "$and_at" ruling ;;
+      resolve "$and_p" "$and_m" "$and_s" "$and_a" "$and_at" ruling
+      # Last, because the cascade delivers through this same function and its variables are the
+      # file's: nothing of this delivery is read after it.
+      if [ "$and_class" = main-broken ] && [ "${4:-yes}" != no ]; then
+        main_broken_cascade "$and_p" "$2" "$3" "$and_at" "$and_m" || return 1
+      fi ;;
     *)
       echo "baton: the ruling did not reach $and_p/$and_m, so the park stands; run the same answer again once the resume can go through" >&2
       return 1 ;;

@@ -1,0 +1,7 @@
+# The worktree a close-out left behind, made once: the second run finds it already pruned.
+[ -f "$SHIM/worktree.made" ] || { git -C Fixture worktree add -q ../Fixture-M01 -b m01 main && : > "$SHIM/worktree.made"; }
+echo "== M01 reads done, no session belongs to Fixture-M01 and its handover's merged_as is on main: the worktree is removed =="
+"$BATON" tick
+if [ -d Fixture-M01 ]; then echo "Fixture-M01 is on disk"; else echo "Fixture-M01 is gone"; fi
+echo "worktrees git lists: $(git -C Fixture worktree list --porcelain | grep -c '^worktree ')"
+echo "the branch stays: $(git -C Fixture branch --list m01 | tr -d ' ')"

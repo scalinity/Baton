@@ -1,0 +1,2 @@
+== the cap is 0, so nothing dispatches and the plan's answer to each run is the whole of the output ==
+== M05 reads held and an open gate holds M04: each is withheld with one plan_override, and neither escalates ==

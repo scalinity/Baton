@@ -1,0 +1,1 @@
+{"baton":1,"project":"@TMP@/Fixture","milestone":"M02","session":"b2","outcome":"stopped","reason":"main-broken","written_at":"2026-09-12T10:58:00Z","detail":"the standing check failed on main: the M02 and M03 merges do not build together"}

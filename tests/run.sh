@@ -9,14 +9,15 @@
 # A scenario holds: cmd (sourced twice; $BATON, $ROOT, $SCENARIO, $SHIM are set), home/ (the
 # BATON_HOME to start from; @TMP@ and @COMMIT@ in any file are replaced), rows.json (what agents --json answers
 # first), now (the clock), optional shim/ (the claude shim's knobs), optional project/ (a fixture
-# project; tests/project/ otherwise), optional transcripts/ (the tree BATON_TRANSCRIPTS points at),
-# optional mtimes (one "<path under transcripts/> <seconds before now>" per line, for the rules
-# that stat a transcript rather than read it; every transcript starts at the scenario's now), and
-# expected/. install.sh needs codesign, which the Command Line Tools carry, for the install scenario.
+# project; tests/project/ otherwise), optional other/ (a second fixture project at $tmp/Other, its
+# commit @OTHERCOMMIT@), optional transcripts/ (the tree BATON_TRANSCRIPTS points at), optional
+# mtimes (one "<path under transcripts/ or home/> <seconds before now>" per line, for the rules that
+# stat a file rather than read it; every transcript starts at the scenario's now), and expected/. install.sh needs codesign, which the Command Line Tools carry, for the install scenario.
 #
 # BATON_TESTS_FREEZE=<name> rewrites that one scenario's expected/ from the run, for output that
 # has been read and judged right; BATON_TESTS_FREEZE=all does it for every scenario and is for a
-# harness change that moves every expectation at once.
+# harness change that moves every expectation at once. BATON_TESTS_ONLY=<glob> runs the scenarios
+# whose names match it and no others; the standing check is the run without it.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(dirname "$here")
@@ -36,7 +37,7 @@ BATON_DATE=date
 . "$root/lib/log.sh"
 . "$root/lib/derive.sh"
 
-for sc in "$here"/scenarios/*/; do
+for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
   sc=${sc%/}
   name=$(basename "$sc")
   count=$((count + 1))
@@ -60,10 +61,24 @@ for sc in "$here"/scenarios/*/; do
             GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example GIT_COMMITTER_DATE=2026-09-01T00:00:00+0000 \
             git -C "$tmp/Fixture" commit-tree "$commit^{tree}" -p "$commit" -m off-main)
 
+  # A second fixture project, for the rules that are asked across projects — the cap, its order and
+  # the holds (INV-07). Committed the same way at $tmp/Other; its commit is @OTHERCOMMIT@.
+  othercommit=none-other-project
+  if [ -d "$sc/other" ]; then
+    cp -R "$sc/other" "$tmp/Other"
+    ( cd "$tmp/Other" \
+      && git init -q -b main \
+      && git add CLAUDE.md docs \
+      && GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@example GIT_AUTHOR_DATE=2026-09-01T00:00:00+0000 \
+         GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example GIT_COMMITTER_DATE=2026-09-01T00:00:00+0000 \
+         git commit -q -m "fixture" )
+    othercommit=$(git -C "$tmp/Other" rev-parse HEAD)
+  fi
+
   cp -R "$sc/home" "$tmp/home"
   # @COMMIT@ as well as @TMP@, because a handover artifact names the commit it merged as and the
   # fixture repository's hash is only known once it has been committed.
-  find "$tmp/home" -type f -exec sed -i '' "s|@TMP@|$tmp|g; s|@COMMIT@|$commit|g; s|@OFFMAIN@|$offmain|g" {} +
+  find "$tmp/home" -type f -exec sed -i '' "s|@TMP@|$tmp|g; s|@COMMIT@|$commit|g; s|@OFFMAIN@|$offmain|g; s|@OTHERCOMMIT@|$othercommit|g" {} +
   cp "$sc/rows.json" "$tmp/shim/rows.json"
   cp "$sc/now" "$tmp/shim/now"
   if [ -d "$sc/shim" ]; then cp "$sc"/shim/* "$tmp/shim/"; fi
@@ -90,12 +105,15 @@ for sc in "$here"/scenarios/*/; do
     if [ -f "$sc/mtimes" ]; then
       while read -r mt_path mt_ago || [ -n "$mt_path" ]; do
         case "$mt_path" in ''|'#'*) continue ;; esac
-        if [ ! -f "$tmp/transcripts/$mt_path" ]; then
+        # A path under home/ is a file of the Baton home — a status file, whose modification time is
+        # what "the freshest" means to the reserve — and anything else is under transcripts/.
+        case "$mt_path" in home/*) mt_file=$tmp/$mt_path ;; *) mt_file=$tmp/transcripts/$mt_path ;; esac
+        if [ ! -f "$mt_file" ]; then
           echo "FAIL  $name: mtimes names $mt_path, which the scenario does not have"
           fails=$((fails + 1))
           continue
         fi
-        env TZ=UTC touch -t "$(TZ=UTC date -r "$((scnow - mt_ago))" +%Y%m%d%H%M.%S)" "$tmp/transcripts/$mt_path"
+        env TZ=UTC touch -t "$(TZ=UTC date -r "$((scnow - mt_ago))" +%Y%m%d%H%M.%S)" "$mt_file"
       done < "$sc/mtimes"
     fi
   fi
@@ -141,7 +159,7 @@ for sc in "$here"/scenarios/*/; do
     done < "$tmp/got/home/log.jsonl"
     mv "$tmp/got/home/log.jsonl.checked" "$tmp/got/home/log.jsonl"
   fi
-  find "$tmp/got" -type f -exec sed -i '' "s|$tmp|@TMP@|g; s|$commit|@COMMIT@|g; s|$offmain|@OFFMAIN@|g" {} +
+  find "$tmp/got" -type f -exec sed -i '' "s|$tmp|@TMP@|g; s|$commit|@COMMIT@|g; s|$offmain|@OFFMAIN@|g; s|$othercommit|@OTHERCOMMIT@|g" {} +
 
   # git cannot hold an empty directory, so a scenario whose inbox ends empty would compare
   # against an expected/ that has no inbox at all on a fresh checkout. Neither side may

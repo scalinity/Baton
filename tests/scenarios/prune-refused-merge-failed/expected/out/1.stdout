@@ -1,0 +1,6 @@
+== M02's close-out wrote done a step early and then its merge failed: no complete handover passes the third guard, so the work stays, and so does the park ==
+consumed  M02-b2.json → @TMP@/home/archive/M02-b2-2026-09-12T12:00:00+01:00.json (stopped, merge-failed → escalate)
+prune     Fixture/M02 · @TMP@/Fixture-M02 is done but no complete handover for it is archived · left in place
+Fixture-M02 is on disk
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M02 · merge-failed · the merge into main failed: CONFLICT (content): Merge conflict in docs/MILESTONES.md; the Status cell was written before the merge · baton answer M02 "merge resolved; finish the close-out from step (c)"

@@ -1,0 +1,6 @@
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 502
+[cwd @TMP@] claude agents --json

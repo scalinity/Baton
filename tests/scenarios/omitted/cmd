@@ -1,0 +1,3 @@
+echo "== M02 is listed and dispatched; M07 is eligible by the plan and no handover lists it, so it escalates by name =="
+"$BATON" tick
+"$BATON" status

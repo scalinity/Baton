@@ -1,6 +1,7 @@
 [cwd @TMP@] claude agents --json
 caffeinate -i -t 120
 caffeinate -i -t 120
+osascript -e 'display notification "no archived handover of Fixture lists M02, though the plan makes it eligible · edit the plan or the brief; the next tick re-reads it" with title "Baton · Fixture/M02 · omitted"'
 [cwd @TMP@] claude agents --json
 caffeinate -i -t 120
 caffeinate -i -t 120

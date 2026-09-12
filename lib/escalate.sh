@@ -36,6 +36,25 @@ class_unparks_by_edit() {
   esac
 }
 
+# class_ends_on_done <class>: whether the one edit that ends this class is the milestone's `Status`
+# changing to `done` — the plan-file fallback REQ-STOP-12 gives `merge-failed` and `main-broken` when
+# the session cannot finish its own close-out.
+#
+# Not any edit, and that is the whole difference from the classes above. Both endings stop before
+# step (c), so the session still owes the refresh, the `done` and the artifact, and a ruling is how
+# it is sent back to them; a person editing the Model cell or a brief meanwhile has not done any of
+# that, and unparking on it would leave a session waiting for a ruling with no park to receive one.
+# `done` written after the park is the state step (c) produces, so it is the person saying the
+# close-out happened by hand. Written after the park and not merely present: a session that wrote
+# `done` a step early and then failed its merge left the cell reading `done` at the escalation, and
+# that must not close the park on the only copy of an unmerged milestone.
+class_ends_on_done() {
+  case "$1" in
+    merge-failed|main-broken) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # reread_hashes <project> <milestone> <carries json> [<plan json>]: the two readings an edit changes
 # — the plan rows that answer this park, and the brief's kickoff prompt — hashed as they stand now.
 # The plan is the tick's own parsed document when the caller holds one, and read afresh when not.
@@ -143,10 +162,12 @@ escalate() {
   # (`ruling_target`), so a park without one has no ruling route at all: a rejected artifact whose
   # lane Baton never dispatched, an `eligible[]` entry dropped for a brief pointer that is not on
   # main. Without this such a park would have no way out whatsoever, and a park nothing can resolve
-  # holds its milestone out of every dispatch for as long as Baton runs. A project park is never
-  # given them: the self-check re-reads the plan every tick and `park_resolve` closes it.
-  if [ "$esc_scope" = lane ] && [ -n "$1" ] \
-     && { class_unparks_by_edit "$esc_class" || [ -z "$(ruling_target "$1" "$3" "$4")" ]; }; then
+  # holds its milestone out of every dispatch for as long as Baton runs. A project park is given them
+  # only when it names a milestone whose `done` ends it (`main-broken`): the self-check's parks are
+  # re-read every tick and `park_resolve` closes them.
+  if { [ "$esc_scope" = lane ] && [ -n "$1" ] \
+       && { class_unparks_by_edit "$esc_class" || [ -z "$(ruling_target "$1" "$3" "$4")" ]; }; } \
+     || { [ -n "$1" ] && [ -n "$2" ] && class_ends_on_done "$esc_class"; }; then
     esc_carries=$(printf '%s' "$esc_carries" | jq -c --argjson r "$(reread_hashes "$1" "$2" "$esc_carries")" \
       'if ($r | length) > 0 then . + {reread: $r} else . end')
   fi
@@ -232,8 +253,14 @@ escalation_verb() {
   # its way out, and `escalate` gave it the hashes that make the edit visible.
   if [ -z "${4:-}" ]; then
     case "$1" in
-      asking|question|merge-failed|other)
+      asking|question|other)
         printf 'fix what it names; the next tick re-reads the plan and the brief'
+        return 0 ;;
+      merge-failed)
+        printf 'finish the close-out by hand and write done in the Status cell of %s; the next tick re-reads the plan' "$evb_m"
+        return 0 ;;
+      main-broken)
+        printf 'fix main, finish the close-out by hand and write done in the Status cell of %s; the next tick re-reads the plan' "$evb_m"
         return 0 ;;
     esac
   fi
@@ -267,7 +294,7 @@ escalation_verb() {
     plan-unreadable|plan-unparseable)
       printf 'fix the plan file; the next tick re-reads it' ;;
     main-broken)
-      printf 'fix main; the next tick re-reads it' ;;
+      printf 'fix main, then baton answer %s "main fixed; finish the close-out from step (c)"' "$evb_m" ;;
     dispatch-failed)
       printf 'fix what the %s stage names; the next tick dispatches again' \
         "$(printf '%s' "$3" | jq -r '.stage // "failed"' 2>/dev/null || echo failed)" ;;
@@ -359,6 +386,10 @@ asking_carries() {
 # small enough that only a missing lock refuses it, and the question is in the file it names.
 ending_escalate() {
   end_class=$6
+  # `main-broken` is the one ending whose scope is the project: what failed is the combined tree on
+  # `main`, which every lane of the project stands on, not the session that found it (REQ-ESC-04).
+  end_scope=lane
+  [ "$end_class" != main-broken ] || end_scope=project
   case "$end_class" in
     asking)
       end_carries=$(asking_carries "$5" 2>/dev/null) || end_carries='' ;;
@@ -367,15 +398,16 @@ ending_escalate() {
       [ -n "$end_detail" ] || end_detail="the session gave no detail"
       case "$end_class" in
         merge-failed) end_detail="the merge into main failed: $end_detail" ;;
+        main-broken)  end_detail="the standing check failed on main after the merge: $end_detail" ;;
         *)            end_detail="the session stopped: $end_detail" ;;
       esac
       end_carries=$(jq -nc --arg d "$end_detail" --arg a "$7" '{detail: $d, archive: $a}') ;;
   esac
-  if [ -n "$end_carries" ] && escalate "$1" "$2" "$3" "$4" "$end_class" lane "$end_carries"; then
+  if [ -n "$end_carries" ] && escalate "$1" "$2" "$3" "$4" "$end_class" "$end_scope" "$end_carries"; then
     return 0
   fi
   echo "baton: $1/$2 the $end_class park did not fit its full carries; parking it with a pointer to $7" >&2
-  escalate "$1" "$2" "$3" "$4" "$end_class" lane \
+  escalate "$1" "$2" "$3" "$4" "$end_class" "$end_scope" \
     "$(jq -nc --arg a "$7" '{detail: "the session stopped with words Baton could not carry whole; they are in the archived artifact", archive: $a}')"
 }
 
@@ -405,6 +437,15 @@ edit_reread_check() {
     err_changed=$(jq -nc --argjson was "$err_was" --argjson now "$err_now" '
       [ $was | keys[] | select(($now[.] // null) != null and $now[.] != $was[.]) ]')
     [ "$(printf '%s' "$err_changed" | jq length)" -gt 0 ] || continue
+    # A park whose way out is the close-out done by hand ends on a change to the rows that leaves the
+    # milestone reading `done`, and on nothing else (`class_ends_on_done`).
+    if class_ends_on_done "$(printf '%s' "$err_e" | jq -r '.class // ""')"; then
+      printf '%s' "$err_changed" | jq -e 'index("plan_rows_sha256") != null' > /dev/null || continue
+      err_plan=${2:-}
+      [ -n "$err_plan" ] || err_plan=$(plan_of_project "$1" 2>/dev/null) || continue
+      [ "$(printf '%s' "$err_plan" | plan_row "$err_m" 2>/dev/null | jq -r '.status // ""')" = done ] || continue
+      err_changed='["plan_rows_sha256"]'
+    fi
     err_what=$(printf '%s' "$err_changed" | jq -r \
       'map(if . == "plan_rows_sha256" then "the plan rows it answers to" else "the brief" end) | join(" and ")')
     resolve "$1" "$err_m" "$(printf '%s' "$err_e" | jq -r '.session // ""')" \

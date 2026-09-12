@@ -3,3 +3,4 @@
 hold      claude-opus-5 · rate_limit · no dispatch on it while the wait stands
 hold      haiku · rate_limit · no dispatch on it while the wait stands
 hold      all · a second model is limited, so the limit is shared and every model is held
+omitted  Fixture/M02 · no archived handover of Fixture lists M02, though the plan makes it eligible · the lane is parked

@@ -1,0 +1,4 @@
+echo "== three candidates in two projects, a cap of two: Other/M02 first on plan row order, then Fixture/M07, the project with fewer in flight and the first of its handover's order; Fixture/M02 waits =="
+"$BATON" tick
+echo "== the second run finds both in flight and the cap full, so Fixture/M02 still waits =="
+"$BATON" status

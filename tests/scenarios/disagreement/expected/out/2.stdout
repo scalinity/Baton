@@ -1,0 +1,3 @@
+== the cap is 0, so nothing dispatches; the handover says run M03 and the plan makes it ineligible, M02 not being done: one lane escalation by name ==
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M03 · disagreement · the handover M01-f1-a.json says run M03, and the plan makes it ineligible: M02 is not done · edit the plan or the brief; the next tick re-reads it

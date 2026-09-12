@@ -1,0 +1,4 @@
+== M01 reads done, no session belongs to Fixture-M01 and its handover's merged_as is on main: the worktree is removed ==
+Fixture-M01 is gone
+worktrees git lists: 1
+the branch stays: m01

@@ -8,6 +8,7 @@
 . "$ROOT/lib/templates.sh"
 . "$ROOT/lib/notify.sh"
 . "$ROOT/lib/dispatch.sh"
+. "$ROOT/lib/candidates.sh"
 . "$ROOT/lib/derive.sh"
 . "$ROOT/lib/inbox.sh"
 . "$ROOT/lib/rows.sh"

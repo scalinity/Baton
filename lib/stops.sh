@@ -353,6 +353,13 @@ redispatch() {
     return 0
   fi
   rdp_model=$(printf '%s' "$rdp_row" | jq -r '.model // ""')
+  # A redispatch is a new session, and a project park holds every new session for the project: it
+  # would start from a `main` a person has been asked to fix. It waits as it waits for a hold, and the
+  # rule that asked for it asks again on the tick after the park is answered.
+  if rdp_park=$(project_held "$1"); then
+    printf 'held      %s/%s · the project is parked (%s), so the redispatch waits for the park to be answered\n' "$1" "$2" "$rdp_park"
+    return 0
+  fi
   if hold_bites "$rdp_model"; then
     printf 'held      %s/%s · %s is held, so the redispatch waits for the wait to clear\n' "$1" "$2" "$rdp_model"
     return 0

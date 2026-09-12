@@ -14,6 +14,7 @@ stop-gate
 
 home2/bin/lib:
 answer.sh
+candidates.sh
 declared.sh
 derive.sh
 dispatch.sh

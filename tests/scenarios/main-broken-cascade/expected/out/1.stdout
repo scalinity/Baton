@@ -1,0 +1,12 @@
+== M02 and M03 both merged onto a broken main: two project parks ==
+consumed  M02-b2.json → @TMP@/home/archive/M02-b2-2026-09-12T12:00:00+01:00.json (stopped, main-broken → park-project)
+consumed  M03-b3.json → @TMP@/home/archive/M03-b3-2026-09-12T12:00:00+01:00.json (stopped, main-broken → park-project)
+== one ruling after the fix resumes M02, then M03, with the same words, and closes both parks ==
+ruling    Fixture/M02 · b2 · main-broken · delivered
+ruling    Fixture/M03 · b3 · main-broken · delivered
+== the project is no longer held, and with the cap at three M04 dispatches beside the two resumed sessions ==
+backgrounded · 0badc0d1 · Baton · Fixture · M04
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/Fixture-M04 (branch m04)
+settings  @TMP@/home/settings/Fixture-M04.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

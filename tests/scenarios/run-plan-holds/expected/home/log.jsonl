@@ -1,0 +1,3 @@
+{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"f1","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M01-f1-a.json"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"plan_override","project":"Fixture","milestone":"M04","direction":"withheld_over_run","gate":"v0.1 ships"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"plan_override","project":"Fixture","milestone":"M05","direction":"withheld_over_run"}

@@ -189,3 +189,27 @@ distant_wait_for_check() {
       printf 'waiting   %s/%s · waits for %s, which nothing is going to finish\n' "$1" "$dwf_m" "$dwf_w"
     done
 }
+
+# main_broken_cascade <project> <ruling> <rows json> <answered park at> <its milestone>: the rest
+# of a broken `main`, once a person has answered the first park (REQ-STOP-12).
+#
+# When several lanes merge onto a broken tree, each meets the same standing check and each writes
+# `main-broken`, so one fix leaves several parks. Their merges landed; what each still owes is step
+# (c) onward, which is exactly what the ruling tells it to finish. So the ruling a person gave one
+# of them is delivered to every other `main-broken` park of the project, oldest first, each through
+# the same stop, settle and flagless resume, and each closed only by its own delivered resume. One
+# that is refused keeps its park, and the project stays held until that one is answered again.
+#
+# `answer_deliver` is called with its cascade turned off, so a delivery here cannot start another.
+main_broken_cascade() {
+  mbc_parked=$(derive_parked "$1") || { echo "$mbc_parked" >&2; return 1; }
+  mbc_list=$(printf '%s' "$mbc_parked" | jq -c --arg at "$4" --arg m "$5" \
+    '[ .parked[] | select(.scope == "project" and .class == "main-broken" and (.at != $at or .milestone != $m)) ]')
+  mbc_status=0
+  mbc_n=$(printf '%s' "$mbc_list" | jq length); mbc_i=0
+  while [ "$mbc_i" -lt "$mbc_n" ]; do
+    mbc_e=$(printf '%s' "$mbc_list" | jq -c ".[$mbc_i]"); mbc_i=$((mbc_i + 1))
+    answer_deliver "$mbc_e" "$2" "$3" no || mbc_status=1
+  done
+  return "$mbc_status"
+}

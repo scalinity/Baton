@@ -361,13 +361,14 @@ consume_one() {
 
   # The endings that need a person, parked here because here is where the artifact is in hand: the
   # question with its options, or the sentence the session wrote about what it could not do. The
-  # class is the taxonomy's — `route_ending`'s, whose `escalate` action names exactly these three
-  # plus `model_not_found`, which step 4 parks instead because only the plan tells it which cell to
-  # name. The consume is once by the move, so the park is written once for the same reason
-  # (INV-06); everything else the table routes reads the log rather than the file.
+  # class is the taxonomy's — `route_ending`'s, whose `escalate` action names these three plus
+  # `model_not_found`, which step 4 parks instead because only the plan tells it which cell to name,
+  # and whose `park-project` action is `main-broken`. The consume is once by the move, so the park is
+  # written once for the same reason (INV-06); everything else the table routes reads the log rather
+  # than the file.
   co_class=$(route_ending "$co_outcome" "$co_reason" | jq -r .class)
   case "$co_class" in
-    asking|merge-failed|other)
+    asking|merge-failed|other|main-broken)
       ending_escalate "$co_project" "$co_milestone" "$co_session" "$co_attempt" "$co_a" \
         "$co_class" "$co_archive" ;;
   esac

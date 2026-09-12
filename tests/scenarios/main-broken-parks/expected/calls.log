@@ -1,0 +1,9 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "the standing check failed on main after the merge: 3 of 161 scenarios failed in sh tests/run.sh · fix main, then baton answer M02 \"main fixed; finish the close-out from step (c)\"" with title "Baton · Fixture/M02 · main-broken"'
+caffeinate -i -w 502
+caffeinate -i -w 503
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 502
+caffeinate -i -w 503
+[cwd @TMP@] claude agents --json

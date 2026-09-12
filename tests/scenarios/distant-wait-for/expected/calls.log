@@ -1,3 +1,4 @@
 [cwd @TMP@] claude agents --json
 osascript -e 'display notification "waits for M06, which is neither done, eligible nor in flight, so this lane is not moving on its own" with title "Baton · Fixture/M02 · distant_wait_for"'
+osascript -e 'display notification "no archived handover of Fixture lists M07, though the plan makes it eligible · edit the plan or the brief; the next tick re-reads it" with title "Baton · Fixture/M07 · omitted"'
 [cwd @TMP@] claude agents --json

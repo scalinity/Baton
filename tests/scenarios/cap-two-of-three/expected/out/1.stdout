@@ -1,0 +1,15 @@
+== three candidates in two projects, a cap of two: Other/M02 first on plan row order, then Fixture/M07, the project with fewer in flight and the first of its handover's order; Fixture/M02 waits ==
+backgrounded · 0badc0d1 · Baton · Other · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/Other-M02 (branch m02)
+settings  @TMP@/home/settings/Other-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+backgrounded · 0badc0d2 · Baton · Fixture · M07
+session   0badc0d2-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/Fixture-M07 (branch m07)
+settings  @TMP@/home/settings/Fixture-M07.json
+prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
+== the second run finds both in flight and the cap full, so Fixture/M02 still waits ==
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Other/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+in flight  Fixture/M07 · 0badc0d2-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
