@@ -37,14 +37,18 @@ case "${1:-}" in
       fi
       case "$note" in
         *"started a copy as "*)
+          # The note names the job id; the row is what carries the copy's session id, and the two
+          # differ — the job id is the session id's first eight characters (item 46).
           copy=$(printf '%s' "$note" | sed -n 's/.*started a copy as \([0-9a-f]*\).*/\1/p')
           jq -c --arg id "$copy" --arg cwd "$PWD" \
             '. + [{pid: 4299, id: $id, cwd: $cwd, kind: "background", startedAt: 1789200000000,
-                   sessionId: $id, name: "Baton · Fixture · M02", status: "busy", state: "working"}]' \
+                   sessionId: "\($id)-0000-4000-8000-000000000000",
+                   name: "Baton · Fixture · M02", status: "busy", state: "working"}]' \
             "$S/rows.json" > "$S/rows.json.tmp"
           mv "$S/rows.json.tmp" "$S/rows.json"
           ;;
       esac
+      [ ! -f "$S/bg.color" ] || note=$(printf '%s' "$note" | sed "s/\\([0-9a-f]\\{8\\}\\)/$(printf '\033')[36m\\1$(printf '\033')[39m/g")
       if [ "$(cat "$S/resume.stream" 2>/dev/null || echo stdout)" = stderr ]; then
         printf '%s\n' "$note" >&2
       else
@@ -61,7 +65,11 @@ case "${1:-}" in
     if [ -f "$S/bg.fail" ]; then exit "$(cat "$S/bg.fail")"; fi
     n=$(cat "$S/bg.count" 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" > "$S/bg.count"
     id=$(printf '0badc0d%d' "$n")
-    printf 'backgrounded · %s · %s\n' "$id" "$name"
+    # bg.color: the id wrapped in the colour escapes the real CLI prints whenever FORCE_COLOR is in
+    # the environment, redirected or not (D-050). The row and the sidecar still carry the plain id.
+    shown=$id
+    [ ! -f "$S/bg.color" ] || shown=$(printf '%s[36m%s%s[39m' "$(printf '\033')" "$id" "$(printf '\033')")
+    printf 'backgrounded · %s · %s\n' "$shown" "$name"
     printf '  claude agents             list sessions\n  claude attach %s    open in this terminal\n  claude logs %s      show recent output\n  claude stop %s      stop this session\n' "$id" "$id" "$id"
     if [ ! -f "$S/bg.norow" ]; then
       jq -c --arg id "$id" --arg name "$name" --arg cwd "$PWD" --arg n "$n" \

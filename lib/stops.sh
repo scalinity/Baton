@@ -98,6 +98,29 @@ job_of_session() {
   printf '%s' "$1" | jq -r --arg s "$2" 'map(select(.sessionId == $s and .pid != null)) | first | .id // empty'
 }
 
+# fork_session <short id>: the session id of a copy, from the 8-hex job id its note named.
+#
+# The note names the *job* id and every count, join and glob in Baton is on the session id, so the
+# two must not be confused: measured live (item 46), a copy announced as `d2007634` has session id
+# `d2007634-d17b-4b0d-9c67-a0cec9b98ff6`. Written short, `copy_fork.session` would point at nothing
+# — no transcript, no row, and `current_session` would hand the next resume an id the CLI does not
+# know. The row is asked first, as a dispatch asks it; the transcripts answer when no row does,
+# because the short id is the session id's own prefix and the tree is globbed, never derived from a
+# project — the same capture found a copy's transcript filed under the *resuming* process's cwd and
+# not the original session's.
+fork_session() {
+  if fs_row=$(row_for_id "$1"); then
+    fs_id=$(printf '%s' "$fs_row" | jq -r '.sessionId // empty')
+    [ -z "$fs_id" ] || { printf '%s\n' "$fs_id"; return 0; }
+  fi
+  for fs_f in "$BATON_TRANSCRIPTS"/*/"$1"-*.jsonl; do
+    [ -f "$fs_f" ] || continue
+    basename "$fs_f" .jsonl
+    return 0
+  done
+  return 1
+}
+
 # artifact_detail <archived path>: the `detail` of an archived artifact. The consumed event records
 # what an ending decided and not what it said, so the sentence a person needs — the split, the last
 # assistant message — is read back from the archive, which derivation 4 calls the answer.
@@ -143,7 +166,9 @@ resume_session() {
   "$BATON_CLAUDE" --bg --resume "$rs_s" "$rs_text" > "$rs_tmp" 2> "$rs_tmp.err"
   rs_status=$?
   set -e
-  rs_both=$(cat "$rs_tmp" "$rs_tmp.err")
+  # Both streams, and the colour taken out of both before anything is matched: the note the
+  # classifier keys on is printed by the same CLI that colours the dispatch line (D-050).
+  rs_both=$(cat "$rs_tmp" "$rs_tmp.err" | cli_plain)
   rm -f "$rs_tmp" "$rs_tmp.err"
 
   rs_note=$(printf '%s\n' "$rs_both" | grep -F 'started a copy as ' | head -1 || true)
@@ -174,8 +199,14 @@ resume_session() {
     # new id simply carries attempt n (§6.1).
     [ -z "$rs_job" ] || "$BATON_CLAUDE" stop "$rs_job" > /dev/null 2>&1 || true
     if [ -n "$rs_new" ]; then
-      log_event copy_fork "$rs_p" "$rs_m" "$rs_new" "$rs_a" \
+      rs_full=$(fork_session "$rs_new") || rs_full=''
+      if [ -z "$rs_full" ]; then
+        rs_full=$rs_new
+        echo "baton: $rs_p/$rs_m forked as $rs_new and neither a row nor a transcript names its session id; the short id stands in" >&2
+      fi
+      log_event copy_fork "$rs_p" "$rs_m" "$rs_full" "$rs_a" \
         "$(jq -nc --arg f "$rs_s" --arg n "$rs_note" '{from_session: $f, note: $n}')"
+      rs_new=$rs_full
     else
       # A note naming no id is still a fork: something is running that Baton cannot address. The
       # resume event already records `forked`, which is not a failure ending, so this is said where

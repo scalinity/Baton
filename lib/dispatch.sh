@@ -115,6 +115,18 @@ slot_line() {
   printf '%s' "$sl_out"
 }
 
+# cli_plain: stdin to stdout with the CLI's colour escapes removed. Everything Baton reads from the
+# CLI's own output goes through it first.
+#
+# Measured while running live item 44 (D-050): with FORCE_COLOR set in the environment — which every
+# process started from inside a Claude Code session inherits — `claude --bg` prints
+# `backgrounded · <ESC>[36m82b69058<ESC>[39m · …` even with stdout redirected to a file, so the id
+# does not match the hexadecimal test and a dispatch that had really started a session was recorded
+# as a launch failure. The lane then never opened and the next tick dispatched a second session for
+# the same milestone. The launchd job sets only LC_ALL and so never saw it; a hand-run
+# `baton dispatch` from inside a session saw it every time.
+cli_plain() { sed "s/$(printf '\033')\[[0-9;]*[a-zA-Z]//g"; }
+
 # claude_bg <worktree> <name> <model> <effort> <settings> <prompt>: the one command, with the
 # worktree as cwd and LC_ALL set. Sets bg_status, bg_stdout, bg_stderr and bg_id (empty when no
 # "backgrounded · <id>" line was printed, which is the failure test).
@@ -125,7 +137,7 @@ claude_bg() {
       --permission-mode bypassPermissions --settings "$5" "$6" ) > "$cb_tmp" 2> "$cb_tmp.err"
   bg_status=$?
   set -e
-  bg_stdout=$(cat "$cb_tmp"); bg_stderr=$(cat "$cb_tmp.err")
+  bg_stdout=$(cli_plain < "$cb_tmp"); bg_stderr=$(cli_plain < "$cb_tmp.err")
   rm -f "$cb_tmp" "$cb_tmp.err"
   bg_id=$(printf '%s\n' "$bg_stdout" | LC_ALL=en_US.UTF-8 awk '$1 == "backgrounded" && $3 ~ /^[0-9a-f]+$/ { print $3; exit }')
 }
