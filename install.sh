@@ -56,4 +56,12 @@ if [ ! -f "$BATON_HOME/projects/$project/permissions.json" ]; then
         ) } }' > "$BATON_HOME/projects/$project/permissions.json"
 fi
 
+# The launchd agent is copied, never loaded: loading is a person's act, after they have read the
+# merge and granted Full Disk Access to the shell the job runs (REQ-SETUP-01, REQ-SETUP-04).
+agents=$HOME/Library/LaunchAgents
+mkdir -p "$agents"
+cp "$here/launchd/com.baton.tick.plist" "$agents/com.baton.tick.plist"
+
 echo "installed the relay under $BATON_HOME/bin; project $project registered at $canonical"
+echo "copied the launchd agent to $agents/com.baton.tick.plist; load it with"
+echo "  launchctl bootstrap gui/\$(id -u) $agents/com.baton.tick.plist"

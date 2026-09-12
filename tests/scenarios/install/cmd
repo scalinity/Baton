@@ -1,3 +1,5 @@
+# HOME is redirected so the launchd agent install.sh copies lands inside the scenario's own tree
+# and never in the person's ~/Library/LaunchAgents.
 home2=$(cd "$SHIM/.." && pwd)/home2
-BATON_HOME="$home2" sh "$ROOT/install.sh"
-cd "$home2/.." && find home2 -type f | grep -v "^home2/bin/" | sort && ls home2/bin home2/bin/lib && jq -c .permissions.deny home2/projects/Baton/permissions.json && jq -c . home2/config.json && cat home2/projects/Baton/project.json
+HOME=$(cd "$SHIM/.." && pwd) BATON_HOME="$home2" sh "$ROOT/install.sh"
+cd "$home2/.." && find home2 -type f | grep -v "^home2/bin/" | sort && ls home2/bin home2/bin/lib && jq -c .permissions.deny home2/projects/Baton/permissions.json && jq -c . home2/config.json && cat home2/projects/Baton/project.json && echo "--- LaunchAgents ---" && ls Library/LaunchAgents

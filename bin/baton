@@ -6,10 +6,12 @@ set -eu
 BATON_CLAUDE=${BATON_CLAUDE:-/Users/danny/.local/bin/claude}
 BATON_DATE=${BATON_DATE:-date}
 BATON_CAFFEINATE=${BATON_CAFFEINATE:-/usr/bin/caffeinate}
+BATON_OSASCRIPT=${BATON_OSASCRIPT:-/usr/bin/osascript}
 BATON_HOME=${BATON_HOME:-$HOME/.baton}
 BATON_DAEMON_LOG=${BATON_DAEMON_LOG:-$HOME/.claude/daemon.log}
 BATON_TRANSCRIPTS=${BATON_TRANSCRIPTS:-$HOME/.claude/projects}
-export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_HOME BATON_DAEMON_LOG BATON_TRANSCRIPTS
+export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_OSASCRIPT BATON_HOME BATON_DAEMON_LOG \
+  BATON_TRANSCRIPTS
 
 here=$(cd "$(dirname "$0")" && pwd)
 # In the checkout the libraries sit beside bin/; in the installed relay they sit under bin/lib/.
@@ -18,15 +20,18 @@ if [ -d "$here/lib" ]; then BATON_LIB=$here/lib; else BATON_LIB=$here/../lib; fi
 . "$BATON_LIB/log.sh"
 . "$BATON_LIB/plan.sh"
 . "$BATON_LIB/templates.sh"
+. "$BATON_LIB/notify.sh"
 . "$BATON_LIB/dispatch.sh"
 . "$BATON_LIB/derive.sh"
 . "$BATON_LIB/inbox.sh"
+. "$BATON_LIB/rows.sh"
 . "$BATON_LIB/status.sh"
+. "$BATON_LIB/tick.sh"
 
 usage() {
   cat <<USAGE
 usage: baton <verb> ...
-  tick                               not yet: M03
+  tick                               the eight steps for every registered project, then the marker
   answer <milestone> <ruling | n>    not yet: M05
   status                             the one view: parks, takeovers, waits, holds, in flight, the inbox
   plan <project>                     print the graph as the tick sees it; validate every Model cell
@@ -37,22 +42,34 @@ USAGE
 
 verb=${1:-}
 case "$verb" in
+  tick)
+    [ $# -eq 1 ] || { usage >&2; exit 2; }
+    # The one verb that clears a stale lock rather than refusing over it: a lock past the interval
+    # whose holder is gone would otherwise stop the relay until a person noticed (REQ-TICK-03).
+    stale=$(lock_stale_break)
+    lock_take
+    verb_tick "$stale"
+    ;;
   plan)
     [ $# -eq 2 ] || { usage >&2; exit 2; }
+    lock_stale_report
     lock_take
     verb_plan "$2"
     ;;
   dispatch)
     [ $# -eq 3 ] || { usage >&2; exit 2; }
+    lock_stale_report
     lock_take
     verb_dispatch "$2" "$3"
     ;;
   status)
     [ $# -eq 1 ] || { usage >&2; exit 2; }
+    # Before anything else, so that a person reading the view sees why it is about to refuse.
+    lock_stale_report
     lock_take
     verb_status
     ;;
-  tick|answer|allow)
+  answer|allow)
     echo "baton: $verb is not built yet" >&2
     usage >&2
     exit 2

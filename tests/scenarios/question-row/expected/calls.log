@@ -1,0 +1,5 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "Baton · Fixture · M02 is waiting for input; no payload carries the question, so read it in Claude.app or with claude attach 0badf2" with title "Baton · Fixture/M02 · question"'
+caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 502

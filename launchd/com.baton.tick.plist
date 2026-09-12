@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.baton.tick — the one launchd agent (REQ-TICK-01, REQ-SETUP-04). Installed by `sh install.sh`
+  to ~/Library/LaunchAgents/ and loaded by hand with
+      launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.baton.tick.plist
+
+  Every path names something under ~/.baton/ and nothing under ~/Documents (INV-12). The executable
+  is Baton's own copy of /bin/sh, granted Full Disk Access once by hand (REQ-SETUP-01): a launchd
+  job run by /bin/sh cannot execute a script under ~/Documents, read a file there, or run git
+  there, while `stat` and `test -r` succeed — so a readability guard passes right before the read
+  fails, and the tick could not read a plan file or run its git check (D-012).
+
+  StartInterval is 60 and must equal BATON_TICK_SECONDS in lib/derive.sh, which is what the gap
+  report measures against. WatchPaths and QueueDirectories are not used; a firing missed during
+  sleep or while the job still runs is caught up by the next, and the lock serialises a firing
+  against a hand run. AbandonProcessGroup lets the caffeinate holders outlive the tick that started
+  them. LC_ALL is set because launchd sets no LANG, and in the C locale the two-byte separator in
+  "backgrounded · <id>" does not parse.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.baton.tick</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/danny/.baton/bin/sh</string>
+        <string>/Users/danny/.baton/bin/baton</string>
+        <string>tick</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>60</integer>
+    <key>AbandonProcessGroup</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LC_ALL</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/danny/.baton/launchd.out</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/danny/.baton/launchd.err</string>
+</dict>
+</plist>

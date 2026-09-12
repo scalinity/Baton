@@ -1,0 +1,3 @@
+{"at":"2026-09-12T10:00:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M03","session":"f3","attempt":1,"name":"Baton · Fixture · M03","model":"opus","remote":false,"worktree":"/w","branch":"m03","worktree_reused":false,"settings":"/s","prompt_path":"/p/f3/1.txt","prompt_sha256":"a1c7a0fc4b2f41b8d35d1aa9315a4a5e3a5ae123b90611e1f998b9f2b68feb18"}
+{"at":"2026-09-12T11:30:00+01:00","kind":"takeover","project":"Fixture","milestone":"M03","session":"f3","attempt":1,"first_unmatched_at":"2026-09-12T10:30:00.000Z","first_unmatched_uuid":"u3b","typed_count":2}
+{"at":"2026-09-12T11:30:00+01:00","kind":"notification","project":"Fixture","milestone":"M03","session":"f3","attempt":1,"class":"takeover-silent","key":"f3","detail":"a typed message Baton did not send"}

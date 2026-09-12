@@ -1,0 +1,72 @@
+#!/bin/sh
+# lib/notify.sh — the Mac message, and the two writers that always raise one. An escalation parks
+# and a notification is kept working past (REQ-ESC-01), but both reach the person the same way:
+# one `display notification` through osascript plus one log event (REQ-ESC-02). Writing them
+# through these two functions is what makes "every escalation and every notification reaches the
+# Mac" true by construction rather than by remembering to add a call.
+#
+# The body is never composed twice. An escalation's `carries` and a notification's own fields are
+# read by `one_line` — the same function `status` prints from — so the line a person reads on the
+# Mac and the line they read in `status` are the same line, and neither is re-derived.
+set -eu
+
+# notify_text <string>: one line, safe inside an AppleScript string literal. Newlines and tabs
+# become spaces (a notification is one line), a backslash and a double quote are escaped because
+# the body is interpolated into a quoted literal, and the result is capped: Notification Center
+# truncates far shorter than this, and an unbounded carries would otherwise reach osascript whole.
+notify_text() {
+  printf '%s' "$1" | tr '\n\r\t' '   ' | sed 's/\\/\\\\/g; s/"/\\"/g' \
+    | LC_ALL=en_US.UTF-8 awk '{ printf "%s", substr($0, 1, 250) }'
+}
+
+# notify <title> <body>: the one Mac message. A failure is swallowed: the channel is how a person
+# hears about the relay, and a relay that stopped because it could not raise a notification would
+# be the failure the notification was for.
+notify() {
+  "$BATON_OSASCRIPT" -e \
+    "display notification \"$(notify_text "$2")\" with title \"$(notify_text "$1")\"" \
+    > /dev/null 2>&1 || true
+}
+
+# notify_title <project> <milestone> <class>: the address, REQ-ESC-03's first part. The lane when
+# the event has one, Baton itself when it does not — a stale lock and a gap belong to no milestone.
+notify_title() {
+  nt_addr=Baton
+  if [ -n "$1" ] && [ -n "$2" ]; then nt_addr="Baton · $1/$2"
+  elif [ -n "$1" ]; then nt_addr="Baton · $1"
+  elif [ -n "$2" ]; then nt_addr="Baton · $2"
+  fi
+  [ -z "$3" ] || nt_addr="$nt_addr · $3"
+  printf '%s' "$nt_addr"
+}
+
+# fields_or_fail <who> <json>: the guard both writers run first. log_event reads an empty fields
+# argument as "no fields", which is right for an event that has none and wrong for one whose fields
+# failed to build: the line is then written with its envelope and nothing else, and a notification
+# with no class is worse than no notification. So a caller that passed something unparseable is a
+# bug, and it fails here where it is visible rather than three derivations later.
+fields_or_fail() {
+  [ -n "$2" ] || { echo "$1: the event's fields are empty" >&2; return 1; }
+  printf '%s' "$2" | jq -e 'type == "object"' > /dev/null 2>&1 \
+    || { echo "$1: the event's fields are not a JSON object: $2" >&2; return 1; }
+}
+
+# escalation_write <project> <milestone> <session> <attempt> <class> <scope> <carries json>:
+# the escalation event and its Mac message. M05's `escalate` subsumes this when the verbs that
+# resolve a park arrive; until then this is the one place an escalation is written.
+escalation_write() {
+  fields_or_fail escalation_write "$7" || return 1
+  log_event escalation "$1" "$2" "$3" "$4" "$(jq -nc --arg c "$5" --arg s "$6" --argjson carries "$7" \
+    '{class: $c, scope: $s, carries: $carries, channel: ["notification"]}')"
+  notify "$(notify_title "$1" "$2" "$5")" "$(one_line "$7")"
+}
+
+# notification_write <project> <milestone> <session> <attempt> <class> <key> <fields json>:
+# the notification event and its Mac message. The once-only rule is the caller's — each class
+# spends its key differently — and the fields carry a `detail`, which is the line the person reads.
+notification_write() {
+  fields_or_fail notification_write "$7" || return 1
+  log_event notification "$1" "$2" "$3" "$4" "$(jq -nc --arg c "$5" --arg k "$6" --argjson f "$7" \
+    '{class: $c} | if $k != "" then . + {key: $k} else . end | . + $f')"
+  notify "$(notify_title "$1" "$2" "$5")" "$(one_line "$7")"
+}

@@ -1,0 +1,1 @@
+{"at":"2026-09-12T12:00:00+01:00","kind":"self_check_failed","project":"Fixture","stage":"parse","path":"@TMP@/Fixture/docs/MILESTONES.md","detail":"the milestones table, row M03, cell Model: \"opsu\" is not a model alias in config.json or a full model id","table":"milestones","row":"M03","cell":"Model"}

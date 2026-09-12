@@ -1,0 +1,10 @@
+#!/bin/sh
+# The osascript shim: records the Mac message's argv and exits, so a scenario asserts on the body
+# a person would have read. No AppleScript is compiled and no notification is raised.
+set -eu
+S=${BATON_SHIM:?}
+line="osascript"
+for a in "$@"; do
+  case "$a" in *" "*) line="$line '$a'" ;; *) line="$line $a" ;; esac
+done
+printf '%s\n' "$line" >> "$S/calls.log"

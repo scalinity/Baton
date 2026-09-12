@@ -195,10 +195,10 @@ artifact_check() {
 # escalate_rejection <project> <milestone> <session> <attempt> <rule> <path>: the lane escalation
 # a rejection raises. The class list is the log's and a rejection is the lane's own "something
 # else"; the carries holds the rule's name and the file's path, and the message a person reads is
-# composed by M03's notify, never here.
+# composed from that carries by escalation_write, never here and never twice.
 escalate_rejection() {
-  log_event escalation "$1" "$2" "$3" "$4" "$(jq -nc --arg r "$5" --arg p "$6" \
-    '{class: "other", scope: "lane", carries: {rule: $r, path: $p}, channel: ["notification"]}')"
+  escalation_write "$1" "$2" "$3" "$4" other lane "$(jq -nc --arg r "$5" --arg p "$6" \
+    '{rule: $r, path: $p}')"
 }
 
 # attempt_for_session <project> <milestone> <session>: the attempt a session belongs to, found by

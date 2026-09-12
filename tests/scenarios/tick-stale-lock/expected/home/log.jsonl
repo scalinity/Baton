@@ -1,0 +1,1 @@
+{"at":"2026-09-12T12:00:00+01:00","kind":"escalation","class":"baton-unhealthy","scope":"project","carries":{"pid":"999999","held_since":"2026-09-12T11:50:00+01:00","held_seconds":600,"detail":"the lock was held by pid 999999 since 2026-09-12T11:50:00+01:00 (10 m) and its holder is gone; it has been cleared and the tick proceeded"},"channel":["notification"]}

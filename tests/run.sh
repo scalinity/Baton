@@ -10,7 +10,8 @@
 # BATON_HOME to start from; @TMP@ and @COMMIT@ in any file are replaced), rows.json (what agents --json answers
 # first), now (the clock), optional shim/ (the claude shim's knobs), optional project/ (a fixture
 # project; tests/project/ otherwise), optional transcripts/ (the tree BATON_TRANSCRIPTS points at),
-# and expected/.
+# optional mtimes (one "<path under transcripts/> <seconds before now>" per line, for the rules
+# that stat a transcript rather than read it), and expected/.
 #
 # BATON_TESTS_FREEZE=<name> rewrites that one scenario's expected/ from the run, for output that
 # has been read and judged right; BATON_TESTS_FREEZE=all does it for every scenario and is for a
@@ -29,9 +30,10 @@ freeze=${BATON_TESTS_FREEZE:-}
 # hooks a config could name must be the same on every Mac.
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 
-# prompt_normalise, the one rule, for the hash check below.
+# prompt_normalise, the one rule, for the hash check below; iso_epoch, for the mtimes file.
 BATON_DATE=date
 . "$root/lib/log.sh"
+. "$root/lib/derive.sh"
 
 for sc in "$here"/scenarios/*/; do
   sc=${sc%/}
@@ -72,10 +74,23 @@ for sc in "$here"/scenarios/*/; do
   # gets an empty tree, which is a lane with no transcript.
   if [ -d "$sc/transcripts" ]; then cp -R "$sc/transcripts" "$tmp/transcripts"; else mkdir "$tmp/transcripts"; fi
   find "$tmp/transcripts" -type f -exec sed -i '' "s|@TMP@|$tmp|g" {} +
+  # The stall rule is a stat and never a read, so a scenario that exercises it has to own the
+  # modification times: a copied file carries the time of the copy, which is the machine's real
+  # clock, while the scenario's `now` is frozen at whatever date it names. `mtimes` holds one
+  # "<path under transcripts/> <seconds before now>" per line, and every scenario whose lanes reach
+  # the stall check names every transcript it has, so the answer is the same on any Mac on any day.
+  if [ -f "$sc/mtimes" ]; then
+    scnow=$(iso_epoch "$(cat "$sc/now")")
+    while read -r mt_path mt_ago || [ -n "$mt_path" ]; do
+      case "$mt_path" in ''|'#'*) continue ;; esac
+      touch -t "$(date -r "$((scnow - mt_ago))" +%Y%m%d%H%M.%S)" "$tmp/transcripts/$mt_path"
+    done < "$sc/mtimes"
+  fi
 
   for run in 1 2; do
     ( export BATON_HOME="$tmp/home" BATON_CLAUDE="$here/shim/claude" BATON_DATE="$here/shim/date" \
-             BATON_CAFFEINATE="$here/shim/caffeinate" BATON_SHIM="$tmp/shim" BATON_DAEMON_LOG="$tmp/shim/daemon.log" \
+             BATON_CAFFEINATE="$here/shim/caffeinate" BATON_OSASCRIPT="$here/shim/osascript" \
+             BATON_SHIM="$tmp/shim" BATON_DAEMON_LOG="$tmp/shim/daemon.log" \
              BATON_TRANSCRIPTS="$tmp/transcripts" \
              BATON="$root/bin/baton" ROOT="$root" SCENARIO="$sc" SHIM="$tmp/shim"
       cd "$tmp"

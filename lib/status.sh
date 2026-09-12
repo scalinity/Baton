@@ -93,13 +93,15 @@ status_render() {
   sr_rows=$1
   sr_now=$(now_epoch)
 
-  # 1. The last tick, from the marker, never from the newest event.
+  # 1. The last tick, from the marker, never from the newest event, and the hardware condition on
+  # the same line: caffeinate -i does not prevent lid-close sleep and timers stretch by any sleep,
+  # so an unattended night needs the lid open or clamshell and Baton cannot lift it (REQ-SETUP-07).
   sr_tick=$(derive_last_tick) || { echo "$sr_tick"; return 1; }
   if [ "$(field "$sr_tick" .present)" = true ]; then
-    printf 'last tick %s (%s ago)\n' "$(field "$sr_tick" .last_tick)" \
-      "$(duration "$(field "$sr_tick" .age_seconds)")"
+    printf 'last tick %s (%s ago) · unattended needs the lid open or clamshell\n' \
+      "$(field "$sr_tick" .last_tick)" "$(duration "$(field "$sr_tick" .age_seconds)")"
   else
-    echo 'last tick: no tick yet'
+    echo 'last tick: no tick yet · unattended needs the lid open or clamshell'
   fi
 
   sr_parked=$(derive_parked "") || { echo "$sr_parked"; return 1; }
@@ -113,7 +115,9 @@ status_render() {
       sr_e=$(nth "$sr_list" "$sr_i"); sr_i=$((sr_i + 1))
       sr_class=$(field "$sr_e" .class '?')
       if [ "$sr_scope" = project ]; then
-        printf 'project park  %s · %s · %s · %s\n' "$(field "$sr_e" .project '?')" "$sr_class" \
+        # A project-scope park with no project named is Baton's own health — a stale lock holds
+        # every project, so the field is absent rather than pointing at one of them.
+        printf 'project park  %s · %s · %s · %s\n' "$(field "$sr_e" .project 'all projects')" "$sr_class" \
           "$(one_line "$(printf '%s' "$sr_e" | jq -c '.carries // {}')")" \
           "$(verb_for "$sr_class" "$(field "$sr_e" .milestone '?')")"
       else
@@ -161,9 +165,18 @@ status_render() {
   while [ "$sr_i" -lt "$sr_n" ]; do
     sr_l=$(nth "$sr_list" "$sr_i"); sr_i=$((sr_i + 1))
     sr_since=$(iso_epoch "$(field "$sr_l" .since)") || { echo "$sr_since"; return 1; }
-    printf 'in flight  %s/%s · %s · %s · attempt %s · %s%s\n' "$(field "$sr_l" .project '?')" \
+    # The live notifications the tick wrote for this attempt, and the row's own waitingFor, which
+    # says what the session is holding open when nothing has been notified about it yet.
+    sr_live=''
+    for sr_class in stall long-running; do
+      sr_spent=$(derive_key_spent "$(field "$sr_l" .project)" "$(field "$sr_l" .milestone)" \
+        "$(field "$sr_l" .attempt 0)" "$sr_class") || { echo "$sr_spent"; return 1; }
+      [ "$(field "$sr_spent" .spent)" = true ] || continue
+      case "$sr_class" in stall) sr_live="$sr_live · stalled" ;; *) sr_live="$sr_live · long-running" ;; esac
+    done
+    printf 'in flight  %s/%s · %s · %s · attempt %s · %s%s%s\n' "$(field "$sr_l" .project '?')" \
       "$(field "$sr_l" .milestone '?')" "$(field "$sr_l" .session '?')" "$(field "$sr_l" .model '?')" \
-      "$(field "$sr_l" .attempt '?')" "$(duration "$((sr_now - sr_since))")" \
+      "$(field "$sr_l" .attempt '?')" "$(duration "$((sr_now - sr_since))")" "$sr_live" \
       "$(printf '%s' "$sr_l" | jq -r 'if (.row.waitingFor // "") != "" then " · \(.row.waitingFor)" else "" end')"
   done
   # Only lanes with a live row are printed here. derive_in_flight's other half, no_row, is the

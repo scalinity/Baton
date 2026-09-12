@@ -1,0 +1,5 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "a typed message Baton did not send at 2026-09-12T10:30:00.000Z; Baton has stood off this lane · baton answer M03 \"continue\" hands it back" with title "Baton · Fixture/M03 · takeover-silent"'
+caffeinate -i -w 503
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 503
