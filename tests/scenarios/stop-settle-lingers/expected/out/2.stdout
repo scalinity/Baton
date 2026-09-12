@@ -1,0 +1,3 @@
+== after the stop the first listing fails and the next two still show the pid: the resume waits for
+   the stop to land, because a resume into a session still running starts a copy ==
+status 1

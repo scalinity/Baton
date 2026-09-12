@@ -149,14 +149,22 @@ artifact_detail() {
 # it. The fork classifier recorded that correctly; this is what keeps it from being the normal case.
 #
 # Liveness is the pid and never the state (derivation 1), so the row may linger with `pid: null`
-# and that is already stopped. The bound is `row_for_id`'s, for the same reason in reverse: a fact
-# about a row takes a beat to settle, and past the bound the resume goes ahead and the classifier is
-# still there to catch a fork.
+# and that is already stopped. The listing is read through `rows_read`, which tells a listing that
+# could not be read from an empty one: read through `rows_json` a failed read is `[]`, which has no
+# row with a pid, and the resume would go ahead on the one reading that saw nothing at all.
+#
+# The bound is sixty listings half a second apart — thirty seconds of sleep, and longer by however
+# long each listing takes, all of it under the tick's lock. It is `row_for_id`'s bound, for the same
+# reason in reverse: a fact about a row takes a beat to settle. Past it the resume goes ahead, the
+# classifier is still there to catch a fork, and the caller says on stderr that the stop never
+# showed, which is where a skipped tick's cause is then found.
 stop_settle() {
   sts_i=0
   while [ "$sts_i" -lt 60 ]; do
-    rows_json | jq -e --arg s "$1" 'any(.[]; .sessionId == $s and .pid != null)' > /dev/null 2>&1 \
-      || return 0
+    if sts_rows=$(rows_read); then
+      printf '%s' "$sts_rows" | jq -e --arg s "$1" 'any(.[]; .sessionId == $s and .pid != null)' \
+        > /dev/null 2>&1 || return 0
+    fi
     sts_i=$((sts_i + 1))
     sleep 0.5
   done
