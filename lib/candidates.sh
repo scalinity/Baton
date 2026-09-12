@@ -255,7 +255,8 @@ dispositions_intersect() {
   # What survives is a candidate unless a person has to answer its lane first, or a live row already
   # carries its name. The last is what a hand-started session under Baton's own name looks like, and
   # dispatching over it is the one mistake with no undo. A Remote: yes milestone is a candidate like
-  # any other; `dispatch_one` takes its two-step path (REQ-DISPATCH-07).
+  # any other: the dispatch command is the same for every row, and Remote Control rides in the
+  # settings file every dispatch composes (REQ-DISPATCH-07, D-080).
   dsi_out='[]'
   dsi_n=$(printf '%s' "$dsi_cands" | jq length); dsi_i=0
   while [ "$dsi_i" -lt "$dsi_n" ]; do
