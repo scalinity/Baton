@@ -117,4 +117,5 @@ reason.
 | `docs/MILESTONES.md` | **The plan file**: the milestone table and the gates table `baton plan Baton` parses; the rules for every session; traceability; the split rule; the handoff template |
 | `docs/milestones/M<nn>.md` | Per-milestone brief, `## Completion evidence`, `## Copy-ready session prompt` |
 | `docs/adr/` | ADR 0001 |
+| `launchd/` | `com.baton.tick.plist`, the one agent; `install.sh` copies it and a person loads it |
 | `.scratch/baton/` | The wayfinder map, its tickets, the research and the prototype's evidence — read-only history |

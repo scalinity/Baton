@@ -1,4 +1,4 @@
-copied /bin/sh to @TMP@/home2/bin/sh — grant it Full Disk Access (REQ-SETUP-01)
+copied /bin/sh to @TMP@/home2/bin/sh and signed it ad hoc — grant it Full Disk Access (REQ-SETUP-01)
 installed the relay under @TMP@/home2/bin; project Baton registered at /Users/danny/Documents/Apps/Baton
 copied the launchd agent to @TMP@/Library/LaunchAgents/com.baton.tick.plist; load it with
   launchctl bootstrap gui/$(id -u) @TMP@/Library/LaunchAgents/com.baton.tick.plist

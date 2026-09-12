@@ -16,9 +16,21 @@ cp "$here"/lib/*.sh "$BATON_HOME/bin/lib/"
 cp "$here/hooks/stop-gate" "$here/hooks/stop-failure" "$here/hooks/statusline" "$BATON_HOME/bin/"
 chmod 755 "$BATON_HOME/bin/baton" "$BATON_HOME/bin/stop-gate" "$BATON_HOME/bin/stop-failure" "$BATON_HOME/bin/statusline"
 
+# Baton's own copy of the shell, which the launchd job runs and which the person grants Full Disk
+# Access. A plain copy cannot execute at all: it carries Apple's platform signature, and the kernel
+# refuses to run a platform binary from outside its sealed location — the job exits with
+# OS_REASON_CODESIGNING and writes nothing, and running the copy by hand is killed with 137. An
+# ad-hoc signature replaces the one the copy cannot satisfy. `codesign --verify` passes on the
+# unrunnable copy, so the test is the ad-hoc flag and nothing weaker (D-038).
 if [ ! -x "$BATON_HOME/bin/sh" ]; then
   cp /bin/sh "$BATON_HOME/bin/sh"
-  echo "copied /bin/sh to $BATON_HOME/bin/sh — grant it Full Disk Access (REQ-SETUP-01)"
+  codesign --force --sign - "$BATON_HOME/bin/sh" > /dev/null 2>&1 \
+    || echo "warning: could not sign $BATON_HOME/bin/sh; the launchd job will not run"
+  echo "copied /bin/sh to $BATON_HOME/bin/sh and signed it ad hoc — grant it Full Disk Access (REQ-SETUP-01)"
+elif ! codesign -d --verbose=2 "$BATON_HOME/bin/sh" 2>&1 | grep -q 'flags=.*adhoc'; then
+  codesign --force --sign - "$BATON_HOME/bin/sh" > /dev/null 2>&1 \
+    || echo "warning: could not sign $BATON_HOME/bin/sh; the launchd job will not run"
+  echo "re-signed $BATON_HOME/bin/sh ad hoc; as it stood it could not have run as a launchd job"
 fi
 
 if [ ! -f "$BATON_HOME/config.json" ]; then
