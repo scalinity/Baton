@@ -1,0 +1,9 @@
+== the context is what failed, so nothing is resumed and attempt 2 starts fresh ==
+redispatch Fixture/M02 · the context is what failed, so attempt 2 starts fresh
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/Fixture-M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+== no resume was issued ==
+0

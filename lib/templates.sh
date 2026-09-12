@@ -1,6 +1,6 @@
 #!/bin/sh
-# lib/templates.sh — the texts Baton composes. M01: the slot line. M04 adds continue and finish;
-# M05 the ruling label.
+# lib/templates.sh — the texts Baton composes. M01: the slot line; M04 the continue and finish
+# continuations. M05 adds the ruling label.
 set -eu
 
 # session_name <project> <milestone>: the name a dispatched session carries in claude agents and
@@ -32,4 +32,27 @@ slot_line_text() {
   fi
   sl="$sl Do not start the milestone after this one."
   printf '%s' "$sl"
+}
+
+# template_continue <class> <milestone> <attempt> <resume>: the text a session receives when the
+# work is intact and only the turn ended — a wait, a transient, an unrecoverable error, or a crash.
+# <class> is the StopFailure `error` value or `process gone` (docs/ARCHITECTURE.md §4.3), and the
+# text is that section's, verbatim.
+#
+# "not a fault in the work" and "Do not switch model or work around a limit" are load-bearing and
+# not padding: a model told only that it was resumed after a stop reads the stop as a signal about
+# what it was doing and works around the limit — switching model, shrinking the task, skipping the
+# check — which is the one thing a wait must not cause.
+template_continue() {
+  printf 'Baton resumed this session after a temporary stop (%s), not a fault in the work. %s, attempt %s, resume %s. Continue exactly where the last turn ended. If a tool call was interrupted, its result was not received — check the state before repeating it. Do not switch model or work around a limit. The handover artifact is still owed.' \
+    "$1" "$2" "$3" "$4"
+}
+
+# template_finish <milestone> <attempt> <resume> <session>: the text after a `no-handover` only.
+# It names the artifact's own path because the session is being asked for exactly one thing, and it
+# lists the three outcomes because a session that cannot honestly write `complete` must still write
+# something rather than end the turn again.
+template_finish() {
+  printf 'Baton resumed this session because its last turn ended without a handover artifact. %s, attempt %s, resume %s. Finish the close-out now by the method in CLAUDE.md and write ~/.baton/inbox/%s-%s.json, printing it last. Write the outcome that is true: complete if the merge is on main, asking if you need a ruling, otherwise stopped with its reason — unfinished carries a split.' \
+    "$1" "$2" "$3" "$1" "$4"
 }

@@ -1,0 +1,31 @@
+== every API error, split on the error alone (REQ-STOP-02) ==
+rate_limit               {"class":"rate_limit","action":"wait","retry":"interval","notify":"2h","hold":true}
+billing_error            {"class":"billing_error","action":"wait","retry":"interval","notify":"now","hold":true}
+overloaded               {"class":"transient","action":"wait","retry":"interval","notify":"1h","hold":false}
+server_error             {"class":"transient","action":"wait","retry":"interval","notify":"1h","hold":false}
+max_output_tokens        {"class":"transient","action":"wait","retry":"at-once","notify":"1h","hold":false}
+invalid_request          {"class":"invalid_request","action":"redispatch","retry":"none","notify":"no","hold":false}
+model_not_found          {"class":"model_not_found","action":"escalate","retry":"none","notify":"now","hold":false}
+authentication_failed    {"class":"unrecoverable","action":"wait","retry":"interval","notify":"now","hold":false}
+oauth_org_not_allowed    {"class":"unrecoverable","action":"wait","retry":"interval","notify":"now","hold":false}
+account_on_hold          {"class":"unrecoverable","action":"wait","retry":"interval","notify":"now","hold":false}
+cloud_credential_error   {"class":"unrecoverable","action":"wait","retry":"interval","notify":"now","hold":false}
+unknown                  {"class":"unrecoverable","action":"wait","retry":"interval","notify":"now","hold":false}
+a_value_a_later_cli_adds {"class":"unrecoverable","action":"wait","retry":"interval","notify":"now","hold":false}
+== the declared stops (REQ-STOP-12) ==
+no-handover              {"class":"no-handover","action":"ladder","retry":"ladder","notify":"at-escalation","hold":false}
+unfinished               {"class":"unfinished","action":"redispatch","retry":"none","notify":"at-second","hold":false}
+blocked                  {"class":"blocked","action":"blocker","retry":"none","notify":"when-distant","hold":false}
+merge-failed             {"class":"merge-failed","action":"escalate","retry":"none","notify":"now","hold":false}
+main-broken              {"class":"main-broken","action":"park-project","retry":"none","notify":"now","hold":false}
+other                    {"class":"other","action":"escalate","retry":"none","notify":"now","hold":false}
+== the two outcomes that are not stops ==
+complete                 {"class":"complete","action":"dispatch","retry":"none","notify":"no","hold":false}
+asking                   {"class":"asking","action":"escalate","retry":"none","notify":"now","hold":false}
+== the ceilings, in seconds; -1 is a notify bit that is not a ceiling ==
+now                      0
+1h                       3600
+2h                       7200
+at-escalation            -1
+when-distant             -1
+no                       -1

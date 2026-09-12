@@ -1,0 +1,7 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "overloaded since 2026-09-12T10:30:00+01:00, waiting 1 h 30 m; Baton keeps resuming every 15 minutes and stops for nothing" with title "Baton · Fixture/M02 · transient"'
+caffeinate -i -w 4240
+caffeinate -i -t 120
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4240
+caffeinate -i -t 120

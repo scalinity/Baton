@@ -1,0 +1,3 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "blocked by M05, which is in the plan but is neither done, eligible nor in flight, so nothing is coming to unblock it · the session said: M07 needs the decision M05 is held for" with title "Baton · Fixture/M07 · blocked"'
+[cwd @TMP@] claude agents --json

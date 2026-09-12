@@ -1,2 +1,3 @@
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude --bg --resume f2 <prompt>
 [cwd @TMP@] claude agents --json

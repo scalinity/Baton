@@ -1,0 +1,7 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "authentication_failed since 2026-09-12T11:55:00+01:00, waiting 5 m; Baton keeps resuming every 15 minutes and stops for nothing" with title "Baton · Fixture/M02 · unrecoverable"'
+caffeinate -i -w 4240
+caffeinate -i -t 120
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4240
+caffeinate -i -t 120

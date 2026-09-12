@@ -1,0 +1,8 @@
+== the session came back and said so, so the wait is over and the model is free ==
+lifted    opus · rate_limit · the wait cleared
+redispatch Fixture/M02 · the session stopped unfinished, so attempt 2 resumes from the brief
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/Fixture-M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

@@ -1,0 +1,2 @@
+echo "== twice in a row is a plan edit, and a plan edit is a person's =="
+"$BATON" tick

@@ -1,0 +1,6 @@
+echo "== the stop did not take, so the resume started a copy on the other stream =="
+"$BATON" tick
+echo "== the attempt is unchanged and the copy now carries it =="
+. "$ROOT/tests/lib-load.sh"
+derive_attempt Fixture M02 1 | jq -c .
+current_session Fixture M02 1

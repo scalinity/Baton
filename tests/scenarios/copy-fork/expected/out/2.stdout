@@ -1,0 +1,4 @@
+== the stop did not take, so the resume started a copy on the other stream ==
+== the attempt is unchanged and the copy now carries it ==
+{"project":"Fixture","milestone":"M02","attempt":1,"resumes_for":1,"resumes":1}
+1a2b3c4d-0000-4000-8000-000000000000

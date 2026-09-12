@@ -1,0 +1,5 @@
+echo "== the CLI refused the resume; that is a failure ending, and the wait still owns the cadence =="
+"$BATON" tick
+echo "== the ladder sees one failure but leaves the lane to the wait =="
+. "$ROOT/tests/lib-load.sh"
+ladder_position Fixture M02 1 | jq -c '{failures, next, ending, acted}'

@@ -1,0 +1,2 @@
+== the interval has not elapsed; the at-once retry is the only thing that fires ==
+retry     Fixture/M02 · max_output_tokens · retry 1 · delivered
