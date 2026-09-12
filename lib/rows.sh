@@ -279,7 +279,16 @@ stall_check() {
     sc_age=$((sc_now - sc_mtime))
     [ "$sc_age" -ge "$sc_limit" ] || continue
     sc_spent=$(derive_key_spent "$1" "$sc_milestone" "$sc_attempt" stall) || { echo "$sc_spent" >&2; return 1; }
-    [ "$(printf '%s' "$sc_spent" | jq -r .spent)" = false ] || continue
+    if [ "$(printf '%s' "$sc_spent" | jq -r .spent)" != false ]; then
+      # A remote lane's stall key is spent only while the transcript has not moved since the
+      # notification. For it the stall is the only way an unanswered phone prompt surfaces, and a
+      # prompt answered from the phone moves the transcript without an artifact — the one thing
+      # that re-arms the key otherwise — so the next unanswered prompt of the attempt would pass
+      # in silence. The second run of a tick sees its own notification at or after the mtime.
+      printf '%s' "$sc_l" | jq -e '(.remote // false) == true' > /dev/null || continue
+      sc_spent_at=$(iso_epoch "$(printf '%s' "$sc_spent" | jq -r .at)") || { echo "$sc_spent_at" >&2; return 1; }
+      [ "$sc_mtime" -gt "$sc_spent_at" ] || continue
+    fi
     sc_state=$(printf '%s' "$sc_l" | jq -r '.row.state // "unknown"')
     # Composed here and not inside the call: a message built inside a nested command substitution
     # is parsed by /bin/sh — bash 3.2 on this Mac — with the quoting state mistracked, so an
