@@ -274,6 +274,14 @@ milestone: the session merges from it and leaves it in place, because a session 
 directory is gone cannot be resumed.
 _Avoid_: sandbox, checkout (when the worktree is meant), isolation
 
+**Remote Control**:
+Claude Code's link between a session running on this Mac and claude.ai: it is what lists the session
+in Claude.app and on the phone and lets a person read it and type into it there. Every dispatched
+session has it, turned on by the settings file Baton composes; while it is connected, the transcript
+is stored on Anthropic's servers. A milestone marked `Remote: yes` is one whose questions are
+expected to be answered from the phone, so the tick does not read its row as a park.
+_Avoid_: phone mode, mobile session, remote session (when a `Remote: yes` lane is meant)
+
 **Self-check**:
 The first thing a tick does for each target project: read the plan file and ask git for `main`'s
 head. A failure parks the project.

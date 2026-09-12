@@ -66,7 +66,7 @@ session that remembers nothing of the one that wrote it.
 
 1. **Identity and scope.** The milestone, `/Users/danny/Documents/Apps/Baton`, and the one line
    that never changes: Baton is a relay, a personal tool for one person on one Mac, on Claude Code
-   2.1.268, that carries a build from one Claude Code session to the next; a launchd-run tick
+   2.1.270, that carries a build from one Claude Code session to the next; a launchd-run tick
    every sixty seconds; it embeds no model call.
 2. **What else is in flight.** Exactly one paragraph, verbatim: `WHAT ELSE IS IN FLIGHT. Runs
    alone unless the dispatch says otherwise.` Baton replaces it whole at dispatch with the
