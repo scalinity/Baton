@@ -1,1 +1,0 @@
-{"baton":1,"project":"@TMP@/Fixture","milestone":"M02","session":"b2","outcome":"stopped","reason":"merge-failed","written_at":"2026-09-12T10:58:00Z","detail":"CONFLICT (content): Merge conflict in docs/MILESTONES.md; the Status cell was written before the merge"}

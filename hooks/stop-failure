@@ -15,6 +15,13 @@ milestone=${BATON_MILESTONE:-}
 artifact=$BATON_HOME/inbox/$milestone-$sid.json
 [ -f "$artifact" ] && exit 0
 
+# A closed lane is no longer Baton's: an API error in a finished session a person has resumed is
+# theirs, and an api-error artifact would have the tick wait and resume a milestone that is done
+# (D-078). The gate stands down on the same test.
+for done in "$BATON_HOME"/archive/"$milestone-$sid"-*.json; do
+  [ -f "$done" ] && jq -e '.outcome == "complete"' "$done" > /dev/null 2>&1 && exit 0
+done
+
 project=${BATON_PROJECT:-}
 if [ -n "$project" ] && [ -f "$BATON_HOME/projects/$project/project.json" ]; then
   project=$(jq -r .path "$BATON_HOME/projects/$project/project.json")

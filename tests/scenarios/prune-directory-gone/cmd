@@ -1,5 +1,0 @@
-# A worktree git still lists whose directory a person already deleted, made once.
-[ -f "$SHIM/worktree.made" ] || { git -C Fixture worktree add -q ../Fixture-M01 -b m01 main && rm -rf Fixture-M01 && : > "$SHIM/worktree.made"; }
-echo "== the directory is gone and the guards hold: the registration is dropped, nothing on disk is touched, and the act is logged =="
-"$BATON" tick
-echo "worktrees git lists: $(git -C Fixture worktree list --porcelain | grep -c '^worktree ')"

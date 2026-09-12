@@ -1,4 +1,0 @@
-[ -f "$SHIM/worktree.made" ] || { git -C Fixture worktree add -q ../Fixture-M01 -b m01 main && : > "$SHIM/worktree.made"; }
-echo "== M01's complete handover is on main, but a later ending for M01 says its merge failed: that handover is not the worktree's last word, so it is left =="
-"$BATON" tick
-if [ -d Fixture-M01 ]; then echo "Fixture-M01 is on disk"; else echo "Fixture-M01 is gone"; fi

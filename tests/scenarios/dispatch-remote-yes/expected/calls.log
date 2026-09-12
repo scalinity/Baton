@@ -1,2 +1,5 @@
 [cwd @TMP@] claude agents --json
+[cwd @TMP@/Fixture-M06] claude --bg -n 'Baton · Fixture · M06' --model haiku --effort low --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M06.json <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
 [cwd @TMP@] claude agents --json

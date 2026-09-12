@@ -59,142 +59,31 @@ worktree_ensure() {
     '{worktree: $w, branch: $b, reused: $r, commit: $c}'
 }
 
-# worktree_prune <project> <plan json> <rows json>: removes a milestone worktree a close-out left
-# behind, and nothing else. The one destructive act Baton performs (REQ-DISPATCH-03, D-013).
-#
-# A worktree is a candidate only when git lists it at exactly the path `worktree_ensure` makes —
-# `../<Project>-<milestone>` beside the canonical checkout, for a milestone the plan names — so a
-# worktree a person made anywhere else is never looked at. Then three guards, each of which refuses:
-#
-#   1. the milestone's `Status` reads `done`;
-#   2. no session belongs to it — no open lane for the milestone, whether or not its session has a
-#      pid right now (a lane in a wait has none, and its resume lands in this worktree); no live row
-#      named for it; and no live row whose working directory is the worktree or under it, which is
-#      what a person's own session started there looks like;
-#   3. the newest archived `complete` handover for the milestone names a `merged_as` that
-#      `merged_as_verify` accepts — a commit id and not a name, and an ancestor of `main` — and no
-#      dispatch or consumed ending for the milestone is newer than it, so the merge on `main` is this
-#      worktree's last word and not an older attempt's.
-#
-# Every guard fails closed: a question it could not answer — a jq that errored on a row it did not
-# expect — refuses, because the cost of a wrong refusal is a directory left until the next tick and
-# the cost of a wrong removal is the work.
-#
-# Never on `Status` alone: a close-out that wrote `done` a step early and then failed its merge left a
-# cell reading `done` over the only copy of the work, and it has no `complete` handover to pass the
-# third guard. The removal is `git worktree remove` without `--force`, so git's own refusal of a tree
-# with modified or untracked files stands as a fourth; the branch is not deleted, so a commit made
-# after the merge is still on it.
-#
-# The candidate is matched by exact string against the path git prints, as `worktree_ensure` composed
-# it from `project.json`. A checkout registered through a symlink never matches, and the prune then
-# never acts — the safe direction, and the reason no path is resolved here.
-#
-# The removal comes before the `worktree_pruned` event, unlike a copy fork's record (D-059): a tick
-# killed between them loses the record of a removal the next tick cannot repeat, while an event
-# written first would claim a removal that may not have happened.
-#
-# A worktree git lists whose directory is already gone is passed through the same guards and the same
-# command, which then drops the registration and touches nothing on disk. That is `git worktree
-# prune`'s own judgement of such an entry — git lists it as `prunable` — applied to this one path
-# rather than to every stale registration in the repository, some of which may be a person's.
-#
-# Prints a line for what it removed, and for a `done` worktree it refused, which is an anomaly worth
-# a line in launchd.out; a worktree whose milestone is not `done` is the normal case and says nothing.
-worktree_prune() {
-  wp_path=$(project_path "$1") || return 0
-  wp_prefix=$(dirname "$wp_path")/$(basename "$wp_path")-
-  wp_list=$(git -C "$wp_path" worktree list --porcelain 2>&1) \
-    || { echo "prune     $1 · git worktree list failed: $wp_list"; return 0; }
-  wp_paths=$(printf '%s\n' "$wp_list" | sed -n 's/^worktree //p')
-  wp_log=$(log_json) || { echo "$wp_log" >&2; return 1; }
-  wp_open=$(lanes_open "$1" "$wp_log") || { echo "$wp_open" >&2; return 1; }
-  wp_consumed=$(derive_consumed "$1") || { echo "$wp_consumed" >&2; return 1; }
-  while IFS= read -r wp_wt; do
-    case "$wp_wt" in "$wp_prefix"*) ;; *) continue ;; esac
-    wp_id=${wp_wt#"$wp_prefix"}
-    case "$wp_id" in */*) continue ;; esac
-    wp_row=$(printf '%s' "$2" | plan_row "$wp_id" 2>/dev/null) || continue
-    # 1.
-    [ "$(printf '%s' "$wp_row" | jq -r '.status // ""')" = done ] || continue
-    # 2. Each answer is read as text and only `false` lets the prune go on.
-    wp_lane=$(printf '%s' "$wp_open" | jq -r --arg m "$wp_id" 'any(.[]; .milestone == $m)' 2>/dev/null) || wp_lane=unreadable
-    wp_live=$(printf '%s' "$3" | jq -r --arg n "$(session_name "$1" "$wp_id")" --arg w "$wp_wt" '
-      if any(.[]; .pid != null and .name == $n) then "named"
-      elif any(.[]; .pid != null and (.cwd == $w or ((.cwd // "") | startswith($w + "/")))) then "inside"
-      else "false" end' 2>/dev/null) || wp_live=unreadable
-    if [ "$wp_lane" != false ]; then
-      [ "$wp_lane" = true ] && wp_who="an open lane for $wp_id" || wp_who="the lanes, which could not be read"
-    elif [ "$wp_live" != false ]; then
-      case "$wp_live" in
-        named)  wp_who="a live row named for $wp_id" ;;
-        inside) wp_who="a live row working inside it" ;;
-        *)      wp_who="the rows, which could not be read" ;;
-      esac
-    else
-      wp_who=''
-    fi
-    if [ -n "$wp_who" ]; then
-      echo "prune     $1/$wp_id · $wp_wt is done but a session may belong to it ($wp_who) · left in place"
-      continue
-    fi
-    # 3.
-    wp_archive=$(printf '%s' "$wp_consumed" | jq -r --arg m "$wp_id" \
-      '[ .consumed[] | select(.milestone == $m and .outcome == "complete" and .archive_present) ] | last | .archive // empty')
-    wp_merged=''
-    [ -z "$wp_archive" ] || wp_merged=$(jq -r '.merged_as // empty' "$wp_archive" 2>/dev/null) || wp_merged=''
-    if [ -z "$wp_merged" ]; then
-      echo "prune     $1/$wp_id · $wp_wt is done but no complete handover for it is archived · left in place"
-      continue
-    fi
-    wp_newer=$(printf '%s' "$wp_log" | jq -r --arg p "$1" --arg m "$wp_id" --arg a "$wp_archive" '
-      [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
-      | ([ $ev[] | select(.kind == "consumed" and .archive == $a) ] | last | .i) as $at
-      | if $at == null then "true"
-        else any($ev[]; (.kind == "dispatch" or .kind == "consumed") and .i > $at) | tostring end' 2>/dev/null) \
-      || wp_newer=true
-    if [ "$wp_newer" != false ]; then
-      echo "prune     $1/$wp_id · $wp_wt is done but the milestone has a dispatch or an ending newer than its complete handover · left in place"
-      continue
-    fi
-    if ! wp_why=$(merged_as_verify "$wp_path" "$wp_merged"); then
-      echo "prune     $1/$wp_id · $wp_wt is done but its merged_as does not verify: $wp_why · left in place"
-      continue
-    fi
-    wp_gone=no
-    [ -e "$wp_wt" ] || wp_gone=yes
-    if ! wp_out=$(git -C "$wp_path" worktree remove "$wp_wt" 2>&1); then
-      echo "prune     $1/$wp_id · git refused to remove $wp_wt: $wp_out · left in place"
-      continue
-    fi
-    log_event worktree_pruned "$1" "$wp_id" "" "" \
-      "$(jq -nc --arg w "$wp_wt" --arg m "$wp_merged" '{worktree: $w, merged_as: $m}')" || return 1
-    if [ "$wp_gone" = yes ]; then
-      echo "pruned    $1/$wp_id · $wp_wt was already gone; its registration is dropped"
-    else
-      echo "pruned    $1/$wp_id · $wp_wt removed, merged as $wp_merged"
-    fi
-  done <<EOF
-$wp_paths
-EOF
-}
-
-# settings_compose <project> <milestone>: the dispatched settings file at
+# settings_compose <project> <milestone> <remote>: the dispatched settings file at
 # settings/<project>-<milestone>.json from the project's permissions.json: the mode as
-# documentation, allow and deny copied, no ask rules, the three hooks carrying Baton's home, the
-# project key and the milestone on their command lines and pointing at the installed relay. A
-# permissions.json without deny rules fails the stage: a bypassPermissions session without the
-# rail is not dispatched. Prints the path.
+# documentation, allow and deny copied, no ask rules, `remoteControlAtStartup` as the plan's Remote
+# cell, the three hooks carrying Baton's home, the project key and the milestone on their command
+# lines and pointing at the installed relay. A permissions.json without deny rules fails the stage:
+# a bypassPermissions session without the rail is not dispatched. Prints the path.
+#
+# **Remote Control is written false as well as true** (REQ-ESC-08). From Claude Code 2.1.270, a
+# session that no policy, --settings or user source names `remoteControlAtStartup` for falls back
+# to an account-side default, and M07's own session — dispatched with Remote blank — was connected
+# to claude.ai within nine seconds of starting. A --settings file is one of the three sources that
+# default yields to, and a flagless resume restores its path, so the file is where "never
+# automatic" is kept.
 settings_compose() {
   sc_perm=$BATON_HOME/projects/$1/permissions.json
   sc_out=$BATON_HOME/settings/$1-$2.json
   [ -f "$sc_perm" ] || { echo "$sc_perm is missing"; return 1; }
-  sc_json=$(jq -e --arg env "BATON_HOME='$BATON_HOME' BATON_PROJECT='$1' BATON_MILESTONE='$2'" --arg bin "$BATON_HOME/bin" '
+  sc_json=$(jq -e --arg env "BATON_HOME='$BATON_HOME' BATON_PROJECT='$1' BATON_MILESTONE='$2'" --arg bin "$BATON_HOME/bin" \
+    --argjson remote "$3" '
     if ((.permissions.deny // []) | length) == 0
       then error("permissions.deny is empty; a bypassPermissions session needs the two deny classes") else . end
     | { permissions: { defaultMode: "bypassPermissions",
                        allow: (.permissions.allow // []),
                        deny: .permissions.deny },
+        remoteControlAtStartup: $remote,
         statusLine: { type: "command", command: "\($env) \($bin)/statusline" },
         hooks: {
           Stop:        [{ hooks: [{ type: "command", command: "\($env) \($bin)/stop-gate" }] }],
@@ -304,7 +193,6 @@ dispatch_one() {
   do_model=$(printf '%s' "$do_row" | jq -r .model)
   do_effort=$(printf '%s' "$do_row" | jq -r .effort)
   do_remote=$(printf '%s' "$do_row" | jq -r .remote)
-  [ "$do_remote" = false ] || { echo "baton: $do_id is Remote: yes and remote dispatch is not built yet (M07)" >&2; return 2; }
   do_attempt=$(attempt_of "$do_project" "$do_id") || { echo "baton: $do_attempt" >&2; return 1; }
   do_attempt=$((do_attempt + 1))
   do_name=$(session_name "$do_project" "$do_id")
@@ -315,7 +203,7 @@ dispatch_one() {
   do_reused=$(printf '%s' "$do_wt" | jq -r .reused)
   do_commit=$(printf '%s' "$do_wt" | jq -r .commit)
 
-  do_settings=$(settings_compose "$do_project" "$do_id") || { dispatch_failed "$do_project" "$do_id" settings "$do_settings"; return 1; }
+  do_settings=$(settings_compose "$do_project" "$do_id" "$do_remote") || { dispatch_failed "$do_project" "$do_id" settings "$do_settings"; return 1; }
 
   do_brief=docs/milestones/$do_id.md
   do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
@@ -350,10 +238,10 @@ dispatch_one() {
   log_event dispatch "$do_project" "$do_id" "$do_session" "$do_attempt" "$(jq -nc \
     --arg name "$do_name" --arg model "$do_model" --arg effort "$do_effort" \
     --arg wt "$do_wt_path" --arg branch "$do_branch" --argjson reused "$do_reused" --arg commit "$do_commit" \
-    --arg settings "$do_settings" --arg pp "$do_prompt_path" --arg sha "$do_prompt_sha" '
+    --arg settings "$do_settings" --arg pp "$do_prompt_path" --arg sha "$do_prompt_sha" --argjson remote "$do_remote" '
     {name: $name, model: $model}
     | if $effort != "" then . + {effort: $effort} else . end
-    | . + {remote: false, worktree: $wt, branch: $branch, worktree_reused: $reused}
+    | . + {remote: $remote, worktree: $wt, branch: $branch, worktree_reused: $reused}
     | if $reused then . + {worktree_commit: $commit} else . end
     | . + {settings: $settings, prompt_path: $pp, prompt_sha256: $sha}')"
 

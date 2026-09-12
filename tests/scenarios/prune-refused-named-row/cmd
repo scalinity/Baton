@@ -1,4 +1,0 @@
-[ -f "$SHIM/worktree.made" ] || { git -C Fixture worktree add -q ../Fixture-M01 -b m01 main && : > "$SHIM/worktree.made"; }
-echo "== M01 is done and merged and no lane is open, but a live row carries its session name: the worktree is left =="
-"$BATON" tick
-if [ -d Fixture-M01 ]; then echo "Fixture-M01 is on disk"; else echo "Fixture-M01 is gone"; fi

@@ -15,6 +15,14 @@ milestone=${BATON_MILESTONE:-}
 
 artifact=$BATON_HOME/inbox/$milestone-$sid.json
 
+# A closed lane is no longer Baton's. Once the tick has archived this session's complete handover,
+# the session is a person's to resume — to ask what it decided, or to continue by hand — and
+# insisting on a handover it already gave, then writing no-handover, would have the tick climb the
+# ladder on a milestone that is done (D-078). An archived stopped handover leaves the lane open.
+for done in "$BATON_HOME"/archive/"$milestone-$sid"-*.json; do
+  [ -f "$done" ] && jq -e '.outcome == "complete"' "$done" > /dev/null 2>&1 && exit 0
+done
+
 # A session waiting on its own subagent is not done.
 if printf '%s' "$payload" | jq -e '(.background_tasks // []) | length > 0' > /dev/null; then
   exit 0

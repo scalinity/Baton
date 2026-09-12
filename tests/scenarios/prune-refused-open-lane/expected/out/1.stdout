@@ -1,5 +1,0 @@
-== M01 is done and an older attempt merged, but attempt 2 is waiting out a limit with no pid and will resume in Fixture-M01: the worktree is left ==
-hold      opus · rate_limit · no dispatch on it while the wait stands
-retry     Fixture/M01 · rate_limit · retry 1 · delivered
-prune     Fixture/M01 · @TMP@/Fixture-M01 is done but a session may belong to it (an open lane for M01) · left in place
-Fixture-M01 is on disk

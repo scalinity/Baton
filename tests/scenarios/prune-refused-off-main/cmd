@@ -1,4 +1,0 @@
-[ -f "$SHIM/worktree.made" ] || { git -C Fixture worktree add -q ../Fixture-M01 -b m01 main && : > "$SHIM/worktree.made"; }
-echo "== M01's archived handover names a real commit that is not on main: the third guard refuses, and the worktree is left =="
-"$BATON" tick
-if [ -d Fixture-M01 ]; then echo "Fixture-M01 is on disk"; else echo "Fixture-M01 is gone"; fi
