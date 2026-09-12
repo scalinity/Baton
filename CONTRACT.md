@@ -32,8 +32,9 @@ requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `do
    fails, fix it on `main`, and if that cannot be done, write `stopped` with reason `main-broken`;
    (c) on `main`: refresh the prompt of every brief the handover will list (parts 1 and 3–7; part 4
    additively, by thread), write `done` in this milestone's `Status` cell, correct the plan file if
-   the session learned it is wrong with the reason as a decision entry, remove the session's
-   worktree and its build products, and commit;
+   the session learned it is wrong with the reason as a decision entry, remove the build products
+   from the session's worktree and leave the worktree in place — it is the working directory that
+   lets the session be resumed later — and commit;
    (d) write the handover artifact;
    (e) print it verbatim, last, in a fenced block whose info-string is `baton`; if anything lands
    after it, deal with that and print it again.
@@ -54,8 +55,9 @@ requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `do
 
 ## Baton's side, recorded beside the contract
 
-Baton creates the milestone worktree from `main` and dispatches with it as `cwd`; injects the Stop
-gate, the StopFailure hook and the status-feed command at dispatch; verifies `merged_as` before a
+Baton creates the milestone worktree from `main`, dispatches with it as `cwd` and never removes it;
+injects the Stop gate, the StopFailure hook and the status-feed command at dispatch, the first two
+standing down once the session's `complete` handover is archived; verifies `merged_as` before a
 `complete` handover is acted on; computes eligibility from the plan file, dispatches only the
 intersection with the handover's dispositions, honours the plan's gates even when a handover omits
 them, and escalates disagreement in both directions by milestone name; composes part 2 at dispatch

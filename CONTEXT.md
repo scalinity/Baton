@@ -269,8 +269,9 @@ _Avoid_: budget, quota cap, rate limit
 
 **Milestone worktree**:
 The worktree Baton creates beside the canonical checkout for one milestone's session, on that
-milestone's branch from `main`. Every milestone has one; a redispatch reuses it. The session merges
-and removes it; Baton prunes one left behind only once the merge is on `main`.
+milestone's branch from `main`. Every milestone has one; a redispatch reuses it. It outlives the
+milestone: the session merges from it and leaves it in place, because a session whose working
+directory is gone cannot be resumed.
 _Avoid_: sandbox, checkout (when the worktree is meant), isolation
 
 **Self-check**:
@@ -316,8 +317,9 @@ _Avoid_: mock project, sandbox
 
 **Installed relay**:
 The copy of Baton's scripts under `~/.baton/bin/` that launchd runs and that dispatched sessions'
-hooks call. A merge on `main` changes nothing until a person runs the install script, so a
-milestone can never break the tick that dispatched it.
+hooks call. A Baton milestone's close-out runs the install script on `main` once the standing check
+has passed there, so a milestone can never break the tick that dispatched it, only the next one,
+and only with a `main` the standing check passed.
 _Avoid_: deployment, release
 
 **Bootstrap**:

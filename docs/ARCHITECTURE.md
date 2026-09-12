@@ -37,7 +37,7 @@ hundred lines, means a Swift command-line tool for that piece.
 │   ├── tick.sh               the eight steps, the self-check, the marker, the stale lock
 │   ├── notify.sh             the Mac message, and the notification writer
 │   ├── candidates.sh         steps 5 to 7: the dispositions, the plan overrides, the cap's order
-│   ├── dispatch.sh           worktree, settings, slot line, sidecar, claude --bg, caffeinate; the prune
+│   ├── dispatch.sh           worktree, settings, slot line, sidecar, claude --bg, caffeinate
 │   ├── stops.sh              the taxonomy: routing per outcome/reason/error; the resume; the ladder
 │   ├── declared.sh           the declared stops: unfinished, blocked, a distant wait, main-broken's cascade
 │   ├── waits.sh              the wait, the rate-limit hold and the reserve
@@ -65,9 +65,10 @@ hundred lines, means a Swift command-line tool for that piece.
 **The installed relay.** `sh install.sh` copies `bin/baton`, `lib/` and `hooks/` to `~/.baton/bin/`
 (flat: `baton`, `lib/`, `stop-gate`, `stop-failure`, `statusline`), copies `launchd/com.baton.tick.plist` to `~/Library/LaunchAgents/` without loading it, and creates the state directories
 and `config.json` if absent. launchd runs the installed copy and every dispatched session's hooks
-point at it, so a merge on `main` changes nothing until a person runs the script: a milestone can
-never break the tick that dispatched it, and a broken install is undone by checking out an earlier
-commit and installing again (D-018). A launchd job cannot execute anything under `~/Documents`,
+point at it. A Baton milestone's close-out runs the script on `main` once the standing check has
+passed there, before it writes its handover, so the next dispatch is made by the merged relay; a
+milestone can never break the tick that dispatched it, and a broken install is undone by checking
+out an earlier commit and installing again (D-018, D-079). A launchd job cannot execute anything under `~/Documents`,
 which is the other reason the running copy lives under `~/.baton/`.
 
 ---
@@ -103,7 +104,10 @@ which is the other reason the running copy lives under `~/.baton/`.
 
 **The composed settings file**, `~/.baton/settings/<project>-<milestone>.json`. The mode rides the
 flag (`--permission-mode bypassPermissions`); `defaultMode` is repeated as documentation. Allow and
-deny are copied from the project's `permissions.json`; no `ask` rules. Three hooks, each carrying
+deny are copied from the project's `permissions.json`; no `ask` rules. `remoteControlAtStartup` is
+the plan's `Remote` cell, written `false` as well as `true`, because from Claude Code 2.1.270 a key
+no policy, `--settings` or user source sets falls back to an account-side default that connects the
+session to claude.ai (REQ-ESC-08, D-077). Three hooks, each carrying
 Baton's home, the project key and the milestone as environment on its command line, each pointing
 at the installed relay. The prototype's `settings-A.json` and `hooks/` under
 `.scratch/baton/prototype/` are the working example this is cut from; `settings_compose` in
@@ -134,6 +138,7 @@ at the installed relay. The prototype's `settings-A.json` and `hooks/` under
       "Bash(*.baton/lock*)", "Bash(*.baton/config.json*)", "Bash(*.baton/last-tick*)"
     ]
   },
+  "remoteControlAtStartup": false,
   "statusLine": {
     "type": "command",
     "command": "BATON_HOME='/Users/danny/.baton' BATON_PROJECT='Baton' BATON_MILESTONE='M02' /Users/danny/.baton/bin/statusline"
@@ -194,8 +199,6 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    artifact-borne only, and an unanswered phone prompt surfaces as a stall.
 4. **Waits and resumes.** Retries due (`retryMinutes`); rulings queued by `answer`; `merge-failed`
    and `main-broken` resumes; the `caffeinateMaxHours` bound. Every resume is flagless.
-   After step 4, `worktree_prune` removes a milestone worktree left behind, under three guards
-   (below).
 5. **Compute eligibility per project from the plan.** A milestone is eligible when every id in
    `Depends on` reads `done`, its `Status` is blank, and no uncleared gate holds it. `held` and an
    uncleared gate are the same state to the tick. A project with an open project-scope park
@@ -216,8 +219,8 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    handover, and not while a dependency's session is mid-run (its newest ending not yet one it wrote itself), because a close-out writes `done` at
    step (c) before its artifact at (d); an omission held back that way neither raises nor clears a park. Either park ends with `how: edit` the tick its condition no
    longer holds; after an edit resolution an omitted milestone still eligible is a candidate and a
-   disagreement is withheld silently. A milestone with an open lane, an open lane park, a
-   `Remote: yes` row, or a live row carrying its name is not a candidate.
+   disagreement is withheld silently. A milestone with an open lane, an open lane park, or a live
+   row carrying its name is not a candidate; a `Remote: yes` milestone is one like any other.
 7. **Apply the holds, then the cap** (`dispatch_run`, once across every project). Drop candidates on
    a model with an active `rate_limit` or `billing_error` wait (every model once a second model is
    limited). Drop Fable candidates while the `fableReserve` hold stands: `reserve_check` reads the
@@ -239,8 +242,9 @@ plan file, one git check) and the status feed; nothing is remembered between tic
      `claude --bg -n "<session name>" --model <Model> [--effort <Effort>]
      --permission-mode bypassPermissions --settings <file> "<prompt>"`; parse `backgrounded · <id>`
      from stdout. No line → `dispatch_failed` (§6.2).
-   - `Remote: yes`: the same command with `--remote-control` and no prompt, `claude stop <id>`, then
-     a flagless `claude --bg --resume <uuid> "<prompt>"`.
+   - `Remote: yes` is the same command: the settings file carries `remoteControlAtStartup: true`,
+     which connects the session and keeps its prompt, and a flagless resume restores it (D-080).
+     `--remote-control` is never passed.
    - Read the row's `pid` from `claude agents --json`; start `caffeinate -i -w <pid>` detached.
    - Log the `dispatch` event.
 
@@ -249,16 +253,6 @@ itself, where the prefix has already named the project and the name is `Baton ·
 the only ownership marker a row carries and is never dropped; the key is only not repeated
 (D-036). `session_name` in `lib/templates.sh` composes it, and the refusal to dispatch over a live
 row of the same name reads the same function.
-
-**The prune** (`worktree_prune`, D-075), per project after step 4, is the one destructive act Baton
-performs. It looks only at worktrees `git worktree list --porcelain` names at exactly
-`../<Project>-<milestone>` for a milestone the plan has, and removes one with `git worktree remove`,
-never `--force`, only when all three hold: the milestone's `Status` reads `done`; no live session
-belongs to it — no open lane for the milestone, with or without a pid, no live row named for it, no live row whose
-`cwd` is the worktree or under it; and the newest archived `complete` handover for the milestone, with no
-dispatch or ending newer than it, has a `merged_as` that `merged_as_verify` accepts. A guard it cannot answer refuses. A listed worktree whose directory is already gone
-passes through the same guards and the same command, which drops its registration. The branch is
-kept, and the act is a `worktree_pruned` event. A `done` worktree it refuses prints a line.
 
 Then the marker, after the lock is released.
 
@@ -366,6 +360,12 @@ Three, from `--settings`, each a shell script under `~/.baton/bin/` taking `BATO
 `.scratch/baton/prototype/hooks/{stop-gate,stop-failure,statusline}.sh` are the working examples
 and the captured payloads under `obs/` are their fixtures.
 
+- **Both `stop-gate` and `stop-failure` stand down on a closed lane**: when
+  `~/.baton/archive/<milestone>-<session_id>-*.json` holds `outcome: complete`, each exits 0 having
+  written and printed nothing (D-078). The session's handover has been acted on, so what a person
+  does in it afterwards — a question about what was decided, or work continued by hand — is theirs,
+  and neither a demanded handover nor a `no-handover` or `api-error` artifact the tick would route
+  follows it. An archived `stopped` handover does not close the lane.
 - **`stop-gate`** (`Stop`). Reads `session_id`, `stop_hook_active`, `last_assistant_message`,
   `background_tasks`. If `background_tasks[]` is non-empty: exit 0 (a session waiting on its own
   subagent is not done). If `~/.baton/inbox/<milestone>-<session_id>.json` exists: exit 0. Else if
@@ -400,7 +400,7 @@ Derived every tick from the log and the rows; nothing stores them.
 | **parked** | derivation 2: an `escalation` with no later `resolution` | nothing acted on; unparks by ruling, answer in place, or edit |
 | **taken over** | derivation 3: the newest typed record is not Baton's | nothing acted on; artifacts still consumed; counts against the cap |
 | **blocked, silent** | a `blocked` consume whose `blocked_by` is in flight or eligible | redispatched when the blocker reads `done` |
-| **done** | `Status: done` | pruned worktree once `merged_as` is verified |
+| **done** | `Status: done` | nothing; the worktree is kept and the session's hooks stand down, so the session can be resumed by a person |
 
 ### 5.2 The stops taxonomy
 
@@ -466,8 +466,8 @@ Every event is one JSON object on one line, with `at` and `kind` always present.
 | `attempt` | when the event belongs to one | the integer the rule below derives |
 
 **A field the event does not have is absent, never null.** A rule keying on a null fails silently;
-one keying on an absent field fails at `has()`, in the test. Five kinds carry no `session` at all
-(`dispatch_failed`, `self_check_failed`, `plan_override`, `worktree_pruned`, and a `hold` whose cause
+one keying on an absent field fails at `has()`, in the test. Four kinds carry no `session` at all
+(`dispatch_failed`, `self_check_failed`, `plan_override`, and a `hold` whose cause
 is `fableReserve`, which carries no `project` either), and two carry no `milestone`
 (`self_check_failed`, `hold`).
 
@@ -528,7 +528,6 @@ Eighteen kinds. Fields listed are those beyond the envelope.
 | `hold_lifted` | `model`, `cause` | closes the hold | — |
 | `widening` | `rule`, `permissions_file` | `baton plan`'s provenance of allow rules | — |
 | `plan_override` | `direction` (`dispatched_over_held`\|`withheld_over_run`), `gate`, `cleared_by` | `status` showing the plan doing its job; never an escalation | — |
-| `worktree_pruned` | `worktree`, `merged_as` | — (the record of a destructive act) | — |
 | `self_check_failed` | `stage` (`read`\|`parse`\|`git`), `path`, and for `parse` also `table`, `row`, `cell`; `detail` | the stage and cell beside the project-scope escalation the failure raises (`plan-unreadable` or `plan-unparseable`), written once while that park stands (D-041) | — |
 
 **Escalation classes.** Lane: `asking`, `question`, `ladder-end`, `unfinished-twice`, `blocked`,
