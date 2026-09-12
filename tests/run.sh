@@ -38,6 +38,8 @@ BATON_DATE=date
 . "$root/lib/derive.sh"
 
 for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
+  # A glob that matches nothing is left as its own text by the shell; it names no scenario.
+  [ -d "$sc" ] || continue
   sc=${sc%/}
   name=$(basename "$sc")
   count=$((count + 1))

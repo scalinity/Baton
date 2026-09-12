@@ -22,7 +22,9 @@ set -eu
 # lose (REQ-STOP-12). The self-check's parks already skip the whole project before this is asked, and
 # a stale lock's is resolved in the tick that raised it, so in practice this is `main-broken`.
 project_held() {
-  phd_parked=$(derive_parked "$1") || { echo "$phd_parked" >&2; return 0; }
+  # A park that cannot be read holds, because dispatching onto ground a person may have been asked to
+  # fix is the mistake with no undo; the class it prints then says it is not known.
+  phd_parked=$(derive_parked "$1") || { echo "$phd_parked" >&2; echo "unknown: the parks could not be read"; return 0; }
   phd_class=$(printf '%s' "$phd_parked" | jq -r 'first(.parked[] | select(.scope == "project") | .class) // empty')
   [ -n "$phd_class" ] || return 1
   printf '%s\n' "$phd_class"
@@ -42,12 +44,15 @@ dispositions_in_force() {
   dif_doc=$(derive_consumed "$1") || { echo "$dif_doc"; return 1; }
   dif_files=$(printf '%s' "$dif_doc" | jq -c \
     '[ .consumed[] | select(.outcome == "complete" and .archive_present) | .archive ] | reverse')
-  dif_all='[]'
+  dif_all='[]'; dif_read=0
   dif_n=$(printf '%s' "$dif_files" | jq length); dif_i=0
   while [ "$dif_i" -lt "$dif_n" ]; do
     dif_f=$(printf '%s' "$dif_files" | jq -r ".[$dif_i]")
     dif_rank=$dif_i; dif_i=$((dif_i + 1))
     [ -f "$dif_f" ] || continue
+    # Only a handover that can be read counts as one: a project whose every complete archive has been
+    # moved away has nothing an omission could have been missed by.
+    dif_read=$((dif_read + 1))
     dif_entries=$(jq -c --arg a "$dif_f" --argjson r "$dif_rank" '
       [ (.eligible // []) | to_entries[] | .key as $k | .value
         | select(type == "object" and (.milestone | type) == "string")
@@ -58,7 +63,7 @@ dispositions_in_force() {
            archive: $a, rank: $r, index: $k} ]' "$dif_f" 2>/dev/null) || dif_entries='[]'
     dif_all=$(jq -nc --argjson a "$dif_all" --argjson b "$dif_entries" '$a + $b')
   done
-  jq -nc --argjson all "$dif_all" --argjson n "$dif_n" '
+  jq -nc --argjson all "$dif_all" --argjson n "$dif_read" '
     {has_handover: ($n > 0),
      in_force: ($all | group_by(.milestone) | map(min_by([.rank, .index])))}'
 }
@@ -109,6 +114,8 @@ intersect_verdicts() {
             then {kind: "condition", class: "omitted", milestone: $m,
                   suspended: any($row.depends[]; midrun($ev; .)),
                   detail: "no archived handover of \($p) lists \($m), though the plan makes it eligible",
+                  # Ranked after every entry any handover wrote: a person edited it into the order,
+                  # and a milestone a handover did list keeps its place ahead of it.
                   candidate: ($base + {rank: 1000000000, index: 0})}
             else empty end
           elif $d.disposition == "run" then
@@ -140,7 +147,13 @@ intersect_verdicts() {
         conditions: [ $v[] | select(.kind == "condition" and (.suspended | not)) | del(.kind, .suspended) ],
         clears: [ $parks[] | . as $k
                   | select(any($v[]; .kind == "condition" and .milestone == $k.milestone
-                                     and .class == $k.class) | not) ] }'
+                                     and .class == $k.class) | not)
+                  | . + {why: (if ($open | index($k.milestone)) != null then "its lane is open"
+                               elif ($rows[$k.milestone].status // "") == "done" then "it reads done"
+                               elif $k.class == "omitted" and $by[$k.milestone] != null then "a handover now lists it"
+                               elif $k.class == "omitted" then "the plan no longer makes it eligible"
+                               elif ($eligible | index($k.milestone)) != null then "the plan now makes it eligible"
+                               else "the handover in force no longer says run" end)} ] }'
 }
 
 # plan_override_spent <project> <milestone> <direction> <gate>: whether this override is already on
@@ -204,7 +217,7 @@ dispositions_intersect() {
     dsi_e=$(printf '%s' "$dsi_v" | jq -c ".clears[$dsi_i]"); dsi_i=$((dsi_i + 1))
     resolve "$dsi_p" "$(printf '%s' "$dsi_e" | jq -r .milestone)" "" "" "$(printf '%s' "$dsi_e" | jq -r .at)" edit
     dsi_lines="$dsi_lines$(printf '%s' "$dsi_e" | jq -r --arg p "$dsi_p" \
-      '"unparked  \($p)/\(.milestone) · the \(.class) no longer holds: the plan or the handovers changed"')
+      '"unparked  \($p)/\(.milestone) · the \(.class) no longer holds: \(.why)"')
 "
   done
 

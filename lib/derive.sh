@@ -419,7 +419,8 @@ derive_key_spent() {
 
 # 12. The dispatch hold: derivation 6, read for dispatch. No dispatch on a model with an active
 # rate_limit or billing_error hold; on every model once a second model is held. A fableReserve
-# hold holds its own model and counts toward nothing else.
+# hold holds its own model — every spelling of it, which `hold_bites` asks `is_fable` about — and
+# counts toward nothing else.
 derive_dispatch_hold() {
   ddh_holds=$(derive_holds) || { echo "$ddh_holds"; return 1; }
   printf '%s' "$ddh_holds" | jq -c '

@@ -1,5 +1,5 @@
 == M03 was parked as a disagreement while M02 was not done; the plan now reads M02 done, so the run is eligible: the park ends by itself and M03 dispatches ==
-unparked  Fixture/M03 · the disagreement no longer holds: the plan or the handovers changed
+unparked  Fixture/M03 · the disagreement no longer holds: the plan now makes it eligible
 backgrounded · 0badc0d1 · Baton · Fixture · M03
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
 worktree  @TMP@/Fixture-M03 (branch m03)
