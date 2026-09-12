@@ -1,0 +1,7 @@
+echo "== M02 and M03 both merged onto a broken main: two project parks =="
+"$BATON" tick
+echo "== the ruling reaches M02 and closes its park; the CLI refuses M03's resume, so M03's park stands and the verb says so =="
+"$BATON" answer M02 "main fixed; finish the close-out from step (c)" || echo "status $?"
+echo "== the project is still held by M03's park, so M04 is not dispatched =="
+"$BATON" tick
+"$BATON" status

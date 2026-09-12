@@ -436,10 +436,16 @@ ladder_step() {
 # acting on this lane. A taken-over lane is a person's (INV-04); a parked lane waits for a ruling or
 # an edit and nothing times out into a decision. Either way step 4 passes it by — and that is also
 # what stops an escalation this step writes from being written again on the next tick.
+#
+# Any park naming the milestone stands it by, whatever its scope. A `main-broken` park is project
+# scope because of what it holds — every new dispatch for the project — but it is still the park of
+# the session that wrote it, which waits for its ruling; the in-flight lanes that run on are the
+# others. Read as a lane with no park, the ladder would count that ruling's own refused resume as a
+# failure ending and resume the session with the continue template, which does not carry the ruling.
 stops_standing_by() {
   if stood_off "$1" "$3"; then return 0; fi
   if printf '%s' "$4" | jq -e --arg m "$2" \
-       'any(.parked[]; .milestone == $m and .scope == "lane")' > /dev/null; then return 0; fi
+       'any(.parked[]; .milestone == $m)' > /dev/null; then return 0; fi
   return 1
 }
 

@@ -5,8 +5,9 @@
 # line and exits with the file's number), bg.norow (no row appears, as for a worker that crashed
 # before init), bg.settled (the line the service writes to its daemon.log for such a crash), and
 # resume.note, resume.stream and resume.status (what --bg --resume prints, on which stream, with
-# which exit code), stop.linger (how many listings after a stop still show the stopped session's
-# pid) and stop.fail (how many listings after a stop fail outright).
+# which exit code; resume.note.<session> and resume.status.<session> answer for that session alone),
+# stop.linger (how many listings after a stop still show the stopped session's pid) and stop.fail
+# (how many listings after a stop fail outright).
 set -eu
 S=${BATON_SHIM:?}
 
@@ -47,7 +48,8 @@ case "${1:-}" in
     # leaves behind: a second live session under a new id, which the next tick must see.
     if [ "${2:-}" = --resume ]; then
       sid=${3:-}
-      if [ -f "$S/resume.note" ]; then note=$(cat "$S/resume.note")
+      if [ -f "$S/resume.note.$sid" ]; then note=$(cat "$S/resume.note.$sid")
+      elif [ -f "$S/resume.note" ]; then note=$(cat "$S/resume.note")
       elif jq -e --arg s "$sid" 'any(.[]; .sessionId == $s and .pid != null)' "$S/rows.json" > /dev/null; then
         # The session is still running — no stop reached it, or one has not landed — so the flagless
         # resume starts a copy, as the real CLI does (item 46, and M05's live proof).
@@ -88,7 +90,7 @@ case "${1:-}" in
       else
         printf '%s\n' "$note"
       fi
-      exit "$(cat "$S/resume.status" 2>/dev/null || echo 0)"
+      exit "$(cat "$S/resume.status.$sid" 2>/dev/null || cat "$S/resume.status" 2>/dev/null || echo 0)"
     fi
     name=; shift
     while [ $# -gt 1 ]; do
