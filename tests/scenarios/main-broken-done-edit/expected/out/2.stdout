@@ -1,3 +1,3 @@
-== M02 writes main-broken and its session is gone: the project parks and M03 is not dispatched ==
+== M02 writes main-broken and its session sits idle: the project parks and M03 is not dispatched ==
 == an edit to M02's Model cell is not the close-out done by hand, so the park stands ==
 == a person fixes main, finishes the close-out by hand and writes done in M02's Status cell: the park ends and M03 dispatches ==

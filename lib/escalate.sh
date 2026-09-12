@@ -419,7 +419,7 @@ ending_escalate() {
     "$(jq -nc --arg a "$7" '{detail: "the session stopped with words Baton could not carry whole; they are in the archived artifact", archive: $a}')"
 }
 
-# edit_reread_check <project> <plan json>: REQ-ESC-05's third route, and the one only the tick can
+# edit_reread_check <project> <plan json> [<rows json>]: REQ-ESC-05's third route, and the one only the tick can
 # see, because only the tick re-reads. For every parked lane carrying the hashes, the rows that answer
 # it — from the plan the tick has already parsed — and the brief are read again and compared against
 # the hashes the escalation carried; a difference is the person's decision arriving, and the lane
@@ -465,6 +465,15 @@ edit_reread_check() {
       "$(printf '%s' "$err_e" | jq -r .at)" edit
     printf 'unparked  %s/%s · %s changed since the %s park · Baton acts on the lane again\n' \
       "$1" "$err_m" "$err_what" "$(printf '%s' "$err_e" | jq -r '.class // "?"')"
+    # A close-out done by hand leaves the session that stopped before it idle and still live: nothing
+    # Baton does ends that process — only an `asking` consume stops a session — and while its row has a
+    # pid its lane counts against the cap. The person who just finished its work is told which job it
+    # is, once, on the line they read.
+    if class_ends_on_done "$(printf '%s' "$err_e" | jq -r '.class // ""')" && [ -n "${3:-}" ]; then
+      err_job=$(job_of_session "$3" "$(printf '%s' "$err_e" | jq -r '.session // ""')")
+      [ -z "$err_job" ] || printf 'idle      %s/%s · its session is still live as job %s and counts against the cap until it ends: claude stop %s\n' \
+        "$1" "$err_m" "$err_job" "$err_job"
+    fi
   done
 }
 
