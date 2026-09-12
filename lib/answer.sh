@@ -69,8 +69,10 @@ answer_deliver() {
   and_class=$(printf '%s' "$1" | jq -r '.class // ""')
   and_carries=$(printf '%s' "$1" | jq -c '.carries // {}')
 
-  if [ -z "$and_s" ]; then
-    echo "baton: the $and_class park on $and_p/$and_m names no session, so there is nothing to resume; the way out is an edit" >&2
+  # The same test the message's verb was chosen by, so the command a person was told to type is never
+  # one this refuses, and a session Baton did not dispatch is never resumed by it.
+  if [ -z "$(ruling_target "$and_p" "$and_s" "$and_a")" ]; then
+    echo "baton: the $and_class park on $and_p/$and_m names no session Baton dispatched, so there is nothing a ruling can reach; the way out is an edit to the plan or the brief" >&2
     return 1
   fi
 

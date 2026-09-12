@@ -369,7 +369,15 @@ ladder_step() {
     escalate)
       # The park is the guard: stops_run skips a lane that already has one, so this is written once
       # and the retries stop with it. Nothing times out into a decision — the lane waits for the
-      # person and the record says what it was carrying when it stopped.
+      # person and the record says what it was carrying when it stopped. Once the person has
+      # answered the park, the same count must not park it again: an edit to the brief or the plan
+      # is what the next attempt starts from, and a ruling is already in the session's hands.
+      case "$(person_acted "$1" "$2" ladder-end)" in
+        edit)
+          redispatch "$1" "$2" "$4" "$5" "the brief or the plan was edited after the ladder ended, so attempt $(( $3 + 1 )) starts from it"
+          return 0 ;;
+        ruling) return 0 ;;
+      esac
       lst_detail=$(artifact_detail "$(printf '%s' "$6" | jq -r '.archive // ""')")
       case "$lst_ending" in
         consumed)       lst_says="a turn that ended with no handover" ;;
@@ -467,6 +475,14 @@ declared_step() {
     unfinished)
       dst_run=$(consecutive_run "$1" "$dst_m" unfinished) || { echo "$dst_run" >&2; return 1; }
       if [ "$(printf '%s' "$dst_run" | jq -r .count)" -ge 2 ]; then
+        # A split is a plan edit and the edit is the person's answer, so the next attempt starts
+        # from the plan as it now reads; a ruling was delivered to the session, which is working.
+        case "$(person_acted "$1" "$dst_m" unfinished-twice)" in
+          edit)
+            redispatch "$1" "$dst_m" "$3" "$4" "the plan was edited after two unfinished endings, so attempt $(( ${dst_a:-0} + 1 )) starts from it"
+            return 0 ;;
+          ruling) return 0 ;;
+        esac
         escalate "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice lane \
           "$(splits_carries "$dst_run" "$dst_m" unfinished)"
         printf 'unfinished %s/%s · twice in a row · the lane is parked with both splits\n' "$1" "$dst_m"
@@ -497,7 +513,11 @@ declared_step() {
           ;;
         *)
           # Nothing is coming to unblock it, so the wait would never end. That is a person's to
-          # settle — the plan is theirs — and a lane parked on a named milestone is answerable.
+          # settle — the plan is theirs — and a lane parked on a named milestone is answerable. A
+          # ruling ("go on without it") is the person settling it, and the session is working on
+          # it; an edit is re-judged by the three branches above, which is why only the ruling
+          # stands this down.
+          [ "$(person_acted "$1" "$dst_m" blocked)" != ruling ] || return 0
           dst_detail=$(artifact_detail "$(printf '%s' "$2" | jq -r '.archive // ""')")
           dst_says="blocked by $dst_by, which the plan neither holds nor makes eligible nor shows in flight"
           [ "$dst_state" != waiting ] || dst_says="blocked by $dst_by, which is in the plan but is neither done, eligible nor in flight, so nothing is coming to unblock it"
@@ -613,6 +633,12 @@ stops_run() {
         # a row says the fresh context was not the answer either, and the ladder has then ended.
         srn_run=$(consecutive_run "$1" "$srn_m" invalid_request) || { echo "$srn_run" >&2; return 1; }
         if [ "$(printf '%s' "$srn_run" | jq -r .count)" -ge 2 ]; then
+          case "$(person_acted "$1" "$srn_m" ladder-end)" in
+            edit)
+              redispatch "$1" "$srn_m" "$2" "$3" "the brief or the plan was edited after the context overflowed twice, so attempt $((srn_a + 1)) starts from it"
+              continue ;;
+            ruling) continue ;;
+          esac
           escalate "$1" "$srn_m" "$srn_s" "$srn_a" ladder-end lane \
             "$(splits_carries "$srn_run" "$srn_m" "with $srn_e")"
           printf 'ladder    %s/%s · %s twice in a row · the lane is parked\n' "$1" "$srn_m" "$srn_e"
@@ -623,8 +649,19 @@ stops_run() {
       escalate)
         # model_not_found, at once and with no retry: a flagless resume restores the refused model,
         # so nothing Baton can do reaches it. The plan edit is the ruling and the next tick
-        # redispatches with the model the cell then names.
-        srn_cell=$(printf '%s' "$2" | plan_row "$srn_m" 2>/dev/null | jq -r '.model // "?"' || echo '?')
+        # redispatches with the model the cell then names — so once the person has edited, the step
+        # is the redispatch and not a second park, and a ruling stands this down until the resumed
+        # session ends again.
+        case "$(person_acted "$1" "$srn_m" model_not_found)" in
+          edit)
+            redispatch "$1" "$srn_m" "$2" "$3" "the Model cell was edited after the model was refused, so attempt $((srn_a + 1)) runs on it"
+            continue ;;
+          ruling) continue ;;
+        esac
+        # The model the attempt ran on, from its own dispatch event, and never the plan's cell: the
+        # cell is what the next attempt will use, and after an edit it names the model that fixed it.
+        srn_cell=$(model_of_attempt "$1" "$srn_m" "$srn_a" 2>/dev/null || true)
+        [ -n "$srn_cell" ] || srn_cell='?'
         srn_plan_file=$(jq -r '.plan // "docs/MILESTONES.md"' "$BATON_HOME/projects/$1/project.json" 2>/dev/null || echo docs/MILESTONES.md)
         # The detail says what happened and the message's verb says what to do about it; saying the
         # edit in both is the same sentence twice on a lock screen (REQ-ESC-03's three parts).

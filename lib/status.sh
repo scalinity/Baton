@@ -26,8 +26,9 @@ nth() { printf '%s' "$1" | jq -c --argjson n "$2" '.[$n]'; }
 # through --arg, so a value carrying a quote cannot reshape the program.
 field() { printf '%s' "$1" | jq -r --arg d "${3:-}" "$2 // \$d"; }
 
-# verb_for <class> <milestone> [<carries json>] [<session>] [<project>]: the baton command that
-# resolves a park of that class — REQ-ESC-03's third part, and the same text the Mac message ended with.
+# verb_for <class> <milestone> [<carries json>] [<session>] [<project>] [<attempt>]: the baton
+# command that resolves a park of that class — REQ-ESC-03's third part, and the same text the Mac
+# message ended with.
 #
 # It is the same function, not a second table: a person who read the message at 3 a.m. and then ran
 # `baton status` at 8 must be told the same thing to type, and two tables saying it is how they
@@ -35,7 +36,7 @@ field() { printf '%s' "$1" | jq -r --arg d "${3:-}" "$2 // \$d"; }
 verb_for() {
   vfr_carries=${3:-}
   [ -n "$vfr_carries" ] || vfr_carries='{}'
-  escalation_verb "$1" "$2" "$vfr_carries" "$(ruling_target "${5:-}" "${4:-}")"
+  escalation_verb "$1" "$2" "$vfr_carries" "$(ruling_target "${5:-}" "${4:-}" "${6:-}")"
 }
 
 # one_line <carries json>: the one line a person read — the question when the escalation carries
@@ -122,12 +123,12 @@ status_render() {
         # every project, so the field is absent rather than pointing at one of them.
         printf 'project park  %s · %s · %s · %s\n' "$(field "$sr_e" .project 'all projects')" "$sr_class" \
           "$(one_line "$sr_carries")" \
-          "$(verb_for "$sr_class" "$(field "$sr_e" .milestone '?')" "$sr_carries" "$(field "$sr_e" .session)" "$(field "$sr_e" .project)")"
+          "$(verb_for "$sr_class" "$(field "$sr_e" .milestone '?')" "$sr_carries" "$(field "$sr_e" .session)" "$(field "$sr_e" .project)" "$(field "$sr_e" .attempt)")"
       else
         printf 'parked  %s/%s · %s · %s · %s\n' "$(field "$sr_e" .project '?')" \
           "$(field "$sr_e" .milestone '?')" "$sr_class" \
           "$(one_line "$sr_carries")" \
-          "$(verb_for "$sr_class" "$(field "$sr_e" .milestone '?')" "$sr_carries" "$(field "$sr_e" .session)" "$(field "$sr_e" .project)")"
+          "$(verb_for "$sr_class" "$(field "$sr_e" .milestone '?')" "$sr_carries" "$(field "$sr_e" .session)" "$(field "$sr_e" .project)" "$(field "$sr_e" .attempt)")"
       fi
     done
   done

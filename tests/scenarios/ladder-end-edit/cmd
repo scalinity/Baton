@@ -1,0 +1,9 @@
+echo "== three failure endings end the ladder and park the lane =="
+"$BATON" tick
+echo "== the brief is edited and committed: the lane unparks and attempt 2 starts from the new brief =="
+sed -i '' 's/^STARTUP ORDER. Read CLAUDE.md, then the brief.$/STARTUP ORDER. Read CLAUDE.md, then the brief, then the note on the last attempt./' Fixture/docs/milestones/M02.md
+# A fixed date and identity, as tests/run.sh commits the fixture, so the commit the slot line names
+# is the same on every run.
+GIT_AUTHOR_DATE=2026-09-12T11:30:00+0100 GIT_COMMITTER_DATE=2026-09-12T11:30:00+0100 \
+  git -C Fixture -c user.name=fixture -c user.email=fixture@example commit -q -am "a person's edit to the brief" > /dev/null 2>&1 || true
+"$BATON" tick

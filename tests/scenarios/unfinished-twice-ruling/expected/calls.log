@@ -1,0 +1,14 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "M02 ended unfinished twice in a row; the newest says: split at item 3 instead; the log schema is larger than the brief assumed · the previous says: split at checklist item 5; M02-b takes the derivations · edit the plan; a split is a plan edit" with title "Baton · Fixture/M02 · unfinished-twice"'
+caffeinate -i -w 512
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude stop 0badf2b
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude --bg --resume f2b <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 512
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 512
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 512

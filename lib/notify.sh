@@ -60,13 +60,13 @@ fields_or_fail() {
     || { echo "$1: the event's fields are not a JSON object: $2" >&2; return 1; }
 }
 
-# class_or_fail <kind> <class>: the taxonomy, enforced rather than read. Both lists are fixed
+# class_or_fail <caller> <kind> <class>: the taxonomy, enforced rather than read. Both lists are fixed
 # (REQ-ESC-04 and the notification classes of docs/ARCHITECTURE.md §6.2), and a class outside them
 # is a typo that would sit in the log looking like a state nothing can resolve — `baton answer`
 # matches on the class, and `status` prints its verb from it. Cheaper to refuse here than to find
 # out from a park that no verb clears.
 class_or_fail() {
-  case "$1:$2" in
+  case "$2:$3" in
     escalation:asking|escalation:question|escalation:ladder-end|escalation:unfinished-twice) ;;
     escalation:blocked|escalation:merge-failed|escalation:other|escalation:disagreement) ;;
     escalation:omitted|escalation:model_not_found|escalation:dispatch-failed) ;;
@@ -76,7 +76,7 @@ class_or_fail() {
     notification:transient|notification:stall|notification:long-running) ;;
     notification:blocked_by|notification:distant_wait_for|notification:prompt-lost) ;;
     notification:gap|notification:takeover-silent) ;;
-    *) echo "${1}_write: \"$2\" is not one of the $1 classes" >&2; return 1 ;;
+    *) echo "$1: \"$3\" is not one of the $2 classes" >&2; return 1 ;;
   esac
 }
 
@@ -84,7 +84,7 @@ class_or_fail() {
 # the notification event and its Mac message. The once-only rule is the caller's — each class
 # spends its key differently — and the fields carry a `detail`, which is the line the person reads.
 notification_write() {
-  class_or_fail notification "$5" || return 1
+  class_or_fail notification_write notification "$5" || return 1
   fields_or_fail notification_write "$7" || return 1
   log_event notification "$1" "$2" "$3" "$4" "$(jq -nc --arg c "$5" --arg k "$6" --argjson f "$7" \
     '{class: $c} | if $k != "" then . + {key: $k} else . end | . + $f')" || return 1

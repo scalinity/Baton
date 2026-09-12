@@ -272,7 +272,7 @@ tick_project() {
   # decision arriving, and a question answered in place is the row saying so; both are facts every
   # later check reads, and a lane freed here is one step 4 acts on in the same tick rather than a
   # minute later. A lane whose condition still stands is parked again by the rule that parked it.
-  edit_reread_check "$1" || return 1
+  edit_reread_check "$1" "$2" || return 1
   question_resolve_check "$1" "$3" || return 1
   tp_over=$(takeover_check "$1" "$3") || return 1
   printf '%s' "$tp_over" | jq -r '.lines[]'

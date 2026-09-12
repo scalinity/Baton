@@ -36,15 +36,17 @@ class_unparks_by_edit() {
   esac
 }
 
-# reread_hashes <project> <milestone>: the two readings an edit changes — the plan file's parsed
-# tables and the brief's kickoff prompt — hashed as they stand now.
+# reread_hashes <project> <milestone> <carries json> [<plan json>]: the two readings an edit changes
+# — the plan rows that answer this park, and the brief's kickoff prompt — hashed as they stand now.
+# The plan is the tick's own parsed document when the caller holds one, and read afresh when not.
 #
-# **The parsed tables and not the file.** A person re-aligning the pipes or rewriting the prose
-# around the table has not decided anything, and unparking on that would re-escalate the lane a
-# minute later with a second Mac message. What the parse holds is exactly what the plan means: the
-# rows, their cells, and the gates. It is the whole document rather than the milestone's own row
-# because the edits that answer these classes are not all on that row — a split adds a row, and a
-# `blocked` lane is released by its blocker's `Status` cell.
+# **The rows that answer the park, and no others.** An unpark now leads somewhere — a redispatch —
+# so an unpark on a change nobody meant for this lane would restart a lane whose ladder ended
+# because another lane's close-out wrote `done` in its own `Status` cell. The rows are the
+# milestone's own (its `Model` cell answers a refused model), every row whose `Depends on` names it
+# (a split adds one), and the row the carries names as the blocker (its `Status` releases a
+# `blocked` lane). Each is the parsed row with its row number taken out, so a row added above it or
+# pipes re-aligned around it is not a decision, and prose outside the table never is.
 #
 # **The brief through `git show main:`**, which is how a dispatch reads it (`prompt_from_brief`).
 # An uncommitted edit is not one a session would ever receive, so it is not one that should unpark
@@ -56,16 +58,49 @@ class_unparks_by_edit() {
 # anything changed.
 reread_hashes() {
   rrh_plan=''; rrh_brief=''
-  if rrh_doc=$(plan_of_project "$1" 2>/dev/null); then
-    rrh_plan=$(printf '%s' "$rrh_doc" | shasum -a 256 | awk '{ print $1 }')
+  [ -n "$2" ] || { echo '{}'; return 0; }
+  rrh_doc=${4:-}
+  [ -n "$rrh_doc" ] || rrh_doc=$(plan_of_project "$1" 2>/dev/null) || rrh_doc=''
+  if [ -n "$rrh_doc" ]; then
+    rrh_plan=$(printf '%s' "$rrh_doc" | jq -c --arg m "$2" \
+        --arg b "$(printf '%s' "${3:-"{}"}" | jq -r '.blocked_by // ""' 2>/dev/null || true)" '
+        [ .milestones[]
+          | select(.id == $m or ((.depends // []) | index($m)) != null or ($b != "" and .id == $b))
+          | del(.row) ]' 2>/dev/null | shasum -a 256 | awk '{ print $1 }') || rrh_plan=''
   fi
-  if [ -n "$2" ] && rrh_path=$(project_path "$1" 2>/dev/null); then
+  if rrh_path=$(project_path "$1" 2>/dev/null); then
     if rrh_text=$(prompt_from_brief "$rrh_path" "docs/milestones/$2.md" "Copy-ready session prompt" 2>/dev/null); then
       rrh_brief=$(printf '%s' "$rrh_text" | shasum -a 256 | awk '{ print $1 }')
     fi
   fi
   jq -nc --arg p "$rrh_plan" --arg b "$rrh_brief" \
-    '{plan_sha256: $p, brief_sha256: $b} | with_entries(select(.value != ""))'
+    '{plan_rows_sha256: $p, brief_sha256: $b} | with_entries(select(.value != ""))'
+}
+
+# person_acted <project> <milestone> <class>: how a person answered the park this lane's newest
+# ending earned — `edit`, `ruling`, or nothing when the park is still open or no park of that class
+# followed the ending.
+#
+# This is what makes a resolution the end of a park and not a pause in one. The rules that park a
+# lane — the ladder's last rung, two `unfinished` in a row, a refused model, a blocker nothing is
+# coming for — read the same ending on every tick, so a lane freed by a person would be parked again
+# by the rule a second later and the person's decision would last one tick. Each of them asks this
+# first. An **edit** is the person changing the plan or the brief the lane runs from, so the rule
+# takes the step the edit was for; a **ruling** was delivered to the session, which is now working
+# on it, so the rule stands down until the session's next ending.
+#
+# Everything is compared by position in the log, never by time: every event a tick writes carries
+# the same reading of the clock, so "after" is the only order that survives a second.
+person_acted() {
+  pac_log=$(log_json) || { echo "$pac_log" >&2; return 1; }
+  printf '%s' "$pac_log" | jq -r --arg p "$1" --arg m "$2" --arg c "$3" '
+    [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
+    | ([ $ev[] | select(.kind == "consumed" or (.kind == "crash_sighting" and .sighting == 2)
+                        or (.kind == "resume" and .outcome == "refused")) ] | last | .i // -1) as $end
+    | ([ $ev[] | select(.kind == "escalation" and .class == $c and .i > $end) ] | last) as $park
+    | if $park == null then empty
+      else ([ $ev[] | select(.kind == "resolution" and .escalation_at == $park.at and .i > $park.i) ]
+            | last | .how // empty) end'
 }
 
 # escalate <project> <milestone> <session> <attempt> <class> <scope> <carries json>: the one writer
@@ -92,22 +127,30 @@ reread_hashes() {
 # to catch it.
 escalate() {
   esc_class=$5; esc_scope=$6; esc_carries=$7
-  class_or_fail escalation "$esc_class" || return 1
+  class_or_fail escalate escalation "$esc_class" || return 1
   fields_or_fail escalate "$esc_carries" || return 1
-  # The hashes go on when an edit is a way out of this class — or when the park names no session,
-  # whatever its class. A ruling is delivered by resuming a session, so a park with none has no
-  # ruling route at all: a rejected artifact whose lane Baton never dispatched, an `eligible[]`
-  # entry dropped for a brief pointer that is not on main. Without this such a park would have no
-  # way out whatsoever, and a park nothing can resolve holds its milestone out of every dispatch
-  # for as long as Baton runs.
-  if [ -n "$1" ] && { class_unparks_by_edit "$esc_class" || [ -z "$3" ]; }; then
-    esc_carries=$(printf '%s' "$esc_carries" | jq -c --argjson r "$(reread_hashes "$1" "$2")" \
+  # Scope is read by `status`, `derive_parked` and every rule that stands a lane down, so a scope
+  # outside the two is a park that holds nothing and is shown as nothing.
+  case "$esc_scope" in
+    lane|project) ;;
+    *) echo "escalate: \"$esc_scope\" is not a scope; it is lane or project" >&2; return 1 ;;
+  esac
+  # The hashes go on a lane park when an edit is a way out of its class — or when no ruling can
+  # reach the lane, whatever its class. A ruling is delivered by resuming a session Baton dispatched
+  # (`ruling_target`), so a park without one has no ruling route at all: a rejected artifact whose
+  # lane Baton never dispatched, an `eligible[]` entry dropped for a brief pointer that is not on
+  # main. Without this such a park would have no way out whatsoever, and a park nothing can resolve
+  # holds its milestone out of every dispatch for as long as Baton runs. A project park is never
+  # given them: the self-check re-reads the plan every tick and `park_resolve` closes it.
+  if [ "$esc_scope" = lane ] && [ -n "$1" ] \
+     && { class_unparks_by_edit "$esc_class" || [ -z "$(ruling_target "$1" "$3" "$4")" ]; }; then
+    esc_carries=$(printf '%s' "$esc_carries" | jq -c --argjson r "$(reread_hashes "$1" "$2" "$esc_carries")" \
       'if ($r | length) > 0 then . + {reread: $r} else . end')
   fi
   log_event escalation "$1" "$2" "$3" "$4" \
     "$(jq -nc --arg c "$esc_class" --arg s "$esc_scope" --argjson carries "$esc_carries" \
        '{class: $c, scope: $s, carries: $carries, channel: ["notification"]}')" || return 1
-  esc_msg=$(message_render "$1" "$2" "$esc_class" "$esc_carries" "$3")
+  esc_msg=$(message_render "$1" "$2" "$esc_class" "$esc_carries" "$3" "$4")
   notify "$(printf '%s' "$esc_msg" | jq -r .address)" "$(printf '%s' "$esc_msg" | jq -r .body)"
 }
 
@@ -127,16 +170,17 @@ resolve() {
     "$(jq -nc --arg h "$6" --arg a "$5" '{how: $h, escalation_at: $a}')"
 }
 
-# ruling_target <project> <session>: the session a ruling would be delivered to, or nothing.
+# ruling_target <project> <session> <attempt>: the session a ruling would be delivered to, or
+# nothing.
 #
-# Both halves are needed and the second is the one that is easy to forget: a resume is logged
-# against a lane, so a park that names a session but no project — a handover whose `project` names
-# a checkout Baton has never heard of, rejected before anything could place it — is not a lane
-# Baton may resume. It never dispatched that session and does not start, stop or resume what it did
-# not start. Such a park is a record and a message; it holds no lane, because `derive_parked`
-# filters by project and no project's dispatch ever sees it.
+# All three are needed, and this is the one definition of "a session Baton dispatched" the park and
+# the verb share with the consume, which refuses to stop a session no attempt names. A resume is
+# logged against a lane, so a park that names a session but no project — a handover whose `project`
+# names a checkout Baton has never heard of — is not a lane Baton may resume; nor is one with no
+# attempt, which is a session a person started by hand. Baton does not start, stop or resume what it
+# did not start. Such a park gets the edit route instead (`escalate`).
 ruling_target() {
-  { [ -n "$1" ] && [ -n "$2" ]; } || return 0
+  { [ -n "$1" ] && [ -n "$2" ] && [ -n "${3:-}" ]; } || return 0
   printf '%s' "$2"
 }
 
@@ -234,8 +278,8 @@ escalation_verb() {
   esac
 }
 
-# message_render <project> <milestone> <class> <carries json> [<session>]: the three-part message,
-# REQ-ESC-03, as one document — address, content, verb, and the body the Mac message carries.
+# message_render <project> <milestone> <class> <carries json> [<session>] [<attempt>]: the
+# three-part message, REQ-ESC-03, as one document — address, content, verb, and the body the Mac message carries.
 #
 # The body is the content and the verb joined, because `display notification` has two fields and
 # the address takes the title. The decision leads and the verb is last, which is the order the
@@ -249,7 +293,7 @@ escalation_verb() {
 # leave a literal ending in a lone backslash.
 message_render() {
   mrn_content=$(escalation_content "$3" "$4")
-  mrn_verb=$(escalation_verb "$3" "$2" "$4" "$(ruling_target "$1" "${5:-}")")
+  mrn_verb=$(escalation_verb "$3" "$2" "$4" "$(ruling_target "$1" "${5:-}" "${6:-}")")
   jq -nc --arg a "$(notify_title "$1" "$2" "$3")" --arg c "$mrn_content" --arg v "$mrn_verb" '
     (250 - ($v | length) - 3) as $room
     | { address: $a, content: $c, verb: $v,
@@ -306,10 +350,11 @@ ending_escalate() {
   escalate "$1" "$2" "$3" "$4" "$end_class" lane "$end_carries"
 }
 
-# edit_reread_check <project>: REQ-ESC-05's third route, and the one only the tick can see, because
-# only the tick re-reads. For every parked lane whose class an edit resolves, the plan and the
-# brief are read again and compared against the hashes the escalation carried; a difference is the
-# person's decision arriving, and the lane unparks without a second command.
+# edit_reread_check <project> <plan json>: REQ-ESC-05's third route, and the one only the tick can
+# see, because only the tick re-reads. For every parked lane carrying the hashes, the rows that answer
+# it — from the plan the tick has already parsed — and the brief are read again and compared against
+# the hashes the escalation carried; a difference is the person's decision arriving, and the lane
+# unparks without a second command.
 #
 # Only the fields the escalation carried are compared. A reading that fails now is absent, not
 # different: a plan file that has become unreadable parks the project on its own account and must
@@ -317,8 +362,8 @@ ending_escalate() {
 #
 # The unpark is written before step 4 runs, so the rule that parked the lane gets the same tick to
 # act on the edit: a `blocked` lane whose blocker now reads `done` is redispatched a second later
-# rather than a minute later, and a lane whose condition still stands is parked again by its own
-# rule, with a fresh message that says so.
+# rather than a minute later, and a refused model or an ended ladder is redispatched rather than
+# parked again (`person_acted`).
 edit_reread_check() {
   err_parked=$(derive_parked "$1") || { echo "$err_parked" >&2; return 1; }
   err_list=$(printf '%s' "$err_parked" | jq -c '[ .parked[] | select(.carries.reread != null) ]')
@@ -327,12 +372,12 @@ edit_reread_check() {
     err_e=$(printf '%s' "$err_list" | jq -c ".[$err_i]"); err_i=$((err_i + 1))
     err_m=$(printf '%s' "$err_e" | jq -r '.milestone // ""')
     err_was=$(printf '%s' "$err_e" | jq -c .carries.reread)
-    err_now=$(reread_hashes "$1" "$err_m")
+    err_now=$(reread_hashes "$1" "$err_m" "$(printf '%s' "$err_e" | jq -c .carries)" "${2:-}")
     err_changed=$(jq -nc --argjson was "$err_was" --argjson now "$err_now" '
       [ $was | keys[] | select(($now[.] // null) != null and $now[.] != $was[.]) ]')
     [ "$(printf '%s' "$err_changed" | jq length)" -gt 0 ] || continue
     err_what=$(printf '%s' "$err_changed" | jq -r \
-      'map(if . == "plan_sha256" then "the plan file" else "the brief" end) | join(" and ")')
+      'map(if . == "plan_rows_sha256" then "the plan rows it answers to" else "the brief" end) | join(" and ")')
     resolve "$1" "$err_m" "$(printf '%s' "$err_e" | jq -r '.session // ""')" \
       "$(printf '%s' "$err_e" | jq -r '.attempt // ""')" \
       "$(printf '%s' "$err_e" | jq -r .at)" edit
