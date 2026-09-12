@@ -13,8 +13,12 @@
 # the lane over and stops acting on it.
 #
 # The wait and the hold live beside this in `lib/waits.sh`, which reads the same table. They are the
-# half of step 4 that spends no attempt, and keeping them apart holds both files near the size the
-# rest of `lib/` runs at (D-005); `stops_run` at the foot of this file drives both.
+# half of step 4 that spends no attempt; `stops_run` at the foot of this file drives both.
+#
+# This file is still the largest in `lib/` and past D-005's reversal condition. The next seam is the
+# declared-stops cluster below — `declared_open` through `distant_wait_for_check` — which is the
+# split the brief's §7 already names, and taking it would bring both halves under the marker. It is
+# left for the milestone that next opens this file rather than taken after the merge, unreviewed.
 set -eu
 
 # route_ending <outcome> [<reason>] [<error>]: the stops taxonomy as one lookup. Prints
@@ -147,11 +151,21 @@ artifact_detail() {
 # copy under a new id, measured (D-017, INV-08). To widen an allowlist the settings file is edited
 # in place at the dispatched path, never re-passed here.
 #
-# **Three outcomes, from what the CLI prints.** A `note:` line containing "started a copy as" means
+# **Three outcomes, from what the CLI prints.** A `note:` line saying the CLI started a copy means
 # the stop did not take and a copy is now running: two live sessions on one milestone is duplicated
 # work and a merge collision, so the original is stopped again and the new id carries the attempt.
 # "woke session" is the success line. Anything else is refused, which is a failure ending on the
 # ladder — after three of them the lane is handed over rather than resumed forever.
+#
+# **The fork test matches the family and not one phrasing.** §4.3 lists eight `note:` variants, and
+# seven read "…started a copy as <Y>" while the generic one reads "started a copy *of that
+# conversation* as <Y>". A rule keyed on the literal `started a copy as ` misses that one, and the
+# section's claim that its rule survives every variant was false against its own list. Missing one
+# costs the whole failure this function exists to prevent: the note is not seen, it is not the
+# success line either, so the resume reads `refused`, the original is never stopped a second time,
+# no `copy_fork` is written, and two live sessions run on one branch while the ladder climbs on a
+# resume that in fact succeeded. So the test is `started a copy` and the id is the 8-hex token after
+# the last ` as `, which reads every variant the section lists (D-058).
 #
 # Both streams are read and the fork test comes first. Which stream the note goes to was live item
 # 46 and is recorded in this milestone's completion evidence; reading one stream only, or testing
@@ -175,21 +189,28 @@ resume_session() {
   rs_status=$?
   set -e
   # Both streams, and the colour taken out of both before anything is matched: the note the
-  # classifier keys on is printed by the same CLI that colours the dispatch line (D-050).
-  rs_both=$(cat "$rs_tmp" "$rs_tmp.err" | cli_plain)
+  # classifier keys on is printed by the same CLI that colours the dispatch line (D-050). They are
+  # kept apart as well as together, because the refusal below wants the diagnostic and the CLI puts
+  # a `backgrounded` line on stdout whichever way the resume went.
+  rs_out=$(cli_plain < "$rs_tmp"); rs_err=$(cli_plain < "$rs_tmp.err")
+  rs_both=$(printf '%s\n%s\n' "$rs_out" "$rs_err")
   rm -f "$rs_tmp" "$rs_tmp.err"
 
-  rs_note=$(printf '%s\n' "$rs_both" | grep -F 'started a copy as ' | head -1 || true)
+  rs_note=$(printf '%s\n' "$rs_both" | grep -F 'started a copy' | head -1 || true)
   rs_new=''
   if [ -n "$rs_note" ]; then
     rs_outcome=forked
-    rs_new=$(printf '%s\n' "$rs_note" | sed -n 's/.*started a copy as \([0-9a-f]\{8,\}\).*/\1/p' | head -1)
+    rs_new=$(printf '%s\n' "$rs_note" | sed -n 's/.* as \([0-9a-f]\{8,\}\).*/\1/p' | head -1)
   elif printf '%s\n' "$rs_both" | grep -Fq 'woke session '; then
     rs_outcome=delivered
     rs_note=$(printf '%s\n' "$rs_both" | grep -F 'woke session ' | head -1)
   else
     rs_outcome=refused
-    rs_note=$(printf '%s\n' "$rs_both" | grep -v '^[[:space:]]*$' | head -1 || true)
+    # stderr first, because that is where the CLI says what went wrong, and stdout carries a
+    # `backgrounded` line on every resume — taking the first line of the two together would report
+    # that line as the reason and bury the one a person needs.
+    rs_note=$(printf '%s\n' "$rs_err" | grep -v '^[[:space:]]*$' | head -1 || true)
+    [ -n "$rs_note" ] || rs_note=$(printf '%s\n' "$rs_out" | grep -v '^[[:space:]]*$' | grep -v '^backgrounded ' | head -1 || true)
     [ -n "$rs_note" ] || rs_note="the resume printed nothing and exited $rs_status"
     # The `resume` event records that it was refused; the table fixes its fields and the reason is
     # not one of them. So the reason goes where a dispatch failure's detail already goes, which is
@@ -206,10 +227,12 @@ resume_session() {
     | . + {outcome: $o, prompt_path: $pp, prompt_sha256: $sha}')"
 
   if [ "$rs_outcome" = forked ]; then
-    # The stop did not take, so it is issued again before anything else: the original must not run
-    # beside its copy. A fork writes no dispatch event, so the attempt count is unchanged and the
-    # new id simply carries attempt n (§6.1).
-    [ -z "$rs_job" ] || "$BATON_CLAUDE" stop "$rs_job" > /dev/null 2>&1 || true
+    # The record comes before the second stop, and that order is the recovery. A fork writes no
+    # dispatch event, so the attempt count is unchanged and the new id simply carries attempt n
+    # (§6.1) — but only once `copy_fork` says so: until then `current_session` still answers with the
+    # original, and a tick killed between the two would leave the next tick resuming a session the
+    # CLI had already replaced, which is the second live session all over again. Writing the event
+    # first cannot be made atomic with the stop, but it fails in the direction a recovery can read.
     if [ -n "$rs_new" ]; then
       rs_full=$(fork_session "$rs_new") || rs_full=''
       if [ -z "$rs_full" ]; then
@@ -225,6 +248,8 @@ resume_session() {
       # a person will read it rather than swallowed.
       echo "baton: $rs_p/$rs_m forked on resume but the note named no id: $rs_note" >&2
     fi
+    # Now the original, which the first stop did not take. It must not run beside its copy.
+    [ -z "$rs_job" ] || "$BATON_CLAUDE" stop "$rs_job" > /dev/null 2>&1 || true
   fi
 
   jq -nc --arg o "$rs_outcome" --arg s "${rs_new:-$rs_s}" --arg n "$rs_note" \
@@ -379,7 +404,10 @@ consecutive_run() {
       | ([ $ev[] | select(.kind == "consumed" and .written_by == "session") ] | last) as $reset
       | [ $ev[] | select(.i > ($reset.i // -1))
           | select(.kind == "consumed" and .reason == "api-error" and .error == "invalid_request") ]
-      | {count: length, archives: [ .[] | .archive // empty ]}'
+      # Newest first, as the unfinished branch returns them: splits_carries reads element 0 as the
+      # newest and says so to the person, so a branch returning log order would print each ending
+      # under the label belonging to the other.
+      | {count: length, archives: ([ .[] | .archive // empty ] | reverse)}'
   fi
 }
 
@@ -437,11 +465,15 @@ declared_step() {
         "in flight"|eligible)
           # Silent, because the wait resolves itself: one message so that `status` and the person
           # both know what the lane is waiting for, and nothing else until it moves.
-          dst_spent=$(derive_key_spent "$1" "$dst_m" "${dst_a:-0}" blocked_by "$dst_by") \
+          # One value for the check and the write. The check needs a number and the event carries
+          # what it is given, so reading the attempt two ways would let a lane with no attempt on
+          # record spend a key the event never matches, and notify on every tick.
+          dst_key_a=${dst_a:-0}
+          dst_spent=$(derive_key_spent "$1" "$dst_m" "$dst_key_a" blocked_by "$dst_by") \
             || { echo "$dst_spent" >&2; return 1; }
           [ "$(printf '%s' "$dst_spent" | jq -r .spent)" = false ] || return 0
           dst_detail="blocked by $dst_by, which is $dst_state; Baton redispatches this lane when the plan reads it done"
-          notification_write "$1" "$dst_m" "$dst_s" "$dst_a" blocked_by "$dst_by" \
+          notification_write "$1" "$dst_m" "$dst_s" "$dst_key_a" blocked_by "$dst_by" \
             "$(jq -nc --arg b "$dst_by" --arg s "$dst_state" --arg d "$dst_detail" \
                '{blocked_by: $b, blocker_state: $s, detail: $d}')"
           printf 'blocked   %s/%s · waiting on %s (%s)\n' "$1" "$dst_m" "$dst_by" "$dst_state"

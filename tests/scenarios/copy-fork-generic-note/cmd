@@ -1,0 +1,6 @@
+echo "== the generic note: variant is a fork too, and reading it as refused leaves two live sessions =="
+"$BATON" tick
+echo "== the attempt is unchanged and the copy carries it =="
+. "$ROOT/tests/lib-load.sh"
+derive_attempt Fixture M02 1 | jq -c .
+current_session Fixture M02 1

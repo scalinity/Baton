@@ -1,0 +1,5 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "M02 ended with invalid_request twice in a row; the newest says: the fresh context overflowed in the same place · the previous says: the first attempt overflowed while reading the derivations" with title "Baton · Fixture/M02 · ladder-end"'
+caffeinate -i -t 120
+[cwd @TMP@] claude agents --json
+caffeinate -i -t 120
