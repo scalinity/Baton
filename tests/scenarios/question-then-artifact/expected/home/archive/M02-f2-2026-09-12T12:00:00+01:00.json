@@ -1,0 +1,4 @@
+{"baton":1,"project":"@TMP@/Fixture","milestone":"M02","session":"f2","outcome":"asking",
+ "written_at":"2026-09-12T11:59:00Z",
+ "question":"Now that the formatter question is answered, should the app target keep its copy?",
+ "options":["delete the copy","keep it until M03"],"recommendation":"delete the copy"}

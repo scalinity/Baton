@@ -1,0 +1,5 @@
+echo "== the question was answered in the session, which went on to ask something else through Baton:"
+echo "   the question's park ends with the session's own artifact, and one park remains =="
+"$BATON" tick
+echo "== so the answer finds exactly one lane =="
+"$BATON" answer M02 1 || echo "status $?"

@@ -153,7 +153,15 @@ verb_answer() {
   vba_n=$(printf '%s' "$vba_c" | jq -r .count)
 
   if [ "$vba_n" -gt 1 ]; then
-    echo "baton: $vba_m is parked in $vba_n projects; name one:" >&2
+    # Parks in several projects are what the long form is for. Several parks on one lane are not —
+    # the long form names the same lane again — so the refusal says which it is rather than offer
+    # a way through that leads back here.
+    vba_pn=$(printf '%s' "$vba_c" | jq '[ .candidates[] | .project ] | unique | length')
+    if [ "$vba_pn" -gt 1 ]; then
+      echo "baton: $vba_m is parked in $vba_pn projects; name one:" >&2
+    else
+      echo "baton: $1 carries $vba_n open parks at once, which one lane should never do; Baton will not guess which the ruling answers. They are:" >&2
+    fi
     answer_candidates_print "$(printf '%s' "$vba_c" | jq -c .candidates)" >&2
     return 1
   fi

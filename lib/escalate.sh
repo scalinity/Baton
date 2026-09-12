@@ -426,6 +426,8 @@ edit_reread_check() {
 question_resolve_check() {
   qrc_parked=$(derive_parked "$1") || { echo "$qrc_parked" >&2; return 1; }
   qrc_list=$(printf '%s' "$qrc_parked" | jq -c '[ .parked[] | select(.class == "question") ]')
+  [ "$(printf '%s' "$qrc_list" | jq length)" -gt 0 ] || return 0
+  qrc_log=$(log_json) || { echo "$qrc_log" >&2; return 1; }
   qrc_n=$(printf '%s' "$qrc_list" | jq length); qrc_i=0
   while [ "$qrc_i" -lt "$qrc_n" ]; do
     qrc_e=$(printf '%s' "$qrc_list" | jq -c ".[$qrc_i]"); qrc_i=$((qrc_i + 1))
@@ -433,6 +435,23 @@ question_resolve_check() {
     qrc_s=$(printf '%s' "$qrc_e" | jq -r '.session // ""')
     qrc_a=$(printf '%s' "$qrc_e" | jq -r '.attempt // ""')
     qrc_at=$(printf '%s' "$qrc_e" | jq -r .at)
+    # The session's own artifact, consumed after the park, is the surest sign of all that the
+    # question was answered in place: a session waiting for input writes nothing. It comes first
+    # because the row is the slowest witness — it can still read `input needed` a minute after the
+    # session moved on, or be gone because the consume stopped it — and a park left open beside the
+    # park that artifact earned is a lane `baton answer` can never act on, since both carry its name.
+    # Positions in the log, not times: a tick stamps every event with one reading of the clock.
+    if printf '%s' "$qrc_log" | jq -e --arg s "$qrc_s" --arg at "$qrc_at" --arg m "$qrc_m" '
+         [ to_entries[] | {i: .key} + .value ] as $ev
+         | ([ $ev[] | select(.kind == "escalation" and .class == "question" and .at == $at
+                             and .milestone == $m and .session == $s) ] | last | .i) as $park
+         | any($ev[]; .kind == "consumed" and .session == $s and .written_by == "session" and .i > $park)' \
+         > /dev/null; then
+      resolve "$1" "$qrc_m" "$qrc_s" "$qrc_a" "$qrc_at" "answered in place"
+      printf 'unparked  %s/%s · %s · the session wrote its own handover after the question, so it was answered in place\n' \
+        "$1" "$qrc_m" "$qrc_s"
+      continue
+    fi
     qrc_row=$(printf '%s' "$2" | jq -c --arg s "$qrc_s" \
       'map(select(.sessionId == $s and .pid != null)) | first // {}')
     if [ "$(printf '%s' "$qrc_row" | jq 'length')" -gt 0 ]; then

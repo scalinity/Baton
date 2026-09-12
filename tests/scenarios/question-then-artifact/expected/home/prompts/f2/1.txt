@@ -1,0 +1,5 @@
+Baton resumed this session to deliver a ruling. M02, attempt 1, resume 1. You asked at 2026-09-12T12:00:00+01:00: Now that the formatter question is answered, should the app target keep its copy?. The ruling below is decided: do not re-open it, do not ask again, and do not weigh alternatives against it.
+
+delete the copy
+
+Continue from where the last turn ended. The handover artifact is still owed.
