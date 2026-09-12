@@ -1,4 +1,6 @@
 echo "== a merge that failed parks its own lane and no other: main is exactly as it was =="
 "$BATON" tick
+echo "== a merge that failed offered no options, so a number is refused and names the way to answer =="
+"$BATON" answer M02 1 || echo "status $?"
 echo "== and the ruling the message named resumes the session to finish the close-out =="
 "$BATON" answer M02 "merge resolved; finish the close-out from step (c)" || echo "status $?"

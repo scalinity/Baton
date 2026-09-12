@@ -1,0 +1,6 @@
+baton: M03 is taken over in 2 projects; name one:
+  baton answer Fixture/M03 "continue"
+  baton answer Other/M03 "continue"
+baton: M03 has run in 2 projects; name one:
+  baton allow Fixture/M03 'Bash(xcodebuild:*)'
+  baton allow Other/M03 'Bash(xcodebuild:*)'

@@ -12,3 +12,5 @@ status 1
 status 1
 == and a rule over 1 KB is refused rather than written without its record ==
 status 1
+== and one rule per call: a rule with a newline in it is two rules ==
+status 1

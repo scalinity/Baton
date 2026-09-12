@@ -7,3 +7,4 @@ baton: a rule is written as it appears in the allowlist, such as Bash(xcodebuild
 baton: a rule is written as it appears in the allowlist, such as Bash(xcodebuild:*), and this one is JSON
 baton: a rule is written as it appears in the allowlist, such as Bash(xcodebuild:*), and this one is JSON
 baton: the rule is over 1 KB, which no permission rule needs; it is refused rather than written without its record
+baton: a rule is one line; this one has more than one

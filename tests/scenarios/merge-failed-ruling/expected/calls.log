@@ -2,9 +2,11 @@
 osascript -e 'display notification "the merge into main failed: CONFLICT (content): Merge conflict in docs/MILESTONES.md; the M02 row and the M03 row were both edited · baton answer M02 \"merge resolved; finish the close-out from step (c)\"" with title "Baton · Fixture/M02 · merge-failed"'
 caffeinate -i -w 502
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 [cwd @TMP@] claude stop 0badf2
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude --bg --resume f2 <prompt>
 [cwd @TMP@] claude agents --json
 caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
