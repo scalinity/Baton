@@ -137,8 +137,18 @@ artifact_detail() {
   jq -r '(.detail // "") | if length > 500 then .[0:500] + "…" else . end' "$1" 2>/dev/null || true
 }
 
-# resume_session <project> <milestone> <attempt> <session> <job> <kind> <class>: the one way Baton
-# speaks to a running session. `claude stop <job>` first, then a flagless
+# resume_count_next <project> <milestone> <attempt>: the number the next resume of this attempt
+# carries — derivation 10's count plus one. It is a function rather than three lines inside
+# `resume_session` because the ruling label names the resume number in its own text and the event
+# records it as a field: two readings of one count, which must be the same number or the log and
+# the prompt disagree about which resume a session is on.
+resume_count_next() {
+  rcn_a=$(derive_attempt "$1" "$2" "$3") || { echo "$rcn_a"; return 1; }
+  printf '%s\n' "$(( $(printf '%s' "$rcn_a" | jq -r .resumes) + 1 ))"
+}
+
+# resume_session <project> <milestone> <attempt> <session> <job> <kind> <class> [<text>]: the one
+# way Baton speaks to a running session. `claude stop <job>` first, then a flagless
 # `claude --bg --resume <uuid> "<text>"`. Prints {outcome, session, note}; writes the `resume` event
 # and, on a fork, the `copy_fork` event.
 #
@@ -160,9 +170,15 @@ artifact_detail() {
 resume_session() {
   rs_p=$1; rs_m=$2; rs_a=$3; rs_s=$4; rs_job=$5; rs_kind=$6; rs_class=$7
 
-  rs_r=$(derive_attempt "$rs_p" "$rs_m" "$rs_a") || { echo "$rs_r"; return 1; }
-  rs_r=$(( $(printf '%s' "$rs_r" | jq -r .resumes) + 1 ))
+  rs_r=$(resume_count_next "$rs_p" "$rs_m" "$rs_a") || { echo "$rs_r"; return 1; }
+  # A ruling is the third kind, and the only one whose text Baton does not compose from the log: it
+  # carries a person's words, so the caller passes the finished label rather than a template and a
+  # slot. The kind stays on the event either way, because `continue`, `finish` and `ruling` are
+  # three different things to have done to a session.
   case "$rs_kind" in
+    ruling)
+      rs_text=${8:-}
+      [ -n "$rs_text" ] || { echo "resume_session: a ruling carries its own text"; return 1; } ;;
     finish) rs_text=$(template_finish "$rs_m" "$rs_a" "$rs_r" "$rs_s") ;;
     *)      rs_text=$(template_continue "$rs_class" "$rs_m" "$rs_a" "$rs_r") ;;
   esac
@@ -332,16 +348,16 @@ ladder_step() {
       lst_carries=$(jq -nc --argjson n "$lst_fail" --arg e "$lst_ending" --arg d "$lst_detail" \
         --arg dd "$lst_fail failure endings in a row on this attempt, the last $lst_says: $lst_detail" \
         '{failures: $n, ending: $e, last_detail: $d, detail: $dd}')
-      escalation_write "$1" "$2" "$lst_s" "$3" ladder-end lane "$lst_carries"
+      escalate "$1" "$2" "$lst_s" "$3" ladder-end lane "$lst_carries"
       printf 'ladder    %s/%s · %s failures in a row · the lane is parked\n' "$1" "$2" "$lst_fail"
       ;;
   esac
 }
 
 # declared_open <project>: every lane whose newest ending is a declared stop that has not been acted
-# on — an `unfinished` or a `blocked` with no later dispatch for the milestone. `merge-failed`,
-# `main-broken` and `other` are not here: each escalates, and every escalation class is M05's and
-# M06's, so acting on them would be writing a park this milestone cannot yet resolve.
+# on — an `unfinished` or a `blocked` with no later dispatch for the milestone. `merge-failed` and
+# `other` are not here because they are parked at the consume, where the artifact that says what
+# went wrong is in hand; `main-broken` parks the project, which is M06's.
 declared_open() {
   dop_log=$(log_json) || { echo "$dop_log"; return 1; }
   printf '%s' "$dop_log" | jq -c --arg p "$1" '
@@ -418,7 +434,7 @@ declared_step() {
     unfinished)
       dst_run=$(consecutive_run "$1" "$dst_m" unfinished) || { echo "$dst_run" >&2; return 1; }
       if [ "$(printf '%s' "$dst_run" | jq -r .count)" -ge 2 ]; then
-        escalation_write "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice lane \
+        escalate "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice lane \
           "$(splits_carries "$dst_run" "$dst_m" unfinished)"
         printf 'unfinished %s/%s · twice in a row · the lane is parked with both splits\n' "$1" "$dst_m"
       else
@@ -453,7 +469,7 @@ declared_step() {
           dst_says="blocked by $dst_by, which the plan neither holds nor makes eligible nor shows in flight"
           [ "$dst_state" != waiting ] || dst_says="blocked by $dst_by, which is in the plan but is neither done, eligible nor in flight, so nothing is coming to unblock it"
           [ -z "$dst_detail" ] || dst_says="$dst_says · the session said: $dst_detail"
-          escalation_write "$1" "$dst_m" "$dst_s" "$dst_a" blocked lane \
+          escalate "$1" "$dst_m" "$dst_s" "$dst_a" blocked lane \
             "$(jq -nc --arg b "$dst_by" --arg s "$dst_state" --arg d "$dst_says" \
                '{blocked_by: $b, blocker_state: $s, detail: $d}')"
           printf 'blocked   %s/%s · nothing is coming to unblock %s · the lane is parked\n' "$1" "$dst_m" "$dst_by"
@@ -564,7 +580,7 @@ stops_run() {
         # a row says the fresh context was not the answer either, and the ladder has then ended.
         srn_run=$(consecutive_run "$1" "$srn_m" invalid_request) || { echo "$srn_run" >&2; return 1; }
         if [ "$(printf '%s' "$srn_run" | jq -r .count)" -ge 2 ]; then
-          escalation_write "$1" "$srn_m" "$srn_s" "$srn_a" ladder-end lane \
+          escalate "$1" "$srn_m" "$srn_s" "$srn_a" ladder-end lane \
             "$(splits_carries "$srn_run" "$srn_m" "with $srn_e")"
           printf 'ladder    %s/%s · %s twice in a row · the lane is parked\n' "$1" "$srn_m" "$srn_e"
         else
@@ -577,8 +593,10 @@ stops_run() {
         # redispatches with the model the cell then names.
         srn_cell=$(printf '%s' "$2" | plan_row "$srn_m" 2>/dev/null | jq -r '.model // "?"' || echo '?')
         srn_plan_file=$(jq -r '.plan // "docs/MILESTONES.md"' "$BATON_HOME/projects/$1/project.json" 2>/dev/null || echo docs/MILESTONES.md)
-        srn_detail="the model $srn_cell was refused; edit the Model cell for $srn_m in $srn_plan_file and the next tick redispatches"
-        escalation_write "$1" "$srn_m" "$srn_s" "$srn_a" model_not_found lane \
+        # The detail says what happened and the message's verb says what to do about it; saying the
+        # edit in both is the same sentence twice on a lock screen (REQ-ESC-03's three parts).
+        srn_detail="the model $srn_cell was refused; a flagless resume would ask for it again, so nothing Baton can do reaches this lane"
+        escalate "$1" "$srn_m" "$srn_s" "$srn_a" model_not_found lane \
           "$(jq -nc --arg m "$srn_cell" --arg f "$srn_plan_file" --arg d "$srn_detail" \
              '{model: $m, plan: $f, detail: $d}')"
         printf 'model     %s/%s · %s was refused · the lane is parked until the cell is edited\n' "$1" "$srn_m" "$srn_cell"

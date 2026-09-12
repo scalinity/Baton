@@ -14,8 +14,10 @@ stop-failure
 stop-gate
 
 home2/bin/lib:
+answer.sh
 derive.sh
 dispatch.sh
+escalate.sh
 inbox.sh
 lock.sh
 log.sh

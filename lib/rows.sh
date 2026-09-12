@@ -145,7 +145,7 @@ takeover_check() {
       fi
       tc_carries=$(jq -nc --arg r "$tc_rule" --arg p "$tc_path" --arg d "$tc_why ($tc_path)" \
         '{rule: $r, path: $p, detail: $d}')
-      escalation_write "$1" "$tc_milestone" "$tc_session" "$tc_attempt" other lane "$tc_carries"
+      escalate "$1" "$tc_milestone" "$tc_session" "$tc_attempt" other lane "$tc_carries"
       tc_lines=$(printf '%s' "$tc_lines" | jq -c --arg l "unscannable  $1/$tc_milestone · $tc_rule · $tc_path" '. + [$l]')
     done
   done
@@ -350,10 +350,12 @@ question_check() {
     fi
     qc_job=$(printf '%s' "$qc_l" | jq -r '.row.id // ""')
     qc_name=$(printf '%s' "$qc_l" | jq -r '.row.name // ""')
-    qc_detail="$qc_name is waiting for input; no payload carries the question, so read it in Claude.app or with claude attach $qc_job"
+    # What is happening, and nothing about what to do: the message's verb carries the attach
+    # command and `status` prints the same verb, so a detail repeating it says it twice.
+    qc_detail="$qc_name is waiting for input, and no payload carries the question, so it can only be read in the session"
     qc_carries=$(jq -nc --arg n "$qc_name" --arg j "$qc_job" --arg d "$qc_detail" \
       '{row: $n, job: $j, waiting_for: "input needed", detail: $d}')
-    escalation_write "$1" "$qc_milestone" "$qc_session" "$qc_attempt" question lane "$qc_carries"
+    escalate "$1" "$qc_milestone" "$qc_session" "$qc_attempt" question lane "$qc_carries"
     echo "question  $1/$qc_milestone · $qc_session · waiting for input"
   done
 }

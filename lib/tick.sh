@@ -94,7 +94,7 @@ self_check_failed_once() {
     return 0
   fi
   log_event self_check_failed "$1" "" "" "" "$sfc_fields"
-  escalation_write "$1" "" "" "" "$sfc_class" project "$sfc_fields"
+  escalate "$1" "" "" "" "$sfc_class" project "$sfc_fields"
 }
 
 # park_resolve <project> <class regex> <what cleared it>: the unpark a fixed condition earns.
@@ -112,8 +112,7 @@ park_resolve() {
   while [ "$prs_i" -lt "$prs_n" ]; do
     prs_e=$(printf '%s' "$prs_open" | jq -c ".[$prs_i]"); prs_i=$((prs_i + 1))
     prs_at=$(printf '%s' "$prs_e" | jq -r .at)
-    log_event resolution "$(printf '%s' "$prs_e" | jq -r '.project // ""')" "" "" "" \
-      "$(jq -nc --arg a "$prs_at" '{how: "edit", escalation_at: $a}')"
+    resolve "$(printf '%s' "$prs_e" | jq -r '.project // ""')" "" "" "" "$prs_at" edit
     printf 'resolved  %s · %s · the park raised at %s is closed\n' \
       "$(printf '%s' "$prs_e" | jq -r '.project // "all projects"')" "$3" "$prs_at"
   done
@@ -260,7 +259,7 @@ dispatch_try() {
   dt_carries=$(printf '%s' "$dt_last" | jq -c --argjson n "$dt_fails" \
     '{consecutive: $n, stage: .stage,
       detail: "\($n) dispatches in a row produced no session, the last at the \(.stage) stage: \(.detail)"}')
-  escalation_write "$dt_project" "$dt_id" "" "" dispatch-failed lane "$dt_carries"
+  escalate "$dt_project" "$dt_id" "" "" dispatch-failed lane "$dt_carries"
   printf 'dispatch  %s/%s · %s consecutive failures · the lane is parked\n' "$dt_project" "$dt_id" "$dt_fails"
 }
 
@@ -269,6 +268,12 @@ dispatch_try() {
 # Baton never acts on a lane a person is typing into (INV-04), and a lane whose transcript could not
 # be scanned is not evidence that nobody is.
 tick_project() {
+  # The two unparks a tick can see, before anything reads the parks. An edit a person made is their
+  # decision arriving, and a question answered in place is the row saying so; both are facts every
+  # later check reads, and a lane freed here is one step 4 acts on in the same tick rather than a
+  # minute later. A lane whose condition still stands is parked again by the rule that parked it.
+  edit_reread_check "$1" || return 1
+  question_resolve_check "$1" "$3" || return 1
   tp_over=$(takeover_check "$1" "$3") || return 1
   printf '%s' "$tp_over" | jq -r '.lines[]'
   tp_off=$(printf '%s' "$tp_over" | jq -r '.stand_off[]')
@@ -299,7 +304,7 @@ tick_run() {
   # names is already over: Baton kept working past it, which is what separates a message from a
   # park, and leaving it open would hold every project on something nobody has to do.
   if [ -n "${1:-}" ]; then
-    escalation_write "" "" "" "" baton-unhealthy project "$1"
+    escalate "" "" "" "" baton-unhealthy project "$1"
     printf '%s' "$1" | jq -r '"unhealthy   " + .detail'
     park_resolve "" '^baton-unhealthy$' 'the lock was cleared' > /dev/null
   fi

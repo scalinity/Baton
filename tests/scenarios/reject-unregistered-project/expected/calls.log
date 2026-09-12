@@ -1,3 +1,3 @@
 [cwd @TMP@] claude agents --json
-osascript -e 'display notification "unregistered-project · @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.json" with title "Baton · M02 · other"'
+osascript -e 'display notification "unregistered-project · @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.… · fix what it names; the next tick re-reads the plan and the brief" with title "Baton · M02 · other"'
 [cwd @TMP@] claude agents --json
