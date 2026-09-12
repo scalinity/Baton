@@ -11,12 +11,19 @@
 set -eu
 
 # notify_text <string>: one line, safe inside an AppleScript string literal. Newlines and tabs
-# become spaces (a notification is one line), a backslash and a double quote are escaped because
-# the body is interpolated into a quoted literal, and the result is capped: Notification Center
-# truncates far shorter than this, and an unbounded carries would otherwise reach osascript whole.
+# become spaces (a notification is one line), the result is capped because Notification Center
+# truncates far shorter than this and an unbounded carries would otherwise reach osascript whole,
+# and only then are a backslash and a double quote escaped.
+#
+# The cap comes before the escaping and not after, and it is jq's and not awk's. Two measured
+# reasons. Applied after the escaping it would count the escapes and could cut between a backslash
+# and what it escapes, leaving the literal ending in a lone backslash, which escapes the closing
+# quote — a syntax error osascript reports and `notify` swallows, so the long messages are the ones
+# lost. And this Mac's awk (version 20200816) counts bytes, not characters, even under a UTF-8
+# locale: `printf 'a·b' | awk '{print substr($0,1,2)}'` yields `61 c2`, half of the two-byte
+# separator every composed message carries. jq slices by code point.
 notify_text() {
-  printf '%s' "$1" | tr '\n\r\t' '   ' | sed 's/\\/\\\\/g; s/"/\\"/g' \
-    | LC_ALL=en_US.UTF-8 awk '{ printf "%s", substr($0, 1, 250) }'
+  printf '%s' "$1" | tr '\n\r\t' '   ' | jq -Rr '.[0:250]' | tr -d '\n' | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
 # notify <title> <body>: the one Mac message. A failure is swallowed: the channel is how a person
@@ -51,10 +58,31 @@ fields_or_fail() {
     || { echo "$1: the event's fields are not a JSON object: $2" >&2; return 1; }
 }
 
+# class_or_fail <kind> <class>: the taxonomy, enforced rather than read. Both lists are fixed
+# (REQ-ESC-04 and the notification classes of docs/ARCHITECTURE.md §6.2), and a class outside them
+# is a typo that would sit in the log looking like a state nothing can resolve — `baton answer`
+# matches on the class, and `status` prints its verb from it. Cheaper to refuse here than to find
+# out from a park that no verb clears.
+class_or_fail() {
+  case "$1:$2" in
+    escalation:asking|escalation:question|escalation:ladder-end|escalation:unfinished-twice) ;;
+    escalation:blocked|escalation:merge-failed|escalation:other|escalation:disagreement) ;;
+    escalation:omitted|escalation:model_not_found|escalation:dispatch-failed) ;;
+    escalation:plan-unreadable|escalation:plan-unparseable|escalation:main-broken) ;;
+    escalation:baton-unhealthy) ;;
+    notification:rate_limit|notification:billing_error|notification:unrecoverable) ;;
+    notification:transient|notification:stall|notification:long-running) ;;
+    notification:blocked_by|notification:distant_wait_for|notification:prompt-lost) ;;
+    notification:gap|notification:takeover-silent) ;;
+    *) echo "${1}_write: \"$2\" is not one of the $1 classes" >&2; return 1 ;;
+  esac
+}
+
 # escalation_write <project> <milestone> <session> <attempt> <class> <scope> <carries json>:
 # the escalation event and its Mac message. M05's `escalate` subsumes this when the verbs that
 # resolve a park arrive; until then this is the one place an escalation is written.
 escalation_write() {
+  class_or_fail escalation "$5" || return 1
   fields_or_fail escalation_write "$7" || return 1
   log_event escalation "$1" "$2" "$3" "$4" "$(jq -nc --arg c "$5" --arg s "$6" --argjson carries "$7" \
     '{class: $c, scope: $s, carries: $carries, channel: ["notification"]}')"
@@ -65,6 +93,7 @@ escalation_write() {
 # the notification event and its Mac message. The once-only rule is the caller's — each class
 # spends its key differently — and the fields carry a `detail`, which is the line the person reads.
 notification_write() {
+  class_or_fail notification "$5" || return 1
   fields_or_fail notification_write "$7" || return 1
   log_event notification "$1" "$2" "$3" "$4" "$(jq -nc --arg c "$5" --arg k "$6" --argjson f "$7" \
     '{class: $c} | if $k != "" then . + {key: $k} else . end | . + $f')"

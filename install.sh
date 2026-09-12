@@ -65,6 +65,12 @@ if [ ! -f "$BATON_HOME/projects/$project/permissions.json" ]; then
           + ["Edit(\($h)/config.json)", "Write(\($h)/config.json)", "Edit(\($h)/last-tick)", "Write(\($h)/last-tick)"]
           + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick" ]
              | map("Bash(*.baton/\(.)*)"))
+          # The launchd agent joins the named paths from M03. It sits outside ~/.baton but is
+          # Baton state by every other measure, and what it names is executed every sixty
+          # seconds by a shell with Full Disk Access (D-048).
+          + ["Edit(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
+             "Write(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
+             "Bash(*com.baton.tick*)"]
         ) } }' > "$BATON_HOME/projects/$project/permissions.json"
 fi
 

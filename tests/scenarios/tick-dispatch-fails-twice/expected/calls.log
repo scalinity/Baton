@@ -1,0 +1,4 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/Fixture-M02] claude --bg -n 'Baton · Fixture · M02' --model opus --effort high --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M02.json <prompt>
+osascript -e 'display notification "2 dispatches in a row produced no session, the last at the launch stage: error: this dispatch was told to fail" with title "Baton · Fixture/M02 · dispatch-failed"'
+[cwd @TMP@] claude agents --json

@@ -34,6 +34,20 @@ inbox_holds() {
   return 1
 }
 
+# ended_on_disk <session>: whether the session's handover has already been moved out of the inbox,
+# whatever the log says. The move is the consumption (INV-06) and the event comes after it, so a
+# tick killed between the two leaves a file in archive/ or rejected/ with nothing in the log — which
+# derivation 1 reads as a lane still open and the crash rule would read as a crash on a session that
+# had in fact finished. derive_consumed's `unrecorded` names such a file; this is the same fact
+# asked of one session.
+ended_on_disk() {
+  for eo_f in "$BATON_HOME"/archive/*-"$1"-*.json "$BATON_HOME"/rejected/*-"$1".json \
+              "$BATON_HOME"/rejected/*-"$1".json.tmp; do
+    [ -f "$eo_f" ] && return 0
+  done
+  return 1
+}
+
 # stood_off <session> <list>: whether the lane is one Baton has stopped acting on this tick — a
 # takeover, or a transcript it could not scan. INV-04: a session nobody typed into is never
 # prompted over, and a lane whose transcript could not be read must not be treated as clean.
@@ -121,8 +135,12 @@ takeover_check() {
       tc_attempt=$(printf '%s' "$tc_l" | jq -r '.attempt // ""')
       tc_path=$(printf '%s' "$tc_l" | jq -r .path)
       tc_off=$(printf '%s' "$tc_off" | jq -c --arg s "$tc_session" '. + [$s]')
-      if printf '%s' "$tc_parked" | jq -e --arg m "$tc_milestone" --arg r "$tc_rule" \
-           'any(.parked[]; .milestone == $m and .class == "other" and .carries.rule == $r)' > /dev/null; then
+      # Keyed on the session as well as the milestone and the rule: a second attempt at the same
+      # milestone is a new session with a new transcript, and its own unscannable transcript is news
+      # rather than the first attempt's still-open park repeating itself.
+      if printf '%s' "$tc_parked" | jq -e --arg m "$tc_milestone" --arg r "$tc_rule" --arg s "$tc_session" \
+           'any(.parked[]; .milestone == $m and .session == $s and .class == "other"
+                           and .carries.rule == $r)' > /dev/null; then
         continue
       fi
       tc_carries=$(jq -nc --arg r "$tc_rule" --arg p "$tc_path" --arg d "$tc_why ($tc_path)" \
@@ -163,9 +181,15 @@ crash_check() {
     cc_attempt=$(printf '%s' "$cc_l" | jq -r '.attempt // ""')
     stood_off "$cc_session" "$3" && continue
     inbox_holds "$cc_session" && continue
+    ended_on_disk "$cc_session" && continue
     [ -n "$cc_attempt" ] || continue
+    # An ending on record, by either half of what an ending is. A `consumed` says the artifact was
+    # acted on; a `rejected` says it was refused, which parked the lane already — sighting either
+    # as a crash would act on one ending twice, and M04's resume would land on a parked lane.
     if printf '%s' "$cc_log" | jq -e --arg p "$1" --arg m "$cc_milestone" --argjson a "$cc_attempt" \
-         'any(.[]; .kind == "consumed" and .project == $p and .milestone == $m and .attempt == $a)' > /dev/null; then
+         --arg s "$cc_session" '
+         any(.[]; (.kind == "consumed" and .project == $p and .milestone == $m and .attempt == $a)
+                  or (.kind == "rejected" and .session == $s))' > /dev/null; then
       continue
     fi
 
@@ -184,7 +208,12 @@ crash_check() {
     [ "$(printf '%s' "$cc_sight" | jq -r .mine)" = 0 ] || continue
     cc_sight=$(printf '%s' "$cc_sight" | jq -c '.previous // {}')
     cc_prev=$(printf '%s' "$cc_sight" | jq -r '.sighting // ""')
-    if [ -n "$cc_prev" ]; then
+    # Only a first sighting expires. A confirmation stands until the attempt's next dispatch or
+    # resume clears it, which is what M04 writes when it acts on one: expiring it too would restart
+    # the pair every two intervals, so a crash nothing had acted on yet would write a sighting pair
+    # every four minutes and derive_ladder, which counts every second sighting since the reset as a
+    # failure ending, would read "escalate" off a single crash.
+    if [ -n "$cc_prev" ] && [ "$cc_prev" != 2 ]; then
       cc_at=$(iso_epoch "$(printf '%s' "$cc_sight" | jq -r .at)") || { echo "$cc_at" >&2; return 1; }
       [ $((cc_now - cc_at)) -le "$cc_window" ] || cc_prev=''
     fi
@@ -192,9 +221,12 @@ crash_check() {
 
     cc_row=$(printf '%s' "$cc_l" | jq -c '.row // {}')
     if [ "$cc_prev" = 1 ]; then cc_next=2; else cc_next=1; fi
+    # `pid: null` is the tell and is written as null deliberately — it is the observation. `state`
+    # follows the envelope's rule instead: a lane whose row is gone altogether has no state to
+    # report, so the field is absent rather than null.
     log_event crash_sighting "$1" "$cc_milestone" "$cc_session" "$cc_attempt" \
       "$(printf '%s' "$cc_row" | jq -c --argjson n "$cc_next" \
-           '{pid: null, state: (.state // null), sighting: $n}')"
+           '{pid: null, state: .state, sighting: $n} | with_entries(select(.key == "pid" or .value != null))')"
     if [ "$cc_next" = 2 ]; then
       echo "crash     $1/$cc_milestone · $cc_session · confirmed on the second sighting"
     else
@@ -297,8 +329,11 @@ question_check() {
     inbox_holds "$qc_session" && continue
     printf '%s' "$qc_l" | jq -e '(.remote // false) != true' > /dev/null || continue
     printf '%s' "$qc_l" | jq -e '(.row.waitingFor // "") == "input needed"' > /dev/null || continue
-    if printf '%s' "$qc_parked" | jq -e --arg m "$qc_milestone" \
-         'any(.parked[]; .milestone == $m and .class == "question")' > /dev/null; then
+    # Keyed on the session, not the milestone alone: an unresolved question park from an earlier
+    # attempt would otherwise silence the new attempt's question, and a lane waiting for input that
+    # nobody hears about is the one thing the class exists to prevent.
+    if printf '%s' "$qc_parked" | jq -e --arg m "$qc_milestone" --arg s "$qc_session" \
+         'any(.parked[]; .milestone == $m and .session == $s and .class == "question")' > /dev/null; then
       continue
     fi
     qc_job=$(printf '%s' "$qc_l" | jq -r '.row.id // ""')

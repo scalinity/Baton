@@ -41,10 +41,17 @@ worktree_ensure() {
     we_commit=$(git -C "$we_wt" rev-parse HEAD 2>&1) || { echo "$we_wt exists but is not a worktree: $we_commit"; return 1; }
   else
     we_reused=false
+    # core.hooksPath is emptied because `worktree add` runs the repository's post-checkout hook, and
+    # from M03 this call is made by a launchd job whose shell has Full Disk Access. A dispatched
+    # session runs under bypassPermissions inside that checkout and the deny list does not cover a
+    # target's own .git, so a hook written there would be code the tick then executes — which is
+    # exactly what INV-12 says never happens (D-048).
     if git -C "$we_path" show-ref --verify --quiet "refs/heads/$we_branch"; then
-      we_out=$(git -C "$we_path" worktree add "$we_wt" "$we_branch" 2>&1) || { echo "$we_out"; return 1; }
+      we_out=$(git -C "$we_path" -c core.hooksPath=/dev/null worktree add "$we_wt" "$we_branch" 2>&1) \
+        || { echo "$we_out"; return 1; }
     else
-      we_out=$(git -C "$we_path" worktree add "$we_wt" -b "$we_branch" main 2>&1) || { echo "$we_out"; return 1; }
+      we_out=$(git -C "$we_path" -c core.hooksPath=/dev/null worktree add "$we_wt" -b "$we_branch" main 2>&1) \
+        || { echo "$we_out"; return 1; }
     fi
     we_commit=$(git -C "$we_wt" rev-parse HEAD)
   fi

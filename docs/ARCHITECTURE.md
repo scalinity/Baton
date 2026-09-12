@@ -455,7 +455,7 @@ Eighteen kinds. Fields listed are those beyond the envelope.
 | Kind | Fields | Which rule reads it | Once-only key |
 |---|---|---|---|
 | `dispatch` | `name`, `model`, `effort`, `remote`, `worktree`, `branch`, `worktree_reused`, `worktree_commit`, `settings`, `prompt_path`, `prompt_sha256` | the attempt count; the ladder's reset point; in flight; the long-running clock; the takeover candidate set; the cap; **the model actually run**, for grading after the fact | — |
-| `dispatch_failed` | `stage` (`worktree`\|`settings`\|`prompt`\|`launch`\|`service`), `detail`; no `session` | the second consecutive for a `(project, milestone)` escalates, lane scope; `stage: service` escalates, project scope | — |
+| `dispatch_failed` | `stage` (`worktree`\|`settings`\|`prompt`\|`launch`\|`service`), `detail`; no `session` | the second consecutive since the pair's newest `dispatch` escalates, lane scope, and that park is then what stops the retry (D-049); `stage: service` escalates, project scope, which is M06's | — |
 | `consumed` | `outcome`, `reason` or `error`, `written_by` (`session`\|`stop-gate`\|`stop-failure`), `merged_as`, `blocked_by`, `archive` | every ending's routing; the ladder's reset; the notification keys' reset; the terminal test for in flight; the wait's start before its first retry | — |
 | `rejected` | `path` (where the file came to rest: `~/.baton/rejected/` for a rejected file, `~/.baton/archive/` for a rejected `eligible[]` entry of a file that was consumed), `reason` (the rule's name) | the lane escalation that follows a rejection (the log is the record, so no sidecar) | — |
 | `resume` | `resume_kind` (`continue`\|`finish`\|`ruling`), `resume`, `class`, `outcome` (`delivered`\|`forked`\|`refused`), `prompt_path`, `prompt_sha256` | the resume count; the ladder (`refused` is a failure ending); the long-running clock; the takeover candidate set | — |
@@ -471,7 +471,7 @@ Eighteen kinds. Fields listed are those beyond the envelope.
 | `widening` | `rule`, `permissions_file` | `baton plan`'s provenance of allow rules | — |
 | `plan_override` | `direction` (`dispatched_over_held`\|`withheld_over_run`), `gate`, `cleared_by` | `status` showing the plan doing its job; never an escalation | — |
 | `worktree_pruned` | `worktree`, `merged_as` | — (the record of a destructive act) | — |
-| `self_check_failed` | `stage` (`read`\|`parse`\|`git`), `path`, and for `parse` also `table`, `row`, `cell`; `detail` | the project-scope park, per registered project; written once per `(project, stage, detail)` while the condition holds, and again when what failed changes (D-041) | — |
+| `self_check_failed` | `stage` (`read`\|`parse`\|`git`), `path`, and for `parse` also `table`, `row`, `cell`; `detail` | the stage and cell beside the project-scope escalation the failure raises (`plan-unreadable` or `plan-unparseable`), written once while that park stands (D-041) | — |
 
 **Escalation classes.** Lane: `asking`, `question`, `ladder-end`, `unfinished-twice`, `blocked`,
 `merge-failed`, `other`, `disagreement`, `omitted`, `model_not_found`, `dispatch-failed`. Project:

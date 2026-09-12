@@ -1,0 +1,12 @@
+# A lock older than the interval whose holder is this very shell: alive, so it must not be broken.
+# The pid is this shell's and differs between runs, so it is masked before the diff; the age line
+# and the refusal are what the scenario asserts.
+mkdir -p "$BATON_HOME/lock"
+printf '%s\n' "$$" > "$BATON_HOME/lock/pid"
+printf '2026-09-12T11:50:00+01:00\n' > "$BATON_HOME/lock/at"
+"$BATON" tick > tick.out 2> tick.err
+st=$?
+sed 's/pid [0-9][0-9]*/pid <this shell>/' tick.out
+sed 's/pid [0-9][0-9]*/pid <this shell>/' tick.err >&2
+rm -f tick.out tick.err
+exit $st

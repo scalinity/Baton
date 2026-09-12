@@ -259,8 +259,9 @@ reject() {
   printf 'rejected  %s → %s (%s: %s)\n' "$(basename "$1")" "$rj_dest" "$2" "$3"
 }
 
-# inbox_consume <rows json>: every *.json in the inbox, never a .tmp, in name order; then the
-# .tmp orphans. Prints one line per file saying what was decided.
+# inbox_consume <rows json> [<rows were read: yes|no>]: every *.json in the inbox, never a .tmp, in
+# name order; then the .tmp orphans, but only when the rows were actually read. Prints one line per
+# file saying what was decided.
 inbox_consume() {
   for ic_f in "$BATON_HOME"/inbox/*.json; do
     [ -f "$ic_f" ] || continue
@@ -281,6 +282,13 @@ inbox_consume() {
   done
   # A .tmp is a handover half-written. Its session having no live row with a pid says the writer
   # is gone and the file will never be completed, which is an orphan.
+  #
+  # Only when the rows were read, though. A listing the service could not produce arrives here as
+  # an empty array, under which every session reads as gone — and a session in the window between
+  # writing its .tmp and renaming it would have its handover moved to rejected/, its own `mv` would
+  # then fail, and the handover would be lost. The window is milliseconds and the loss is
+  # unrecoverable, so the sweep waits for a tick that can see the rows.
+  [ "${2:-yes}" = yes ] || return 0
   for ic_t in "$BATON_HOME"/inbox/*.json.tmp; do
     [ -f "$ic_t" ] || continue
     ic_sid=$(artifact_ids "$ic_t" | jq -r .session)

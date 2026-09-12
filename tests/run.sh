@@ -11,7 +11,8 @@
 # first), now (the clock), optional shim/ (the claude shim's knobs), optional project/ (a fixture
 # project; tests/project/ otherwise), optional transcripts/ (the tree BATON_TRANSCRIPTS points at),
 # optional mtimes (one "<path under transcripts/> <seconds before now>" per line, for the rules
-# that stat a transcript rather than read it), and expected/.
+# that stat a transcript rather than read it; every transcript starts at the scenario's now), and
+# expected/. install.sh needs codesign, which the Command Line Tools carry, for the install scenario.
 #
 # BATON_TESTS_FREEZE=<name> rewrites that one scenario's expected/ from the run, for output that
 # has been read and judged right; BATON_TESTS_FREEZE=all does it for every scenario and is for a
@@ -76,15 +77,27 @@ for sc in "$here"/scenarios/*/; do
   find "$tmp/transcripts" -type f -exec sed -i '' "s|@TMP@|$tmp|g" {} +
   # The stall rule is a stat and never a read, so a scenario that exercises it has to own the
   # modification times: a copied file carries the time of the copy, which is the machine's real
-  # clock, while the scenario's `now` is frozen at whatever date it names. `mtimes` holds one
-  # "<path under transcripts/> <seconds before now>" per line, and every scenario whose lanes reach
-  # the stall check names every transcript it has, so the answer is the same on any Mac on any day.
-  if [ -f "$sc/mtimes" ]; then
+  # clock, while the scenario's `now` is frozen at whatever date it names. Every copied transcript
+  # is therefore set to the scenario's `now` first — so a scenario that forgets its `mtimes` reads
+  # "just written" rather than whatever the clock happened to say — and `mtimes` then overrides the
+  # ones the scenario means to age, one "<path under transcripts/> <seconds before now>" per line.
+  # Both the conversion and the touch are pinned to UTC so they cannot disagree during the hour a
+  # fall-back transition repeats.
+  if [ -d "$tmp/transcripts" ]; then
     scnow=$(iso_epoch "$(cat "$sc/now")")
-    while read -r mt_path mt_ago || [ -n "$mt_path" ]; do
-      case "$mt_path" in ''|'#'*) continue ;; esac
-      touch -t "$(date -r "$((scnow - mt_ago))" +%Y%m%d%H%M.%S)" "$tmp/transcripts/$mt_path"
-    done < "$sc/mtimes"
+    find "$tmp/transcripts" -type f -exec \
+      env TZ=UTC touch -t "$(TZ=UTC date -r "$scnow" +%Y%m%d%H%M.%S)" {} +
+    if [ -f "$sc/mtimes" ]; then
+      while read -r mt_path mt_ago || [ -n "$mt_path" ]; do
+        case "$mt_path" in ''|'#'*) continue ;; esac
+        if [ ! -f "$tmp/transcripts/$mt_path" ]; then
+          echo "FAIL  $name: mtimes names $mt_path, which the scenario does not have"
+          fails=$((fails + 1))
+          continue
+        fi
+        env TZ=UTC touch -t "$(TZ=UTC date -r "$((scnow - mt_ago))" +%Y%m%d%H%M.%S)" "$tmp/transcripts/$mt_path"
+      done < "$sc/mtimes"
+    fi
   fi
 
   for run in 1 2; do

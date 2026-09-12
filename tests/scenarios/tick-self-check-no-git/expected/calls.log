@@ -1,3 +1,3 @@
 [cwd @TMP@] claude agents --json
-osascript -e 'display notification "git rev-parse HEAD failed: fatal: not a git repository (or any of the parent directories): .git" with title "Baton · NotARepo · self-check"'
+osascript -e 'display notification "git rev-parse HEAD failed: fatal: not a git repository (or any of the parent directories): .git" with title "Baton · NotARepo · plan-unreadable"'
 [cwd @TMP@] claude agents --json

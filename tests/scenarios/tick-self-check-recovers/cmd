@@ -1,0 +1,7 @@
+# The first run finds the cell broken; a person fixes it; the second run finds it reads again.
+if grep -q '| opsu |' Fixture/docs/MILESTONES.md; then
+  "$BATON" tick
+  sed -i '' 's/| M03 | The third | M02 | opsu |/| M03 | The third | M02 | claude-opus-5 |/' Fixture/docs/MILESTONES.md
+else
+  "$BATON" tick
+fi
