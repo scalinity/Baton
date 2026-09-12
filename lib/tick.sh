@@ -345,7 +345,12 @@ tick_run() {
   # and not about a lane: the model one project's session was refused on is the model every
   # project's next dispatch would be refused on, so applying it per project would let whichever
   # project ran second spend the request the first had already learned was refused.
-  holds_apply
+  # Guarded like every other step, and for a reason particular to this one: `tick_run` is called as
+  # `tick_run … || vt_status=$?`, so `set -e` is suppressed through its whole body and a bare call
+  # that failed would be stepped over in silence. A hold pass that failed writes no `hold`, and
+  # `hold_bites` reads the log rather than this function, so the next dispatch would land on the
+  # very model a limit had just refused.
+  holds_apply || echo "holds       the hold pass failed; a dispatch may not be withheld this tick" >&2
 
   # 3 to 8, per project.
 

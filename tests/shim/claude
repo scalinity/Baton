@@ -33,13 +33,14 @@ case "${1:-}" in
     if [ "${2:-}" = --resume ]; then
       sid=${3:-}
       if [ -f "$S/resume.note" ]; then note=$(cat "$S/resume.note")
-      else note="note: woke session $sid with its saved options (-n, --settings, --model, --permission-mode)"
+      else note="note: woke session ${sid%%-*} with its saved options (-n, --effort, --permission-mode, --settings, --model)."
       fi
       case "$note" in
-        *"started a copy as "*)
+        *"started a copy"*)
           # The note names the job id; the row is what carries the copy's session id, and the two
-          # differ — the job id is the session id's first eight characters (item 46).
-          copy=$(printf '%s' "$note" | sed -n 's/.*started a copy as \([0-9a-f]*\).*/\1/p')
+          # differ — the job id is the session id's first eight characters (item 46). The match is
+          # the family and not one phrasing, so a fixture can carry the generic variant too.
+          copy=$(printf '%s' "$note" | sed -n 's/.* as \([0-9a-f]*\).*/\1/p')
           jq -c --arg id "$copy" --arg cwd "$PWD" \
             '. + [{pid: 4299, id: $id, cwd: $cwd, kind: "background", startedAt: 1789200000000,
                    sessionId: "\($id)-0000-4000-8000-000000000000",
@@ -49,6 +50,13 @@ case "${1:-}" in
           ;;
       esac
       [ ! -f "$S/bg.color" ] || note=$(printf '%s' "$note" | sed "s/\\([0-9a-f]\\{8\\}\\)/$(printf '\033')[36m\\1$(printf '\033')[39m/g")
+      # The real CLI prints a `backgrounded · <id>` line on stdout for a resume whichever way it
+      # went — the woken id on a success, the copy's on a fork (item 46). The fixtures carry it so
+      # that stdout is as ambiguous here as it is live, and a classifier that ever keyed on it would
+      # be caught rather than passing every scenario.
+      if [ -n "${copy:-}" ]; then printf 'backgrounded · %s\n' "$copy"
+      else printf 'backgrounded · %s\n' "${sid%%-*}"
+      fi
       if [ "$(cat "$S/resume.stream" 2>/dev/null || echo stdout)" = stderr ]; then
         printf '%s\n' "$note" >&2
       else
