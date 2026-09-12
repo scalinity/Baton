@@ -1,0 +1,6 @@
+== the rule as typed, into the project's allowlist and the live settings file in place ==
+allowed   Fixture · Bash(xcodebuild:*) · @TMP@/home/projects/Fixture/permissions.json
+allowed   M02 · Bash(xcodebuild:*) · @TMP@/home/settings/Fixture-M02.json
+== a rule both files already carry widens nothing, so it writes no widening either ==
+already   Fixture · Bash(jq:*) is in @TMP@/home/projects/Fixture/permissions.json
+already   M02 · Bash(jq:*) is in @TMP@/home/settings/Fixture-M02.json

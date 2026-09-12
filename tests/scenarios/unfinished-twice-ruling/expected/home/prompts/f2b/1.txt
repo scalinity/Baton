@@ -1,0 +1,5 @@
+Baton resumed this session to deliver a ruling. M02, attempt 2, resume 1. You asked at 2026-09-12T12:00:00+01:00: M02 ended unfinished twice in a row; the newest says: split at item 3 instead; the log schema is larger than the brief assumed · the previous says: split at checklist item 5; M02-b takes the derivations. The ruling below is decided: do not re-open it, do not ask again, and do not weigh alternatives against it.
+
+take the split at item 3 and finish that half in this attempt
+
+Continue from where the last turn ended. The handover artifact is still owed.

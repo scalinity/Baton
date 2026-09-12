@@ -1,0 +1,6 @@
+== every project has an M01, so a bare name that matches two is refused, never guessed ==
+status 1
+== the long form names the lane, and it is a filter: a project with no park has nothing waiting ==
+status 1
+== two parks on one lane is not ambiguity the long form can settle, and the refusal says so ==
+status 1

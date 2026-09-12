@@ -1,0 +1,8 @@
+echo "== the refused model parks the lane =="
+"$BATON" tick
+echo "== an edit to a row that does not answer this park changes nothing =="
+sed -i '' '/^| M07 |/s/| M01 | opus |/| M01 | sonnet |/' Fixture/docs/MILESTONES.md
+"$BATON" tick
+echo "== the Model cell is the ruling: the lane unparks and attempt 2 is dispatched on the new model =="
+sed -i '' '/^| M02 |/s/| M01 | opus |/| M01 | sonnet |/' Fixture/docs/MILESTONES.md
+"$BATON" tick

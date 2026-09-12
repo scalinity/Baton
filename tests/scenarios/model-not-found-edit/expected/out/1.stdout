@@ -1,0 +1,11 @@
+== the refused model parks the lane ==
+model     Fixture/M02 · opus was refused · the lane is parked until the cell is edited
+== an edit to a row that does not answer this park changes nothing ==
+== the Model cell is the ruling: the lane unparks and attempt 2 is dispatched on the new model ==
+unparked  Fixture/M02 · the plan rows it answers to changed since the model_not_found park · Baton acts on the lane again
+redispatch Fixture/M02 · the Model cell was edited after the model was refused, so attempt 2 runs on it
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/Fixture-M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

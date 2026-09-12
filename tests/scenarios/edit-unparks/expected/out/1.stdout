@@ -1,0 +1,8 @@
+== the plan was edited: M05 now reads done, so the park it was measured against is over ==
+unparked  Fixture/M07 · the plan rows it answers to changed since the blocked park · Baton acts on the lane again
+redispatch Fixture/M07 · M05 reads done, so the blocker is gone
+backgrounded · 0badc0d1 · Baton · Fixture · M07
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/Fixture-M07 (branch m07)
+settings  @TMP@/home/settings/Fixture-M07.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

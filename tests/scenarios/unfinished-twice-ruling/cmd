@@ -1,0 +1,6 @@
+echo "== twice unfinished parks the lane =="
+"$BATON" tick
+echo "== the person rules instead of editing the plan =="
+"$BATON" answer M02 "take the split at item 3 and finish that half in this attempt" || echo "status $?"
+echo "== and the rule that parked it does not overrule them on the next tick =="
+"$BATON" tick

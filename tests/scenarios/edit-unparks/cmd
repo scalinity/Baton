@@ -1,0 +1,2 @@
+echo "== the plan was edited: M05 now reads done, so the park it was measured against is over =="
+"$BATON" tick

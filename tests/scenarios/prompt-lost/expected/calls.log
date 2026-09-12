@@ -1,0 +1,3 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "the session stopped while the question was open, so answering it in the session can no longer unpark the lane; the call can still be answered on the resume, with baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · prompt-lost"'
+[cwd @TMP@] claude agents --json

@@ -1,0 +1,4 @@
+== --resume stops and flaglessly resumes, so the re-issued command reads the widened file ==
+already   Fixture · Bash(xcodebuild:*) is in @TMP@/home/projects/Fixture/permissions.json
+already   M02 · Bash(xcodebuild:*) is in @TMP@/home/settings/Fixture-M02.json
+resumed   Fixture/M02 · f2 · delivered

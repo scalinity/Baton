@@ -26,21 +26,24 @@ nth() { printf '%s' "$1" | jq -c --argjson n "$2" '.[$n]'; }
 # through --arg, so a value carrying a quote cannot reshape the program.
 field() { printf '%s' "$1" | jq -r --arg d "${3:-}" "$2 // \$d"; }
 
-# verb_for <class> <milestone>: the baton command that resolves a park of that class. A lane park
-# resolves by a ruling; a project-scope park is cleared by the edit that fixes what failed, which
-# the next tick re-reads (REQ-ESC-05).
+# verb_for <class> <milestone> [<carries json>] [<session>] [<project>] [<attempt>]: the baton
+# command that resolves a park of that class — REQ-ESC-03's third part, and the same text the Mac
+# message ended with.
+#
+# It is the same function, not a second table: a person who read the message at 3 a.m. and then ran
+# `baton status` at 8 must be told the same thing to type, and two tables saying it is how they
+# come to disagree. `escalation_verb` is in `lib/escalate.sh` with the rest of the message.
 verb_for() {
-  case "$1" in
-    plan-unreadable|plan-unparseable|main-broken|baton-unhealthy|dispatch-failed)
-      echo "fix it; the next tick re-reads it" ;;
-    *) printf 'baton answer %s "<ruling>"' "$2" ;;
-  esac
+  vfr_carries=${3:-}
+  [ -n "$vfr_carries" ] || vfr_carries='{}'
+  escalation_verb "$1" "$2" "$vfr_carries" "$(ruling_target "${5:-}" "${4:-}" "${6:-}")"
 }
 
 # one_line <carries json>: the one line a person read — the question when the escalation carries
 # one, else its detail, else the rule and the path a rejection carries. Literally one line: a
 # question is carried verbatim (REQ-ARTIFACT-03) and may run to several, and §5.3 line 3 is one
-# line per park. The whole of it reaches the person through M03's notification.
+# line per park. The whole of it, with the options and the verb, is what the Mac message carries
+# (`message_render`); this is the same words cut to the width of a view.
 one_line() {
   printf '%s' "$1" | jq -r '
     ( if type != "object" then tostring
@@ -114,17 +117,18 @@ status_render() {
     while [ "$sr_i" -lt "$sr_n" ]; do
       sr_e=$(nth "$sr_list" "$sr_i"); sr_i=$((sr_i + 1))
       sr_class=$(field "$sr_e" .class '?')
+      sr_carries=$(printf '%s' "$sr_e" | jq -c '.carries // {}')
       if [ "$sr_scope" = project ]; then
         # A project-scope park with no project named is Baton's own health — a stale lock holds
         # every project, so the field is absent rather than pointing at one of them.
         printf 'project park  %s · %s · %s · %s\n' "$(field "$sr_e" .project 'all projects')" "$sr_class" \
-          "$(one_line "$(printf '%s' "$sr_e" | jq -c '.carries // {}')")" \
-          "$(verb_for "$sr_class" "$(field "$sr_e" .milestone '?')")"
+          "$(one_line "$sr_carries")" \
+          "$(verb_for "$sr_class" "$(field "$sr_e" .milestone '?')" "$sr_carries" "$(field "$sr_e" .session)" "$(field "$sr_e" .project)" "$(field "$sr_e" .attempt)")"
       else
         printf 'parked  %s/%s · %s · %s · %s\n' "$(field "$sr_e" .project '?')" \
           "$(field "$sr_e" .milestone '?')" "$sr_class" \
-          "$(one_line "$(printf '%s' "$sr_e" | jq -c '.carries // {}')")" \
-          "$(verb_for "$sr_class" "$(field "$sr_e" .milestone '?')")"
+          "$(one_line "$sr_carries")" \
+          "$(verb_for "$sr_class" "$(field "$sr_e" .milestone '?')" "$sr_carries" "$(field "$sr_e" .session)" "$(field "$sr_e" .project)" "$(field "$sr_e" .attempt)")"
       fi
     done
   done

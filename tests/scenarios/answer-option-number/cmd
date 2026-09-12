@@ -1,0 +1,4 @@
+echo "== a number that is not on offer is refused, with the options printed =="
+"$BATON" answer M02 9 || echo "status $?"
+echo "== and 2 is expanded to that option's text from the archive, so the session receives a ruling =="
+"$BATON" answer M02 2 || echo "status $?"

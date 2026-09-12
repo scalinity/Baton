@@ -1,0 +1,3 @@
+baton: Fixture/M02 offered 2 options and 9 is not one of them:
+  1 expose it from ReclaimCore and document it in the module's header
+  2 keep it internal and duplicate the eleven lines in the app target

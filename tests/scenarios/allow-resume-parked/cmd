@@ -1,0 +1,6 @@
+echo "== the lane is parked on the very refusal the rule answers: --resume would wake it behind its own"
+echo "   park, so the whole command is refused and nothing is written =="
+"$BATON" allow M02 'Bash(xcodebuild:*)' --resume || echo "status $?"
+echo "== the rule alone is written; the way back into the lane is the ruling =="
+"$BATON" allow M02 'Bash(xcodebuild:*)' || echo "status $?"
+"$BATON" answer M02 "the rule is in; run the build again" || echo "status $?"

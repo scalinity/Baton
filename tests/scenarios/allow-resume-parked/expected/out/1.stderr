@@ -1,0 +1,1 @@
+baton: Fixture/M02 is parked (other), so --resume would wake it behind its own park; run baton allow Fixture/M02 with the rule alone, then baton answer Fixture/M02 "<ruling>", which resumes it and closes the park

@@ -1,0 +1,6 @@
+== the settings file does not parse: neither file is written, so the allowlist cannot widen without its record ==
+status 1
+== no settings file for M07: the project's allowlist is widened and the verb says the session's copy was not ==
+allowed   Fixture · Bash(swift:*) · @TMP@/home/projects/Fixture/permissions.json
+== a rule the deny list also names is written as given, and the verb says deny wins ==
+denied    Fixture · Bash(sudo:*) · @TMP@/home/projects/Fixture/permissions.json

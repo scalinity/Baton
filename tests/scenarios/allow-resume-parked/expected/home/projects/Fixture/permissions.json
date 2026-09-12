@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sh tests/run.sh:*)",
+      "Bash(jq:*)",
+      "Bash(xcodebuild:*)"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Write(//Users/danny/.baton/log.jsonl)"
+    ],
+    "ask": [
+      "Bash(rm:*)"
+    ]
+  }
+}

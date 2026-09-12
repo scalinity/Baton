@@ -27,6 +27,8 @@ export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_OSASCRIPT BATON_HOME BATON
 . "$root/lib/derive.sh"
 . "$root/lib/inbox.sh"
 . "$root/lib/status.sh"
+. "$root/lib/escalate.sh"
+. "$root/lib/stops.sh"
 
 lock_take
 inbox_consume "$(rows_json)"

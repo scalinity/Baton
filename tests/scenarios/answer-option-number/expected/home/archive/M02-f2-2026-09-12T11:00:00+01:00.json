@@ -1,0 +1,6 @@
+{"baton":1,"project":"@TMP@/Fixture","milestone":"M02","session":"f2","outcome":"asking",
+ "written_at":"2026-09-12T10:58:00Z",
+ "question":"Should ReclaimCore expose FileSizeFormatter?",
+ "options":["expose it from ReclaimCore and document it in the module's header",
+            "keep it internal and duplicate the eleven lines in the app target"],
+ "recommendation":"expose it from ReclaimCore and document it in the module's header"}

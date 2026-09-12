@@ -1,0 +1,4 @@
+== the session was stopped a minute ago and its row still carries the pid and input needed:
+   the lane is already parked by the artifact, so the row check parks nothing a second time ==
+== and so the answer finds exactly one lane ==
+status 1

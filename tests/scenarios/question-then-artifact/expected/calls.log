@@ -1,0 +1,9 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude stop 0badf2
+osascript -e 'display notification "Now that the formatter question is answered, should the app target keep its copy?  1 delete the copy (recommended)   2 keep it until M03 · baton answer M02 <n>" with title "Baton · Fixture/M02 · asking"'
+caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude --bg --resume f2 <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 502
+[cwd @TMP@] claude agents --json

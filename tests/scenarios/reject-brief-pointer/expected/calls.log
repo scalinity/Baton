@@ -1,4 +1,4 @@
 [cwd @TMP@] claude agents --json
-osascript -e 'display notification "brief-pointer · @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json" with title "Baton · Fixture/M99 · other"'
-osascript -e 'display notification "brief-pointer · @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json" with title "Baton · Fixture/M07 · other"'
+osascript -e 'display notification "brief-pointer · @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:0… · fix what it names; the next tick re-reads the plan and the brief" with title "Baton · Fixture/M99 · other"'
+osascript -e 'display notification "brief-pointer · @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:0… · fix what it names; the next tick re-reads the plan and the brief" with title "Baton · Fixture/M07 · other"'
 [cwd @TMP@] claude agents --json

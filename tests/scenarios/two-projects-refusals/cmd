@@ -1,0 +1,6 @@
+echo "== M03 is taken over in two projects, so the hand-back names both and hands back neither =="
+"$BATON" answer M03 continue || echo "status $?"
+echo "== and a rule for M03 has two lanes it could have been earned by =="
+"$BATON" allow M03 'Bash(xcodebuild:*)' || echo "status $?"
+echo "== the long form hands back one lane and leaves the other to its person =="
+"$BATON" answer Other/M03 continue || echo "status $?"

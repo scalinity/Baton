@@ -195,9 +195,9 @@ artifact_check() {
 # escalate_rejection <project> <milestone> <session> <attempt> <rule> <path>: the lane escalation
 # a rejection raises. The class list is the log's and a rejection is the lane's own "something
 # else"; the carries holds the rule's name and the file's path, and the message a person reads is
-# composed from that carries by escalation_write, never here and never twice.
+# composed from that carries by `escalate`, never here and never twice.
 escalate_rejection() {
-  escalation_write "$1" "$2" "$3" "$4" other lane "$(jq -nc --arg r "$5" --arg p "$6" \
+  escalate "$1" "$2" "$3" "$4" other lane "$(jq -nc --arg r "$5" --arg p "$6" \
     '{rule: $r, path: $p}')"
 }
 
@@ -358,6 +358,19 @@ consume_one() {
   log_event consumed "$co_project" "$co_milestone" "$co_session" "$co_attempt" \
     "$(printf '%s' "$co_fields" | jq -c --arg a "$co_archive" '. + {archive: $a}')"
   printf 'consumed  %s → %s (%s)\n' "$(basename "$1")" "$co_archive" "$co_note"
+
+  # The endings that need a person, parked here because here is where the artifact is in hand: the
+  # question with its options, or the sentence the session wrote about what it could not do. The
+  # class is the taxonomy's — `route_ending`'s, whose `escalate` action names exactly these three
+  # plus `model_not_found`, which step 4 parks instead because only the plan tells it which cell to
+  # name. The consume is once by the move, so the park is written once for the same reason
+  # (INV-06); everything else the table routes reads the log rather than the file.
+  co_class=$(route_ending "$co_outcome" "$co_reason" | jq -r .class)
+  case "$co_class" in
+    asking|merge-failed|other)
+      ending_escalate "$co_project" "$co_milestone" "$co_session" "$co_attempt" "$co_a" \
+        "$co_class" "$co_archive" ;;
+  esac
 
   # A brief pointer that is not on main rejects that entry, not the file: the handover is still
   # the session's word about its own milestone, and only the entry it cannot support is dropped.

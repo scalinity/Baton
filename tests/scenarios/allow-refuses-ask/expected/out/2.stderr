@@ -1,0 +1,10 @@
+baton: refusing to write an ask rule. What a permissions.ask rule does under bypassPermissions is unknown (live item 42, unrun), and Baton does not write a rule whose effect it cannot state; the dispatched settings file carries no ask rules at all (INV-09)
+baton: refusing to write an ask rule. What a permissions.ask rule does under bypassPermissions is unknown (live item 42, unrun), and Baton does not write a rule whose effect it cannot state; the dispatched settings file carries no ask rules at all (INV-09)
+baton: the rule is empty
+baton: a rule is written as it appears in the allowlist, such as Bash(xcodebuild:*), and this one is JSON
+baton: Baton has dispatched no M04, so there is no allowlist it has earned; widen a project's permissions.json by hand instead
+baton: a rule is written as it appears in the allowlist, such as Bash(xcodebuild:*), and this one is JSON
+baton: a rule is written as it appears in the allowlist, such as Bash(xcodebuild:*), and this one is JSON
+baton: a rule is written as it appears in the allowlist, such as Bash(xcodebuild:*), and this one is JSON
+baton: the rule is over 1 KB, which no permission rule needs; it is refused rather than written without its record
+baton: a rule is one line; this one has more than one

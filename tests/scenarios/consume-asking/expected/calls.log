@@ -1,3 +1,4 @@
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude stop 0badc0d1
+osascript -e 'display notification "Should the formatter be exposed or kept internal?  1 expose (recommended)   2 internal · baton answer M02 <n>" with title "Baton · Fixture/M02 · asking"'
 [cwd @TMP@] claude agents --json

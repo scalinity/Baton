@@ -1,0 +1,7 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude stop 0badf2
+osascript -e 'display notification "Should ReclaimCore expose FileSizeFormatter, or keep it internal and duplicate it in the app?  1 expose it from ReclaimCore (recommended)   2 keep it internal and duplicate it in the app · baton answer M02 <n>" with title "Baton · Fixture/M02 · asking"'
+caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json

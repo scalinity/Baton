@@ -1,0 +1,7 @@
+baton: M01 is parked in 2 projects; name one:
+  baton answer Fixture/M01 · merge-failed · the merge into main failed: CONFLICT in docs/MILESTONES.md
+  baton answer Other/M01 · merge-failed · the merge into main failed: CONFLICT in README.md
+baton: nothing is waiting on Third/M01
+baton: Fixture/M03 carries 2 open parks at once, which one lane should never do; Baton will not guess which the ruling answers. They are:
+  baton answer Fixture/M03 · question · Baton · Fixture · M03 is waiting for input
+  baton answer Fixture/M03 · other · the session stopped: a second park on the same lane

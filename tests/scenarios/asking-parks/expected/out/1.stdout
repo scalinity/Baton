@@ -1,0 +1,5 @@
+== the artifact stops the session, parks the lane and hands the question over ==
+consumed  M02-f2.json → @TMP@/home/archive/M02-f2-2026-09-12T12:00:00+01:00.json (asking, stopped 0badf2)
+== and the view says the same thing, with the same verb ==
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M02 · asking · Should ReclaimCore expose FileSizeFormatter, or keep it internal and duplicate it in the app? · baton answer M02 <n>

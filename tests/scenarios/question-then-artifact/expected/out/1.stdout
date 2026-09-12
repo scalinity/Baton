@@ -1,0 +1,6 @@
+== the question was answered in the session, which went on to ask something else through Baton:
+   the question's park ends with the session's own artifact, and one park remains ==
+consumed  M02-f2.json → @TMP@/home/archive/M02-f2-2026-09-12T12:00:00+01:00.json (asking, stopped 0badf2, no context)
+unparked  Fixture/M02 · f2 · the session wrote its own handover after the question, so it was answered in place
+== so the answer finds exactly one lane ==
+ruling    Fixture/M02 · f2 · asking · delivered

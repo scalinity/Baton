@@ -145,7 +145,7 @@ takeover_check() {
       fi
       tc_carries=$(jq -nc --arg r "$tc_rule" --arg p "$tc_path" --arg d "$tc_why ($tc_path)" \
         '{rule: $r, path: $p, detail: $d}')
-      escalation_write "$1" "$tc_milestone" "$tc_session" "$tc_attempt" other lane "$tc_carries"
+      escalate "$1" "$tc_milestone" "$tc_session" "$tc_attempt" other lane "$tc_carries"
       tc_lines=$(printf '%s' "$tc_lines" | jq -c --arg l "unscannable  $1/$tc_milestone · $tc_rule · $tc_path" '. + [$l]')
     done
   done
@@ -341,19 +341,40 @@ question_check() {
     inbox_holds "$qc_session" && continue
     printf '%s' "$qc_l" | jq -e '(.remote // false) != true' > /dev/null || continue
     printf '%s' "$qc_l" | jq -e '(.row.waitingFor // "") == "input needed"' > /dev/null || continue
-    # Keyed on the session, not the milestone alone: an unresolved question park from an earlier
-    # attempt would otherwise silence the new attempt's question, and a lane waiting for input that
-    # nobody hears about is the one thing the class exists to prevent.
+    # Keyed on the session, not the milestone alone: an unresolved park from an earlier attempt
+    # would otherwise silence the new attempt's question, and a lane waiting for input that nobody
+    # hears about is the one thing the class exists to prevent.
+    #
+    # Any open lane park stops it, not a `question` one alone. A row keeps its last state for up to
+    # seventy seconds after the session is stopped, so a session that asked in place and then wrote
+    # an `asking` artifact is consumed, stopped and parked in step 2 while its row still reads
+    # `input needed` in step 3 — and a second park on one lane is what `baton answer` then refuses
+    # to act on, because two escalations carry the lane's name. One lane, one thing to answer.
     if printf '%s' "$qc_parked" | jq -e --arg m "$qc_milestone" --arg s "$qc_session" \
-         'any(.parked[]; .milestone == $m and .session == $s and .class == "question")' > /dev/null; then
+         'any(.parked[]; .milestone == $m and .session == $s and .scope == "lane")' > /dev/null; then
       continue
+    fi
+    # Nor a row read within two intervals of a dispatch or resume. A ruling resumes the session and
+    # resolves its park, and the row can still read the `input needed` of the question the ruling
+    # answered; parking on that would send the person a message about a question already decided and
+    # have `baton answer` deliver the same ruling twice. Two intervals is the window the crash rule
+    # gives a row to settle after the same two events (D-054): a real question is still open after it.
+    if [ -n "$qc_attempt" ]; then
+      qc_last=$(newest_event_at "$1" "$qc_milestone" "$qc_attempt" '^(dispatch|resume)$') \
+        || { echo "$qc_last" >&2; return 1; }
+      if [ -n "$qc_last" ]; then
+        qc_last=$(iso_epoch "$qc_last") || { echo "$qc_last" >&2; return 1; }
+        [ $(( $(now_epoch) - qc_last )) -ge $(( 2 * BATON_TICK_SECONDS )) ] || continue
+      fi
     fi
     qc_job=$(printf '%s' "$qc_l" | jq -r '.row.id // ""')
     qc_name=$(printf '%s' "$qc_l" | jq -r '.row.name // ""')
-    qc_detail="$qc_name is waiting for input; no payload carries the question, so read it in Claude.app or with claude attach $qc_job"
+    # What is happening, and nothing about what to do: the message's verb carries the attach
+    # command and `status` prints the same verb, so a detail repeating it says it twice.
+    qc_detail="$qc_name is waiting for input, and no payload carries the question, so it can only be read in the session"
     qc_carries=$(jq -nc --arg n "$qc_name" --arg j "$qc_job" --arg d "$qc_detail" \
       '{row: $n, job: $j, waiting_for: "input needed", detail: $d}')
-    escalation_write "$1" "$qc_milestone" "$qc_session" "$qc_attempt" question lane "$qc_carries"
+    escalate "$1" "$qc_milestone" "$qc_session" "$qc_attempt" question lane "$qc_carries"
     echo "question  $1/$qc_milestone · $qc_session · waiting for input"
   done
 }
