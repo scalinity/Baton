@@ -6,3 +6,9 @@ status 1
 status 1
 == a milestone Baton never dispatched has no allowlist it earned ==
 status 1
+== a list, a quoted string and a number are JSON, and no permission rule is ==
+status 1
+status 1
+status 1
+== and a rule over 1 KB is refused rather than written without its record ==
+status 1

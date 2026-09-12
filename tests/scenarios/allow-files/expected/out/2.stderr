@@ -1,0 +1,4 @@
+baton: @TMP@/home/settings/Fixture-M02.json does not parse; nothing was written
+baton: @TMP@/home/settings/Fixture-M07.json does not exist, so only the project's allowlist was widened
+baton: Bash(sudo:*) is also in the deny list of @TMP@/home/projects/Fixture/permissions.json, and deny wins, so this widens nothing a session can use
+baton: @TMP@/home/settings/Fixture-M07.json does not exist, so only the project's allowlist was widened

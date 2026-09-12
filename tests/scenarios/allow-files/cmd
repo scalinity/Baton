@@ -1,0 +1,6 @@
+echo "== the settings file does not parse: neither file is written, so the allowlist cannot widen without its record =="
+"$BATON" allow M02 'Bash(xcodebuild:*)' || echo "status $?"
+echo "== no settings file for M07: the project's allowlist is widened and the verb says the session's copy was not =="
+"$BATON" allow M07 'Bash(swift:*)' || echo "status $?"
+echo "== a rule the deny list also names is written as given, and the verb says deny wins =="
+"$BATON" allow M07 'Bash(sudo:*)' || echo "status $?"

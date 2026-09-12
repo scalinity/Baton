@@ -152,6 +152,9 @@ answer_handback() {
 
 # verb_answer <milestone | project/milestone> <ruling | n>: REQ-VERB-03.
 verb_answer() {
+  # An empty ruling would still arrive under the label, telling the session a decision had been made
+  # and giving it nothing; and it would close the park, so the person could not send the real one.
+  [ -n "$2" ] || { echo "baton: a ruling is words or an option number, and this one is empty" >&2; return 1; }
   case "$1" in
     */*) vba_p=${1%%/*}; vba_m=${1#*/} ;;
     *)   vba_p=''; vba_m=$1 ;;
@@ -259,15 +262,41 @@ allow_write() {
   case "$alw_rule" in
     *"$alw_nl"*) echo "baton: a rule is one line; this one has more than one" >&2; return 1 ;;
   esac
-  if printf '%s' "$alw_rule" | jq -e 'type == "object"' > /dev/null 2>&1; then
-    echo "baton: a rule is a string such as 'Bash(xcodebuild:*)', not a JSON object" >&2
+  # A rule is `Tool` or `Tool(pattern)`, which is never valid JSON; anything that parses — an
+  # object, a list, a quoted string, a number — is a settings fragment or a paste gone wrong, and
+  # written as given it would sit in the allowlist matching nothing while looking like a rule.
+  if printf '%s' "$alw_rule" | jq -e . > /dev/null 2>&1; then
+    echo "baton: a rule is written as it appears in the allowlist, such as Bash(xcodebuild:*), and this one is JSON" >&2
+    return 1
+  fi
+  # Bounded like every other field a writer carries into the log: the rule goes onto the `widening`
+  # line whole, and a rule the log refused would leave two widened files and no provenance for them.
+  if [ "$(printf '%s' "$alw_rule" | wc -c | tr -d ' ')" -gt 1024 ]; then
+    echo "baton: the rule is over 1 KB, which no permission rule needs; it is refused rather than written without its record" >&2
     return 1
   fi
 
   alw_perm=$BATON_HOME/projects/$1/permissions.json
+  alw_set=$BATON_HOME/settings/$1-$2.json
   if [ ! -f "$alw_perm" ]; then
     echo "baton: $alw_perm does not exist, so project $1 has no allowlist to widen" >&2
     return 1
+  fi
+  # Both files are read before either is written. Found out after the first write, a settings file
+  # that does not parse would leave the allowlist widened with no `widening` event beside it, and
+  # `baton plan`'s provenance would then disagree with the file it describes.
+  jq -e . "$alw_perm" > /dev/null 2>&1 || { echo "baton: $alw_perm does not parse; nothing was written" >&2; return 1; }
+  if [ -f "$alw_set" ] && ! jq -e . "$alw_set" > /dev/null 2>&1; then
+    echo "baton: $alw_set does not parse; nothing was written" >&2
+    return 1
+  fi
+  # Written as given, because Baton never judges a rule — but not in silence when the deny list
+  # names the same one: deny wins at run time, so the widening would change nothing, and "allowed"
+  # would be the wrong word for it.
+  alw_word=allowed
+  if jq -e --arg r "$alw_rule" '((.permissions.deny // []) | index($r)) != null' "$alw_perm" > /dev/null 2>&1; then
+    alw_word='denied'
+    echo "baton: $alw_rule is also in the deny list of $alw_perm, and deny wins, so this widens nothing a session can use" >&2
   fi
   alw_add='if ((.permissions.allow // []) | index($r)) == null
            then .permissions.allow = ((.permissions.allow // []) + [$r]) else . end'
@@ -277,12 +306,11 @@ allow_write() {
     printf '%s\n' "$alw_new" > "$alw_perm.tmp"
     mv "$alw_perm.tmp" "$alw_perm"
     alw_wrote=yes
-    printf 'allowed   %s · %s · %s\n' "$1" "$alw_rule" "$alw_perm"
+    printf '%-9s %s · %s · %s\n' "$alw_word" "$1" "$alw_rule" "$alw_perm"
   else
     printf 'already   %s · %s is in %s\n' "$1" "$alw_rule" "$alw_perm"
   fi
 
-  alw_set=$BATON_HOME/settings/$1-$2.json
   if [ -f "$alw_set" ]; then
     alw_new=$(jq --arg r "$alw_rule" "$alw_add" "$alw_set") \
       || { echo "baton: $alw_set does not parse" >&2; return 1; }
@@ -290,7 +318,7 @@ allow_write() {
       printf '%s\n' "$alw_new" > "$alw_set.tmp"
       mv "$alw_set.tmp" "$alw_set"
       alw_wrote=yes
-      printf 'allowed   %s · %s · %s\n' "$2" "$alw_rule" "$alw_set"
+      printf '%-9s %s · %s · %s\n' "$alw_word" "$2" "$alw_rule" "$alw_set"
     else
       printf 'already   %s · %s is in %s\n' "$2" "$alw_rule" "$alw_set"
     fi
@@ -328,6 +356,21 @@ verb_allow() {
   fi
   vbl_l=$(printf '%s' "$vbl_lane" | jq -c '.candidates[0]')
   vbl_pj=$(printf '%s' "$vbl_l" | jq -r .project)
+  # A parked lane is not woken by a widening. The usual reason to widen is a session that stopped
+  # and said why, which parked the lane: `--resume` would start the session again while the park
+  # still stood, so no rule would act on the lane, `status` would show a park nobody could clear
+  # but by a ruling, and that ruling would resume a session already running. The way back into a
+  # parked lane is `baton answer`, which resolves the park it delivers into. Refused before
+  # anything is written, so the command either does all of what it says or none of it.
+  if [ "${3:-}" = --resume ]; then
+    vbl_park=$(derive_parked "$vbl_pj") || { echo "baton: $vbl_park" >&2; return 1; }
+    vbl_class=$(printf '%s' "$vbl_park" | jq -r --arg m "$vbl_m" \
+      '[ .parked[] | select(.milestone == $m and .scope == "lane") ] | first | .class // empty')
+    if [ -n "$vbl_class" ]; then
+      echo "baton: $vbl_pj/$vbl_m is parked ($vbl_class), so --resume would wake it behind its own park; run baton allow $vbl_pj/$vbl_m with the rule alone, then baton answer $vbl_pj/$vbl_m \"<ruling>\", which resumes it and closes the park" >&2
+      return 1
+    fi
+  fi
   allow_write "$vbl_pj" "$vbl_m" "$2" || return 1
 
   [ "${3:-}" = --resume ] || return 0

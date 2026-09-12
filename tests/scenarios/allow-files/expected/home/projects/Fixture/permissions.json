@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sh tests/run.sh:*)",
+      "Bash(jq:*)",
+      "Bash(swift:*)",
+      "Bash(sudo:*)"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Write(//Users/danny/.baton/log.jsonl)"
+    ],
+    "ask": [
+      "Bash(rm:*)"
+    ]
+  }
+}
