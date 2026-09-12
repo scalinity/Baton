@@ -1,0 +1,5 @@
+{"parentUuid":null,"type":"user","promptSource":"typed","origin":{"kind":"human"},"uuid":"u3a","timestamp":"2026-09-12T09:00:00.000Z","message":{"role":"user","content":"KICKOFF M03: implement the third milestone."}}
+{"parentUuid":"u3a","type":"assistant","uuid":"a3a","timestamp":"2026-09-12T09:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Reading the brief."}]}}
+{"type":"queue-operation","operation":"enqueue","timestamp":"2026-09-12T10:30:00.000Z","sessionId":"f3","content":"hold on, I will take this one myself"}
+{"type":"queue-operation","operation":"remove","timestamp":"2026-09-12T10:30:02.000Z","sessionId":"f3","content":"hold on, I will take this one myself"}
+{"parentUuid":"a3a","isSidechain":false,"attachment":{"type":"queued_command","prompt":"hold on, I will take this one myself","source_uuid":"s3b","commandMode":"prompt","origin":{"kind":"human"},"timestamp":"2026-09-12T10:30:00.000Z"},"type":"attachment","uuid":"u3b","timestamp":"2026-09-12T10:30:00.000Z"}
