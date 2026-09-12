@@ -1,89 +1,143 @@
-# The project contract
+# Project contract, version 2
 
-The short list of things a target project's `CLAUDE.md` makes its sessions do so that Baton can
-drive the project. Six clauses. A target project cites this file by path; nothing in it names a
-project. Reclaim is the first implementer and Baton itself the second. The clauses were settled by
-the ticket "What a project hands to Baton" and amended by "Dispatching more than one at once"; the
-requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `docs/SPEC.md`.
+A project implements this contract to run under Baton. Version 1 artifacts are historical input;
+they are never silently promoted into version 2 authority. See `docs/MIGRATION.md`.
+Architectural changes follow `docs/GOVERNANCE.md`. For the already-running M03 workstream,
+`docs/M03-RECONCILIATION.md` defines the compatibility handoff; it does not retroactively invent a
+contract-2 run or require the session to restart. This protocol is required for the combined candidate.
+The same obligations apply to all target projects and later milestones. M03-specific coordination
+does not restrict their scope. Future protocol extensions must follow governance and a declared
+migration; this document does not silently introduce new required message fields.
 
-1. **Briefs.** One brief per milestone at a path `CLAUDE.md` names (`docs/milestones/M<nn>.md`),
-   holding the milestone's completion evidence under a heading `## Completion evidence` and its
-   whole kickoff prompt as a single code block under a heading `## Copy-ready session prompt`, in
-   the seven-part anatomy. Part 2 is exactly one paragraph, verbatim:
-   `WHAT ELSE IS IN FLIGHT. Runs alone unless the dispatch says otherwise.` — the slot line, which
-   Baton replaces whole at dispatch. The project's standing parallel-run rules (worktree, stage by
-   name, never `git add -A`) live in part 5, where they apply whether or not anything is in flight;
-   the refusal to start the next milestone lives in part 7.
+## 1. Project snapshot and authority
 
-2. **Plan file.** `CLAUDE.md` names it. It is the milestone table in the project's plan document
-   (`docs/MILESTONES.md`), found by its `ID` header cell, plus a gates table found by its `Gate`
-   header cell. Columns are read by name — `ID`, `Depends on`, `Model`, `Effort`, `Remote`,
-   `Status` — and cells hold tokens, never prose: ids and ranges in `Depends on` (`M05, M06`;
-   `M01–M13`; `–` for none), a model alias in `Model`, `low|medium|high|xhigh|max` or blank in
-   `Effort`, `yes` or blank in `Remote`, `done`, `held` or blank in `Status`. The gates table is
-   `| Gate | Holds | Cleared |`, `Cleared` blank or the D-number of the decision entry that cleared
-   it. A gate is cleared only by a person's edit, committed with that decision entry. A cell that
-   does not parse stops dispatch for the project. One source for the graph, never two.
+The canonical checkout has a `main` branch and a committed milestone table at the path registered
+in `project.json`. Baton reads one commit for the plan, prompt and initial worktree base. Uncommitted
+edits are drafts and never affect dispatch. A prepared run records that revision and reserves its lane.
 
-3. **Close-out order**, after the milestone's own checks, its review and its fixes:
-   (a) completion evidence into the brief, the decision entry, commit on the branch;
-   (b) merge into `main` — if the merge fails, write a `stopped` artifact with reason `merge-failed`
-   and go no further; then run the project's standing check on `main`, the combined tree; if it
-   fails, fix it on `main`, and if that cannot be done, write `stopped` with reason `main-broken`;
-   (c) on `main`: refresh the prompt of every brief the handover will list (parts 1 and 3–7; part 4
-   additively, by thread), write `done` in this milestone's `Status` cell, correct the plan file if
-   the session learned it is wrong with the reason as a decision entry, remove the session's
-   worktree and its build products, and commit;
-   (d) write the handover artifact;
-   (e) print it verbatim, last, in a fenced block whose info-string is `baton`; if anything lands
-   after it, deal with that and print it again.
+The milestone table has `ID`, `Depends on`, `Model`, `Effort`, `Remote`, `Status` columns. IDs are
+`M01` or `M01-b`; dependencies are IDs/ranges or `–`; models resolve through the configured aliases;
+effort is blank or low/medium/high/xhigh/max; Remote is blank or yes; Status is blank/done/held.
+The gates table has `Gate`, `Holds`, `Cleared`. All referenced IDs exist and the dependency graph is
+acyclic. Duplicate milestone or gate names are invalid. A cleared gate names a decision such as
+D-044 and also requires the same token in the person's `project.json.gateApprovals[gate]`.
+A session may propose a gate change; it never grants that authorization itself. This is a trusted
+local operating contract, not protection against a hostile process running as the same user.
 
-4. **The artifact.** `~/.baton/inbox/<milestone>-<session>.json`, written as `.tmp` then renamed;
-   `session` from `CLAUDE_CODE_SESSION_ID`; `project` is the canonical checkout, never a worktree;
-   `baton: 1`. No prompt text, no model.
+The graph is the scheduling authority. Handover artifacts contain no `eligible`, `wait_for`, model,
+or prompt fields. Durable dependency changes belong in the committed plan. A stopped session can
+report a blocker; future scheduling must validate it against the current graph rather than silently
+creating a second dependency graph.
 
-5. **Outcomes.** A session that cannot finish still writes the artifact before ending its turn:
-   `asking` with the question, options, recommendation and an absolute context pointer inside its
-   own checkout; `stopped` with a reason from the fixed set — `unfinished`, `blocked` (with
-   `blocked_by`), `merge-failed`, `main-broken`, `other` — and a detail. `no-handover` and
-   `api-error` are reserved for artifacts Baton's own hooks write.
+## 2. Brief and prompt
 
-6. **Every eligible milestone listed.** A `complete` handover lists every milestone the plan makes
-   eligible, each with a disposition — `run`, `wait` for named milestones, or `held` by a named
-   gate — and a pointer to its brief, so that an omission can only be a miss.
+Each milestone has `docs/milestones/<ID>.md` with `## Completion evidence` and
+`## Copy-ready session prompt`. The latter contains one fenced block. The block includes exactly
+one paragraph beginning `WHAT ELSE IS IN FLIGHT.`; Baton substitutes current run context there.
+Stable rules live in `CLAUDE.md` and this contract, not in recursively rewritten successor prompts.
+A predecessor records newly learned facts in its completion evidence; successors read those facts.
 
-## Baton's side, recorded beside the contract
+## 3. Run and ownership
 
-Baton creates the milestone worktree from `main` and dispatches with it as `cwd`; injects the Stop
-gate, the StopFailure hook and the status-feed command at dispatch; verifies `merged_as` before a
-`complete` handover is acted on; computes eligibility from the plan file, dispatches only the
-intersection with the handover's dispositions, honours the plan's gates even when a handover omits
-them, and escalates disagreement in both directions by milestone name; composes part 2 at dispatch
-from its log; archives a handover when it has acted on it; and records what actually ran, and why
-it differed from the plan, in the dispatch log.
+A run has a unique ID assigned before any launch, one project/milestone, an attempt, a recovery
+episode, a plan revision, a worktree/branch, an exact prompt and a runtime version. An uncertain
+launch remains reserved until reconciled. Never launch a replacement merely because a provider
+observation failed. Retries preserve the recovery episode across attempt numbers.
 
-## The artifact, by example
+Sessions work only in their recorded linked worktree. Stage named paths. Do not modify the canonical
+checkout, run another milestone, clear human gates, remove worktrees, or alter Baton's journal,
+processing files, settings or releases. An existing worktree must belong to the right repository
+and branch, be clean and contain the dispatch revision before it can be reused.
+
+A person claims a run with `baton claim <run>` before manual control and releases it explicitly with
+`baton release <run>`. Release acknowledges one immutable typed-record UUID, not a string such as
+“continue”. New or unreadable typed input prevents automatic integration. The provider cannot make
+transparent takeover race-free: unannounced direct typing remains conservatively detected,
+best-effort evidence. A supported action never intentionally overrides an established human claim.
+
+## 4. Close-out and integration
+
+1. Implement and review the milestone in its worktree. Record actual checks and limitations under
+   Completion evidence. Update its own `done` cell on the candidate branch, not on canonical main.
+   Do not refresh every successor prompt; change other briefs only when their actual requirements
+   changed. Commit the complete candidate using the existing Git identity.
+2. Invoke `baton integrate <run>`. Baton serializes integration, prepares a separate integration
+   worktree from expected main, merges the candidate, validates the plan and completion evidence,
+   runs the registered standing check, and verifies that the check did not change the tree.
+3. Only after checking that exact combined commit does Baton fast-forward clean canonical main.
+   The durable receipt binds run, candidate, expected main, integrated commit and verified tree.
+   If checking fails, fix the candidate and invoke `baton integrate <run> --retry`. This explicitly
+   supersedes an unverified operation and preserves its work and output. A checked/possibly promoted
+   operation cannot be superseded; repeat normal integration to reconcile it.
+4. Publish a complete artifact naming the receipt's `integrated_commit` as `merged_as`. Baton
+   rejects an unrelated old ancestor, a different session/run, or a completion without a receipt.
+5. Keep both worktrees until a person deliberately cleans them up. This foundation never prunes.
+
+The registered check is an argv array and must be replay-safe and produce no tracked/untracked tree
+changes. Registration requires `checkReplaySafe: true`. The check runs only through the explicit
+integration command; a future launchd tick must not execute target code itself. Building a project
+requires that project's/user's authorization. Baton's standing check is shell fixtures only.
+
+## 5. Immutable handover
+
+Publish a single JSON object through `baton publish`, or use the same no-clobber publication protocol.
+Generate `message_id` once and preserve the same full JSON on retries and in the printed fallback.
+Never rewrite a published identity with different contents. A new ending gets a new identity.
+
+Message identity deduplicates content; it does not establish chronological order between different
+endings. Filename sorting and `written_at` cannot decide which delivery an ending belongs to. M04
+must define and validate delivery correlation before automating continuations or using older
+endings as current execution state. Current consumption records observations and has no such
+automatic continuation path.
 
 ```json
 {
-  "baton": 1,
-  "project": "/Users/danny/Documents/Apps/Reclaim",
-  "milestone": "M13",
-  "session": "d8ab9333-db88-48e4-9ff7-b166dc1549ce",
+  "baton": 2,
+  "message_id": "one-stable-uuid-for-this-ending",
+  "run": "run-id-from-dispatch",
+  "project": "/absolute/canonical/checkout",
+  "milestone": "M03",
+  "session": "claude-session-id",
+  "plan_revision": "full-commit-id-recorded-at-dispatch",
+  "written_at": "2026-09-12T10:00:00Z",
   "outcome": "complete",
-  "merged_as": "b76c86d",
-  "written_at": "2026-09-10T23:02:17Z",
-  "eligible": [
-    { "milestone": "M28", "brief": { "path": "docs/milestones/M28.md", "heading": "Copy-ready session prompt" },
-      "disposition": "run" },
-    { "milestone": "M29", "brief": { "path": "docs/milestones/M29.md", "heading": "Copy-ready session prompt" },
-      "disposition": "wait", "wait_for": ["M28"] },
-    { "milestone": "M19", "brief": { "path": "docs/milestones/M19.md", "heading": "Copy-ready session prompt" },
-      "disposition": "held", "held_by": "v0.1 ships" }
-  ]
+  "merged_as": "full-integrated-commit-id-from-the-receipt"
 }
 ```
 
-`outcome: asking` replaces `merged_as` and `eligible` with `question` (verbatim), `options` and
-`recommendation` where the session has them, and `context` (`path`, absolute, and `heading`).
-`outcome: stopped` replaces them with `reason` and `detail`, plus `blocked_by` for `blocked`.
+The example commit placeholders stand for actual hexadecimal hashes. `message_id` and `run` are
+restricted filename-safe tokens; the published filename is `<message_id>.json`. `written_at` is
+context, not freshness or identity. The receiver claims the file before reading it, records one
+decision by message identity, then archives it. Re-delivery is harmless; conflicting reuse is rejected.
+Print the same complete JSON last in a `baton` fence. Consumption never stops a session.
+
+## 6. Other outcomes and hooks
+
+`asking` replaces `merged_as` with a nonempty `question`, optional string `options[]`, recommendation,
+and context. `stopped` carries `reason` and string `detail`; reasons are unfinished, blocked,
+merge-failed, main-broken, no-handover, api-error, other. Blocked requires `blocked_by`; api-error
+requires `error`. No-handover and api-error are hook conventions, not cryptographic authorship.
+A stopped/asking artifact is not verified progress and does not reset the recovery budget.
+
+Hooks know the prepared run through `BATON_RUN`. Their fallback endings use a conversational record
+UUID and stable dispatch timestamp, so callback replay cannot manufacture new identity from the
+clock. Missing record identity yields a diagnostic, not a guessed ending. Printed fallback preserves
+the session's message ID. Future resume support must correlate each delivery to its typed record and
+reject stale delivery observations; it must not revive the version-1 per-session mutable mailbox.
+
+## 7. Extensions, cancellation and project migration
+
+Provider output and artifact text remain data, not instructions to the controller. A session may
+request a judgment, blocker change or cancellation, but only the owning policy/command path can
+authorize the resulting action. `abandon` deliberately closes tracking after its safety checks;
+it does not stop a process or prove that a cancellation request was delivered. Any future cancel
+operation needs its own intent, observation and terminal-state rules.
+
+Preserve the selected model and explicit scope across retry unless a person or an already-authorized
+policy changes them. A provider fallback or opaque error label is not authority to downgrade a
+milestone, widen permissions or reinterpret a configuration error as context exhaustion.
+
+Changing required fields or their meaning requires a protocol-version/migration decision and
+tests for both accepted and rejected versions. Readability of legacy records does not authorize
+acting on them. Other projects follow the same contract; onboarding must prove it with their actual
+paths, graph, check, provider and execution environment rather than copying Baton's assumptions.

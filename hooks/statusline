@@ -1,15 +1,11 @@
 #!/bin/sh
-# statusLine: writes stdin whole to status/<session_id>.json (.tmp then rename) and prints the
-# status line. The status feed is telemetry: overwritten per turn, never appended.
 set -eu
 BATON_HOME=${BATON_HOME:-$HOME/.baton}
-
 payload=$(cat)
-sid=$(printf '%s' "$payload" | jq -r '.session_id // empty' 2>/dev/null || true)
-if [ -n "$sid" ]; then
-  mkdir -p "$BATON_HOME/status"
-  printf '%s\n' "$payload" > "$BATON_HOME/status/$sid.json.tmp"
-  mv "$BATON_HOME/status/$sid.json.tmp" "$BATON_HOME/status/$sid.json"
-fi
+sid=$(printf '%s' "$payload"|jq -er '.session_id|select(type=="string" and test("^[A-Za-z0-9_-]+$"))' 2>/dev/null) || exit 0
+mkdir -p "$BATON_HOME/status"
+status_tmp=$(mktemp "$BATON_HOME/status/.feed.XXXXXX")
+trap 'rm -f "$status_tmp"' EXIT
+printf '%s\n' "$payload" > "$status_tmp"
+mv "$status_tmp" "$BATON_HOME/status/$sid.json"
 printf 'baton %s' "${BATON_MILESTONE:-?}"
-exit 0

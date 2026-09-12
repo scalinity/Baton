@@ -1,2 +1,4 @@
 . "$ROOT/tests/lib-load.sh"
+# Historical read-model fixture, not a current provider-contract observation.
+rows_json() { "$BATON_CLAUDE" agents --json; }
 derive_taken_over Fixture "$(rows_json)" | jq .

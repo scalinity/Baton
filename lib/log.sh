@@ -1,6 +1,6 @@
 #!/bin/sh
-# lib/log.sh — the dispatch log's one writer, the envelope, the one reader, the attempt derivation,
-# the rows listing, the prompt sidecar and its hash. Nothing else in Baton writes log.jsonl (INV-02).
+# Logical append-only journal: one atomic replacement writer, coherent reads and stable event IDs.
+# The provider adapter owns observations; nothing else in Baton writes log.jsonl.
 set -eu
 
 # Baton's own clock: ISO 8601 with offset, 2026-09-11T23:14:02+01:00.
@@ -9,17 +9,14 @@ baton_now() {
 }
 
 # log_event <kind> <project> <milestone> <session> <attempt> [<fields json>]
-# Composes one line — the envelope plus the event's own fields — and appends it with one write.
-# An empty envelope argument is absent from the line, never null. Refuses without the lock, and
-# refuses a line of 4 KB or more: a writer bounds its own fields (see dispatch_failed) and this is
-# the last defence.
+# Composes an event and atomically replaces the journal under the kernel lock. Empty optional
+# envelope fields are omitted. Duplicate identity must carry identical content except replay time.
 log_event() {
   ev_kind=$1; ev_project=$2; ev_milestone=$3; ev_session=$4; ev_attempt=$5; ev_fields=${6:-'{}'}
-  if [ ! -d "$BATON_HOME/lock" ]; then
-    echo "log_event: refused, the lock is not held" >&2
-    return 1
-  fi
-  ev_line=$(jq -nc --arg at "$(baton_now)" --arg kind "$ev_kind" \
+  lock_require || return 1
+  ev_id=$(printf '%s' "$ev_fields" | jq -r '.event_id // empty')
+  [ -n "$ev_id" ] || ev_id=$(new_id)
+  ev_line=$(jq -nc --arg at "$(baton_now)" --arg kind "$ev_kind" --arg eid "$ev_id" \
     --arg p "$ev_project" --arg m "$ev_milestone" --arg s "$ev_session" --arg a "$ev_attempt" \
     --argjson f "$ev_fields" '
     {at: $at, kind: $kind}
@@ -27,22 +24,30 @@ log_event() {
     | if $m != "" then . + {milestone: $m} else . end
     | if $s != "" then . + {session: $s} else . end
     | if $a != "" then . + {attempt: ($a | tonumber)} else . end
-    | . + $f')
-  ev_bytes=$(printf '%s\n' "$ev_line" | wc -c | tr -d ' ')
-  if [ "$ev_bytes" -ge 4096 ]; then
-    echo "log_event: refused, the line is $ev_bytes bytes and the limit is 4 KB" >&2
-    return 1
+    | . + $f + {event_id:$eid, schema:2}') || return 1
+  ev_old=$(log_json) || return 1
+  ev_existing=$(printf '%s' "$ev_old" | jq -c --arg id "$ev_id" '[.[]|select(.event_id==$id)]|first // empty')
+  if [ -n "$ev_existing" ]; then
+    jq -ne --argjson a "$ev_existing" --argjson b "$ev_line" '($a|del(.at)) == ($b|del(.at))' >/dev/null \
+      || { echo "baton: conflicting event identity $ev_id" >&2; return 1; }
+    return 0
   fi
-  printf '%s\n' "$ev_line" >> "$BATON_HOME/log.jsonl"
+  # Logical append, atomic physical replacement. A reader sees the old or new complete journal.
+  # This deliberately trades O(n) writes for process-crash safety at the current local scale.
+  ev_tmp=$(mktemp "$BATON_HOME/.journal.XXXXXX") || return 1
+  printf '%s' "$ev_old" | jq -c '.[]' > "$ev_tmp" || { rm -f "$ev_tmp"; return 1; }
+  printf '%s\n' "$ev_line" >> "$ev_tmp" || { rm -f "$ev_tmp"; return 1; }
+  mv "$ev_tmp" "$BATON_HOME/log.jsonl" || return 1
 }
 
 # log_json: the log as one JSON array; [] when there is no log yet. The one reader every
 # derivation goes through. A line that does not parse fails the read naming the line, because a
 # derivation over a torn file would be a derivation over a guess.
 log_json() {
+  if [ "${BATON_LOG_SNAPSHOT+x}" ]; then printf '%s\n' "$BATON_LOG_SNAPSHOT"; return; fi
   lj_log=$BATON_HOME/log.jsonl
   if [ ! -f "$lj_log" ]; then echo '[]'; return 0; fi
-  if lj_out=$(jq -sc . "$lj_log" 2>/dev/null); then printf '%s\n' "$lj_out"; return 0; fi
+  if lj_out=$(jq -sce 'if all(.[];type=="object" and (.kind|type)=="string" and (.at|type)=="string") then . else error("invalid event envelope") end' "$lj_log" 2>/dev/null); then printf '%s\n' "$lj_out"; return 0; fi
   lj_n=0
   while IFS= read -r lj_line || [ -n "$lj_line" ]; do
     lj_n=$((lj_n + 1))
@@ -60,7 +65,7 @@ log_json() {
 attempt_of() {
   ao_log=$(log_json) || { echo "$ao_log"; return 1; }
   printf '%s' "$ao_log" | jq --arg p "$1" --arg m "$2" \
-    '[ .[] | select(.kind == "dispatch" and .project == $p and .milestone == $m) ] | length'
+    '[ .[] | select((.kind == "dispatch_prepared" or (.kind == "dispatch" and .run == null)) and .project == $p and .milestone == $m) ] | length'
 }
 
 # widenings_json <project>: the project's widening events, newest first, as a JSON array.
@@ -69,12 +74,8 @@ widenings_json() {
   printf '%s' "$wj_log" | jq -c --arg p "$1" '[ .[] | select(.kind == "widening" and .project == $p) ] | reverse'
 }
 
-# rows_json: claude agents --json as a JSON array; [] when the listing cannot be read or is empty.
-rows_json() {
-  rj_out=$("$BATON_CLAUDE" agents --json 2>/dev/null) || rj_out='[]'
-  [ -n "$rj_out" ] || rj_out='[]'
-  printf '%s' "$rj_out" | jq -c 'if type == "array" then . else [] end' 2>/dev/null || echo '[]'
-}
+new_id() { /usr/bin/uuidgen | tr 'A-Z' 'a-z'; }
+shell_quote() { jq -nr --arg v "$1" '$v|@sh'; }
 
 # prompt_normalise: stdin to stdout, stripping exactly one trailing newline and nothing else.
 # The one rule for both sides of the takeover comparison: the sidecar file (which ends in a

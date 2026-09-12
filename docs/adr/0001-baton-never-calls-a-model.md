@@ -1,27 +1,35 @@
-# Baton embeds no model call
+# ADR 0001 — Deterministic controller, explicit judgment sessions
 
-Baton carries a build from one Claude Code session to the next, and the open question was whether
-it should also judge: a long-lived Claude session as conductor, or a bounded model call at events.
-Baton is a relay — deterministic code that runs once per tick and decides nothing a session or a
-person should. The rule is one of placement, not of ceiling: **Baton embeds no model call.
-Judgement is dispatched as a session and returns as an artifact; it is never made inline in the
-tick.** A session is a model call with the whole project in context, a transcript a person can
-attach to, the Stop gate, and an artifact at the end, so anything that needs judgement later — a
-morning summary of the night, re-allocating models after a milestone lands, a fix when main breaks
-after two lanes merge — is dispatched, not computed in the relay. Every design that seated a Claude
-session as orchestrator reports needing nudges, waiting for input and misreporting state, and a
-question that a session with the whole project in context still chose to ask is not one a smaller
-call with less context answers better. What is left is the person's, answered by any means they
-choose.
+Status: accepted; retained by the foundation audit. Governed by P-01 in `../GOVERNANCE.md`.
+The controller and protocol changes are recorded as FND-001–FND-006; M03 integration governance
+is GOV-001. This ADR governs the combined design, not a claim that every component is integrated.
+
+## Decision
+
+The controller embeds no model call. It derives candidate actions from explicit, validated inputs
+and executes identified, recoverable operations. Coding and judgment are dispatched as sessions
+with the same identity, ownership, artifact and completion rules. Human rulings remain explicit.
+Deterministic integration and verification are controller responsibilities and do not violate this
+boundary. Calling Baton a relay does not remove its state-management obligations.
+
+The current completion contract is for Git-backed milestones. Future non-Git judgment jobs need
+an explicit evidence/completion schema while retaining run, message and ownership accounting;
+this ADR does not authorize a fabricated merge receipt or claim that a generic job type is implemented.
+
+## Rationale and trade-offs
+
+Deterministic policy can be tested without model quota and its action rules inspected directly.
+A separate judgment session preserves a transcript, context and a human intervention path. This
+separation does not prove that agents always judge correctly or that supervision costs nothing:
+dispatched judgment sessions consume quota and are accounted for like other sessions.
+
+The original prototype observations motivated avoiding an always-on model conductor. They are
+local evidence, not a claim about every other orchestration design. Wider agent management can be
+added without making scheduling state implicit inside a conversation.
 
 ## Reversal condition
 
-If the dispatch log shows the same judgement point recurring — one a session cannot pre-decide and
-a person tires of answering — that is the named moment for a bounded model call inline in the
-tick, and it gets its own ticket then.
-
-## Consequences
-
-- No quota is spent on supervision, and the relay is testable without an API key.
-- A new need for judgement is met by a ruling in the kickoff prompt, a rule in the relay, or a
-  dispatched session that returns an artifact — never by a model call in the tick.
+If a recurrent, evidenced judgment point cannot be handled adequately by the current session,
+a bounded judgment session or a human ruling, evaluate a separate decision under GOVERNANCE.md.
+That evaluation must specify state ownership, failure/replay semantics, costs, migration and
+acceptance criteria. An inline model call is not added as an undocumented convenience in a tick.

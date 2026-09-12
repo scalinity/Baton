@@ -1,11 +1,10 @@
 #!/bin/sh
-# lib/derive.sh — the fifteen recovery derivations of docs/ARCHITECTURE.md §6.4, one function per
-# sentence. Each is a pure function of the five inputs — the dispatch log, the rows from
-# claude agents --json, the inbox and archive, the plan file and one git check — plus the tick
-# marker, the status feed and the transcripts, and each prints exactly one JSON object on stdout
-# with its result under a named key, so a reader picks a field and never parses text (D-031).
-# Nothing here writes. The rows arrive as a JSON argument and the transcripts through
-# BATON_TRANSCRIPTS, so every fixture is a directory and no fixture starts a process.
+# Historical read models and shared clock/transcript helpers. Contract 2 uses runs.sh for run
+# state and ownership, and the cross-attempt ladder below for failure counting. The plan view
+# also displays acknowledged in-flight rows. Other legacy derivations preserve historical
+# readability/tests; they are NOT scheduling or authorization APIs for a new controller.
+# In particular, derive_taken_over's historical hash heuristic must never authorize an effect;
+# run_guard uses the explicit record-UUID ownership boundary. Nothing here writes.
 set -eu
 
 # The tick's interval, the same sixty seconds the launchd job carries as StartInterval (M03).
@@ -180,10 +179,10 @@ derive_parked() {
   printf '%s' "$dp_log" | jq -c --arg p "$1" '
     [ to_entries[] | {i: .key} + .value | select($p == "" or .project == $p) ] as $ev
     | { parked: [ $ev[] | select(.kind == "escalation") | . as $e
-                  | select(($ev | any(.kind == "resolution" and .escalation_at == $e.at
+                  | select(($ev | any(.kind == "resolution" and (if $e.event_id != null then .escalation_id == $e.event_id else .escalation_at == $e.at end)
                                       and .project == $e.project and .milestone == $e.milestone
                                       and .i > $e.i)) | not)
-                  | {at: $e.at, project: $e.project, milestone: $e.milestone, session: $e.session,
+                  | {at: $e.at, event_id: $e.event_id, run: $e.run, project: $e.project, milestone: $e.milestone, session: $e.session,
                      attempt: $e.attempt, class: $e.class, scope: $e.scope,
                      carries: $e.carries, channel: $e.channel}
                   | with_entries(select(.value != null)) ] }'
@@ -371,8 +370,9 @@ derive_ladder() {
   dl_log=$(log_json) || { echo "$dl_log"; return 1; }
   printf '%s' "$dl_log" | jq -c --arg p "$1" --arg m "$2" --argjson a "$3" '
     [ to_entries[] | {i: .key} + .value
-      | select(.project == $p and .milestone == $m and .attempt == $a) ] as $ev
-    | ([ $ev[] | select(.kind == "dispatch" or (.kind == "consumed" and .written_by == "session")) ]
+      | select(.project == $p and .milestone == $m and (.attempt // 0) <= $a) ] as $ev
+    | ([ $ev[] | select(.kind == "integration_checked" or .kind == "recovery_reset"
+                      or (.kind == "consumed" and .outcome == "complete")) ]
        | last) as $reset
     | ([ $ev[] | select(.i > ($reset.i // -1))
          | select((.kind == "consumed" and .reason == "no-handover")

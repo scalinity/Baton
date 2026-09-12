@@ -1,0 +1,16 @@
+Documentation validation — 2026-09-12
+Command: sh /tmp/baton-governance-check.sh
+Result: exit 0
+
+PASS plan parses with ignored Progress column; M03 stays incomplete with foundation dependency
+PASS current milestone prompts retain their machine-readable heading and one slot paragraph
+PASS 38 requirement IDs and 12 governing principle IDs
+PASS foundation decision namespace, concurrent allocation rule and D-001 rationale scope
+PASS governing backbone points to one document-authority source
+PASS active M03 worktree has an additive handoff and working-rule pointer
+PASS documentation whitespace checks
+OBSERVED M03 HEAD c93098386bd54b2f7324dca220e4bc156d6aea72
+NOT RUN runtime suites, M03 tests, live provider/TCC/launchd proofs, or combined-candidate acceptance
+
+Scope: read-only plan parsing, documentation structure/reference checks and whitespace checks.
+The prior 31/61 foundation test result was not rerun or transferred to M03 by this validation.

@@ -1,55 +1,15 @@
 #!/bin/sh
-# The Stop gate. Gates on the handover artifact file, never on text: stands down while the session
-# waits on its own subagent; lets go when the file exists; recovers a printed handover from a baton
-# fence naming this session; blocks once with the reason; on the next stop writes a no-handover
-# artifact itself and lets go. Payload on stdin; project and milestone from the environment.
-# Writes one per-session file in the inbox and nothing else (INV-10).
 set -eu
-BATON_HOME=${BATON_HOME:-$HOME/.baton}
-BATON_DATE=${BATON_DATE:-date}
-
-payload=$(cat)
-sid=$(printf '%s' "$payload" | jq -r '.session_id // empty')
-milestone=${BATON_MILESTONE:-}
-[ -n "$sid" ] && [ -n "$milestone" ] || exit 0
-
-artifact=$BATON_HOME/inbox/$milestone-$sid.json
-
-# A session waiting on its own subagent is not done.
-if printf '%s' "$payload" | jq -e '(.background_tasks // []) | length > 0' > /dev/null; then
+. "$(dirname "$0")/common.sh"
+if printf '%s' "$payload"|jq -e '(.background_tasks // [])|length>0' >/dev/null; then exit 0; fi
+fence=$(printf '%s\n' "$message"|awk '/^```baton[ \t]*$/ {f=1;next} f && /^```/ {exit} f')
+if [ -n "$fence" ] && printf '%s' "$fence"|jq -e --arg s "$sid" --arg r "$BATON_RUN" '.session==$s and .run==$r and .baton==2' >/dev/null 2>&1; then
+  # Keep the original ID: a callback after consumption is a re-delivery, not a new ending.
+  printf '%s\n' "$fence"|"$hook_root/hooks/publish" && exit 0
+fi
+if ! printf '%s' "$payload"|jq -e '.stop_hook_active==true' >/dev/null; then
+  jq -nc --arg run "$BATON_RUN" '{decision:"block",reason:("Publish and print a contract-2 handover for run "+$run+" with one stable message_id. Completion requires the integration receipt. Otherwise report asking or stopped.")}'
   exit 0
 fi
-
-[ -f "$artifact" ] && exit 0
-
-message=$(printf '%s' "$payload" | jq -r '.last_assistant_message // ""')
-
-# The printed fallback: a baton fence that parses and names this session becomes the file.
-fence=$(printf '%s\n' "$message" | awk '/^```baton[ \t]*$/ { f = 1; next } f && /^```/ { exit } f')
-if [ -n "$fence" ] && printf '%s' "$fence" | jq -e --arg s "$sid" '.session == $s' > /dev/null 2>&1; then
-  mkdir -p "$BATON_HOME/inbox"
-  printf '%s\n' "$fence" > "$artifact.tmp"
-  mv "$artifact.tmp" "$artifact"
-  echo "stop-gate: recovered the handover from the printed baton fence into $artifact" >&2
-  exit 0
-fi
-
-# The first stop without the file: insist once.
-if ! printf '%s' "$payload" | jq -e '.stop_hook_active == true' > /dev/null; then
-  jq -nc --arg r "You have not written your handover artifact yet. Write $artifact (write $artifact.tmp first, then rename it into place) by the method in CLAUDE.md — outcome complete, asking or stopped, whichever is true — print it verbatim last in a fenced block whose info-string is baton, and then stop." \
-    '{decision: "block", reason: $r}'
-  exit 0
-fi
-
-# The second stop: record the ending ourselves and let go.
-project=${BATON_PROJECT:-}
-if [ -n "$project" ] && [ -f "$BATON_HOME/projects/$project/project.json" ]; then
-  project=$(jq -r .path "$BATON_HOME/projects/$project/project.json")
-fi
-mkdir -p "$BATON_HOME/inbox"
-jq -nc --arg p "$project" --arg m "$milestone" --arg s "$sid" --arg d "$message" \
-  --arg at "$("$BATON_DATE" -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{baton: 1, project: $p, milestone: $m, session: $s, outcome: "stopped", reason: "no-handover", detail: $d, written_at: $at}' \
-  > "$artifact.tmp"
-mv "$artifact.tmp" "$artifact"
-exit 0
+ending=$(hook_envelope no-handover) || exit 0
+hook_publish "$ending"

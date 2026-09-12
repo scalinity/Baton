@@ -17,8 +17,13 @@ record() {
 }
 
 case "${1:-}" in
+  --version)
+    echo '2.1.268 (Claude Code)'
+    ;;
   agents)
     record "$@"
+    if [ -f "$S/agents.fail" ]; then echo 'service unavailable' >&2; exit 1; fi
+    if [ -f "$S/agents.malformed" ]; then echo broken; exit 0; fi
     cat "$S/rows.json"
     ;;
   --bg)
@@ -40,6 +45,10 @@ case "${1:-}" in
                sessionId: "\($id)-0000-4000-8000-000000000000", name: $name, status: "busy", state: "working"}]' \
         "$S/rows.json" > "$S/rows.json.tmp"
       mv "$S/rows.json.tmp" "$S/rows.json"
+      if [ -n "${BATON_TRANSCRIPTS:-}" ]; then
+        mkdir -p "$BATON_TRANSCRIPTS/fixture"
+        jq -nc --arg text "$1" '{type:"user",promptSource:"typed",uuid:"prompt-1",timestamp:"2026-09-12T10:00:00Z",message:{content:$text}}' > "$BATON_TRANSCRIPTS/fixture/$id-0000-4000-8000-000000000000.jsonl"
+      fi
     fi
     if [ -f "$S/bg.settled" ]; then
       printf '[2026-09-12T00:00:00.100Z] [bg] bg settled %s (crashed): %s\n' "$id" "$(cat "$S/bg.settled")" >> "$S/daemon.log"

@@ -1,8 +1,6 @@
 #!/bin/sh
-# baton — the relay's one script. Verb dispatch only; every verb's work lives under lib/.
-# The seams are read here, once, and exported for the libraries and the shims.
 set -eu
-
+umask 077
 BATON_CLAUDE=${BATON_CLAUDE:-/Users/danny/.local/bin/claude}
 BATON_DATE=${BATON_DATE:-date}
 BATON_CAFFEINATE=${BATON_CAFFEINATE:-/usr/bin/caffeinate}
@@ -10,59 +8,39 @@ BATON_HOME=${BATON_HOME:-$HOME/.baton}
 BATON_DAEMON_LOG=${BATON_DAEMON_LOG:-$HOME/.claude/daemon.log}
 BATON_TRANSCRIPTS=${BATON_TRANSCRIPTS:-$HOME/.claude/projects}
 export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_HOME BATON_DAEMON_LOG BATON_TRANSCRIPTS
-
-here=$(cd "$(dirname "$0")" && pwd)
-# In the checkout the libraries sit beside bin/; in the installed relay they sit under bin/lib/.
-if [ -d "$here/lib" ]; then BATON_LIB=$here/lib; else BATON_LIB=$here/../lib; fi
-. "$BATON_LIB/lock.sh"
-. "$BATON_LIB/log.sh"
-. "$BATON_LIB/plan.sh"
-. "$BATON_LIB/templates.sh"
-. "$BATON_LIB/dispatch.sh"
-. "$BATON_LIB/derive.sh"
-. "$BATON_LIB/inbox.sh"
-. "$BATON_LIB/status.sh"
-
+BATON_RELEASE_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+BATON_LIB=$BATON_RELEASE_ROOT/lib
+unset BATON_LOCK_OWNER BATON_LOG_SNAPSHOT
+for lib in lock log git adapter plan templates derive runs dispatch integrate inbox status; do . "$BATON_LIB/$lib.sh"; done
 usage() {
-  cat <<USAGE
-usage: baton <verb> ...
-  tick                               not yet: M03
-  answer <milestone> <ruling | n>    not yet: M05
-  status                             the one view: parks, takeovers, waits, holds, in flight, the inbox
-  plan <project>                     print the graph as the tick sees it; validate every Model cell
-  dispatch <project> <milestone>     step 8 by hand: worktree, settings, prompt, claude --bg, one event
-  allow <milestone> '<rule>'         not yet: M05
+  cat <<'USAGE'
+usage: baton <verb>
+  plan <project>                      validate the committed graph
+  dispatch <project> <milestone>       prepare and launch one identified run
+  status                              read a coherent journal; never takes the writer lock
+  consume                             acknowledge immutable handovers; never stops a session
+  reconcile                           reconcile uncertain launches, then consume
+  claim <run> | release <run>          explicitly transfer ownership
+  integrate <run> [--retry]           check/integrate; retry supersedes an unverified operation
+  abandon <run> <reason>               resolve a run explicitly; preserves all work
+  adopt <project> <milestone> <session> explicitly register a hand-started session as human-owned
+  publish                             publish a contract-2 JSON message from stdin
+  tick | answer                       scheduled policy is not implemented yet
 USAGE
 }
-
 verb=${1:-}
 case "$verb" in
-  plan)
-    [ $# -eq 2 ] || { usage >&2; exit 2; }
-    lock_take
-    verb_plan "$2"
-    ;;
-  dispatch)
-    [ $# -eq 3 ] || { usage >&2; exit 2; }
-    lock_take
-    verb_dispatch "$2" "$3"
-    ;;
-  status)
-    [ $# -eq 1 ] || { usage >&2; exit 2; }
-    lock_take
-    verb_status
-    ;;
-  tick|answer|allow)
-    echo "baton: $verb is not built yet" >&2
-    usage >&2
-    exit 2
-    ;;
-  ''|help|-h|--help)
-    usage
-    ;;
-  *)
-    echo "baton: unknown verb '$verb'" >&2
-    usage >&2
-    exit 2
-    ;;
+  status) [ $# -eq 1 ] || exit 2; verb_status ;;
+  plan) [ $# -eq 2 ] || exit 2; verb_plan "$2" ;;
+  publish) [ $# -eq 1 ] || exit 2; exec "$BATON_RELEASE_ROOT/hooks/publish" ;;
+  dispatch) [ $# -eq 3 ] || exit 2; lock_take; verb_dispatch "$2" "$3" ;;
+  consume) [ $# -eq 1 ] || exit 2; lock_take; inbox_consume ;;
+  reconcile) [ $# -eq 1 ] || exit 2; lock_take; rr_rows=$(rows_json) || exit 1; reconcile_dispatches "$rr_rows"; inbox_consume ;;
+  claim|release) [ $# -eq 2 ] || exit 2; lock_take; verb_ownership "$verb" "$2" ;;
+  integrate) [ $# -eq 2 ] || { [ $# -eq 3 ] && [ "$3" = --retry ]; } || exit 2; lock_take; verb_integrate "$2" "${3:-}" ;;
+  abandon) [ $# -eq 3 ] || exit 2; lock_take; verb_abandon "$2" "$3" ;;
+  adopt) [ $# -eq 4 ] || exit 2; lock_take; verb_adopt "$2" "$3" "$4" ;;
+  tick|answer|allow) echo "baton: $verb is not implemented; see docs/MILESTONES.md" >&2; exit 2 ;;
+  ''|help|-h|--help) usage ;;
+  *) usage >&2; exit 2 ;;
 esac

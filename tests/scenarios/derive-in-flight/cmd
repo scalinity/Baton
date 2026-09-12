@@ -1,4 +1,6 @@
 . "$ROOT/tests/lib-load.sh"
+# Historical read-model fixture, not a current provider-contract observation.
+rows_json() { "$BATON_CLAUDE" agents --json; }
 echo "== every project =="
 derive_in_flight "" "$(rows_json)" | jq .
 echo "== Other alone =="

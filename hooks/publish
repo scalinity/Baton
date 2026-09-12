@@ -1,0 +1,19 @@
+#!/bin/sh
+# Publish one immutable contract-2 message. Atomic no-clobber link; duplicate identity must
+# carry exactly the same canonical JSON. Consumer deduplication also covers an archive race.
+set -eu
+BATON_HOME=${BATON_HOME:-$HOME/.baton}
+ph_root=$(cd "$(dirname "$0")/.." && pwd -P)
+mkdir -p "$BATON_HOME/inbox"
+ph_tmp=$(mktemp "$BATON_HOME/inbox/.publish.XXXXXX")
+trap 'rm -f "$ph_tmp"' EXIT
+cat > "$ph_tmp"
+jq -se -f "$ph_root/lib/artifact.jq" "$ph_tmp" >/dev/null || { echo 'baton: publication requires contract 2' >&2; exit 2; }
+ph_id=$(jq -r .message_id "$ph_tmp")
+if [ -n "${BATON_RUN:-}" ]; then
+  jq -e --arg r "$BATON_RUN" '.run==$r' "$ph_tmp" >/dev/null || exit 2
+fi
+ph_dest=$BATON_HOME/inbox/$ph_id.json
+if ln "$ph_tmp" "$ph_dest" 2>/dev/null; then exit 0; fi
+[ -f "$ph_dest" ] && [ ! -L "$ph_dest" ] && [ "$(jq -Sc . "$ph_tmp")" = "$(jq -Sc . "$ph_dest")" ] \
+  || { echo 'baton: message identity collision; existing publication preserved' >&2; exit 1; }

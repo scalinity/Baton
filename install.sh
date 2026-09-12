@@ -1,59 +1,52 @@
 #!/bin/sh
-# install.sh — installs the relay under ~/.baton/bin (baton, lib/, the three hooks, and a copy of
-# /bin/sh for the Full Disk Access grant), creates the state directories, config.json and Baton's
-# own registration if absent. Idempotent: a second run changes nothing. launchd and every
-# dispatched session's hooks run the installed copy, so a merge on main changes nothing until this
-# is run (D-018).
+# Immutable, content-addressed releases. No active session's pinned hooks are replaced.
 set -eu
-here=$(cd "$(dirname "$0")" && pwd)
+umask 077
+here=$(cd "$(dirname "$0")" && pwd -P)
 BATON_HOME=${BATON_HOME:-$HOME/.baton}
-
-mkdir -p "$BATON_HOME/bin/lib" "$BATON_HOME/inbox" "$BATON_HOME/archive" "$BATON_HOME/rejected" \
-  "$BATON_HOME/status" "$BATON_HOME/settings" "$BATON_HOME/prompts" "$BATON_HOME/projects"
-
-cp "$here/bin/baton" "$BATON_HOME/bin/baton"
-cp "$here"/lib/*.sh "$BATON_HOME/bin/lib/"
-cp "$here/hooks/stop-gate" "$here/hooks/stop-failure" "$here/hooks/statusline" "$BATON_HOME/bin/"
-chmod 755 "$BATON_HOME/bin/baton" "$BATON_HOME/bin/stop-gate" "$BATON_HOME/bin/stop-failure" "$BATON_HOME/bin/statusline"
-
-if [ ! -x "$BATON_HOME/bin/sh" ]; then
-  cp /bin/sh "$BATON_HOME/bin/sh"
-  echo "copied /bin/sh to $BATON_HOME/bin/sh — grant it Full Disk Access (REQ-SETUP-01)"
+. "$here/lib/lock.sh"
+lock_take
+mkdir -p "$BATON_HOME/bin" "$BATON_HOME/releases" "$BATON_HOME/projects" "$BATON_HOME/inbox" "$BATON_HOME/processing" "$BATON_HOME/archive" "$BATON_HOME/rejected"
+release_id=$(cd "$here" && find bin lib hooks -type f | LC_ALL=C sort | while IFS= read -r file; do shasum -a 256 "$file"; done | shasum -a 256 | awk '{print $1}')
+release=$BATON_HOME/releases/$release_id
+if [ ! -d "$release" ]; then
+  staging=$(mktemp -d "$BATON_HOME/releases/.stage.XXXXXX")
+  cp -R "$here/bin" "$here/lib" "$here/hooks" "$staging/"
+  staged_id=$(cd "$staging" && find bin lib hooks -type f | LC_ALL=C sort | while IFS= read -r file; do shasum -a 256 "$file"; done | shasum -a 256 | awk '{print $1}')
+  [ "$staged_id" = "$release_id" ] || { echo 'baton: source changed during install; incomplete release not selected' >&2; exit 1; }
+  printf '%s\n' "$release_id" > "$staging/release-id"
+  chmod -R go-rwx "$staging"
+  mv "$staging" "$release"
 fi
-
+selection=$BATON_HOME/.current-$$
+ln -s "releases/$release_id" "$selection"
+mv -fh "$selection" "$BATON_HOME/current"
+wrapper=$(mktemp "$BATON_HOME/bin/.baton.XXXXXX")
+cat > "$wrapper" <<'WRAPPER'
+#!/bin/sh
+set -eu
+home=$(cd "$(dirname "$0")/.." && pwd -P)
+release=$(cd "$home/current" && pwd -P)
+BATON_HOME=${BATON_HOME:-$home}
+export BATON_HOME
+exec /bin/sh "$release/bin/baton" "$@"
+WRAPPER
+chmod 700 "$wrapper"
+mv "$wrapper" "$BATON_HOME/bin/baton"
+if [ ! -x "$BATON_HOME/bin/sh" ]; then cp /bin/sh "$BATON_HOME/bin/sh"; fi
 if [ ! -f "$BATON_HOME/config.json" ]; then
-  cat > "$BATON_HOME/config.json" <<'JSON'
-{ "cap": 2, "fableReserve": 80, "stallMinutes": 30, "longRunningHours": 6,
-  "retryMinutes": 15, "caffeinateMaxHours": 6,
-  "models": { "fable": "fable", "opus": "opus", "sonnet": "sonnet", "haiku": "haiku" } }
-JSON
+  printf '%s\n' '{"schema":2,"cap":2,"claudeVersion":"2.1.268","trustedLocal":false,"models":{"fable":"fable","opus":"opus","sonnet":"sonnet","haiku":"haiku"}}' > "$BATON_HOME/config.json"
 fi
-
-# Baton registers itself: the canonical checkout is the main worktree of the repository this
-# script sits in, never a linked worktree, so an install run from ../Baton-M<nn> still points at it.
-canonical=$(git -C "$here" worktree list --porcelain | awk '/^worktree / { print substr($0, 10); exit }')
+canonical=$(git -C "$here" worktree list --porcelain|awk '/^worktree / {print substr($0,10);exit}')
 project=$(basename "$canonical")
 mkdir -p "$BATON_HOME/projects/$project"
 if [ ! -f "$BATON_HOME/projects/$project/project.json" ]; then
-  jq -n --arg p "$canonical" '{path: $p, plan: "docs/MILESTONES.md"}' > "$BATON_HOME/projects/$project/project.json"
+  jq -n --arg p "$canonical" '{path:$p,plan:"docs/MILESTONES.md",contract:2,check:["sh","tests/run.sh"],checkReplaySafe:true}' > "$BATON_HOME/projects/$project/project.json"
 fi
 if [ ! -f "$BATON_HOME/projects/$project/permissions.json" ]; then
-  # Two deny classes and nothing else (REQ-PERM-04): privilege escalation, and Baton's own state by
-  # named path — everything under BATON_HOME except inbox/. The // form is an absolute path for the
-  # tools that take one; the Bash fragments catch a shell command that names the path, and can
-  # never be complete (D-026).
-  jq -n --arg h "/$BATON_HOME" '
-    { permissions: {
-        allow: ["Bash(sh tests/run.sh:*)", "Bash(jq:*)"],
-        deny: (
-          ["Bash(sudo:*)", "Bash(su:*)", "Bash(doas:*)", "Bash(osascript * administrator privileges*)"]
-          + ["Read(\($h)/log.jsonl)", "Edit(\($h)/log.jsonl)", "Write(\($h)/log.jsonl)"]
-          + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock" ]
-             | map("Edit(\($h)/\(.)/**)", "Write(\($h)/\(.)/**)"))
-          + ["Edit(\($h)/config.json)", "Write(\($h)/config.json)", "Edit(\($h)/last-tick)", "Write(\($h)/last-tick)"]
-          + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick" ]
-             | map("Bash(*.baton/\(.)*)"))
-        ) } }' > "$BATON_HOME/projects/$project/permissions.json"
+  jq -n --arg h "/$BATON_HOME" '{permissions:{deny:(["Bash(sudo:*)","Bash(su:*)","Bash(doas:*)","Bash(osascript * administrator privileges*)"]
+    + (["log.jsonl","config.json","mutation.lock","current","bin","releases","runs","settings","projects","processing","archive","rejected","integrations"]
+       | map("Edit(\($h)/\(.)/**)","Write(\($h)/\(.)/**)","Edit(\($h)/\(.))","Write(\($h)/\(.))")))}}' > "$BATON_HOME/projects/$project/permissions.json"
 fi
-
-echo "installed the relay under $BATON_HOME/bin; project $project registered at $canonical"
+printf 'installed release %s; existing configuration and active sessions preserved\n' "$release_id"
+printf 'review docs/MIGRATION.md before enabling dispatch; trustedLocal defaults to false\n'

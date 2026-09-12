@@ -179,7 +179,22 @@ $pt_raw
 RAW
   [ "$pt_seen_m" = yes ] || { plan_fail milestones - ID "no table has an ID header cell"; return 1; }
   [ "$pt_seen_g" = yes ] || { plan_fail gates - Gate "no table has a Gate header cell"; return 1; }
-  jq -nc --argjson m "$pt_ms" --argjson g "$pt_gs" '{milestones: $m, gates: $g}'
+  pt_doc=$(jq -nc --argjson m "$pt_ms" --argjson g "$pt_gs" '{milestones: $m, gates: $g}')
+  pt_error=$(printf '%s' "$pt_doc" | jq -r '
+    . as $plan | [.milestones[].id] as $ids
+    | def acyclic($left):
+        if ($left|length)==0 then true else
+          [$left[].id] as $remaining
+          | [$left[]|select(all(.depends[]; . as $d|($remaining|index($d))==null))] as $ready
+          | if ($ready|length)==0 then false else acyclic($left-$ready) end
+        end;
+    if any(.milestones[].depends[]; . as $d | ($ids|index($d)) == null) then "dependency names a missing milestone"
+    elif any(.gates[].holds[]; . as $d | ($ids|index($d)) == null) then "gate names a missing milestone"
+    elif ([.gates[].gate]|length) != ([.gates[].gate]|unique|length) then "duplicate gate name"
+    elif (acyclic(.milestones)|not) then "dependency cycle"
+    else "" end') || return 1
+  [ -z "$pt_error" ] || { plan_fail milestones - graph "$pt_error"; return 1; }
+  printf '%s\n' "$pt_doc"
 }
 
 # The readers below take plan_tables' document on stdin.
@@ -224,17 +239,32 @@ project_path() {
 # plan_of_project <project>: project.json → the plan file → plan_tables' document; on failure
 # the message a verb prints, with status 2 for a registration problem and 1 for a plan problem.
 plan_of_project() {
+  case "$1" in ''|*[!A-Za-z0-9_-]*) echo 'baton: invalid project key'; return 2;; esac
   pp_pj=$BATON_HOME/projects/$1/project.json
   [ -f "$pp_pj" ] || { echo "baton: no project '$1' registered under $BATON_HOME/projects/"; return 2; }
   pp_path=$(jq -er .path "$pp_pj" 2>/dev/null) && pp_plan=$(jq -er .plan "$pp_pj" 2>/dev/null) \
     || { echo "baton: $pp_pj lacks path or plan"; return 2; }
-  pp_file=$pp_path/$pp_plan
-  [ -r "$pp_file" ] || { echo "baton: plan file $pp_file cannot be read"; return 1; }
+  pp_common=$(baton_git -C "$pp_path" rev-parse --path-format=absolute --git-common-dir) || return 1
+  for pp_other in "$BATON_HOME"/projects/*/project.json; do
+    [ "$pp_other" != "$pp_pj" ] && [ -f "$pp_other" ] || continue
+    pp_other_path=$(jq -r '.path // ""' "$pp_other" 2>/dev/null) || continue
+    pp_other_common=$(baton_git -C "$pp_other_path" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || continue
+    [ "$pp_common" != "$pp_other_common" ] || { echo "baton: duplicate repository registration: $pp_other"; return 2; }
+  done
+  case "$pp_plan" in /*|*..*|'') echo 'baton: plan must be a repository-relative path'; return 2;; esac
+  pp_revision=$(baton_git -C "$pp_path" rev-parse --verify 'refs/heads/main^{commit}') || return 1
+  pp_file=$(mktemp "${TMPDIR:-/tmp}/baton-plan.XXXXXX") || return 1
+  baton_git -C "$pp_path" show "$pp_revision:$pp_plan" > "$pp_file" || { rm -f "$pp_file"; echo 'baton: plan is not committed on main'; return 1; }
   if ! pp_tables=$(plan_tables "$pp_file"); then
     printf '%s' "$pp_tables" | jq -r '"baton: plan \(.table) table, row \(.row), cell \(.cell): \(.detail)"'
-    return 1
+    rm -f "$pp_file"; return 1
   fi
-  printf '%s\n' "$pp_tables"
+  rm -f "$pp_file"
+  pp_approvals=$(jq -c '.gateApprovals // {}' "$pp_pj") || return 1
+  if [ "$(jq -r '.contract // 1' "$pp_pj")" = 2 ]; then
+    pp_tables=$(printf '%s' "$pp_tables"|jq -c --argjson approvals "$pp_approvals" '.gates |= map(.declared_cleared=.cleared | if .cleared!="" and $approvals[.gate]!=.cleared then .cleared="" else . end)') || return 1
+  fi
+  printf '%s\n' "$pp_tables" | jq -c --arg revision "$pp_revision" '. + {revision:$revision}'
 }
 
 # verb_plan <project>: the graph as the tick sees it; every Model cell validated by the parse;
@@ -246,6 +276,8 @@ verb_plan() {
   vp_inflight=$(printf '%s' "$vp_inflight" | jq -c .in_flight)
   printf '%s' "$vp_tables" | plan_render "$1" "$vp_inflight"
   printf '%s' "$vp_tables" | jq -r '.gates[] | "gate \"\(.gate)\" holds \(.holds | join(", "))\(if .cleared == "" then "" else ", cleared by " + .cleared end)"'
+  printf '%s' "$vp_tables" | jq -r '.gates[]|select((.declared_cleared // "")!="" and .cleared=="")|"gate \(.gate): awaiting person-owned approval of \(.declared_cleared)"'
+  run_open | jq -r --arg p "$1" '.[]|select(.project==$p)|"reserved: \(.milestone) · \(.run) · \(.state) · owner \(.owner)"'
   vp_w=$(widenings_json "$1") || { echo "baton: $vp_w" >&2; exit 1; }
   if [ "$(printf '%s' "$vp_w" | jq length)" -eq 0 ]; then
     echo "widenings: none"

@@ -1,0 +1,94 @@
+ok    derive-answer-candidates
+ok    derive-attempt
+ok    derive-caffeinate
+ok    derive-consumed
+ok    derive-dispatch-hold
+ok    derive-gap
+ok    derive-holds
+ok    derive-in-flight
+ok    derive-key-spent
+ok    derive-last-tick-none
+ok    derive-last-tick
+ok    derive-parked
+ok    derive-taken-over
+ok    derive-waits
+ok    derive-widenings
+ok    log-torn-line
+ok    plan-bad-cell
+ok    plan-bad-cleared
+ok    plan-bad-depends
+ok    plan-bad-effort
+ok    plan-bad-id
+ok    plan-bad-range
+ok    plan-bad-remote
+ok    plan-bad-status
+ok    plan-duplicate-id
+ok    plan-missing-column
+ok    plan-no-gates
+ok    plan-no-trailing-pipe
+ok    plan-parses
+ok    plan-short-row
+ok    session-name
+31 scenarios, 0 failed
+ok foundation dispatch plan ignores uncommitted edits
+ok foundation cycles rejected
+ok foundation missing dependencies rejected
+ok foundation missing gate targets rejected
+ok foundation converging DAG validates without enumerating paths
+ok foundation committed gate clearance alone is insufficient
+ok foundation provider failure is not an empty fleet
+ok foundation status exposes observation failure
+ok foundation malformed fleet blocks dispatch
+ok foundation incomplete live row cannot bypass project exclusion
+ok foundation bounded check terminates the whole process group
+ok foundation timed-out descendant cannot write after the operation
+ok foundation successful parent cannot leave unchecked background work
+ok foundation background check workers are terminated before verification
+ok foundation adoption rejects canonical subdirectories
+ok foundation live worktree identity is independent of its name
+ok foundation concurrent mutation refused
+ok foundation status remains available during mutation
+ok foundation dead lock owner does not strand the controller
+ok foundation journal refuses a caller without the mutation lock
+ok foundation event replay has one durable identity
+ok foundation conflicting event identity is rejected
+ok foundation dispatch has durable intent and acknowledgement
+ok foundation second project run refused
+ok foundation old ancestor cannot stand in for an integration receipt
+ok foundation handover cannot introduce eligible scheduling authority
+ok foundation handover cannot introduce wait_for scheduling authority
+ok foundation handover cannot introduce model scheduling authority
+ok foundation handover cannot introduce prompt scheduling authority
+ok foundation unrelated session rejected
+ok foundation repeat publication applies once
+ok foundation asking consumption never stops a session
+ok foundation consumed questions remain visible
+ok foundation printed fallback preserves consumed identity
+ok foundation conflicting message identity quarantined
+ok foundation fault boundary reached
+ok foundation failed event stops consumption
+ok foundation failed append leaves a claimed message
+ok foundation replay repairs interrupted consumption
+ok foundation archive boundary failed after durable acknowledgement
+ok foundation processing replay preserves the original payload
+ok foundation producer replacement cannot change claimed bytes
+ok foundation human ownership blocks integration
+ok foundation same text under a new UUID does not release ownership
+ok foundation ownership refusal identifies human intervention
+ok foundation failed standing check prevents main promotion
+ok foundation failed integration preserves main
+ok foundation promotion interruption reached an unacknowledged checked commit
+ok foundation promotion used the exact checked commit
+ok foundation lost acknowledgement recovers after main advances
+ok foundation reconciliation preserves subsequent human commits
+ok foundation integration preserves worker worktree
+ok foundation integration does not implicitly execute project hooks
+ok foundation integration replay writes one receipt
+ok foundation verified completion closes the run
+ok foundation launch interruption reserves a run
+ok foundation reconciliation does not repeat launch
+ok foundation reconciliation restores acknowledged run identity
+ok foundation redispatch does not reset recovery budget
+ok foundation repeat install selects the same immutable release
+ok foundation new installation does not assume trusted execution consent
+61 foundation checks passed

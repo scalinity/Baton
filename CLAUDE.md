@@ -1,120 +1,71 @@
 # Baton
 
-Baton carries a build from one Claude Code session to the next: a relay, shell only, run by launchd
-every sixty seconds on one Mac, that reads its inbox, its dispatch log, a target project's plan
-file and one git check, then dispatches, resumes, waits and escalates by fixed rules. It embeds no
-model call. It drives any project that implements `CONTRACT.md`; Baton implements it on itself,
-and this file is that implementation. Planning documents are the source of truth; code follows
-them. The vocabulary is `CONTEXT.md`.
+Baton is a local, deterministic foundation for coding-agent orchestration. It carries milestone
+work between Claude Code sessions and keeps durable evidence of what was requested, observed and
+verified. It embeds no model call in its controller. Version 1 remains a personal, single-Mac tool;
+future provider breadth and management features must preserve the principles in `docs/GOVERNANCE.md`.
 
-## Start every session here
+## Start here
 
-1. Read `CONTEXT.md`, then `CONTRACT.md`.
-2. Read the active milestone brief in `docs/milestones/` in full.
-3. Read the sections of `docs/SPEC.md` and `docs/ARCHITECTURE.md` the brief's §3 names, and the
-   decisions it lists.
-4. If the relay is installed, run `baton status`; read `docs/MILESTONES.md`'s table for what is
-   `done`. There is no `docs/STATUS.md` (D-023): the plan file's `Status` column, the briefs'
-   completion evidence and `baton status` are the state.
-5. Inspect the working tree and the existing scripts before writing anything.
-6. Implement only the active milestone. Do not start the next one.
-7. Close out per the brief's prompt and "Handing over" below.
+Read `docs/GOVERNANCE.md`, `CONTEXT.md`, `CONTRACT.md`, `docs/SPEC.md`, `docs/ARCHITECTURE.md`, and the active milestone
+brief. Inspect the working tree before changes. `docs/MILESTONES.md` records delivered scope.
+M01/M02 evidence is historical; contract 2 and the foundation supersede their old instructions.
+The 2026-09-12 foundation correction is explicitly authorized across milestone boundaries by the user.
 
-## Handing over at the end of a milestone
+M03 is already in progress in `/Users/danny/Documents/Apps/Baton-M03` on `m03`. Read
+`docs/M03-RECONCILIATION.md` before touching overlapping work or declaring combined completion.
+Preserve that worktree and its uncommitted changes. The new foundation dependency is a compatibility
+prerequisite for its acceptance, not an instruction to restart or dispatch another M03 session.
+Do not infer global implementation status from this checkout alone.
 
-The method is `CONTRACT.md` clause 3, applied to this repository.
+Implement the requested scope. Do not start subsequent milestones or dispatch real sessions as a
+side effect of development. Run `sh tests/run.sh`; every check is reported as passed, failed or
+unrun. Review substantial changes with two independent reviewers, then address the findings.
 
-1. After the milestone's own checks, `/review-2` and `/address`: completion evidence into the
-   brief under `## Completion evidence` using the `docs/MILESTONES.md` template, the
-   `docs/DECISIONS.md` entries, the `docs/ARCHITECTURE.md` §10 row; commit on the branch.
-2. Merge into `main`. If the merge fails, write a `stopped` artifact with reason `merge-failed`
-   and go no further. Then run the standing check, `sh tests/run.sh`, on `main`; fix `main` if it
-   fails, else write `stopped` with reason `main-broken`.
-3. On `main`: refresh the copy-ready prompt of every brief the handover will list (parts 1 and
-   3–7; part 4 additively; part 2 stays the slot line); write `done` in this milestone's `Status`
-   cell in `docs/MILESTONES.md`; correct the plan file if this session learned it is wrong, with a
-   decision entry; remove the session's worktree (`../Baton-M<nn>`); commit.
-4. Write `~/.baton/inbox/M<nn>-$CLAUDE_CODE_SESSION_ID.json` — `.tmp` first, then rename — per
-   `CONTRACT.md` clause 4: `baton: 1`, `project` `/Users/danny/Documents/Apps/Baton` (the canonical
-   checkout, never the worktree), `milestone`, `session`, `outcome`, `merged_as` (the merge commit
-   on `main`), `written_at`, and `eligible[]` with one entry per milestone the plan now makes
-   eligible, each with a disposition and its brief pointer. This plan has one lane, so that is one
-   entry, or none after M08. A session that cannot finish writes `asking` or `stopped` instead,
-   with the fields clause 5 names.
-5. Print the file verbatim, last, in a fenced block whose info-string is `baton`. If anything
-   lands after it, deal with that and print it again.
+The user's architectural-audit authorization applies repository-wide: implementation, protocol,
+specification, governance, plans, tests and operating documentation. A scheduled milestone's bounded
+assignment does not narrow a direct repo-wide maintenance request. M03 is concurrent work to
+preserve and reconcile, not the scope boundary of the audit. `docs/AUDIT-COVERAGE.md` maps every
+finding to its governing requirements, implementation evidence and remaining work.
 
-M01 is the one session started by hand, on `main`, with no worktree and no injected gate: the
-contract in this file alone makes it write the artifact. From M02 on, every session is dispatched
-by Baton into `../Baton-M<nn>` on branch `m<nn>`, with the Stop gate injected.
+## Close-out
 
-## What a kickoff prompt contains
+For a Baton-managed run, follow contract 2: prepare the candidate, its completion evidence and its
+own done cell in the linked worktree; commit; invoke `baton integrate <run>`; publish a contract-2
+artifact naming the exact receipt. Never merge or repair canonical main directly from a worker.
+Never automatically delete a worktree. Do not recursively refresh successor prompts.
 
-Seven parts, in this order, one code block, copy-ready, no commentary inside it. It is run by a
-session that remembers nothing of the one that wrote it.
-
-1. **Identity and scope.** The milestone, `/Users/danny/Documents/Apps/Baton`, and the one line
-   that never changes: Baton is a relay, a personal tool for one person on one Mac, on Claude Code
-   2.1.268, that carries a build from one Claude Code session to the next; a launchd-run tick
-   every sixty seconds; it embeds no model call.
-2. **What else is in flight.** Exactly one paragraph, verbatim: `WHAT ELSE IS IN FLIGHT. Runs
-   alone unless the dispatch says otherwise.` Baton replaces it whole at dispatch with the
-   worktree, the branch, the canonical checkout, the other milestones in flight, the attempt
-   sentence, the staging rule and the refusal. A person leaves it as written.
-3. **Startup order.** This file, `CONTEXT.md`, `CONTRACT.md`, the brief in full, the sections its
-   §3 names, the previous brief's completion evidence; then the working tree. The recovery clause:
-   if the brief's completion evidence is non-empty or the milestone's files exist, follow its
-   Recovery procedure and resume only the unfinished part.
-4. **What to settle rather than inherit.** The open questions the milestone owns, each carrying its
-   evidence — the prototype file, the observed string, the requirement id — and the facts the
-   session does not re-derive.
-5. **Constraints.** Never Python; shell only (`/bin/sh` with `set -eu`, `jq -e`, `awk`, git); no
-   packages; the standing check is `sh tests/run.sh`; never touch Reclaim; which sessions, if
-   any, the milestone may start; the log has one writer; every resume is flagless; stage by name,
-   never `git add -A`; commit locally, neutral voice, no trailers; the next free D-number at the
-   moment it is written.
-6. **Verification.** Point at the brief's §8; an unrun check is never reported as passed.
-7. **Close-out, numbered.** `/review-2` with a hand pass, `/address`, the handoff, the merge and
-   the standing check on `main`, the refresh and `done`, the refusal to start the next milestone,
-   the split rule, and last the handover artifact written and printed.
-
-Second person, imperative, no preamble. Every instruction that is not self-evident carries its
-reason.
+A direct maintenance session without a Baton run ID reports its changes and checks to the person;
+it must not invent a managed run, integration receipt, milestone completion or inbox artifact.
+Installation is a separate explicit action. Development never alters the installed relay or live
+sessions; use fixture homes and the provider shim.
 
 ## Hard rules
 
-- **Never use Python** for anything in this project.
-- **Shell only, no packages.** `/bin/sh` with `set -eu`, `jq`, `awk`, git and the claude binary at
-  `/Users/danny/.local/bin/claude`. No build step. A structure `jq` cannot express, or a file past
-  a few hundred lines, is the named moment for a Swift command-line tool (D-005), recorded as a
-  decision first.
-- **The tick embeds no model call** (ADR 0001, D-001). Judgement is dispatched as a session and
-  returns as an artifact.
-- **Never touch a target project's code.** Reclaim is read, never written; no session is dispatched
-  into it before M08, and no Baton session edits it ever. A plan that does not parse is reported.
-- **The deny list is the safety rail.** Dispatched sessions run under `bypassPermissions`; the two
-  deny classes in `docs/SPEC.md` REQ-PERM-04 are what stops a session escalating privileges or
-  rewriting Baton's own record. A session writes `~/.baton/inbox/` and nothing else under
-  `~/.baton/`.
-- **The log has one writer**, one function, under the lock. Hooks write per-session files.
-- **Every resume is flagless.** Any flag on `--bg --resume` forks a copy.
-- **Never start, stop, attach to, respawn or resume a session** except the fixture-project sessions
-  a brief names, and never one named `Baton · Reclaim · …`.
-- **Builds and tests are shell fixtures.** `sh tests/run.sh` is authorised for every session; every
-  check is reported as passed, failed or unrun with its output.
-- Commits use the existing git identity; no authorship trailers; neutral technical voice; never
-  address a person. Specs state the current design only; `docs/DECISIONS.md` holds the history.
+- Never use Python. No packages or build/compile commands without explicit user authorization.
+- The current runtime is `/bin/sh`, `jq`, `awk`, Git and native macOS `lockf`; no service or database
+  dependency. JSON has validated schemas at boundaries. A future Swift policy core is an explicit
+  migration, not a reason to scatter new language runtimes through this implementation.
+- Never touch Reclaim or any target project's actual code during Baton development.
+- A failed observation is unavailable, never empty. An ambiguous launch reserves its run.
+- Persist intent before effects and acknowledgement before message archival. Every external action
+  must be replay-safe or explicitly reconcile uncertainty before retrying.
+- Protect established human ownership before any automated action. Transcript hashes alone do not
+  establish authorship or release ownership.
+- The configured trusted local boundary is deliberate. Deny patterns are best-effort guidance,
+  not isolation. Do not describe the default allowlist as a security boundary.
+- Git identity comes from existing configuration; stage named files, no authorship trailers, no
+  forced resets or destructive cleanup of work. Branches normally use `codex/`.
+- Future tick policy never executes project scripts; explicit integration owns replay-safe checks.
+- Keep technical guarantees precise: atomic replacement covers process interruptions, not a
+  promise of power-loss durability without an fsync-capable store.
 
 ## Documents
 
-| File | Holds |
-|---|---|
-| `CONTRACT.md` | The six-clause project contract, once; the artifact by example |
-| `CONTEXT.md` | The glossary every document uses |
-| `docs/SPEC.md` | Requirements (REQ-*) by family, each citing its ticket; what Baton never does; invariants; verification; setup facts |
-| `docs/ARCHITECTURE.md` | The files under `~/.baton/`, the tick's eight steps, the hooks, the verbs, the states, the log's events and derivations, the seams, interfaces by milestone |
-| `docs/DECISIONS.md` | Dated decisions with rationale; the next free number |
-| `docs/MILESTONES.md` | **The plan file**: the milestone table and the gates table `baton plan Baton` parses; the rules for every session; traceability; the split rule; the handoff template |
-| `docs/milestones/M<nn>.md` | Per-milestone brief, `## Completion evidence`, `## Copy-ready session prompt` |
-| `docs/adr/` | ADR 0001 |
-| `.scratch/baton/` | The wayfinder map, its tickets, the research and the prototype's evidence — read-only history |
+`CONTRACT.md` is the integration protocol. `docs/SPEC.md` is the current requirements baseline.
+`docs/ARCHITECTURE.md` describes implemented mechanisms and extension boundaries.
+`docs/DECISIONS.md` preserves decision history; `docs/FOUNDATION.md` tracks audit remediation.
+`docs/GOVERNANCE.md` owns principles, authority and architectural change procedure;
+`docs/M03-RECONCILIATION.md` owns the current cross-worktree integration checklist.
+`docs/MIGRATION.md` explains version-1 adoption and release operation. Milestone briefs describe
+future work against this baseline, never superseded prototype assumptions as timeless facts.
