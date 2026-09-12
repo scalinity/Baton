@@ -1,0 +1,3 @@
+== the plan clears M07's gate over the handover's held, but every launch fails: no plan_override is recorded for a dispatch that did not happen ==
+dispatch  Fixture/M07 · 2 consecutive failures · the lane is parked
+dispatch  Fixture/M02 · 2 consecutive failures · the lane is parked

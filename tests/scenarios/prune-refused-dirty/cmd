@@ -1,0 +1,4 @@
+[ -f "$SHIM/worktree.made" ] || { git -C Fixture worktree add -q ../Fixture-M01 -b m01 main && echo "notes nobody committed" > Fixture-M01/notes.txt && : > "$SHIM/worktree.made"; }
+echo "== every guard holds, but Fixture-M01 has an untracked file: git refuses without --force, and the file stays =="
+"$BATON" tick
+if [ -f Fixture-M01/notes.txt ]; then echo "Fixture-M01/notes.txt is on disk"; else echo "Fixture-M01/notes.txt is gone"; fi

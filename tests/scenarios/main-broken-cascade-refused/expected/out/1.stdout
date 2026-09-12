@@ -1,0 +1,11 @@
+== M02 and M03 both merged onto a broken main: two project parks ==
+consumed  M02-b2.json → @TMP@/home/archive/M02-b2-2026-09-12T12:00:00+01:00.json (stopped, main-broken → park-project)
+consumed  M03-b3.json → @TMP@/home/archive/M03-b3-2026-09-12T12:00:00+01:00.json (stopped, main-broken → park-project)
+== the ruling reaches M02 and closes its park; the CLI refuses M03's resume, so M03's park stands and the verb says so ==
+ruling    Fixture/M02 · b2 · main-broken · delivered
+ruling    Fixture/M03 · b3 · main-broken · refused
+status 1
+== the project is still held by M03's park, so M04 is not dispatched ==
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+project park  Fixture · main-broken · the standing check failed on main after the merge: the standing check failed on main after merging onto a broken tree · fix main, then baton answer M03 "main fixed; finish the close-out from step (c)"
+in flight  Fixture/M02 · b2 · opus · attempt 1 · 0 s

@@ -1,0 +1,8 @@
+echo "== M02 writes main-broken and its session sits idle: the project parks and M03 is not dispatched =="
+"$BATON" tick
+echo "== an edit to M02's Model cell is not the close-out done by hand, so the park stands =="
+sed -i '' '/^| M02 /s/| opus |/| sonnet |/' Fixture/docs/MILESTONES.md
+"$BATON" tick
+echo "== a person fixes main, finishes the close-out by hand and writes done in M02's Status cell: the park ends and M03 dispatches =="
+sed -i '' '/^| M02 /s/|  |$/| done |/' Fixture/docs/MILESTONES.md
+"$BATON" tick

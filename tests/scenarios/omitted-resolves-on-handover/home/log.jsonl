@@ -1,0 +1,2 @@
+{"at":"2026-09-12T08:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M00","session":"z0","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M00-z0-a.json"}
+{"at":"2026-09-12T11:00:00+01:00","kind":"escalation","project":"Fixture","milestone":"M07","class":"omitted","scope":"lane","carries":{"detail":"no archived handover of Fixture lists M07, though the plan makes it eligible"},"channel":["notification"]}

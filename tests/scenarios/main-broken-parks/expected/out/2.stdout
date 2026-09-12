@@ -1,0 +1,6 @@
+== M02 writes main-broken: the project parks, M05 is not dispatched and M04's redispatch waits, while M03 runs on untouched ==
+held      Fixture/M04 · the project is parked (main-broken), so the redispatch waits for the park to be answered
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+project park  Fixture · main-broken · the standing check failed on main after the merge: 3 of 161 scenarios failed in sh tests/run.sh · fix main, then baton answer M02 "main fixed; finish the close-out from step (c)"
+in flight  Fixture/M02 · b2 · opus · attempt 1 · 2 h 0 m
+in flight  Fixture/M03 · b3 · opus · attempt 1 · 2 h 0 m

@@ -1,0 +1,3 @@
+== every guard holds, but Fixture-M01 has an untracked file: git refuses without --force, and the file stays ==
+prune     Fixture/M01 · git refused to remove @TMP@/Fixture-M01: fatal: '@TMP@/Fixture-M01' contains modified or untracked files, use --force to delete it · left in place
+Fixture-M01/notes.txt is on disk

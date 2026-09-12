@@ -5,17 +5,10 @@
 # inbox, the plan file and one git check — so a sleep, a restart or a killed process leaves the
 # same inputs for the next run and every tick is a recovery.
 #
-# Two steps are still holes named rather than filled, so that the milestone which fills each one
-# adds a body and does not rewrite the spine:
-#   step 6  a `run` disposition dispatches and nothing else. `wait`, `held` against a cleared gate,
-#           and the two things that escalate — a `run` the plan makes ineligible, and a
-#           plan-eligible milestone no handover lists — are M06's.
-#   step 7  the dispatch hold bites from M04 (REQ-STOP-13); `fableReserve` and the cap are M06's,
-#           which is safe only because the one plan Baton drives before M06 has a single lane.
-#
-# Step 4 was M03's third hole and is M04's body: `stops_run` in lib/stops.sh acts on every ending —
-# the wait and its retry, the ladder, the copy fork, the declared stops — beside the caffeinate
-# re-arm that was all the step held before.
+# Steps 3 and 4 run per project. Steps 5 and 6 run per project too, and collect candidates rather
+# than dispatching them, because step 7's order is a question across projects — the project with
+# fewer in flight goes first — and it can only be asked once every project has answered. Step 8 then
+# runs once, in that order, under the cap (`dispatch_run`).
 set -eu
 
 # lock_stale_report: one line when the lock exists and is older than the interval, printed before
@@ -185,59 +178,6 @@ caffeinate_rearm() {
   done
 }
 
-# tick_dispatchable <project> <plan json> <rows json>: steps 5, 6 and 7 for one project — the ids
-# this tick will dispatch, one per line, in plan row order.
-#
-# Step 5, eligibility, is the plan's alone: every id in `Depends on` reads done, `Status` is blank,
-# and no uncleared gate holds it. Step 6 intersects that with the disposition in force, which is
-# the one in the newest archived `complete` handover of the project that lists the milestone, and
-# only `run` dispatches. Step 7 applies the dispatch hold and not yet the reserve or the cap.
-#
-# One exclusion is not policy and belongs here rather than to M06: a milestone Baton already has an
-# open attempt at is not a candidate. The plan reads `Status` blank for a milestone in flight — in
-# flight is the log's knowledge, never the column's — so without it the tick would dispatch the
-# same milestone again every sixty seconds for as long as its session ran.
-tick_dispatchable() {
-  td_log=$(log_json) || { echo "$td_log" >&2; return 1; }
-  td_open=$(lanes_open "$1" "$td_log") || { echo "$td_open" >&2; return 1; }
-  td_open=$(printf '%s' "$td_open" | jq -c '[ .[] | .milestone ]')
-  td_parked=$(derive_parked "$1") || { echo "$td_parked" >&2; return 1; }
-  td_consumed=$(derive_consumed "$1") || { echo "$td_consumed" >&2; return 1; }
-  # The disposition in force is the one in the newest archived `complete` handover **that lists the
-  # milestone**, not the newest handover full stop: a milestone an older handover named and the
-  # newest does not mention is neither `run` nor `omitted`, and taking only the newest would drop it
-  # silently. Archives newest first; the first entry naming the id wins.
-  td_dispo=$(printf '%s' "$td_consumed" | jq -r \
-      '[ .consumed[] | select(.outcome == "complete" and .archive_present) | .archive ] | reverse | .[]' \
-    | while IFS= read -r td_a; do
-        [ -f "$td_a" ] || continue
-        jq -c '[ .eligible[]? | {milestone, disposition} ]' "$td_a" 2>/dev/null || true
-      done | jq -sc 'add // []')
-  printf '%s' "$2" | plan_eligible | while IFS= read -r td_id; do
-    [ -n "$td_id" ] || continue
-    printf '%s' "$td_open" | jq -e --arg m "$td_id" 'index($m) == null' > /dev/null || continue
-    # A lane a person has to answer is not a candidate. That covers a `dispatch-failed` park, which
-    # is what bounds the retry below, and an entry the consume dropped for a brief pointer that is
-    # not on `main` — the handover file keeps such an entry, so its `run` would otherwise dispatch a
-    # milestone the same tick had just parked.
-    printf '%s' "$td_parked" | jq -e --arg m "$td_id" \
-      'any(.parked[]; .milestone == $m and .scope == "lane") | not' > /dev/null || continue
-    printf '%s' "$td_dispo" | jq -e --arg m "$td_id" \
-      'first(.[] | select(.milestone == $m)) | .disposition == "run"' > /dev/null 2>&1 || continue
-    # A Remote: yes milestone is M07's two-step dispatch. Skipped here rather than refused inside
-    # dispatch_one, which would print to launchd.err every sixty seconds until M07 lands.
-    printf '%s' "$2" | plan_row "$td_id" | jq -e '.remote != true' > /dev/null || continue
-    # Step 7's dispatch hold (REQ-STOP-13): a model with an active rate_limit or billing_error wait
-    # takes no new session, and once a second model is limited the limit is shared and none does.
-    # Withheld silently and on purpose — the hold already wrote its own event and its own message,
-    # and a line per candidate per minute would bury it.
-    hold_bites "$(printf '%s' "$2" | plan_row "$td_id" | jq -r '.model // ""')" && continue
-    td_name=$(session_name "$1" "$td_id")
-    printf '%s' "$3" | jq -e --arg n "$td_name" 'any(.[]; .name == $n and .pid != null)' > /dev/null && continue
-    printf '%s\n' "$td_id"
-  done
-}
-
 # dispatch_failed_run <project> <milestone> <plan json> <rows json>: step 8 for one candidate, with
 # the bound the retry needs. A dispatch that failed wrote no `dispatch` event, so the lane does not
 # open and the milestone is a candidate again on the next tick — which is right for a transient
@@ -263,7 +203,7 @@ dispatch_try() {
   printf 'dispatch  %s/%s · %s consecutive failures · the lane is parked\n' "$dt_project" "$dt_id" "$dt_fails"
 }
 
-# tick_project <project> <plan json> <rows json> <this tick's clock>: steps 3 to 8 for one project.
+# tick_project <project> <plan json> <rows json> <this tick's clock>: steps 3 and 4 for one project.
 # The takeover runs first because its result is the stand-off list the other three checks honour:
 # Baton never acts on a lane a person is typing into (INV-04), and a lane whose transcript could not
 # be scanned is not evidence that nobody is.
@@ -272,7 +212,7 @@ tick_project() {
   # decision arriving, and a question answered in place is the row saying so; both are facts every
   # later check reads, and a lane freed here is one step 4 acts on in the same tick rather than a
   # minute later. A lane whose condition still stands is parked again by the rule that parked it.
-  edit_reread_check "$1" "$2" || return 1
+  edit_reread_check "$1" "$2" "$3" || return 1
   question_resolve_check "$1" "$3" || return 1
   tp_over=$(takeover_check "$1" "$3") || return 1
   printf '%s' "$tp_over" | jq -r '.lines[]'
@@ -286,10 +226,56 @@ tick_project() {
   # then holds the Mac awake for.
   stops_run "$1" "$2" "$3" "$tp_off" || return 1
   caffeinate_rearm "$1" "$3" || return 1
-  tp_ids=$(tick_dispatchable "$1" "$2" "$3") || return 1
-  printf '%s\n' "$tp_ids" | while IFS= read -r tp_id; do
-    [ -n "$tp_id" ] || continue
-    dispatch_try "$1" "$tp_id" "$2" "$3"
+  # After step 4, so that a lane the step has just resumed or redispatched is a live session the
+  # prune's second guard can see.
+  worktree_prune "$1" "$2" "$3" || return 1
+}
+
+# dispatch_run <candidates json> <plans json> <rows json>: steps 7 and 8, once, across every project.
+# The holds drop their candidates first — a model with a rate-limit or billing wait, and the Fable
+# family while the reserve bites — and are silent about it, because each hold already wrote its own
+# event and its own message and a line per candidate per minute would bury them. What is left is
+# ordered by `cap_order` and dispatched while the count is below the cap.
+#
+# The count is every lane in flight across every project — derivation 1, which resolves each lane
+# through its copy forks to the session currently carrying it and asks the rows for that session's
+# pid. A question park is in it, because its session is live and waiting; a stopped `asking` session
+# is not, because the consume stopped it. Counting rows by name would miss a copy fork, whose row the
+# CLI names for itself (M05's live proof). The cap is the Mac's, so no project has a share of it.
+#
+# A dispatch that produced no session takes no slot: the count moves only on a new `dispatch` event,
+# and the next candidate in order is tried in its place.
+dispatch_run() {
+  drn_cap=$(config_num cap 2)
+  drn_flight=$(derive_in_flight "" "$3") || { echo "$drn_flight" >&2; return 1; }
+  drn_counts=$(printf '%s' "$drn_flight" | jq -c \
+    '[ .in_flight[] | .project ] | group_by(.) | map({key: .[0], value: length}) | from_entries')
+  drn_total=$(printf '%s' "$drn_flight" | jq '.in_flight | length')
+  drn_kept='[]'
+  drn_n=$(printf '%s' "$1" | jq length); drn_i=0
+  while [ "$drn_i" -lt "$drn_n" ]; do
+    drn_c=$(printf '%s' "$1" | jq -c ".[$drn_i]"); drn_i=$((drn_i + 1))
+    hold_bites "$(printf '%s' "$drn_c" | jq -r '.model // ""')" && continue
+    drn_kept=$(printf '%s' "$drn_kept" | jq -c --argjson c "$drn_c" '. + [$c]')
+  done
+  drn_order=$(cap_order "$drn_kept" "$drn_counts") || { echo "the cap order could not be computed" >&2; return 1; }
+  drn_n=$(printf '%s' "$drn_order" | jq length); drn_i=0
+  while [ "$drn_i" -lt "$drn_n" ] && [ "$drn_total" -lt "$drn_cap" ]; do
+    drn_c=$(printf '%s' "$drn_order" | jq -c ".[$drn_i]"); drn_i=$((drn_i + 1))
+    drn_p=$(printf '%s' "$drn_c" | jq -r .project)
+    drn_m=$(printf '%s' "$drn_c" | jq -r .milestone)
+    drn_plan=$(printf '%s' "$2" | jq -c --arg k "$drn_p" '.[$k]')
+    drn_before=$(attempt_of "$drn_p" "$drn_m") || { echo "$drn_before" >&2; return 1; }
+    dispatch_try "$drn_p" "$drn_m" "$drn_plan" "$3"
+    drn_after=$(attempt_of "$drn_p" "$drn_m") || { echo "$drn_after" >&2; return 1; }
+    [ "$drn_after" -gt "$drn_before" ] || continue
+    drn_total=$((drn_total + 1))
+    # The override follows the dispatch it records, so a dispatch that failed leaves no record of the
+    # plan having overruled a `held` into a session that never started.
+    if printf '%s' "$drn_c" | jq -e 'has("override")' > /dev/null; then
+      plan_override_once "$drn_p" "$drn_m" "$(printf '%s' "$drn_c" | jq -c .override)" \
+        || echo "override  $drn_p/$drn_m · the plan_override for this dispatch could not be written" >&2
+    fi
   done
 }
 
@@ -318,14 +304,11 @@ tick_run() {
 
   # 1. Self-check, per registered project, in directory order. A project that fails is skipped for
   #    the rest of the tick; the others carry on.
-  tr_projects=''
   tr_plans='{}'
   for tr_pj in "$BATON_HOME"/projects/*/project.json; do
     [ -f "$tr_pj" ] || continue
     tr_key=$(basename "$(dirname "$tr_pj")")
     if tr_plan=$(self_check "$tr_key"); then
-      tr_projects="$tr_projects$tr_key
-"
       tr_plans=$(printf '%s' "$tr_plans" | jq -c --arg k "$tr_key" --argjson p "$tr_plan" '. + {($k): $p}')
       park_resolve "$tr_key" '^plan-(unreadable|unparseable)$' 'the plan file reads again'
     else
@@ -356,17 +339,37 @@ tick_run() {
   # `hold_bites` reads the log rather than this function, so the next dispatch would land on the
   # very model a limit had just refused.
   holds_apply || echo "holds       the hold pass failed; a dispatch may not be withheld this tick" >&2
+  # The reserve beside it, for the same reason: the seven-day window is the account's, so it is read
+  # once and holds Fable for every project alike.
+  reserve_check || echo "holds       the reserve pass failed; a Fable dispatch may not be withheld this tick" >&2
 
-  # 3 to 8, per project.
-
-  # A project whose reconciliation or dispatch fails is reported and the others carry on, which is
-  # what step 1 already does for a project whose plan will not read. One lane with an unparseable
-  # timestamp must not cost every other project its tick, every minute, until someone reads a log.
-  printf '%s' "$tr_projects" | while IFS= read -r tr_key; do
-    [ -n "$tr_key" ] || continue
-    tick_project "$tr_key" "$(printf '%s' "$tr_plans" | jq -c --arg k "$tr_key" '.[$k]')" \
-      "$tr_rows" "$tr_now" || echo "reconcile   $tr_key · the tick could not finish this project"
+  # 3 to 6, per project; then 7 and 8 once, across all of them.
+  #
+  # A project whose reconciliation fails is reported and the others carry on, which is what step 1
+  # already does for a project whose plan will not read. One lane with an unparseable timestamp must
+  # not cost every other project its tick, every minute, until someone reads a log. The loop reads the
+  # keys by index rather than through a pipe, so the candidates it collects outlive it.
+  tr_keys=$(printf '%s' "$tr_plans" | jq -c 'keys_unsorted')
+  tr_cands='[]'
+  tr_n=$(printf '%s' "$tr_keys" | jq length); tr_i=0
+  while [ "$tr_i" -lt "$tr_n" ]; do
+    tr_key=$(printf '%s' "$tr_keys" | jq -r ".[$tr_i]"); tr_i=$((tr_i + 1))
+    tr_plan=$(printf '%s' "$tr_plans" | jq -c --arg k "$tr_key" '.[$k]')
+    if ! tick_project "$tr_key" "$tr_plan" "$tr_rows" "$tr_now"; then
+      echo "reconcile   $tr_key · the tick could not finish this project"
+      continue
+    fi
+    # Step 5 skips a project a project-scope park holds: nothing new starts on ground a person has
+    # been asked to fix, while the lanes already running carried on through steps 3 and 4 above.
+    project_held "$tr_key" > /dev/null && continue
+    if tr_doc=$(dispositions_intersect "$tr_key" "$tr_plan" "$tr_rows"); then
+      printf '%s' "$tr_doc" | jq -r '.lines[]'
+      tr_cands=$(printf '%s' "$tr_doc" | jq -c --argjson a "$tr_cands" '$a + .candidates')
+    else
+      echo "reconcile   $tr_key · the dispositions could not be read: $tr_doc"
+    fi
   done
+  dispatch_run "$tr_cands" "$tr_plans" "$tr_rows" || echo "dispatch    the dispatch pass failed; nothing more is dispatched this tick"
 
   # The gap belongs to Baton and not to a project, so it is read once, after every lane.
   gap_check "$tr_rows"

@@ -1,0 +1,3 @@
+echo "== M02 writes main-broken: the project parks, M05 is not dispatched and M04's redispatch waits, while M03 runs on untouched =="
+"$BATON" tick
+"$BATON" status

@@ -1,0 +1,3 @@
+echo "== the seven-day window reads 85, at or above the reserve of 80: Other/M02 on fable is held and the two opus milestones dispatch =="
+"$BATON" tick
+"$BATON" status

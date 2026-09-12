@@ -1,0 +1,6 @@
+== M03 waits for M02 and the plan now reads M02 done: M03 is dispatched without a new handover ==
+backgrounded · 0badc0d1 · Baton · Fixture · M03
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/Fixture-M03 (branch m03)
+settings  @TMP@/home/settings/Fixture-M03.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

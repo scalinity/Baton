@@ -1,0 +1,3 @@
+echo "== M07 waits for M02, which is in flight: nothing is dispatched, nothing escalates and nothing notifies =="
+"$BATON" tick
+"$BATON" status

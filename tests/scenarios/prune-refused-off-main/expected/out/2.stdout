@@ -1,0 +1,3 @@
+== M01's archived handover names a real commit that is not on main: the third guard refuses, and the worktree is left ==
+prune     Fixture/M01 · @TMP@/Fixture-M01 is done but its merged_as does not verify: @OFFMAIN@ is not an ancestor of main in @TMP@/Fixture · left in place
+Fixture-M01 is on disk

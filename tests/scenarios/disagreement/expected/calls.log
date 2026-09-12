@@ -1,0 +1,5 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "the handover M01-f1-a.json says run M03, and the plan makes it ineligible: M02 is not done · edit the plan or the brief; the next tick re-reads it" with title "Baton · Fixture/M03 · disagreement"'
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json

@@ -1,0 +1,5 @@
+Baton resumed this session to deliver a ruling. M02, attempt 1, resume 1. You asked at 2026-09-12T12:00:00+01:00: the standing check failed on main after the merge: the standing check failed on main: the M02 and M03 merges do not build together. The ruling below is decided: do not re-open it, do not ask again, and do not weigh alternatives against it.
+
+main fixed; finish the close-out from step (c)
+
+Continue from where the last turn ended. The handover artifact is still owed.

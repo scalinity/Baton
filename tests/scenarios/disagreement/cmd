@@ -1,0 +1,3 @@
+echo "== the cap is 0, so nothing dispatches; the handover says run M03 and the plan makes it ineligible, M02 not being done: one lane escalation by name =="
+"$BATON" tick
+"$BATON" status

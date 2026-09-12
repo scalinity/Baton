@@ -13,12 +13,9 @@
 # the lane over and stops acting on it.
 #
 # The wait and the hold live beside this in `lib/waits.sh`, which reads the same table. They are the
-# half of step 4 that spends no attempt; `stops_run` at the foot of this file drives both.
-#
-# This file is still the largest in `lib/` and past D-005's reversal condition. The next seam is the
-# declared-stops cluster below — `declared_open` through `distant_wait_for_check` — which is the
-# split the brief's §7 already names, and taking it would bring both halves under the marker. It is
-# left for the milestone that next opens this file rather than taken after the merge, unreviewed.
+# half of step 4 that spends no attempt. The stops a session declared — `unfinished`, `blocked`,
+# `main-broken` and a distant `wait` — live in `lib/declared.sh` (D-070). `stops_run` at the foot of
+# this file drives all three.
 set -eu
 
 # route_ending <outcome> [<reason>] [<error>]: the stops taxonomy as one lookup. Prints
@@ -356,6 +353,13 @@ redispatch() {
     return 0
   fi
   rdp_model=$(printf '%s' "$rdp_row" | jq -r '.model // ""')
+  # A redispatch is a new session, and a project park holds every new session for the project: it
+  # would start from a `main` a person has been asked to fix. It waits as it waits for a hold, and the
+  # rule that asked for it asks again on the tick after the park is answered.
+  if rdp_park=$(project_held "$1"); then
+    printf 'held      %s/%s · the project is parked (%s), so the redispatch waits for the park to be answered\n' "$1" "$2" "$rdp_park"
+    return 0
+  fi
   if hold_bites "$rdp_model"; then
     printf 'held      %s/%s · %s is held, so the redispatch waits for the wait to clear\n' "$1" "$2" "$rdp_model"
     return 0
@@ -428,196 +432,20 @@ ladder_step() {
   esac
 }
 
-# declared_open <project>: every lane whose newest ending is a declared stop that has not been acted
-# on — an `unfinished` or a `blocked` with no later dispatch for the milestone. `merge-failed` and
-# `other` are not here because they are parked at the consume, where the artifact that says what
-# went wrong is in hand; `main-broken` parks the project, which is M06's.
-declared_open() {
-  dop_log=$(log_json) || { echo "$dop_log"; return 1; }
-  printf '%s' "$dop_log" | jq -c --arg p "$1" '
-    [ to_entries[] | {i: .key} + .value | select(.project == $p) ] as $ev
-    | [ $ev[] | select(.kind == "consumed") ] | group_by(.milestone) | map(last)
-    | map(select(.reason == "unfinished" or .reason == "blocked"))
-    | map(. as $c
-          | select(($ev | any(.kind == "dispatch" and .milestone == $c.milestone and .i > $c.i)) | not)
-          | {at, project, milestone, session, attempt, reason, blocked_by, archive}
-          | with_entries(select(.value != null)))'
-}
-
-# consecutive_run <project> <milestone> <kind>: how many of one declared ending the milestone has
-# produced in a row, newest first, with the archived files that carry what each said.
-#
-#   unfinished       consecutive session-written endings whose reason is `unfinished`
-#   invalid_request  api-error consumes with that error since the newest session-written ending
-#
-# Both bound a redispatch that would otherwise repeat nightly. A milestone that does not converge is
-# a plan edit and plan edits are a person's; a context that overflows twice will overflow again, and
-# the fresh context the redispatch bought is the evidence that it was not the problem.
-consecutive_run() {
-  crn_log=$(log_json) || { echo "$crn_log"; return 1; }
-  if [ "$3" = unfinished ]; then
-    printf '%s' "$crn_log" | jq -c --arg p "$1" --arg m "$2" '
-      [ .[] | select(.kind == "consumed" and .project == $p and .milestone == $m
-                     and .written_by == "session") ]
-      | reverse | . as $s
-      | ([ range(0; ($s | length)) | select($s[.].reason != "unfinished") ] | first) as $stop
-      | ($stop // ($s | length)) as $n
-      | {count: $n, archives: [ $s[0:$n][] | .archive // empty ]}'
-  else
-    printf '%s' "$crn_log" | jq -c --arg p "$1" --arg m "$2" '
-      [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
-      | ([ $ev[] | select(.kind == "consumed" and .written_by == "session") ] | last) as $reset
-      | [ $ev[] | select(.i > ($reset.i // -1))
-          | select(.kind == "consumed" and .reason == "api-error" and .error == "invalid_request") ]
-      # Newest first, as the unfinished branch returns them: splits_carries reads element 0 as the
-      # newest and says so to the person, so a branch returning log order would print each ending
-      # under the label belonging to the other.
-      | {count: length, archives: ([ .[] | .archive // empty ] | reverse)}'
-  fi
-}
-
-# splits_carries <run json> <milestone> <what>: the carries of an escalation that hands over two
-# endings at once, each with what its own artifact said. Both are quoted because the person is being
-# asked to choose between them — the split a session proposes is a plan edit, and a plan edit needs
-# to see what was proposed, not that something was.
-splits_carries() {
-  scr_one=$(artifact_detail "$(printf '%s' "$1" | jq -r '.archives[0] // ""')")
-  scr_two=$(artifact_detail "$(printf '%s' "$1" | jq -r '.archives[1] // ""')")
-  [ -n "$scr_one" ] || scr_one="the newest ending left no detail"
-  [ -n "$scr_two" ] || scr_two="the previous ending left no detail"
-  scr_detail="$2 ended $3 twice in a row; the newest says: $scr_one · the previous says: $scr_two"
-  jq -nc --arg a "$scr_one" --arg b "$scr_two" --arg d "$scr_detail" \
-    '{newest: $a, previous: $b, detail: $d}'
-}
-
-# blocker_state <plan json> <blocker> <in-flight milestones json>: what the plan says about the
-# milestone a blocked lane names. `done` releases it, `in flight` and `eligible` mean it releases
-# itself, and anything else means nothing is coming to unblock it.
-blocker_state() {
-  if ! bst_row=$(printf '%s' "$1" | plan_row "$2" 2>/dev/null); then echo absent; return 0; fi
-  if [ "$(printf '%s' "$bst_row" | jq -r '.status // ""')" = done ]; then echo done; return 0; fi
-  if printf '%s' "$3" | jq -e --arg m "$2" 'index($m) != null' > /dev/null; then echo "in flight"; return 0; fi
-  if printf '%s' "$1" | plan_eligible | grep -Fqx "$2"; then echo eligible; return 0; fi
-  echo waiting
-}
-
-# declared_step <project> <declared json> <plan json> <rows json> <in-flight milestones json>:
-# REQ-STOP-12 for the two reasons this milestone owns.
-declared_step() {
-  dst_m=$(printf '%s' "$2" | jq -r .milestone)
-  dst_s=$(printf '%s' "$2" | jq -r '.session // ""')
-  dst_a=$(printf '%s' "$2" | jq -r '.attempt // ""')
-  case "$(printf '%s' "$2" | jq -r .reason)" in
-    unfinished)
-      dst_run=$(consecutive_run "$1" "$dst_m" unfinished) || { echo "$dst_run" >&2; return 1; }
-      if [ "$(printf '%s' "$dst_run" | jq -r .count)" -ge 2 ]; then
-        # A split is a plan edit and the edit is the person's answer, so the next attempt starts
-        # from the plan as it now reads; a ruling was delivered to the session, which is working.
-        case "$(person_acted "$1" "$dst_m" unfinished-twice)" in
-          edit)
-            redispatch "$1" "$dst_m" "$3" "$4" "the plan was edited after two unfinished endings, so attempt $(( ${dst_a:-0} + 1 )) starts from it"
-            return 0 ;;
-          ruling) return 0 ;;
-        esac
-        escalate "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice lane \
-          "$(splits_carries "$dst_run" "$dst_m" unfinished)"
-        printf 'unfinished %s/%s · twice in a row · the lane is parked with both splits\n' "$1" "$dst_m"
-      else
-        # Not a failure ending: the session came back and said what it had done, which is the
-        # reset point the ladder reads. A redispatch here is the plan working, not a retry.
-        redispatch "$1" "$dst_m" "$3" "$4" "the session stopped unfinished, so attempt $(( ${dst_a:-0} + 1 )) resumes from the brief"
-      fi
-      ;;
-    blocked)
-      dst_by=$(printf '%s' "$2" | jq -r '.blocked_by // ""')
-      dst_state=$(blocker_state "$3" "$dst_by" "$5")
-      case "$dst_state" in
-        done)
-          redispatch "$1" "$dst_m" "$3" "$4" "$dst_by reads done, so the blocker is gone"
-          ;;
-        "in flight"|eligible)
-          # Silent, because the wait resolves itself: one message so that `status` and the person
-          # both know what the lane is waiting for, and nothing else until it moves.
-          # One value for the check and the write. The check needs a number and the event carries
-          # what it is given, so reading the attempt two ways would let a lane with no attempt on
-          # record spend a key the event never matches, and notify on every tick.
-          dst_key_a=${dst_a:-0}
-          dst_spent=$(derive_key_spent "$1" "$dst_m" "$dst_key_a" blocked_by "$dst_by") \
-            || { echo "$dst_spent" >&2; return 1; }
-          [ "$(printf '%s' "$dst_spent" | jq -r .spent)" = false ] || return 0
-          dst_detail="blocked by $dst_by, which is $dst_state; Baton redispatches this lane when the plan reads it done"
-          notification_write "$1" "$dst_m" "$dst_s" "$dst_key_a" blocked_by "$dst_by" \
-            "$(jq -nc --arg b "$dst_by" --arg s "$dst_state" --arg d "$dst_detail" \
-               '{blocked_by: $b, blocker_state: $s, detail: $d}')"
-          printf 'blocked   %s/%s · waiting on %s (%s)\n' "$1" "$dst_m" "$dst_by" "$dst_state"
-          ;;
-        *)
-          # Nothing is coming to unblock it, so the wait would never end. That is a person's to
-          # settle — the plan is theirs — and a lane parked on a named milestone is answerable. A
-          # ruling ("go on without it") is the person settling it, and the session is working on
-          # it; an edit is re-judged by the three branches above, which is why only the ruling
-          # stands this down.
-          [ "$(person_acted "$1" "$dst_m" blocked)" != ruling ] || return 0
-          dst_detail=$(artifact_detail "$(printf '%s' "$2" | jq -r '.archive // ""')")
-          dst_says="blocked by $dst_by, which the plan neither holds nor makes eligible nor shows in flight"
-          [ "$dst_state" != waiting ] || dst_says="blocked by $dst_by, which is in the plan but is neither done, eligible nor in flight, so nothing is coming to unblock it"
-          [ -z "$dst_detail" ] || dst_says="$dst_says · the session said: $dst_detail"
-          escalate "$1" "$dst_m" "$dst_s" "$dst_a" blocked lane \
-            "$(jq -nc --arg b "$dst_by" --arg s "$dst_state" --arg d "$dst_says" \
-               '{blocked_by: $b, blocker_state: $s, detail: $d}')"
-          printf 'blocked   %s/%s · nothing is coming to unblock %s · the lane is parked\n' "$1" "$dst_m" "$dst_by"
-          ;;
-      esac
-      ;;
-  esac
-}
-
-# distant_wait_for_check <project> <plan json> <in-flight milestones json>: a handover `wait` whose
-# target is neither done, eligible nor in flight notifies once, the same way a distant `blocked_by`
-# does, so that a lane is not left waiting for days on nobody's decision.
-#
-# The key is the handover file and the named milestone, not the attempt: the milestone that waits
-# has not been dispatched, so it has no attempt, and the next handover to name it is new
-# information whatever happened in between.
-distant_wait_for_check() {
-  dwf_doc=$(derive_consumed "$1") || { echo "$dwf_doc" >&2; return 1; }
-  dwf_file=$(printf '%s' "$dwf_doc" | jq -r \
-    '[ .consumed[] | select(.outcome == "complete" and .archive_present) ] | last | .archive // empty')
-  [ -n "$dwf_file" ] && [ -f "$dwf_file" ] || return 0
-  dwf_done=$(printf '%s' "$2" | jq -c '[ .milestones[] | select(.status == "done") | .id ]')
-  dwf_el=$(printf '%s' "$2" | plan_eligible | jq -Rsc 'split("\n") | map(select(length > 0))')
-  dwf_log=$(log_json) || { echo "$dwf_log" >&2; return 1; }
-  dwf_key=$(basename "$dwf_file")
-  jq -r --argjson done "$dwf_done" --argjson el "$dwf_el" --argjson fly "$3" '
-    .eligible[]? | select(.disposition == "wait") | . as $e
-    | .wait_for[]? as $w
-    | select(($done | index($w)) == null and ($el | index($w)) == null and ($fly | index($w)) == null)
-    | "\($e.milestone) \($w)"' "$dwf_file" \
-  | while read -r dwf_m dwf_w; do
-      [ -n "$dwf_m" ] || continue
-      # Scoped by project like every other key: two projects can each archive a handover with the
-      # same basename naming the same milestone, and the second must not be silenced by the first.
-      if printf '%s' "$dwf_log" | jq -e --arg k "$dwf_key|$dwf_w" --arg m "$dwf_m" --arg p "$1" \
-           'any(.[]; .kind == "notification" and .class == "distant_wait_for"
-                     and .project == $p and .milestone == $m and .key == $k)' > /dev/null; then
-        continue
-      fi
-      dwf_detail="waits for $dwf_w, which is neither done, eligible nor in flight, so this lane is not moving on its own"
-      notification_write "$1" "$dwf_m" "" "" distant_wait_for "$dwf_key|$dwf_w" \
-        "$(jq -nc --arg w "$dwf_w" --arg h "$dwf_key" --arg d "$dwf_detail" \
-           '{wait_for: $w, handover: $h, detail: $d}')"
-      printf 'waiting   %s/%s · waits for %s, which nothing is going to finish\n' "$1" "$dwf_m" "$dwf_w"
-    done
-}
-
 # stops_standing_by <session> <milestone> <stand-off list> <parked json>: whether Baton has stopped
 # acting on this lane. A taken-over lane is a person's (INV-04); a parked lane waits for a ruling or
 # an edit and nothing times out into a decision. Either way step 4 passes it by — and that is also
 # what stops an escalation this step writes from being written again on the next tick.
+#
+# Any park naming the milestone stands it by, whatever its scope. A `main-broken` park is project
+# scope because of what it holds — every new dispatch for the project — but it is still the park of
+# the session that wrote it, which waits for its ruling; the in-flight lanes that run on are the
+# others. Read as a lane with no park, the ladder would count that ruling's own refused resume as a
+# failure ending and resume the session with the continue template, which does not carry the ruling.
 stops_standing_by() {
   if stood_off "$1" "$3"; then return 0; fi
   if printf '%s' "$4" | jq -e --arg m "$2" \
-       'any(.parked[]; .milestone == $m and .scope == "lane")' > /dev/null; then return 0; fi
+       'any(.parked[]; .milestone == $m)' > /dev/null; then return 0; fi
   return 1
 }
 

@@ -1,0 +1,2 @@
+== M01 reads done and its session is waiting out a rate limit, not finished: the hook's api-error artifact is not the session's handover ==
+== so M02 does not escalate as omitted, and the omitted park already on M07 stays open rather than clearing itself ==

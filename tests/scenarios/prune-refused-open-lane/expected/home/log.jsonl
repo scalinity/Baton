@@ -1,0 +1,6 @@
+{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"f1","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M01-f1-a.json"}
+{"at":"2026-09-12T10:00:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M01","session":"m2","attempt":2,"name":"Baton · Fixture · M01","model":"opus","remote":false,"worktree":"@TMP@/Fixture-M01","branch":"m01","worktree_reused":true}
+{"at":"2026-09-12T10:10:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"m2","attempt":2,"outcome":"stopped","reason":"api-error","error":"rate_limit","written_by":"stop-failure"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"hold","project":"Fixture","session":"m2","model":"opus","cause":"rate_limit"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"resume","project":"Fixture","milestone":"M01","session":"m2","attempt":2,"resume_kind":"continue","resume":1,"class":"rate_limit","outcome":"delivered","prompt_path":"@TMP@/home/prompts/m2/1.txt","prompt_sha256":"sha256-matches-sidecar"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"wait_retry","project":"Fixture","milestone":"M01","session":"m2","attempt":2,"error":"rate_limit","since":"2026-09-12T10:10:00+01:00","retry":1}

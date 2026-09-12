@@ -1,0 +1,6 @@
+echo "== M02's close-out wrote done a step early and then its merge failed: the lane parks =="
+"$BATON" tick
+echo "== a later edit to M02's row leaves the cell reading done, but done was there before the park, so it is not the close-out done by hand: the park stands =="
+sed -i '' '/^| M02 /s/| opus |/| sonnet |/' Fixture/docs/MILESTONES.md
+"$BATON" tick
+"$BATON" status
