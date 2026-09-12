@@ -1,0 +1,4 @@
+echo "== M07 was parked as omitted; M01's session has since been resumed to finish its close-out, so the handover that may list M07 is coming =="
+echo "== the park stays open: a condition held back by a running dependency has not cleared, and no person has acted =="
+"$BATON" tick
+"$BATON" status

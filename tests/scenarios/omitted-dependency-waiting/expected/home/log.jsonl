@@ -1,0 +1,5 @@
+{"at":"2026-09-12T08:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M00","session":"z0","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M00-z0-a.json"}
+{"at":"2026-09-12T10:00:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M01","session":"m1","attempt":1,"name":"Baton · Fixture · M01","model":"opus","remote":false,"worktree":"@TMP@/Fixture-M01","branch":"m01","worktree_reused":false}
+{"at":"2026-09-12T11:55:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"m1","attempt":1,"outcome":"stopped","reason":"api-error","error":"rate_limit","written_by":"stop-failure","archive":"@TMP@/home/archive/M01-m1-w.json"}
+{"at":"2026-09-12T11:50:00+01:00","kind":"escalation","project":"Fixture","milestone":"M07","class":"omitted","scope":"lane","carries":{"detail":"no archived handover of Fixture lists M07, though the plan makes it eligible"},"channel":["notification"]}
+{"at":"2026-09-12T12:00:00+01:00","kind":"hold","project":"Fixture","session":"m1","model":"opus","cause":"rate_limit"}

@@ -213,8 +213,8 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    milestone's newest dispatch. Exactly two things escalate, lane scope, by milestone name: a `run`
    the plan otherwise makes ineligible (`disagreement`) and a plan-eligible milestone no archived
    handover lists (`omitted`) — the latter only in a project with at least one archived `complete`
-   handover, and not while a dependency's session is mid-run, because a close-out writes `done` at
-   step (c) before its artifact at (d). Either park ends with `how: edit` the tick its condition no
+   handover, and not while a dependency's session is mid-run (its newest ending not yet one it wrote itself), because a close-out writes `done` at
+   step (c) before its artifact at (d); an omission held back that way neither raises nor clears a park. Either park ends with `how: edit` the tick its condition no
    longer holds; after an edit resolution an omitted milestone still eligible is a candidate and a
    disagreement is withheld silently. A milestone with an open lane, an open lane park, a
    `Remote: yes` row, or a live row carrying its name is not a candidate.

@@ -69,14 +69,22 @@ dispositions_in_force() {
 # condition no longer holds. Prints {candidates, overrides, conditions, clears}.
 #
 # `omitted` waits while a dependency's session is still mid-run — its newest dispatch or delivered
-# resume is later than its newest consumed ending. A close-out writes `done` at step (c) and its
-# artifact at step (d), seconds or minutes apart, and a tick in between would otherwise read the
-# successor as eligible and unlisted every time a milestone finished.
+# resume is later than its newest ending the session wrote itself. A close-out writes `done` at step
+# (c) and its artifact at step (d), seconds or minutes apart, and a tick in between would otherwise
+# read the successor as eligible and unlisted every time a milestone finished. Only a
+# session-written ending ends the run: an `api-error` or `no-handover` artifact is a hook's, the wait
+# or the ladder resumes that session, and its handover is still to come.
+#
+# An omission held back that way is `suspended`: it raises nothing, and it does not clear a park
+# already standing either. Clearing it would write `how: edit` for a change nobody made, and
+# `person_acted` would then read that as a person's edit and dispatch the milestone unlisted the
+# next time the condition showed.
 intersect_verdicts() {
   jq -c --arg p "$1" --argjson plan "$2" --argjson force "$3" --argjson has "$4" \
     --argjson open "$5" --argjson parks "$6" '
     def midrun($ev; $m):
-      ([ $ev[] | select(.milestone == $m and (.kind == "dispatch" or .kind == "consumed"
+      ([ $ev[] | select(.milestone == $m and (.kind == "dispatch"
+                        or (.kind == "consumed" and .written_by == "session")
                         or (.kind == "resume" and (.outcome == "delivered" or .outcome == "forked")))) ]
        | last | .kind // "consumed") != "consumed";
     [ .[] | select(.project == $p) ] as $ev
@@ -97,8 +105,9 @@ intersect_verdicts() {
         | {milestone: $m, row: ($row.row // 0), model: ($row.model // ""), remote: ($row.remote // false)} as $base
         | if $row != null and $row.status == "done" then empty
           elif $d == null then
-            if $el and $has and all($row.depends[]; midrun($ev; .) | not)
+            if $el and $has
             then {kind: "condition", class: "omitted", milestone: $m,
+                  suspended: any($row.depends[]; midrun($ev; .)),
                   detail: "no archived handover of \($p) lists \($m), though the plan makes it eligible",
                   candidate: ($base + {rank: 1000000000, index: 0})}
             else empty end
@@ -128,7 +137,7 @@ intersect_verdicts() {
         | with_entries(select(.value != null)) ] as $v
     | { candidates: [ $v[] | select(.kind == "candidate") | del(.kind) | . + {project: $p} ],
         overrides: [ $v[] | select(.kind == "override") | del(.kind) ],
-        conditions: [ $v[] | select(.kind == "condition") | del(.kind) ],
+        conditions: [ $v[] | select(.kind == "condition" and (.suspended | not)) | del(.kind, .suspended) ],
         clears: [ $parks[] | . as $k
                   | select(any($v[]; .kind == "condition" and .milestone == $k.milestone
                                      and .class == $k.class) | not) ] }'
