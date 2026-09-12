@@ -15,6 +15,7 @@ stop-gate
 
 home2/bin/lib:
 answer.sh
+declared.sh
 derive.sh
 dispatch.sh
 escalate.sh

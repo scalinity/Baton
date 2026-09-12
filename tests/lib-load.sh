@@ -15,5 +15,6 @@
 . "$ROOT/lib/escalate.sh"
 . "$ROOT/lib/answer.sh"
 . "$ROOT/lib/stops.sh"
+. "$ROOT/lib/declared.sh"
 . "$ROOT/lib/waits.sh"
 . "$ROOT/lib/tick.sh"

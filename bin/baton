@@ -29,6 +29,7 @@ if [ -d "$here/lib" ]; then BATON_LIB=$here/lib; else BATON_LIB=$here/../lib; fi
 . "$BATON_LIB/escalate.sh"
 . "$BATON_LIB/answer.sh"
 . "$BATON_LIB/stops.sh"
+. "$BATON_LIB/declared.sh"
 . "$BATON_LIB/waits.sh"
 . "$BATON_LIB/tick.sh"
 
