@@ -105,9 +105,9 @@ which is the other reason the running copy lives under `~/.baton/`.
 **The composed settings file**, `~/.baton/settings/<project>-<milestone>.json`. The mode rides the
 flag (`--permission-mode bypassPermissions`); `defaultMode` is repeated as documentation. Allow and
 deny are copied from the project's `permissions.json`; no `ask` rules. `remoteControlAtStartup` is
-the plan's `Remote` cell, written `false` as well as `true`, because from Claude Code 2.1.270 a key
-no policy, `--settings` or user source sets falls back to an account-side default that connects the
-session to claude.ai (REQ-ESC-08, D-077). Three hooks, each carrying
+`true` for every dispatch: Remote Control is what lists a session in Claude.app and on the phone,
+and writing it keeps that from depending on the account's default (REQ-ESC-08, D-081). Three hooks,
+each carrying
 Baton's home, the project key and the milestone as environment on its command line, each pointing
 at the installed relay. The prototype's `settings-A.json` and `hooks/` under
 `.scratch/baton/prototype/` are the working example this is cut from; `settings_compose` in
@@ -138,7 +138,7 @@ at the installed relay. The prototype's `settings-A.json` and `hooks/` under
       "Bash(*.baton/lock*)", "Bash(*.baton/config.json*)", "Bash(*.baton/last-tick*)"
     ]
   },
-  "remoteControlAtStartup": false,
+  "remoteControlAtStartup": true,
   "statusLine": {
     "type": "command",
     "command": "BATON_HOME='/Users/danny/.baton' BATON_PROJECT='Baton' BATON_MILESTONE='M02' /Users/danny/.baton/bin/statusline"
@@ -242,9 +242,9 @@ plan file, one git check) and the status feed; nothing is remembered between tic
      `claude --bg -n "<session name>" --model <Model> [--effort <Effort>]
      --permission-mode bypassPermissions --settings <file> "<prompt>"`; parse `backgrounded · <id>`
      from stdout. No line → `dispatch_failed` (§6.2).
-   - `Remote: yes` is the same command: the settings file carries `remoteControlAtStartup: true`,
-     which connects the session and keeps its prompt, and a flagless resume restores it (D-080).
-     `--remote-control` is never passed.
+   - `Remote: yes` is the same command. Every settings file carries `remoteControlAtStartup: true`,
+     which connects the session and keeps its prompt, and a flagless resume restores it (D-080,
+     D-081). `--remote-control` is never passed.
    - Read the row's `pid` from `claude agents --json`; start `caffeinate -i -w <pid>` detached.
    - Log the `dispatch` event.
 
