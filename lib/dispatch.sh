@@ -59,31 +59,29 @@ worktree_ensure() {
     '{worktree: $w, branch: $b, reused: $r, commit: $c}'
 }
 
-# settings_compose <project> <milestone> <remote>: the dispatched settings file at
+# settings_compose <project> <milestone>: the dispatched settings file at
 # settings/<project>-<milestone>.json from the project's permissions.json: the mode as
-# documentation, allow and deny copied, no ask rules, `remoteControlAtStartup` as the plan's Remote
-# cell, the three hooks carrying Baton's home, the project key and the milestone on their command
-# lines and pointing at the installed relay. A permissions.json without deny rules fails the stage:
-# a bypassPermissions session without the rail is not dispatched. Prints the path.
+# documentation, allow and deny copied, no ask rules, `remoteControlAtStartup: true`, the three
+# hooks carrying Baton's home, the project key and the milestone on their command lines and
+# pointing at the installed relay. A permissions.json without deny rules fails the stage: a
+# bypassPermissions session without the rail is not dispatched. Prints the path.
 #
-# **Remote Control is written false as well as true** (REQ-ESC-08). From Claude Code 2.1.270, a
-# session that no policy, --settings or user source names `remoteControlAtStartup` for falls back
-# to an account-side default, and M07's own session — dispatched with Remote blank — was connected
-# to claude.ai within nine seconds of starting. A --settings file is one of the three sources that
-# default yields to, and a flagless resume restores its path, so the file is where "never
-# automatic" is kept.
+# **Remote Control is on for every session** (REQ-ESC-08, D-081). It is what lists a session in
+# Claude.app and on the phone and lets a person type into it there; a session started with the key
+# false was measured absent from Claude.app altogether. The key is written rather than left to the
+# account's default, which is what connected every dispatched session from M02 on, so that a change
+# to that default cannot take Baton's sessions out of reach; a flagless resume restores the path.
 settings_compose() {
   sc_perm=$BATON_HOME/projects/$1/permissions.json
   sc_out=$BATON_HOME/settings/$1-$2.json
   [ -f "$sc_perm" ] || { echo "$sc_perm is missing"; return 1; }
-  sc_json=$(jq -e --arg env "BATON_HOME='$BATON_HOME' BATON_PROJECT='$1' BATON_MILESTONE='$2'" --arg bin "$BATON_HOME/bin" \
-    --argjson remote "$3" '
+  sc_json=$(jq -e --arg env "BATON_HOME='$BATON_HOME' BATON_PROJECT='$1' BATON_MILESTONE='$2'" --arg bin "$BATON_HOME/bin" '
     if ((.permissions.deny // []) | length) == 0
       then error("permissions.deny is empty; a bypassPermissions session needs the two deny classes") else . end
     | { permissions: { defaultMode: "bypassPermissions",
                        allow: (.permissions.allow // []),
                        deny: .permissions.deny },
-        remoteControlAtStartup: $remote,
+        remoteControlAtStartup: true,
         statusLine: { type: "command", command: "\($env) \($bin)/statusline" },
         hooks: {
           Stop:        [{ hooks: [{ type: "command", command: "\($env) \($bin)/stop-gate" }] }],
@@ -203,7 +201,7 @@ dispatch_one() {
   do_reused=$(printf '%s' "$do_wt" | jq -r .reused)
   do_commit=$(printf '%s' "$do_wt" | jq -r .commit)
 
-  do_settings=$(settings_compose "$do_project" "$do_id" "$do_remote") || { dispatch_failed "$do_project" "$do_id" settings "$do_settings"; return 1; }
+  do_settings=$(settings_compose "$do_project" "$do_id") || { dispatch_failed "$do_project" "$do_id" settings "$do_settings"; return 1; }
 
   do_brief=docs/milestones/$do_id.md
   do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
