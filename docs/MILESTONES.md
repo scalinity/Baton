@@ -1,6 +1,6 @@
 # Milestones
 
-Ten milestones, one per fresh session, in one lane; M07-b was split from M07 (D-081) and M07-c added after it (D-082). This file is Baton's **plan file**: the
+Eleven milestones, one per fresh session, in one lane; M07-b was split from M07 (D-081), M07-c added after it (D-082), and M07-d after that with M08 behind it (D-083). This file is Baton's **plan file**: the
 table under "Order and dependencies" is what `baton plan Baton` parses and what the tick reads, so
 its `ID`, `Depends on`, `Model`, `Effort`, `Remote` and `Status` cells hold tokens only (see
 `CONTRACT.md` clause 2); the other columns are for people. The gates table follows it.
@@ -34,9 +34,10 @@ Rules for every session (also in `CLAUDE.md`):
 | M05 | Escalations, answer, allow, takeover | M04 | opus | | | done | Every escalation class parks and reaches the Mac as a three-part message; `baton answer` delivers a ruling; `baton allow` widens in place; a takeover stands Baton off and hands back | No |
 | M06 | The cap, the holds and the broken main | M05 | opus | | | done | Two lanes at once under the cap and the order; `fableReserve`; plan overrides; `main-broken` parks the project; leftover worktrees pruned on a verified merge; the first unattended night on Baton's own repo | Yes (prunes a worktree, guarded three ways) |
 | M07 | Remote dispatch and acceptance | M06 | opus | | | | `Remote: yes` dispatches as one command with Remote Control in its settings, and a question is answered from the phone; the acceptance evidence of Baton driving itself unattended | No |
-| M07-b | Session lifecycle and project grouping | M07 | opus | | | | A closed lane's idle session goes offline and `baton wake` brings it back with what was typed to it while away; Claude.app groups sessions by project if Claude Code offers a way | No (stops idle processes of closed lanes) |
+| M07-b | A finished session: offline when idle, awake when messaged | M07 | opus | | | | A finished session holds no process while idle and answers when the person messages it from Claude.app or the phone, with no command typed; sessions grouped by project if Claude Code offers a way; the takeover rule sees Remote Control messages | No (takes idle processes of closed lanes offline) |
 | M07-c | The Mac message: Claude's icon and a click that opens the session | M07-b | opus | | | | A park or notification appears under Baton with Claude's icon, and clicking it opens the session in Claude.app | No |
-| M08 | Reclaim onboarding | M07 | opus | | | | Reclaim is registered, its migrated plan parses, its starting artifact is in the inbox, and item 38 holds against its path | No |
+| M07-d | A handover is acted on once | M07-c | opus | | | | A handover delivered twice changes nothing: no older disposition back in force, no session a newer handover held back | No |
+| M08 | Reclaim onboarding | M07-d | opus | | | | Reclaim is registered, its migrated plan parses, its starting artifact is in the inbox, and item 38 holds against its path | No |
 
 ## Gates
 
@@ -76,7 +77,7 @@ except M07 and M08, which are acceptance and onboarding.
 | M04 | The tick dispatches it. The person watches: a stopped session is still theirs to notice from `baton status` and `Claude.app`, because the ladder does not exist yet. Installs after the merge. |
 | M05 | The tick dispatches it; the person watches for the same reason; installs after the merge. |
 | M06 | The tick dispatches it, unattended. The person reads `baton status` in the morning and installs. |
-| M07, M07-b, M07-c, M08 | Unattended; each close-out installs its own merge (D-079). M08 waits on the gate, which the person clears after the migration commit. |
+| M07, M07-b, M07-c, M07-d, M08 | Unattended; each close-out installs its own merge (D-079). M08 waits on the gate, which the person clears after the migration commit. |
 
 ## Split rule
 
