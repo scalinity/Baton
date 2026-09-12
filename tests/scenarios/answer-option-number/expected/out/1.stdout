@@ -1,0 +1,4 @@
+== a number that is not on offer is refused, with the options printed ==
+status 1
+== and 2 is expanded to that option's text from the archive, so the session receives a ruling ==
+ruling    Fixture/M02 · f2 · asking · delivered

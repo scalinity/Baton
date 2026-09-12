@@ -1,0 +1,8 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude stop 0badf3
+[cwd @TMP@] claude --bg --resume f3 <prompt>
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude stop 0badf3
+[cwd @TMP@] claude --bg --resume f3 <prompt>

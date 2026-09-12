@@ -1,0 +1,8 @@
+echo "== item 42 is unrun, so an ask rule is refused rather than written and found out about =="
+"$BATON" allow M02 'ask:Bash(rm:*)' || echo "status $?"
+"$BATON" allow M02 'ask Bash(rm:*)' || echo "status $?"
+echo "== and a rule is a string, one line, not empty and not a settings fragment =="
+"$BATON" allow M02 '' || echo "status $?"
+"$BATON" allow M02 '{"ask":["Bash(rm:*)"]}' || echo "status $?"
+echo "== a milestone Baton never dispatched has no allowlist it earned =="
+"$BATON" allow M04 'Bash(xcodebuild:*)' || echo "status $?"

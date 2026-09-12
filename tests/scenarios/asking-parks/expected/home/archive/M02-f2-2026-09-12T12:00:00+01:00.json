@@ -1,0 +1,6 @@
+{"baton":1,"project":"@TMP@/Fixture","milestone":"M02","session":"f2","outcome":"asking",
+ "written_at":"2026-09-12T11:58:00Z",
+ "question":"Should ReclaimCore expose FileSizeFormatter, or keep it internal and duplicate it in the app?",
+ "options":["expose it from ReclaimCore","keep it internal and duplicate it in the app"],
+ "recommendation":"expose it from ReclaimCore",
+ "context":{"path":"@TMP@/Fixture/docs/milestones/M02.md","heading":"Open questions"}}

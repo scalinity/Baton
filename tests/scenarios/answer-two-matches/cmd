@@ -1,0 +1,4 @@
+echo "== every project has an M01, so a bare name that matches two is refused, never guessed =="
+"$BATON" answer M01 "merge resolved; finish the close-out from step (c)" || echo "status $?"
+echo "== the long form names the lane, and it is a filter: a project with no park has nothing waiting =="
+"$BATON" answer Third/M01 "merge resolved" || echo "status $?"

@@ -1,0 +1,2 @@
+echo "== a ruling never lands in a working session: M02 is in flight and asking for nothing =="
+"$BATON" answer M02 "do it the other way" || echo "status $?"

@@ -1,0 +1,3 @@
+echo "== the session stopped while its question was open: the row can no longer unpark the lane =="
+"$BATON" tick
+echo "== once, and the park is what stops the ladder resuming a lane a person owes an answer to =="

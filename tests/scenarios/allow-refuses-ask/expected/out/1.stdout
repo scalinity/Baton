@@ -1,0 +1,8 @@
+== item 42 is unrun, so an ask rule is refused rather than written and found out about ==
+status 1
+status 1
+== and a rule is a string, one line, not empty and not a settings fragment ==
+status 1
+status 1
+== a milestone Baton never dispatched has no allowlist it earned ==
+status 1

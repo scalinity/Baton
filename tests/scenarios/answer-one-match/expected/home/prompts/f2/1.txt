@@ -1,0 +1,5 @@
+Baton resumed this session to deliver a ruling. M02, attempt 1, resume 1. You asked at 2026-09-12T11:00:01+01:00: Should ReclaimCore expose FileSizeFormatter, or keep it internal?. The ruling below is decided: do not re-open it, do not ask again, and do not weigh alternatives against it.
+
+expose it, and say why in the brief
+
+Continue from where the last turn ended. The handover artifact is still owed.

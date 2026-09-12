@@ -1,0 +1,2 @@
+echo "== --resume stops and flaglessly resumes, so the re-issued command reads the widened file =="
+"$BATON" allow M02 'Bash(xcodebuild:*)' --resume || echo "status $?"

@@ -1,0 +1,6 @@
+echo "== a taken-over lane is not parked, so it has no ruling to receive =="
+"$BATON" answer M03 "do it the other way" || echo "status $?"
+echo "== the hand-back is the word continue, and it writes a resume and no resolution =="
+"$BATON" answer M03 continue || echo "status $?"
+echo "== the shim's transcript does not grow, so the second run hands the same lane back again;"
+echo "   a real resume appends Baton's prompt and the next tick finds the lane clear."

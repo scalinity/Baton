@@ -341,11 +341,17 @@ question_check() {
     inbox_holds "$qc_session" && continue
     printf '%s' "$qc_l" | jq -e '(.remote // false) != true' > /dev/null || continue
     printf '%s' "$qc_l" | jq -e '(.row.waitingFor // "") == "input needed"' > /dev/null || continue
-    # Keyed on the session, not the milestone alone: an unresolved question park from an earlier
-    # attempt would otherwise silence the new attempt's question, and a lane waiting for input that
-    # nobody hears about is the one thing the class exists to prevent.
+    # Keyed on the session, not the milestone alone: an unresolved park from an earlier attempt
+    # would otherwise silence the new attempt's question, and a lane waiting for input that nobody
+    # hears about is the one thing the class exists to prevent.
+    #
+    # Any open lane park stops it, not a `question` one alone. A row keeps its last state for up to
+    # seventy seconds after the session is stopped, so a session that asked in place and then wrote
+    # an `asking` artifact is consumed, stopped and parked in step 2 while its row still reads
+    # `input needed` in step 3 — and a second park on one lane is what `baton answer` then refuses
+    # to act on, because two escalations carry the lane's name. One lane, one thing to answer.
     if printf '%s' "$qc_parked" | jq -e --arg m "$qc_milestone" --arg s "$qc_session" \
-         'any(.parked[]; .milestone == $m and .session == $s and .class == "question")' > /dev/null; then
+         'any(.parked[]; .milestone == $m and .session == $s and .scope == "lane")' > /dev/null; then
       continue
     fi
     qc_job=$(printf '%s' "$qc_l" | jq -r '.row.id // ""')

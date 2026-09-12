@@ -137,14 +137,17 @@ artifact_detail() {
   jq -r '(.detail // "") | if length > 500 then .[0:500] + "…" else . end' "$1" 2>/dev/null || true
 }
 
-# resume_count_next <project> <milestone> <attempt>: the number the next resume of this attempt
-# carries — derivation 10's count plus one. It is a function rather than three lines inside
-# `resume_session` because the ruling label names the resume number in its own text and the event
-# records it as a field: two readings of one count, which must be the same number or the log and
-# the prompt disagree about which resume a session is on.
+# resume_count_next <project> <milestone> <attempt>: "<attempt> <resume>" — derivation 10's attempt
+# count, and the number the next resume of that attempt carries.
+#
+# It is a function rather than three lines inside `resume_session` because the ruling label names
+# both numbers in its own text while the event records them as fields: two readings of one count,
+# which must agree or the log and the prompt disagree about which resume a session is on. An empty
+# attempt asks for the current one, which is the count, and the count is the authority (§6.1).
 resume_count_next() {
   rcn_a=$(derive_attempt "$1" "$2" "$3") || { echo "$rcn_a"; return 1; }
-  printf '%s\n' "$(( $(printf '%s' "$rcn_a" | jq -r .resumes) + 1 ))"
+  printf '%s %s\n' "$(printf '%s' "$rcn_a" | jq -r .resumes_for)" \
+    "$(( $(printf '%s' "$rcn_a" | jq -r .resumes) + 1 ))"
 }
 
 # resume_session <project> <milestone> <attempt> <session> <job> <kind> <class> [<text>]: the one
@@ -171,6 +174,7 @@ resume_session() {
   rs_p=$1; rs_m=$2; rs_a=$3; rs_s=$4; rs_job=$5; rs_kind=$6; rs_class=$7
 
   rs_r=$(resume_count_next "$rs_p" "$rs_m" "$rs_a") || { echo "$rs_r"; return 1; }
+  rs_r=${rs_r#* }
   # A ruling is the third kind, and the only one whose text Baton does not compose from the log: it
   # carries a person's words, so the caller passes the finished label rather than a template and a
   # slot. The kind stays on the event either way, because `continue`, `finish` and `ruling` are

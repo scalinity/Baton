@@ -375,7 +375,10 @@ question_resolve_check() {
     qrc_spent=$(derive_key_spent "$1" "$qrc_m" "${qrc_a:-0}" prompt-lost "$qrc_at") \
       || { echo "$qrc_spent" >&2; return 1; }
     [ "$(printf '%s' "$qrc_spent" | jq -r .spent)" = false ] || continue
-    qrc_detail="the session stopped while the question was open, so answering it in the session can no longer unpark the lane; the ruling is the way back and the call can still be answered on the resume"
+    # A notification's body is its detail alone — the three-part message with its verb last belongs
+    # to a park — so the command goes in the sentence. This one is worth the words: the person is
+    # being told that the way they would have answered is gone, and the way that is left is a verb.
+    qrc_detail="the session stopped while the question was open, so answering it in the session can no longer unpark the lane; the call can still be answered on the resume, with baton answer $qrc_m \"<ruling>\""
     notification_write "$1" "$qrc_m" "$qrc_s" "$qrc_a" prompt-lost "$qrc_at" \
       "$(jq -nc --arg a "$qrc_at" --arg d "$qrc_detail" '{asked_at: $a, detail: $d}')"
     printf 'prompt    %s/%s · %s · the question outlived its session; only a ruling reaches it now\n' \

@@ -1,0 +1,4 @@
+baton: M01 is parked in 2 projects; name one:
+  baton answer Fixture/M01 · merge-failed · the merge into main failed: CONFLICT in docs/MILESTONES.md
+  baton answer Other/M01 · merge-failed · the merge into main failed: CONFLICT in README.md
+baton: nothing is waiting on Third/M01

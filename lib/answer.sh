@@ -30,7 +30,8 @@ answer_resolve() {
 # parked in more than one project. The long form is printed as a command rather than as a list,
 # because the next thing that happens is one of these lines being run.
 answer_candidates_print() {
-  printf '%s' "$1" | jq -r '.[] | "  baton answer \(.project)/\(.milestone)   · \(.class // "?")"'
+  printf '%s' "$1" | jq -r '.[] | "  baton answer \(.project)/\(.milestone) · \(.class // "?") · "
+                                  + ((.carries.question // .carries.detail // "") | split("\n")[0])'
 }
 
 # answer_options <project> <milestone> <session> <carries json>: the options an `asking` artifact
@@ -99,8 +100,11 @@ answer_deliver() {
   # sentence the person read when they decided.
   and_q=$(printf '%s' "$and_carries" | jq -r '.question // .detail // "" | split("\n") | join(" ")')
   [ -n "$and_q" ] || and_q="(the park carried no words of its own)"
-  and_r=$(resume_count_next "$and_p" "$and_m" "$and_a") || { echo "$and_r" >&2; return 1; }
-  and_label=$(template_ruling "$and_m" "${and_a:-1}" "$and_r" "$and_at" "$and_q" "$and_text")
+  # Both numbers from one reading, so the label and the event it is logged beside cannot disagree.
+  # The attempt is the derived count and not the park's stamp: a park written for a session Baton
+  # never dispatched carries none, and the count is the authority in any case.
+  and_n=$(resume_count_next "$and_p" "$and_m" "$and_a") || { echo "$and_n" >&2; return 1; }
+  and_label=$(template_ruling "$and_m" "${and_n% *}" "${and_n#* }" "$and_at" "$and_q" "$and_text")
 
   resolve "$and_p" "$and_m" "$and_s" "$and_a" "$and_at" ruling || return 1
   and_out=$(resume_session "$and_p" "$and_m" "$and_a" "$and_s" \
@@ -173,7 +177,9 @@ verb_answer() {
     return 0
   fi
 
-  echo "baton: nothing is waiting on $vba_m" >&2
+  # The target as the person typed it, long form and all: they named a lane, and being told that
+  # nothing is waiting on the bare milestone would read as though the project half was ignored.
+  echo "baton: nothing is waiting on $1" >&2
   return 1
 }
 
@@ -218,8 +224,12 @@ allow_write() {
       echo "baton: refusing to write an ask rule. What a permissions.ask rule does under bypassPermissions is unknown (live item 42, unrun), and Baton does not write a rule whose effect it cannot state; the dispatched settings file carries no ask rules at all (INV-09)" >&2
       return 1 ;;
   esac
+  # The newline is a literal in the pattern and never `$(printf '\n')`: command substitution strips
+  # trailing newlines, so that form is the empty string and the pattern `**` matches every rule.
+  alw_nl='
+'
   case "$alw_rule" in
-    *"$(printf '\n')"*) echo "baton: a rule is one line; this one has more than one" >&2; return 1 ;;
+    *"$alw_nl"*) echo "baton: a rule is one line; this one has more than one" >&2; return 1 ;;
   esac
   if printf '%s' "$alw_rule" | jq -e 'type == "object"' > /dev/null 2>&1; then
     echo "baton: a rule is a string such as 'Bash(xcodebuild:*)', not a JSON object" >&2
@@ -233,18 +243,29 @@ allow_write() {
   fi
   alw_add='if ((.permissions.allow // []) | index($r)) == null
            then .permissions.allow = ((.permissions.allow // []) + [$r]) else . end'
+  alw_wrote=no
   alw_new=$(jq --arg r "$alw_rule" "$alw_add" "$alw_perm") || { echo "baton: $alw_perm does not parse" >&2; return 1; }
-  printf '%s\n' "$alw_new" > "$alw_perm.tmp"
-  mv "$alw_perm.tmp" "$alw_perm"
-  printf 'allowed   %s · %s · %s\n' "$1" "$alw_rule" "$alw_perm"
+  if [ "$alw_new" != "$(jq . "$alw_perm")" ]; then
+    printf '%s\n' "$alw_new" > "$alw_perm.tmp"
+    mv "$alw_perm.tmp" "$alw_perm"
+    alw_wrote=yes
+    printf 'allowed   %s · %s · %s\n' "$1" "$alw_rule" "$alw_perm"
+  else
+    printf 'already   %s · %s is in %s\n' "$1" "$alw_rule" "$alw_perm"
+  fi
 
   alw_set=$BATON_HOME/settings/$1-$2.json
   if [ -f "$alw_set" ]; then
     alw_new=$(jq --arg r "$alw_rule" "$alw_add" "$alw_set") \
       || { echo "baton: $alw_set does not parse" >&2; return 1; }
-    printf '%s\n' "$alw_new" > "$alw_set.tmp"
-    mv "$alw_set.tmp" "$alw_set"
-    printf 'allowed   %s · %s · %s\n' "$2" "$alw_rule" "$alw_set"
+    if [ "$alw_new" != "$(jq . "$alw_set")" ]; then
+      printf '%s\n' "$alw_new" > "$alw_set.tmp"
+      mv "$alw_set.tmp" "$alw_set"
+      alw_wrote=yes
+      printf 'allowed   %s · %s · %s\n' "$2" "$alw_rule" "$alw_set"
+    else
+      printf 'already   %s · %s is in %s\n' "$2" "$alw_rule" "$alw_set"
+    fi
   else
     # Said rather than swallowed: the rule is in the project's allowlist and will reach the next
     # dispatch, but the session running now is reading a file that no longer exists, so a resume
@@ -252,6 +273,10 @@ allow_write() {
     echo "baton: $alw_set does not exist, so only the project's allowlist was widened" >&2
   fi
 
+  # The event records a widening and not an attempt at one. A rule both files already carry widens
+  # nothing, and a second `widening` for it would put a line in `baton plan`'s provenance saying the
+  # allowlist grew on a day it did not.
+  [ "$alw_wrote" = yes ] || return 0
   log_event widening "$1" "$2" "" "" \
     "$(jq -nc --arg r "$alw_rule" --arg f "$alw_perm" '{rule: $r, permissions_file: $f}')"
 }

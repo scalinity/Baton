@@ -1,0 +1,4 @@
+echo "== the artifact stops the session, parks the lane and hands the question over =="
+"$BATON" tick
+echo "== and the view says the same thing, with the same verb =="
+"$BATON" status
