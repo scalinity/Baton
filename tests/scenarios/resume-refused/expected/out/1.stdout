@@ -1,0 +1,4 @@
+== the CLI refused the resume; that is a failure ending, and the wait still owns the cadence ==
+retry     Fixture/M02 · server_error · retry 1 · refused
+== the ladder sees one failure but leaves the lane to the wait ==
+{"failures":1,"next":"resume","ending":"resume","acted":false}

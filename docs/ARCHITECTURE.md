@@ -299,8 +299,21 @@ close-out from step (c)" or "main fixed; finish the close-out from step (c)".
 and a generic `note: started a copy of that conversation as <Y>.` **The parse rule that survives
 every variant**: the new id is the 8-hex token after `started a copy as `; the original is the token
 after `session ` or `background session `. Success prints
-`note: woke session <id> with its saved options (-n, --settings, --model, --permission-mode)`. Which
-stream the note goes to is live item 46; capture both.
+`note: woke session <id> with its saved options (-n, --effort, --permission-mode, --settings, --model).`
+
+**Both notes go to stderr, and stdout carries a `backgrounded · <id>` line either way** (live item 46,
+measured on 2.1.269). So stdout alone can tell neither a fork from a success nor either from a
+refusal, and the fork test must come before the success test. The id in the note is the **job** id
+and not the session id — a copy announced as `d2007634` has session id
+`d2007634-d17b-4b0d-9c67-a0cec9b98ff6`, whose first eight characters it is — so a `copy_fork` event
+resolves it through the row, or through the transcript tree when no row answers. A copy's transcript
+is filed under the slug of the *resuming* process's working directory, not the original session's,
+which is why §6.3 globs the tree and never derives a path from a project. The same capture settled
+item 43: `--effort` is among the options a flagless resume restores, and the CLI names it.
+
+A flagless resume forks whenever the original is still running, so `claude stop` preceding it is not
+enough on its own: the stop is not synchronous, and a resume issued in the same breath met a session
+the CLI still called "already running in the background".
 
 ### 4.4 The injected hooks
 
@@ -682,7 +695,7 @@ is the transcript record's own `timestamp`, carried exactly as it arrived.
 
 | Variable | Default | The shim's role |
 |---|---|---|
-| `BATON_CLAUDE` | `/Users/danny/.local/bin/claude` | `--bg` prints `backgrounded · <id>` (and `Starting background service…` on stderr when told to) and later writes an inbox artifact from the scenario; `agents --json` answers from `rows.json`; `stop` and `--bg --resume` append their argv to `calls.log`; a scenario can make `--bg --resume` print a `note:` copy-fork line |
+| `BATON_CLAUDE` | `/Users/danny/.local/bin/claude` | `--bg` prints `backgrounded · <id>` (and `Starting background service…` on stderr when told to) and later writes an inbox artifact from the scenario; `agents --json` answers from `rows.json`; `stop` and `--bg --resume` append their argv to `calls.log`; `--bg --resume` prints the success note by default and a scenario's own `note:` line otherwise, on either stream, with its own exit code; `bg.color` wraps every id in the colour escapes the real CLI prints whenever `FORCE_COLOR` is in the environment |
 | `BATON_DATE` | `date` | prints the scenario's `now`, one reading for both runs: the clock is frozen, so the second run's diff shows what the run itself changed and nothing the clock did |
 | `BATON_CAFFEINATE` | `/usr/bin/caffeinate` | appends its argv to `calls.log` and exits |
 | `BATON_HOME` | `~/.baton` | the scenario's own state directory |
@@ -700,7 +713,8 @@ home/             the BATON_HOME to start from: config.json, projects/, inbox/, 
                   project's one commit, which is what a handover's merged_as names
 rows.json         what claude agents --json answers first
 now               the clock's reading
-shim/             optional: the claude shim's knobs (bg.stderr, bg.fail, bg.norow, bg.settled)
+shim/             optional: the claude shim's knobs (bg.stderr, bg.fail, bg.norow, bg.settled,
+                  bg.color, resume.note, resume.stream, resume.status)
 project/          optional: a fixture project (CLAUDE.md, docs/MILESTONES.md, docs/milestones/M*.md);
                   tests/project/ otherwise
 transcripts/      optional: the tree BATON_TRANSCRIPTS points at, one folder per checkout holding

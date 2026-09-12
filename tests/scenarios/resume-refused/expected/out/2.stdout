@@ -1,0 +1,3 @@
+== the CLI refused the resume; that is a failure ending, and the wait still owns the cadence ==
+== the ladder sees one failure but leaves the lane to the wait ==
+{"failures":1,"next":"resume","ending":"resume","acted":false}
