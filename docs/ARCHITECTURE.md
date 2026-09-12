@@ -549,8 +549,8 @@ session and attempt — and a `merge-failed` or `main-broken` park also carry `r
 `plan_rows_sha256` over the parsed rows that answer it (its own, those whose `Depends on` names it, the
 `blocked_by` row; row numbers removed) and `brief_sha256` over the kickoff prompt on `main` (D-060).
 `edit_reread_check` compares the fields the park carried and writes `resolution` with `how: edit` on
-a difference — for `merge-failed` and `main-broken` only when `plan_rows_sha256` changed and the
-milestone now reads `done`, the close-out done by hand (D-074). An `omitted` or `disagreement` park
+a difference — for `merge-failed` and `main-broken`, which also carry `status_at_park`, only when `plan_rows_sha256` changed, the
+milestone now reads `done` and `status_at_park` was not `done` — the close-out done by hand (D-074). An `omitted` or `disagreement` park
 also ends with `how: edit` the tick its condition no longer holds (D-071).
 
 **Notification classes.** `rate_limit`, `billing_error`, `unrecoverable`, `transient`, `stall`,

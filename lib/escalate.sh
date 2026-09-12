@@ -168,7 +168,15 @@ escalate() {
   if { [ "$esc_scope" = lane ] && [ -n "$1" ] \
        && { class_unparks_by_edit "$esc_class" || [ -z "$(ruling_target "$1" "$3" "$4")" ]; }; } \
      || { [ -n "$1" ] && [ -n "$2" ] && class_ends_on_done "$esc_class"; }; then
-    esc_carries=$(printf '%s' "$esc_carries" | jq -c --argjson r "$(reread_hashes "$1" "$2" "$esc_carries")" \
+    esc_reread=$(reread_hashes "$1" "$2" "$esc_carries")
+    # For the two classes a `done` written by hand ends, the cell as it reads now is part of the
+    # record, because "written after the park" is the whole of that rule and a hash cannot say which
+    # cell changed. Absent when the plan cannot be read, and the resolution then refuses.
+    if class_ends_on_done "$esc_class" && esc_plan=$(plan_of_project "$1" 2>/dev/null) \
+       && esc_row=$(printf '%s' "$esc_plan" | plan_row "$2" 2>/dev/null); then
+      esc_reread=$(printf '%s' "$esc_reread" | jq -c --argjson row "$esc_row" '. + {status_at_park: $row.status}')
+    fi
+    esc_carries=$(printf '%s' "$esc_carries" | jq -c --argjson r "$esc_reread" \
       'if ($r | length) > 0 then . + {reread: $r} else . end')
   fi
   log_event escalation "$1" "$2" "$3" "$4" \
@@ -441,6 +449,10 @@ edit_reread_check() {
     # milestone reading `done`, and on nothing else (`class_ends_on_done`).
     if class_ends_on_done "$(printf '%s' "$err_e" | jq -r '.class // ""')"; then
       printf '%s' "$err_changed" | jq -e 'index("plan_rows_sha256") != null' > /dev/null || continue
+      # `done` already there at the park is a close-out that wrote it a step early, not one finished
+      # by hand; a park recorded without the cell cannot tell, so it waits for its ruling.
+      printf '%s' "$err_e" | jq -e '(.carries.reread | has("status_at_park")) and .carries.reread.status_at_park != "done"' \
+        > /dev/null 2>&1 || continue
       err_plan=${2:-}
       [ -n "$err_plan" ] || err_plan=$(plan_of_project "$1" 2>/dev/null) || continue
       [ "$(printf '%s' "$err_plan" | plan_row "$err_m" 2>/dev/null | jq -r '.status // ""')" = done ] || continue
