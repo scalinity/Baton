@@ -226,9 +226,6 @@ tick_project() {
   # then holds the Mac awake for.
   stops_run "$1" "$2" "$3" "$tp_off" || return 1
   caffeinate_rearm "$1" "$3" || return 1
-  # After step 4, so that a lane the step has just resumed or redispatched is a live session the
-  # prune's second guard can see.
-  worktree_prune "$1" "$2" "$3" || return 1
 }
 
 # dispatch_run <candidates json> <plans json> <rows json>: steps 7 and 8, once, across every project.

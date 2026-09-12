@@ -39,7 +39,12 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
 3. On `main`: refresh the copy-ready prompt of every brief the handover will list (parts 1 and
    3–7; part 4 additively; part 2 stays the slot line); write `done` in this milestone's `Status`
    cell in `docs/MILESTONES.md`; correct the plan file if this session learned it is wrong, with a
-   decision entry; remove the session's worktree (`../Baton-M<nn>`); commit.
+   decision entry; leave the session's worktree (`../Baton-M<nn>`) in place, so the session can be
+   resumed later; commit. Then run `sh install.sh` from the canonical checkout, so the tick that
+   consumes this handover and dispatches the next milestone runs the relay just merged (D-079). The
+   script never replaces an installed launchd agent that differs from `launchd/com.baton.tick.plist`
+   and never loads one: if it prints that the agent differs, quote the line in the completion
+   evidence and the final message, because copying the agent and reloading it is a person's act.
 4. Write `~/.baton/inbox/M<nn>-$CLAUDE_CODE_SESSION_ID.json` — `.tmp` first, then rename — per
    `CONTRACT.md` clause 4: `baton: 1`, `project` `/Users/danny/Documents/Apps/Baton` (the canonical
    checkout, never the worktree), `milestone`, `session`, `outcome`, `merged_as` (the merge commit
@@ -61,7 +66,7 @@ session that remembers nothing of the one that wrote it.
 
 1. **Identity and scope.** The milestone, `/Users/danny/Documents/Apps/Baton`, and the one line
    that never changes: Baton is a relay, a personal tool for one person on one Mac, on Claude Code
-   2.1.268, that carries a build from one Claude Code session to the next; a launchd-run tick
+   2.1.270, that carries a build from one Claude Code session to the next; a launchd-run tick
    every sixty seconds; it embeds no model call.
 2. **What else is in flight.** Exactly one paragraph, verbatim: `WHAT ELSE IS IN FLIGHT. Runs
    alone unless the dispatch says otherwise.` Baton replaces it whole at dispatch with the
@@ -101,13 +106,14 @@ reason.
 - **The deny list is the safety rail.** Dispatched sessions run under `bypassPermissions`; the two
   deny classes in `docs/SPEC.md` REQ-PERM-04 are what stops a session escalating privileges or
   rewriting Baton's own record. A session writes `~/.baton/inbox/` and nothing else under
-  `~/.baton/`.
+  `~/.baton/`, except through `sh install.sh` at close-out, which writes the installed relay.
 - **The log has one writer**, one function, under the lock. Hooks write per-session files.
 - **Every resume is flagless.** Any flag on `--bg --resume` forks a copy.
 - **Never start, stop, attach to, respawn or resume a session** except the fixture-project sessions
   a brief names, and never one named `Baton · Reclaim · …`.
 - **Builds and tests are shell fixtures.** `sh tests/run.sh` is authorised for every session; every
-  check is reported as passed, failed or unrun with its output.
+  check is reported as passed, failed or unrun with its output. `sh install.sh` is authorised at
+  close-out, on `main`, once the standing check has passed there.
 - Commits use the existing git identity; no authorship trailers; neutral technical voice; never
   address a person. Specs state the current design only; `docs/DECISIONS.md` holds the history.
 

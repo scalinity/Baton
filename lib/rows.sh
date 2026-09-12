@@ -251,6 +251,11 @@ crash_check() {
 # artifact whose transcripts — its own and its subagents' — have not moved for stallMinutes.
 # Notify once with the row's state and the verb; the session is untouched, and the notification is
 # resolved by the session's own artifact, which is what re-arms the key (derivation 11).
+#
+# A Remote: yes lane is judged waiting or not, because its row is not a park detector (REQ-ESC-08):
+# the prototype's remote session read `blocked/waiting` on one question and `working/idle` on the
+# next, and `question_check` parks neither. A prompt nobody answers from the phone is then this
+# check's to surface, whichever the row reads, or it would surface nowhere.
 stall_check() {
   sc_flight=$(derive_in_flight "$1" "$2") || { echo "$sc_flight" >&2; return 1; }
   sc_limit=$(( $(config_num stallMinutes 30) * 60 ))
@@ -269,12 +274,21 @@ stall_check() {
     # over one malformed line in the log. Baton's own dispatch always stamps an attempt, so this is
     # the guard against a hand-written event and not against anything Baton writes.
     [ -n "$sc_attempt" ] || continue
-    printf '%s' "$sc_l" | jq -e '(.row.status // "") != "waiting"' > /dev/null || continue
+    printf '%s' "$sc_l" | jq -e '(.remote // false) == true or (.row.status // "") != "waiting"' > /dev/null || continue
     sc_mtime=$(transcript_mtime "$sc_session") || continue
     sc_age=$((sc_now - sc_mtime))
     [ "$sc_age" -ge "$sc_limit" ] || continue
     sc_spent=$(derive_key_spent "$1" "$sc_milestone" "$sc_attempt" stall) || { echo "$sc_spent" >&2; return 1; }
-    [ "$(printf '%s' "$sc_spent" | jq -r .spent)" = false ] || continue
+    if [ "$(printf '%s' "$sc_spent" | jq -r .spent)" != false ]; then
+      # A remote lane's stall key is spent only while the transcript has not moved since the
+      # notification. For it the stall is the only way an unanswered phone prompt surfaces, and a
+      # prompt answered from the phone moves the transcript without an artifact — the one thing
+      # that re-arms the key otherwise — so the next unanswered prompt of the attempt would pass
+      # in silence. The second run of a tick sees its own notification at or after the mtime.
+      printf '%s' "$sc_l" | jq -e '(.remote // false) == true' > /dev/null || continue
+      sc_spent_at=$(iso_epoch "$(printf '%s' "$sc_spent" | jq -r .at)") || { echo "$sc_spent_at" >&2; return 1; }
+      [ "$sc_mtime" -gt "$sc_spent_at" ] || continue
+    fi
     sc_state=$(printf '%s' "$sc_l" | jq -r '.row.state // "unknown"')
     # Composed here and not inside the call: a message built inside a nested command substitution
     # is parsed by /bin/sh — bash 3.2 on this Mac — with the quoting state mistracked, so an

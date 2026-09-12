@@ -10,6 +10,7 @@
       "Write(//Users/danny/.baton/log.jsonl)"
     ]
   },
+  "remoteControlAtStartup": true,
   "statusLine": {
     "type": "command",
     "command": "BATON_HOME='@TMP@/home' BATON_PROJECT='Fixture' BATON_MILESTONE='M04' @TMP@/home/bin/statusline"

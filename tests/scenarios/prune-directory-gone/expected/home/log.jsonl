@@ -1,2 +1,0 @@
-{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"f1","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M01-f1-a.json"}
-{"at":"2026-09-12T12:00:00+01:00","kind":"worktree_pruned","project":"Fixture","milestone":"M01","worktree":"@TMP@/Fixture-M01","merged_as":"@COMMIT@"}

@@ -252,10 +252,11 @@ dispositions_intersect() {
 "
   done
 
-  # What survives is a candidate unless a person has to answer its lane first, it is Remote: yes
-  # (M07's two-step dispatch, skipped here rather than refused every minute inside dispatch_one), or a
-  # live row already carries its name. The last is what a hand-started session under Baton's own name
-  # looks like, and dispatching over it is the one mistake with no undo.
+  # What survives is a candidate unless a person has to answer its lane first, or a live row already
+  # carries its name. The last is what a hand-started session under Baton's own name looks like, and
+  # dispatching over it is the one mistake with no undo. A Remote: yes milestone is a candidate like
+  # any other: the dispatch command is the same for every row, and Remote Control rides in the
+  # settings file every dispatch composes (REQ-DISPATCH-07, D-080).
   dsi_out='[]'
   dsi_n=$(printf '%s' "$dsi_cands" | jq length); dsi_i=0
   while [ "$dsi_i" -lt "$dsi_n" ]; do
@@ -263,7 +264,6 @@ dispositions_intersect() {
     dsi_m=$(printf '%s' "$dsi_e" | jq -r .milestone)
     printf '%s' "$dsi_parked" | jq -e --arg m "$dsi_m" \
       'any(.parked[]; .milestone == $m and .scope == "lane") | not' > /dev/null || continue
-    printf '%s' "$dsi_e" | jq -e '.remote != true' > /dev/null || continue
     printf '%s' "$dsi_rows" | jq -e --arg n "$(session_name "$dsi_p" "$dsi_m")" \
       'any(.[]; .name == $n and .pid != null) | not' > /dev/null || continue
     dsi_out=$(printf '%s' "$dsi_out" | jq -c --argjson e "$dsi_e" '. + [$e]')

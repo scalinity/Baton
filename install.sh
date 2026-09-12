@@ -74,12 +74,21 @@ if [ ! -f "$BATON_HOME/projects/$project/permissions.json" ]; then
         ) } }' > "$BATON_HOME/projects/$project/permissions.json"
 fi
 
-# The launchd agent is copied, never loaded: loading is a person's act, after they have read the
-# merge and granted Full Disk Access to the shell the job runs (REQ-SETUP-01, REQ-SETUP-04).
+# The launchd agent is copied only when none is installed, and never loaded: loading is a person's
+# act, after they have read the merge and granted Full Disk Access to the shell the job runs
+# (REQ-SETUP-01, REQ-SETUP-04). An installed agent that differs is left in place, because a
+# milestone's close-out runs this script (D-079) and launchd reads the agent at every login, so a
+# replaced plist would change what the tick runs — and with which shell — without a person choosing
+# it (D-048).
 agents=$HOME/Library/LaunchAgents
 mkdir -p "$agents"
-cp "$here/launchd/com.baton.tick.plist" "$agents/com.baton.tick.plist"
-
 echo "installed the relay under $BATON_HOME/bin; project $project registered at $canonical"
-echo "copied the launchd agent to $agents/com.baton.tick.plist; load it with"
-echo "  launchctl bootstrap gui/\$(id -u) $agents/com.baton.tick.plist"
+if [ ! -f "$agents/com.baton.tick.plist" ]; then
+  cp "$here/launchd/com.baton.tick.plist" "$agents/com.baton.tick.plist"
+  echo "copied the launchd agent to $agents/com.baton.tick.plist; load it with"
+  echo "  launchctl bootstrap gui/\$(id -u) $agents/com.baton.tick.plist"
+elif cmp -s "$here/launchd/com.baton.tick.plist" "$agents/com.baton.tick.plist"; then
+  echo "the launchd agent at $agents/com.baton.tick.plist is current"
+else
+  echo "launchd/com.baton.tick.plist differs from the installed agent at $agents/com.baton.tick.plist, which is left in place; copy it by hand and reload the agent if the change is wanted"
+fi

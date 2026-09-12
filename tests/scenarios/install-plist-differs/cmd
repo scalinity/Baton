@@ -1,0 +1,10 @@
+# An installed launchd agent that differs from the repository's is left in place: launchd reads it
+# at every login, so replacing it is a change to what the tick runs that no person chose (D-079).
+# HOME is redirected, as in the install scenario, so nothing lands in the person's LaunchAgents.
+base=$(cd "$SHIM/.." && pwd)
+agents=$base/Library/LaunchAgents
+mkdir -p "$agents"
+[ -f "$agents/com.baton.tick.plist" ] || printf '<plist><!-- an agent a person edited --></plist>\n' > "$agents/com.baton.tick.plist"
+HOME=$base BATON_HOME="$base/home2" sh "$ROOT/install.sh" | grep -v '^copied /bin/sh'
+echo "--- the installed agent ---"
+cat "$agents/com.baton.tick.plist"

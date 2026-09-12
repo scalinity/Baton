@@ -1,4 +1,0 @@
-[ -f "$SHIM/worktree.made" ] || { git -C Fixture worktree add -q ../Fixture-M02 -b m02 main && : > "$SHIM/worktree.made"; }
-echo "== M02 has a handover whose merged_as is on main, but its Status reads held and not done: the worktree is left, silently =="
-"$BATON" tick
-if [ -d Fixture-M02 ]; then echo "Fixture-M02 is on disk"; else echo "Fixture-M02 is gone"; fi

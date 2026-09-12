@@ -1,1 +1,0 @@
-Baton resumed this session after a temporary stop (rate_limit), not a fault in the work. M01, attempt 2, resume 1. Continue exactly where the last turn ended. If a tool call was interrupted, its result was not received — check the state before repeating it. Do not switch model or work around a limit. The handover artifact is still owed.

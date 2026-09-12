@@ -1,6 +1,5 @@
 installed the relay under @TMP@/home2/bin; project Baton registered at /Users/danny/Documents/Apps/Baton
-copied the launchd agent to @TMP@/Library/LaunchAgents/com.baton.tick.plist; load it with
-  launchctl bootstrap gui/$(id -u) @TMP@/Library/LaunchAgents/com.baton.tick.plist
+the launchd agent at @TMP@/Library/LaunchAgents/com.baton.tick.plist is current
 home2/config.json
 home2/projects/Baton/permissions.json
 home2/projects/Baton/project.json

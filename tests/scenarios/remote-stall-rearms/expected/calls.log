@@ -1,0 +1,5 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "no transcript change for 40 m; the row reads blocked · read it in Claude.app before touching it" with title "Baton · Fixture/M02 · stall"'
+caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 502

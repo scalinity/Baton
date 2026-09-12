@@ -1,6 +1,6 @@
 # Milestones
 
-Eight milestones, one per fresh session, in one lane. This file is Baton's **plan file**: the
+Eleven milestones, one per fresh session, in one lane; M07-b was split from M07 (D-081), M07-c added after it (D-082), and M07-d after that with M08 behind it (D-083). This file is Baton's **plan file**: the
 table under "Order and dependencies" is what `baton plan Baton` parses and what the tick reads, so
 its `ID`, `Depends on`, `Model`, `Effort`, `Remote` and `Status` cells hold tokens only (see
 `CONTRACT.md` clause 2); the other columns are for people. The gates table follows it.
@@ -19,7 +19,7 @@ Rules for every session (also in `CLAUDE.md`):
 - The standing check is `sh tests/run.sh`; every check is reported as passed, failed or unrun with its output, and an unrun check is never reported as passed.
 - If the milestone will not fit the session, stop at a coherent point, write the completion evidence, write a `stopped` artifact with reason `unfinished` and the split; do not mark it complete.
 - If the spec must change, update `docs/SPEC.md` or `docs/ARCHITECTURE.md` and add a `docs/DECISIONS.md` entry before ending the session; take the next free D-number at the moment it is written.
-- Close-out sequence, in order (`CONTRACT.md` clause 3): `/review-2` on the session's changes, then `/address` (local commits, no remote); completion evidence into the brief and the decision entry, committed on the branch; merge into `main`, then `sh tests/run.sh` on `main`; on `main`, refresh the successor briefs' prompts, write `done` in this milestone's `Status` cell, remove the worktree, commit; write the handover artifact to `~/.baton/inbox/`; print it verbatim, last, in a `baton` fence. If anything lands after it, deal with that and print it again.
+- Close-out sequence, in order (`CONTRACT.md` clause 3): `/review-2` on the session's changes, then `/address` (local commits, no remote); completion evidence into the brief and the decision entry, committed on the branch; merge into `main`, then `sh tests/run.sh` on `main`; on `main`, refresh the successor briefs' prompts, write `done` in this milestone's `Status` cell, leave the worktree in place, commit; run `sh install.sh` from the canonical checkout; write the handover artifact to `~/.baton/inbox/`; print it verbatim, last, in a `baton` fence. If anything lands after it, deal with that and print it again.
 - Hand over every milestone the dependency column now makes eligible with a disposition each; in this plan that is one milestone at a time, and the artifact says so.
 - Never use Python. No third-party packages. Never touch a target project's code; Reclaim is read, never written, and never dispatched before M08.
 
@@ -32,9 +32,12 @@ Rules for every session (also in `CLAUDE.md`):
 | M03 | The tick under launchd | M02 | opus | | | done | `baton tick` runs the eight steps under the lock and writes the marker; rows are reconciled (crash, stall, question, takeover, gap); the plist runs it every minute through the granted shell; caffeinate is armed | No (loads a LaunchAgent) |
 | M04 | Waits, the ladder and continuations | M03 | opus | | | done | An API error is waited out and resumed flagless with the continue template; a `no-handover` climbs the ladder; a copy fork is recorded; the per-model hold bites | No |
 | M05 | Escalations, answer, allow, takeover | M04 | opus | | | done | Every escalation class parks and reaches the Mac as a three-part message; `baton answer` delivers a ruling; `baton allow` widens in place; a takeover stands Baton off and hands back | No |
-| M06 | The cap, the holds and the broken main | M05 | opus | | | done | Two lanes at once under the cap and the order; `fableReserve`; plan overrides; `main-broken` parks the project; leftover worktrees pruned on a verified merge; the first unattended night on Baton's own repo | Yes (prunes a worktree, guarded three ways) |
-| M07 | Remote dispatch and acceptance | M06 | opus | | | | `Remote: yes` dispatches in two steps and a question is answered from the phone; the acceptance evidence of Baton driving itself unattended | No |
-| M08 | Reclaim onboarding | M07 | opus | | | | Reclaim is registered, its migrated plan parses, its starting artifact is in the inbox, and item 38 holds against its path | No |
+| M06 | The cap, the holds and the broken main | M05 | opus | | | done | Two lanes at once under the cap and the order; `fableReserve`; plan overrides; `main-broken` parks the project; leftover worktrees pruned on a verified merge (the prune was removed by M07, D-078); the first unattended night on Baton's own repo | Yes at the time (prunes a worktree, guarded three ways); no longer, since D-078 |
+| M07 | Remote dispatch and acceptance | M06 | opus | | | | `Remote: yes` dispatches as one command with Remote Control in its settings, and a question is answered from the phone; the acceptance evidence of Baton driving itself unattended | No |
+| M07-b | A finished session: offline when idle, awake when messaged | M07 | opus | | | | A finished session holds no process while idle and answers when the person messages it from Claude.app or the phone, with no command typed; sessions grouped by project if Claude Code offers a way; the takeover rule sees Remote Control messages | No (takes idle processes of closed lanes offline) |
+| M07-c | The Mac message: Claude's icon and a click that opens the session | M07-b | opus | | | | A park or notification appears under Baton with Claude's icon, and clicking it opens the session in Claude.app | No |
+| M07-d | A handover is acted on once | M07-c | opus | | | | A handover delivered twice changes nothing: no older disposition back in force, no session a newer handover held back | No |
+| M08 | Reclaim onboarding | M07-d | opus | | | | Reclaim is registered, its migrated plan parses, its starting artifact is in the inbox, and item 38 holds against its path | No |
 
 ## Gates
 
@@ -55,7 +58,7 @@ The gate is cleared by the D-number of the entry that records the migration comm
 | REQ-STOP | 01–14 | M03 (08, 09, 10, 14), **M04** (01–07, 13), **M05** (11, 14 hand-back), M06 (12) |
 | REQ-ESC | 01–11 | M02 (11: `status`), M03 (02: the Mac message; 10: the gap), **M05** (01, 03–07, 09), M06 (04 project scope), M07 (08) |
 | REQ-PLAN | 01–08 | **M01** (01–05, 06 for Baton, 07, 08), M08 (06 for Reclaim) |
-| REQ-DISPATCH | 01–10 | **M01** (03–06, 08, 10), M03 (03 prune reserved), **M06** (01, 02, 03 prune, 09), **M07** (07) |
+| REQ-DISPATCH | 01–10 | **M01** (03–06, 08, 10), M03 (03 prune reserved), **M06** (01, 02, 09), **M07** (03 worktrees kept, 07) |
 | REQ-PERM | 01–05 | **M01** (01–04), M05 (02: `allow` as writer), M06 (05) |
 | REQ-LOG | 01–08 | **M01** (01–03, 05, 08), **M02** (04, 06, 07) |
 | REQ-VERB | 01–07 | **M01** (01, 05, 06), M02 (04), M03 (02), M05 (03, 07) |
@@ -74,7 +77,7 @@ except M07 and M08, which are acceptance and onboarding.
 | M04 | The tick dispatches it. The person watches: a stopped session is still theirs to notice from `baton status` and `Claude.app`, because the ladder does not exist yet. Installs after the merge. |
 | M05 | The tick dispatches it; the person watches for the same reason; installs after the merge. |
 | M06 | The tick dispatches it, unattended. The person reads `baton status` in the morning and installs. |
-| M07, M08 | Unattended. M08 waits on the gate, which the person clears after the migration commit. |
+| M07, M07-b, M07-c, M07-d, M08 | Unattended; each close-out installs its own merge (D-079). M08 waits on the gate, which the person clears after the migration commit. |
 
 ## Split rule
 

@@ -1,5 +1,0 @@
-[cwd @TMP@] claude agents --json
-[cwd @TMP@] claude --bg --resume m2 <prompt>
-caffeinate -i -t 120
-[cwd @TMP@] claude agents --json
-caffeinate -i -t 120
