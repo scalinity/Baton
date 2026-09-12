@@ -354,6 +354,19 @@ question_check() {
          'any(.parked[]; .milestone == $m and .session == $s and .scope == "lane")' > /dev/null; then
       continue
     fi
+    # Nor a row read within two intervals of a dispatch or resume. A ruling resumes the session and
+    # resolves its park, and the row can still read the `input needed` of the question the ruling
+    # answered; parking on that would send the person a message about a question already decided and
+    # have `baton answer` deliver the same ruling twice. Two intervals is the window the crash rule
+    # gives a row to settle after the same two events (D-054): a real question is still open after it.
+    if [ -n "$qc_attempt" ]; then
+      qc_last=$(newest_event_at "$1" "$qc_milestone" "$qc_attempt" '^(dispatch|resume)$') \
+        || { echo "$qc_last" >&2; return 1; }
+      if [ -n "$qc_last" ]; then
+        qc_last=$(iso_epoch "$qc_last") || { echo "$qc_last" >&2; return 1; }
+        [ $(( $(now_epoch) - qc_last )) -ge $(( 2 * BATON_TICK_SECONDS )) ] || continue
+      fi
+    fi
     qc_job=$(printf '%s' "$qc_l" | jq -r '.row.id // ""')
     qc_name=$(printf '%s' "$qc_l" | jq -r '.row.name // ""')
     # What is happening, and nothing about what to do: the message's verb carries the attach

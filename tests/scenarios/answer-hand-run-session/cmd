@@ -1,0 +1,4 @@
+echo "== a session a person started by hand asked through an artifact: no attempt names it, so Baton"
+echo "   did not dispatch it, and neither the view nor the verb offers to resume it =="
+"$BATON" status | grep '^parked'
+"$BATON" answer M01 1 || echo "status $?"

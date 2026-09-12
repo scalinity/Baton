@@ -1,0 +1,5 @@
+== the CLI refuses the resume: the ruling never reached the session, so the park must stand ==
+ruling    Fixture/M02 · f2 · asking · refused
+status 1
+== and the person can run the same ruling again once the service is back ==
+parked  Fixture/M02 · asking · Should ReclaimCore expose Fil

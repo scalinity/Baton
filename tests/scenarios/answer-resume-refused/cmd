@@ -1,0 +1,4 @@
+echo "== the CLI refuses the resume: the ruling never reached the session, so the park must stand =="
+"$BATON" answer M02 "expose it, and say why in the brief" || echo "status $?"
+echo "== and the person can run the same ruling again once the service is back =="
+"$BATON" status | grep '^parked' | cut -c1-60

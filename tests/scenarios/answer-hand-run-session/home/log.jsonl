@@ -1,0 +1,2 @@
+{"at":"2026-09-12T11:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"h1","outcome":"asking","written_by":"session","archive":"@TMP@/home/archive/M01-h1-a.json"}
+{"at":"2026-09-12T11:00:01+01:00","kind":"escalation","project":"Fixture","milestone":"M01","session":"h1","class":"asking","scope":"lane","carries":{"question":"Should the foundation keep its own copy of the formatter?","options":["keep it","share it"],"recommendation":"share it"},"channel":["notification"]}

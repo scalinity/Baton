@@ -5,9 +5,5 @@ caffeinate -i -w 502
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude --bg --resume f2 <prompt>
 [cwd @TMP@] claude agents --json
-osascript -e 'display notification "Baton · Fixture · M02 is waiting for input, and no payload carries the question, so it can only be read in the session · answer it in place (claude attach 0badf2), or baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · question"'
 caffeinate -i -w 502
 [cwd @TMP@] claude agents --json
-[cwd @TMP@] claude stop 0badf2
-[cwd @TMP@] claude agents --json
-[cwd @TMP@] claude --bg --resume f2 <prompt>

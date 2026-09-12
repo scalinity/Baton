@@ -90,13 +90,16 @@ reread_hashes() {
 # on it, so the rule stands down until the session's next ending.
 #
 # Everything is compared by position in the log, never by time: every event a tick writes carries
-# the same reading of the clock, so "after" is the only order that survives a second.
+# the same reading of the clock, so "after" is the only order that survives a second. A ruling's own
+# resume that the CLI refused is not an ending: the session did not end, Baton failed to reach it,
+# and the park stands until the person sends the ruling again — which must then still count.
 person_acted() {
   pac_log=$(log_json) || { echo "$pac_log" >&2; return 1; }
   printf '%s' "$pac_log" | jq -r --arg p "$1" --arg m "$2" --arg c "$3" '
     [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
     | ([ $ev[] | select(.kind == "consumed" or (.kind == "crash_sighting" and .sighting == 2)
-                        or (.kind == "resume" and .outcome == "refused")) ] | last | .i // -1) as $end
+                        or (.kind == "resume" and .outcome == "refused" and .resume_kind != "ruling"))
+       ] | last | .i // -1) as $end
     | ([ $ev[] | select(.kind == "escalation" and .class == $c and .i > $end) ] | last) as $park
     | if $park == null then empty
       else ([ $ev[] | select(.kind == "resolution" and .escalation_at == $park.at and .i > $park.i) ]

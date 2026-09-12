@@ -55,11 +55,13 @@ answer_options() {
 # a ruling and never a digit — it may have compacted since it asked, and a digit means nothing to a
 # context that no longer holds the list.
 #
-# The resolution is written before the resume, which is the order the log's own example carries and
-# the order a reader needs: the resolution names the escalation it closes, and the resume that
-# follows is what it caused. A resume the CLI refuses is a failure ending the ladder counts, so a
-# ruling that could not be delivered is not silently lost — it is loud on stderr and the lane
-# climbs on the next tick.
+# **The resolution follows a delivered resume and never precedes one.** A park is closed by a ruling
+# that reached the session, and only the resume's outcome can say it did. Closed first, a resume the
+# CLI refused would leave the lane unparked with the ruling undelivered: `baton answer` would then
+# say nothing is waiting, so the person could not send it again, and the next tick would resume the
+# session with the continue template, which does not carry the ruling — the session asks again and
+# the night is lost. So a refused resume leaves the park standing and says so, and the same command
+# works once the resume can go through. A fork closes it, because the copy received the ruling.
 answer_deliver() {
   and_p=$(printf '%s' "$1" | jq -r '.project // ""')
   and_m=$(printf '%s' "$1" | jq -r '.milestone // ""')
@@ -118,11 +120,17 @@ answer_deliver() {
   and_n=$(resume_count_next "$and_p" "$and_m" "$and_a") || { echo "$and_n" >&2; return 1; }
   and_label=$(template_ruling "$and_m" "${and_n% *}" "${and_n#* }" "$and_at" "$and_q" "$and_text")
 
-  resolve "$and_p" "$and_m" "$and_s" "$and_a" "$and_at" ruling || return 1
   and_out=$(resume_session "$and_p" "$and_m" "$and_a" "$and_s" \
     "$(job_of_session "$3" "$and_s")" ruling "$and_class" "$and_label") || { echo "$and_out" >&2; return 1; }
-  printf 'ruling    %s/%s · %s · %s · %s\n' "$and_p" "$and_m" "$and_s" "$and_class" \
-    "$(printf '%s' "$and_out" | jq -r .outcome)"
+  and_outcome=$(printf '%s' "$and_out" | jq -r .outcome)
+  printf 'ruling    %s/%s · %s · %s · %s\n' "$and_p" "$and_m" "$and_s" "$and_class" "$and_outcome"
+  case "$and_outcome" in
+    delivered|forked)
+      resolve "$and_p" "$and_m" "$and_s" "$and_a" "$and_at" ruling ;;
+    *)
+      echo "baton: the ruling did not reach $and_p/$and_m, so the park stands; run the same answer again once the resume can go through" >&2
+      return 1 ;;
+  esac
 }
 
 # answer_handback <milestone> [<project>] <rows json>: the way a taken-over lane comes back.
