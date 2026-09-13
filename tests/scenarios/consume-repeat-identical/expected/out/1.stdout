@@ -1,0 +1,2 @@
+== M02's complete handover, consumed at 00:00, is delivered again byte for byte: it is archived as a repeat and acted on not at all ==
+repeated  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:05:00+01:00.json (repeats M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json, acted on once)

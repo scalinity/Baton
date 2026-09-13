@@ -1,0 +1,2 @@
+== one session, two handovers: its merge-failed stop was consumed, and its complete handover after the fix is a new handover and is acted on ==
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:30:00+01:00.json (complete, merged_as @COMMIT@)

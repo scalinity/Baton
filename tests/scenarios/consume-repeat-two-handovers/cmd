@@ -1,0 +1,2 @@
+echo "== one session, two handovers: its merge-failed stop was consumed, and its complete handover after the fix is a new handover and is acted on =="
+sh "$ROOT/tests/consume-once.sh"

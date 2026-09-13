@@ -1,0 +1,3 @@
+echo "== M01 said run M07; M02, consumed after it, said M07 waits for M03, which is in flight; M01's handover is delivered again: M02's word stays in force and nothing is dispatched =="
+"$BATON" tick
+"$BATON" status

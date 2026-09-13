@@ -40,6 +40,11 @@ project_held() {
 # only the newest would drop it silently. An entry whose disposition is not `run`, `wait` or `held`
 # does not list the milestone, so a garbled one reaches the person as an omission rather than as a
 # guess.
+#
+# The order is the order the handovers were first acted on: derivation 4's `consumed`, which holds a
+# handover once. A file delivered again repeats a handover rather than being one, is recorded as
+# `repeated` and never as `consumed`, and so takes no place here — however late it arrives, it cannot
+# stand in front of a handover written after it (D-095). `cap_order` reads the rank this prints.
 dispositions_in_force() {
   dif_doc=$(derive_consumed "$1") || { echo "$dif_doc"; return 1; }
   dif_files=$(printf '%s' "$dif_doc" | jq -c \

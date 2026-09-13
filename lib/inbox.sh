@@ -3,8 +3,10 @@
 # artifact is parsed, checked for provenance and for the facts it claims, and then either archived
 # under its consumed-at name with a consumed event or moved to rejected/ with a rejected event and
 # a lane escalation. Consumption is the move (INV-06): a file in the inbox has not been acted on,
-# one in the archive has, so a second run over the same inbox does nothing. On failure every
-# function prints its detail on stdout and returns non-zero (D-030).
+# one in the archive has, so a second run over the same inbox does nothing; and a file that repeats a
+# handover already consumed is archived with a repeated event and acted on not at all, so a handover is
+# acted on once however often it is delivered. On failure every function prints its detail on stdout
+# and returns non-zero (D-030).
 set -eu
 
 # project_key_of <path>: the registered project whose canonical checkout is exactly <path>. The
@@ -259,13 +261,62 @@ reject() {
   printf 'rejected  %s → %s (%s: %s)\n' "$(basename "$1")" "$rj_dest" "$2" "$3"
 }
 
+# repeat_of <file>: the consumed event of the handover this file repeats, when it repeats one. A file
+# repeats a handover when it holds the same JSON value as the archived file of a `consumed` event for
+# the same milestone and session (D-095). The value and not the bytes, because the Stop gate's printed
+# fallback writes the fence's text rather than the session's file; `written_at` stays in the value,
+# because it is the one field that tells two of the gate's `no-handover` endings with the same words
+# apart, and each is a failure ending the ladder counts. Only a consumed handover whose archived file
+# is still there can be repeated: a file with nothing to compare against is acted on, never skipped
+# on a guess. Prints nothing and returns 1 when the file repeats nothing; prints the detail and
+# returns 1 when the log cannot be read, so the caller leaves the file for a tick that can read it.
+repeat_of() {
+  ro_one='if length == 1 and (.[0] | type) == "object" then .[0] else empty end'
+  ro_v=$(jq -cSs "$ro_one" "$1" 2>/dev/null) || return 1
+  [ -n "$ro_v" ] || return 1
+  ro_doc=$(derive_consumed "") || { echo "$ro_doc"; return 1; }
+  ro_firsts=$(printf '%s' "$ro_doc" | jq -c --argjson v "$ro_v" '
+    [ .consumed[] | select(.archive_present and .milestone == $v.milestone and .session == $v.session) ]')
+  ro_n=$(printf '%s' "$ro_firsts" | jq length); ro_i=0
+  while [ "$ro_i" -lt "$ro_n" ]; do
+    ro_c=$(printf '%s' "$ro_firsts" | jq -c ".[$ro_i]"); ro_i=$((ro_i + 1))
+    ro_a=$(printf '%s' "$ro_c" | jq -r .archive)
+    [ "$(jq -cSs "$ro_one" "$ro_a" 2>/dev/null || true)" = "$ro_v" ] || continue
+    printf '%s\n' "$ro_c"
+    return 0
+  done
+  return 1
+}
+
+# repeat_one <file> <consumed event>: what a repeat writes. The move, as for any handover — out of the
+# inbox, so the next tick cannot find it, and into the archive beside the first, because a repeat is
+# not a refusal and a rejection would park a lane over a file that asks nothing (INV-06). Then one
+# `repeated` event naming the archived file it repeats, under the first one's envelope. No stop, no
+# route, no park and no consumed event: every rule that acts on an ending reads `consumed`, and the
+# ranking of handovers in force reads only those, so a repeat has no place in either.
+repeat_one() {
+  rp_first=$(printf '%s' "$2" | jq -r .archive)
+  rp_archive=$(archive_move "$1" "$(baton_now)")
+  log_event repeated "$(printf '%s' "$2" | jq -r '.project // ""')" "$(printf '%s' "$2" | jq -r .milestone)" \
+    "$(printf '%s' "$2" | jq -r .session)" "$(printf '%s' "$2" | jq -r '.attempt // ""')" \
+    "$(printf '%s' "$2" | jq -c --arg a "$rp_archive" '{outcome, archive: $a, repeats: .archive}
+                                                      | with_entries(select(.value != null))')"
+  printf 'repeated  %s → %s (repeats %s, acted on once)\n' \
+    "$(basename "$1")" "$rp_archive" "$(basename "$rp_first")"
+}
+
 # inbox_consume <rows json> [<rows were read: yes|no>]: every *.json in the inbox, never a .tmp, in
 # name order; then the .tmp orphans, but only when the rows were actually read. Prints one line per
-# file saying what was decided.
+# file saying what was decided. The repeat test comes first, so a handover already acted on is not
+# checked again: a transcript since removed would otherwise reject it and park its lane.
 inbox_consume() {
   for ic_f in "$BATON_HOME"/inbox/*.json; do
     [ -f "$ic_f" ] || continue
-    if ic_ok=$(artifact_check "$ic_f"); then
+    if ic_first=$(repeat_of "$ic_f"); then
+      repeat_one "$ic_f" "$ic_first"
+    elif [ -n "$ic_first" ]; then
+      echo "baton: $ic_first" >&2
+    elif ic_ok=$(artifact_check "$ic_f"); then
       consume_one "$ic_f" "$ic_ok" "$1"
     else
       # jq answers an empty document with an empty string and a zero status, so a check that died

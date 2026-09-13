@@ -1,0 +1,2 @@
+echo "== M02's complete handover, consumed at 00:00, is delivered again byte for byte: it is archived as a repeat and acted on not at all =="
+sh "$ROOT/tests/consume-once.sh"

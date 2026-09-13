@@ -1,0 +1,4 @@
+{"baton":1,"project":"@TMP@/Fixture","milestone":"M02","session":"11111111-2222-4333-8444-555555555555","outcome":"complete",
+ "merged_as":"@COMMIT@","written_at":"2026-09-11T23:25:00Z",
+ "eligible":[{"milestone":"M03","brief":{"path":"docs/milestones/M03.md","heading":"Copy-ready session prompt"},"disposition":"run"},
+             {"milestone":"M07","brief":{"path":"docs/milestones/M07.md","heading":"Copy-ready session prompt"},"disposition":"wait","wait_for":["M03"]}]}
