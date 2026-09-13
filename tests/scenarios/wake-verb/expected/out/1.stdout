@@ -1,0 +1,9 @@
+== the list ==
+Fixture/M02 · offline · active 2 h 0 m ago
+Fixture/M03 · running · active 5 m ago
+== running: named, not resumed ==
+Fixture/M03 is running; message it in its own thread in Claude.app
+== an open lane is not finished ==
+status 2
+== offline: woken with the person's words ==
+woke Fixture/M02; its answer will be in its own thread in Claude.app

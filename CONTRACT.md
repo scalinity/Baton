@@ -43,7 +43,10 @@ requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `do
    `session` from `CLAUDE_CODE_SESSION_ID`; `project` is the canonical checkout, never a worktree;
    `baton: 1`. No prompt text, no model.
 
-5. **Outcomes.** A session that cannot finish still writes the artifact before ending its turn:
+5. **Outcomes.** A question for the person is asked in the session itself, with the session's own
+   question tool, so the session keeps running: Remote Control carries it to Claude.app and the phone,
+   the answer arrives in place, and Baton parks the lane as `question` meanwhile. A session that cannot
+   finish still writes the artifact before ending its turn:
    `asking` with the question, options, recommendation and an absolute context pointer inside its
    own checkout; `stopped` with a reason from the fixed set — `unfinished`, `blocked` (with
    `blocked_by`), `merge-failed`, `main-broken`, `other` — and a detail. `no-handover` and

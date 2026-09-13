@@ -1,0 +1,11 @@
+echo "== run from inside the wake session, which carries its own session's variables: the woken session"
+echo "   and a started wake session must not inherit them, or Remote Control fails to create their sessions =="
+# The host's own variables first, so the expectation is the same wherever the suite runs.
+for v in $(env | sed -n 's/^\(CLAUDE[A-Z0-9_]*\)=.*/\1/p'); do unset "$v"; done
+export CLAUDECODE=1 CLAUDE_CODE_SESSION_ID=a1a1a1a1-0000-4000-8000-000000000000 CLAUDE_CODE_BRIDGE_SESSION_ID=cse_0000 CLAUDE_CODE_ENTRYPOINT=cli CLAUDE_CONFIG_DIR="$HOME/.claude"
+"$BATON" wake Fixture/M02 "what did you decide about the cap?" || echo "status $?"
+. "$ROOT/tests/lib-load.sh"
+lock_take
+printf '%s\n' '{"at":"2026-09-12T11:00:00+01:00","kind":"offline","project":"Fixture","milestone":"M03","session":"f3","attempt":1,"job":"0badf3","idle_minutes":61,"rank":1,"kept":0}' >> "$BATON_HOME/log.jsonl"
+wake_session_ensure '[]' || echo "status $?"
+lock_release

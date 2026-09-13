@@ -1,0 +1,16 @@
+[cwd @TMP@] claude agents --json
+[env] CLAUDE_CONFIG_DIR 
+[cwd @TMP@] claude --bg --resume f2 'The person sent this from Claude.app through Baton's wake session:
+
+what did you decide about the cap?'
+[env] CLAUDE_CONFIG_DIR 
+[cwd @TMP@/home/wake] claude --bg -n 'Baton · wake' --model haiku --permission-mode bypassPermissions --settings @TMP@/home/settings/wake.json <prompt>
+[env] CLAUDE_CONFIG_DIR 
+[cwd @TMP@] claude agents --json
+[env] CLAUDE_CONFIG_DIR 
+[cwd @TMP@] claude agents --json
+[env] CLAUDE_CONFIG_DIR 
+[cwd @TMP@] claude --bg --resume f2 'The person sent this from Claude.app through Baton's wake session:
+
+what did you decide about the cap?'
+[env] CLAUDE_CONFIG_DIR 

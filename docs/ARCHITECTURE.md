@@ -44,7 +44,8 @@ hundred lines, means a Swift command-line tool for that piece.
 │   ├── escalate.sh           the one escalation writer, the resolutions, the message, the re-read
 │   ├── answer.sh             the verbs a person runs: answer and allow
 │   ├── status.sh             the one view
-│   └── templates.sh          the continue, finish and ruling texts; the slot line
+│   ├── templates.sh          the continue, finish and ruling texts; the slot line
+│   └── lifecycle.sh          a finished session: the offline rule, the wake verb, the wake session
 ├── launchd/
 │   └── com.baton.tick.plist  the one agent; install.sh copies it, a person loads it
 ├── hooks/
@@ -83,6 +84,8 @@ which is the other reason the running copy lives under `~/.baton/`.
 │   ├── project.json         {"path": "/Users/danny/Documents/Apps/Reclaim", "plan": "docs/MILESTONES.md"}
 │   └── permissions.json     {"permissions": {"allow": [...], "deny": [...]}}
 ├── settings/<project>-<milestone>.json   the composed --settings file (below)
+├── settings/wake.json                    the wake session's settings: Remote Control on, the deny list, no hooks
+├── wake/                                 the wake session's working directory
 ├── prompts/<session>/<n>.txt             prompt sidecars, n from 1 per session
 ├── inbox/<milestone>-<session>.json      handover artifacts, .tmp then rename
 ├── archive/<milestone>-<session>-<consumed-at>.json
@@ -101,6 +104,9 @@ which is the other reason the running copy lives under `~/.baton/`.
   "retryMinutes": 15, "caffeinateMaxHours": 6,
   "models": { "fable": "fable", "opus": "opus", "sonnet": "sonnet", "haiku": "haiku" } }
 ```
+
+Three more numbers default in code and are left out of the file an install writes: `keepFinished` 3,
+`idleStopMinutes` 60 and `wakeModel` `haiku` (REQ-LIFE-02, REQ-LIFE-04).
 
 **The composed settings file**, `~/.baton/settings/<project>-<milestone>.json`. The mode rides the
 flag (`--permission-mode bypassPermissions`); `defaultMode` is repeated as documentation. Allow and
@@ -254,6 +260,19 @@ the only ownership marker a row carries and is never dropped; the key is only no
 (D-036). `session_name` in `lib/templates.sh` composes it, and the refusal to dispatch over a live
 row of the same name reads the same function.
 
+**A finished session's process**, between steps 6 and 7, once across every project (REQ-LIFE, D-087).
+`offline_check` takes offline each finished session — its `complete` handover consumed and its milestone
+not dispatched since — whose row has a pid and reads `idle`, whose transcripts are at least
+`idleStopMinutes` old, and which ranks past `keepFinished` among the finished sessions with a live
+process, newest transcript first: `claude stop <job>` and one `offline` event. It runs across projects
+because what it bounds is memory, which is the Mac's, and before the dispatch so a process is gone
+before a new one starts. Then `wake_session_ensure` keeps the wake session, `Baton · wake`, once any
+`offline` event exists: nothing while its session has a live row, a flagless resume when its process is
+gone, a fresh `--bg` start in `~/.baton/wake/` with `settings/wake.json` when it never started or its
+last resume was refused, at most once per `retryMinutes`. Its session is read from the log's `wake`
+events, because a stopped session drops out of `claude agents --json` and a search by name would start
+a new one after every stop.
+
 Then the marker, after the lock is released.
 
 ### 4.2 The verbs
@@ -266,6 +285,8 @@ Then the marker, after the lock is released.
 | `baton plan <project>` | the graph as the tick sees it; validates every `Model` cell; lists widenings | none |
 | `baton dispatch <project> <milestone>` | step 8 alone, by hand, after checking eligibility and that no live row carries the milestone | worktree, settings, sidecar, session, `dispatch` event |
 | `baton allow <milestone \| project/milestone> '<rule>' [--resume]` | writes the rule as typed to `permissions.json` and the dispatched settings file in place, both parsed before either is written; refuses an `ask` form, JSON, a rule over 1 KB or with a newline, and `--resume` on a parked lane; reports a rule the deny list also names as `denied`; `--resume` stops and flaglessly resumes | `widening` event when a file changed; a `resume` event |
+
+| `baton wake [<milestone \| project/milestone> [<text>]]` | with no milestone, lists every finished session as running or offline with its last activity; with one, refuses a milestone that has not finished, names a running session's thread rather than resuming it, and otherwise resumes the session flaglessly with the text labelled as the person's — the command the wake session runs for each message it receives | a `wake` event with `how: verb` and the prompt sidecar |
 
 Every verb enters through the lock. `status` and `plan` write nothing.
 
@@ -404,7 +425,7 @@ Derived every tick from the log and the rows; nothing stores them.
 | **parked** | derivation 2: an `escalation` with no later `resolution` | nothing acted on; unparks by ruling, answer in place, or edit |
 | **taken over** | derivation 3: the newest typed record is not Baton's | nothing acted on; artifacts still consumed; counts against the cap |
 | **blocked, silent** | a `blocked` consume whose `blocked_by` is in flight or eligible | redispatched when the blocker reads `done` |
-| **done** | `Status: done` | nothing; the worktree is kept and the session's hooks stand down, so the session can be resumed by a person |
+| **done** | `Status: done` | nothing on the lane; the worktree is kept and the session's hooks stand down, so the session can be resumed by a person. Its process is kept while the session is among the `keepFinished` most recently active finished sessions, and taken offline once idle past that; `baton wake`, run by the wake session, brings it back (REQ-LIFE) |
 
 ### 5.2 The stops taxonomy
 
@@ -451,7 +472,7 @@ file still in the inbox is a handover Baton has not read, and nothing else in th
 
 ## 6. The dispatch log
 
-One append-only JSONL at `~/.baton/log.jsonl`, seventeen event kinds over a five-field envelope,
+One append-only JSONL at `~/.baton/log.jsonl`, nineteen event kinds over a five-field envelope,
 prompt bodies in per-session sidecars the events point at and hash, every count derived over
 `(project, milestone, attempt)`. Sections 6.1, 6.2, 6.4 and 6.5 are "The dispatch log" §1, §2, §5
 and §8, copied.
@@ -463,17 +484,18 @@ Every event is one JSON object on one line, with `at` and `kind` always present.
 | Field | Always? | Value |
 |---|---|---|
 | `at` | yes | ISO 8601 **with offset** (`2026-09-11T23:14:02+01:00`) |
-| `kind` | yes | one of the seventeen in §6.2 |
+| `kind` | yes | one of the nineteen in §6.2 |
 | `project` | when the event has one | the project key: the basename of the canonical checkout |
 | `milestone` | when the event has one | the plan file's `ID` cell |
 | `session` | when the event has one | the `sessionId` — `CLAUDE_CODE_SESSION_ID`, the row's `sessionId`, the transcript's filename |
 | `attempt` | when the event belongs to one | the integer the rule below derives |
 
 **A field the event does not have is absent, never null.** A rule keying on a null fails silently;
-one keying on an absent field fails at `has()`, in the test. Four kinds carry no `session` at all
-(`dispatch_failed`, `self_check_failed`, `plan_override`, and a `hold` whose cause
-is `fableReserve`, which carries no `project` either), and two carry no `milestone`
-(`self_check_failed`, `hold`).
+one keying on an absent field fails at `has()`, in the test. Five kinds can carry no `session`
+(`dispatch_failed`, `self_check_failed`, `plan_override`, a `hold` whose cause
+is `fableReserve`, which carries no `project` either, and a `wake` that could not start the wake
+session), and three carry no `milestone` (`self_check_failed`, `hold`, and a `wake` about the wake
+session, which carries no `project` either).
 
 **`at` is Baton's own clock and nothing else.** Every timestamp Baton copies out of Claude Code —
 an artifact's `written_at`, `rate_limits.*.resets_at` in epoch seconds, a transcript record's
@@ -512,7 +534,7 @@ named. And **the session currently carrying an attempt** is the newest of that a
 
 ### 6.2 The event table
 
-Seventeen kinds. Fields listed are those beyond the envelope.
+Nineteen kinds. Fields listed are those beyond the envelope.
 
 | Kind | Fields | Which rule reads it | Once-only key |
 |---|---|---|---|
@@ -533,6 +555,8 @@ Seventeen kinds. Fields listed are those beyond the envelope.
 | `widening` | `rule`, `permissions_file` | `baton plan`'s provenance of allow rules | — |
 | `plan_override` | `direction` (`dispatched_over_held`\|`withheld_over_run`), `gate`, `cleared_by` | `status` showing the plan doing its job; never an escalation | — |
 | `self_check_failed` | `stage` (`read`\|`parse`\|`git`), `path`, and for `parse` also `table`, `row`, `cell`; `detail` | the stage and cell beside the project-scope escalation the failure raises (`plan-unreadable` or `plan-unparseable`), written once while that park stands (D-041) | — |
+| `offline` | `job`, `idle_minutes`, `rank` (the session's place among the finished sessions with a live process, newest transcript first), `kept` (`keepFinished` as read) | the offline rule's once-only test: no second stop while an `offline` event for the session is no older than its transcript (REQ-LIFE-01) | per session and transcript |
+| `wake` | `how` (`verb`\|`started`\|`resumed`), `outcome` (`delivered`\|`forked`\|`refused`), `note`, `prompt_path`, `prompt_sha256`; for the wake session also `name` and, on a start, `job`; a milestone's wake carries its project, milestone, session and attempt, the wake session's carries a session only, and a start that produced none carries neither | which session is the wake session (the newest without a milestone that was `delivered` or `forked`); its retry bound, one attempt per `retryMinutes` (REQ-LIFE-03, REQ-LIFE-04) | — |
 
 **Escalation classes.** Lane: `asking`, `question`, `ladder-end`, `unfinished-twice`, `blocked`,
 `merge-failed`, `other`, `disagreement`, `omitted`, `model_not_found`, `dispatch-failed`. Project:
@@ -613,14 +637,23 @@ value the gap was measured against, so one outage reports once.
 Prompt bodies live in `~/.baton/prompts/<session>/<n>.txt`, `<n>` counting from 1 per session in
 delivery order; the event carries `prompt_path` and `prompt_sha256`. For each in-flight lane the tick
 locates the current session's transcript by glob — `~/.claude/projects/*/<session>.jsonl` — and
-compares its newest typed record (`type == "user"`, `promptSource == "typed"`, `isMeta` not true,
-`isCompactSummary` not true; compaction appends and never rewrites) against every `dispatch` and
+compares its newest message record against every `dispatch` and
 `resume` sidecar for the `(project, milestone)` — not the session alone, because a copy fork's
 transcript is a byte-for-byte copy of its parent's rewritten to the new id. The record's text is
 normalised and hashed the same way the sidecar was; the normalisation is checked once, offline,
 against the prototype's captured pair (live item 45). **The lane is taken over exactly while the
-newest typed record is one Baton did not send.** If only an `.orphaned-<ts>-<hash>.jsonl` sibling
+newest message record is one Baton did not send.** If only an `.orphaned-<ts>-<hash>.jsonl` sibling
 exists, the lane escalates with the sibling's path rather than being scanned.
+
+**A message record** is whatever a person or Baton put into the session, in the shapes a transcript
+gives it (D-085): a `user` record, `isMeta` not true and `isCompactSummary` not true, whose
+`promptSource` is `typed` (Baton's own prompts, and a terminal) or `queued` (a message sent from
+Claude.app between turns, after a `queue-operation` enqueue and dequeue), or whose `origin.kind` is
+`human` (a slash command); or a `queued_command` attachment whose `origin.kind` is `human`, its text
+`attachment.prompt` — a message sent from Claude.app while a turn runs, absorbed into it. Every dispatched
+session is on Remote Control, so these are how a person types into one. A `queued_command` whose origin
+is `peer` (another session) or which carries a task notification, and the Stop gate's `Stop hook
+feedback:` record, are not a person's. Compaction appends and never rewrites.
 
 ### 6.4 The recovery derivations
 
@@ -649,7 +682,7 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
    says whether the lane or every lane of that project is held; its `class`, the first line of its
    `carries`, and the verb for that class are what `status` prints and what `baton answer` resolves
    against across projects.
-3. **Taken over.** Every in-flight lane whose transcript's newest typed record is not one Baton sent
+3. **Taken over.** Every in-flight lane whose transcript's newest message record is not one Baton sent
    (§6.3), which is a live read each tick; the `takeover` event is the record and the notification
    key, not the state.
 4. **Which handovers were consumed.** **The archive is the answer, not the log.** Consumption is
@@ -844,7 +877,7 @@ edit, or by typing into a session, and `status` is the view.
 | M05 | `lib/escalate.sh`: `class_unparks_by_edit <class>`; `reread_hashes <project> <milestone> <carries> [<plan>]` (prints `{plan_rows_sha256, brief_sha256}`, each absent when it cannot be read); `person_acted <project> <milestone> <class>` (prints `edit`, `ruling` or nothing, D-061); `escalate <project> <milestone> <session> <attempt> <class> <scope> <carries>` (the one writer of `escalation`, replacing `escalation_write`: class and scope checked, `reread` attached, event before message); `resolve <project> <milestone> <session> <attempt> <escalation at> <how>`; `ruling_target <project> <session> <attempt>`; `escalation_content <class> <carries>`; `escalation_verb <class> <milestone> <carries> [<ruling target>]`; `message_render <project> <milestone> <class> <carries> [<session>] [<attempt>]` (prints `{address, content, verb, body}`, the verb never cut); `asking_carries <artifact>`; `ending_escalate <project> <milestone> <session> <attempt> <artifact> <class> <archive>` (with its fallback carries); `edit_reread_check <project> <plan>`; `question_resolve_check <project> <rows>` (answered in place by the row or by the session's own later artifact, and `prompt-lost`). `lib/answer.sh`: `answer_resolve <milestone> [<project>]`; `answer_candidates_print`; `answer_options` (from the archive); `answer_deliver <park> <ruling \| n> <rows>`; `answer_handback <milestone> [<project>] <rows>`; `verb_answer`; `allow_lane <milestone> [<project>]`; `allow_write <project> <milestone> <rule>`; `verb_allow`. `lib/stops.sh`: `stop_settle <session>`; `resume_count_next <project> <milestone> <attempt>` (prints `<attempt> <resume>`); `resume_session` gains the kind `ruling` and an eighth argument, its text. `lib/templates.sh`: `template_ruling <milestone> <attempt> <resume> <time> <question> <ruling>`, §4.3 verbatim. Verbs `answer`, `allow`. Events `escalation` (`asking`, `merge-failed`, `other` from a stopped artifact), `resolution` (`ruling`, `answered in place`, `edit` on a lane), `widening`, `notification` (`prompt-lost`). The shim's stop, linger, fail and fork roles. Twenty-eight scenarios — `asking-{parks,row-lingers,too-large}`, `answer-{one-match,two-matches,not-parked,option-number,resume-refused,hand-run-session}`, `edit-unparks`, `edit-unparks-no-session`, `ladder-end-edit`, `model-not-found-edit`, `unfinished-twice-ruling`, `merge-failed-ruling`, `other-escalates`, `question-row-answered-in-place`, `question-then-artifact`, `prompt-lost`, `takeover-handback`, `two-projects-refusals`, `allow-{writes,refuses-ask,resume,resume-parked,files}`, `stop-settle-lingers`, `ending-escalate-fallback`. **Changes** every M02–M04 writer of an escalation to call `escalate`, and `park_resolve` to write through `resolve`; `consume_one` to park `asking`, `merge-failed` and `other`; `question_check` to pass by a lane already parked or dispatched or resumed within two intervals; `ladder_step`, `declared_step` and `stops_run` to ask `person_acted` before parking again, and the `model_not_found` detail to name the attempt's model; `verb_for` to print `escalation_verb`; `class_or_fail` to take its caller's name; `tick_project` to run `edit_reread_check` and `question_resolve_check` first | M04 |
 | M06 | `lib/candidates.sh`: `project_held <project>` (prints the class of an open project-scope park); `dispositions_in_force <project>` (prints `{has_handover, in_force[]}`, each entry `{milestone, disposition, wait_for, held_by, archive, rank, index}`); `intersect_verdicts <project> <plan> <in force> <has handover> <open lanes> <parks>` (step 6 as data over the log on stdin: `{candidates, overrides, conditions, clears}`); `plan_override_spent <project> <milestone> <direction> <gate>`; `plan_override_once <project> <milestone> <override>`; `dispositions_intersect <project> <plan> <rows>` (acts on the verdicts, prints `{candidates, lines}`); `cap_order <candidates> <in flight per project>`. `lib/tick.sh`: `dispatch_run <candidates> <plans> <rows>` (steps 7 and 8 once across every project); `tick_project` now steps 3 and 4 and the prune; `tick_run` collects every project's candidates before dispatching, and skips steps 5 to 7 for a held project. **Removes** `tick_dispatchable`. `lib/waits.sh`: `is_fable <model>`; `reserve_reading` (prints `{reading, status_file}` or `{}`); `reserve_check` (the `fableReserve` hold and its lift, once per tick); `hold_bites` holds every Fable spelling while that hold stands. `lib/dispatch.sh`: `worktree_prune <project> <plan> <rows>`. `lib/declared.sh` (D-070): M04's `declared_open`, `consecutive_run`, `splits_carries`, `blocker_state`, `declared_step`, `distant_wait_for_check`, moved unchanged from `lib/stops.sh`; `main_broken_cascade <project> <ruling> <rows> <park at> <milestone>`. `lib/escalate.sh`: `class_ends_on_done <class>`; `escalate` attaches `reread` with `status_at_park` to `merge-failed` and `main-broken`; `ending_escalate` parks `main-broken` at project scope; `edit_reread_check` gains a third argument, the rows, resolves those two only on a `done` written after the park, and names a still-live session's job; `escalation_verb` gives `main-broken` its ruling. `lib/answer.sh`: `answer_deliver` gains a fourth argument, the cascade. `lib/stops.sh`: `redispatch` waits while the project is held; `stops_standing_by` stands by a milestone any park names, project scope included. `lib/inbox.sh`: `consume_one` parks `main-broken`. `tests/run.sh`: `other/`, `@OTHERCOMMIT@`, `home/` paths in `mtimes`, `BATON_TESTS_ONLY` (D-076). `tests/shim/claude`: `resume.note.<session>` and `resume.status.<session>`. Events `plan_override`, `worktree_pruned`, `hold` and `hold_lifted` (`fableReserve`), `escalation` (`disagreement`, `omitted`, `main-broken`), `resolution` (`edit` on an `omitted` or `disagreement` whose condition cleared, and on a `merge-failed` or `main-broken` closed by hand). Thirty-eight scenarios — `cap-{two-of-three,order-fewest-in-flight,order-project-key}`, `wait-{honoured,clears-on-done}`, `held-plan-{wins,dispatch-fails}`, `run-plan-holds`, `disagreement`, `disagreement-clears`, `omitted`, `omitted-{dependency-mid-run,dependency-waiting,park-kept-while-dependency-runs,resolves-on-handover,edit-dispatches}`, `fable-reserve-{holds,lifts,window-reset,model-renamed,no-reading}`, `main-broken-{parks,cascade,cascade-refused,done-edit}`, `merge-failed-done-early-edit`, `prune-{verified,directory-gone}`, `prune-refused-{merge-failed,live-row,named-row,unreadable-row,open-lane,not-done,no-handover,newer-ending,off-main,dirty}` | M05 |
 | M07 | `lib/dispatch.sh`: `settings_compose <project> <milestone>` now writes `remoteControlAtStartup: true` for every dispatch (D-081); `dispatch_one` dispatches a `Remote: yes` milestone with the ordinary command and records the plan's `remote` on the `dispatch` event (D-080); `worktree_prune` removed (D-078). `lib/candidates.sh`: `dispositions_intersect` no longer skips a remote candidate. `lib/rows.sh`: `stall_check` judges a remote lane whose row reads `waiting`. `lib/tick.sh`: `tick_project` is steps 3 and 4 without the prune. `hooks/stop-gate`, `hooks/stop-failure`: exit 0 writing nothing, as their first rule, when an archived file has this session, this milestone and `outcome: complete`, matched by content (D-078). `lib/rows.sh`: a remote lane's stall key is spent only while its transcript has not moved since the notification. `install.sh`: copies the launchd agent only when none is installed (D-079). Close-out: `sh install.sh` (D-079). Scenarios `remote-dispatch-tick`, `remote-row-not-a-park`, `remote-stall-rearms`, `stop-gate-closed-lane`, `stop-failure-closed-lane`, `stop-gate-closed-lane-misnamed`, `stop-failure-closed-lane-misnamed`, `stop-gate-archived-stopped`, `stop-failure-archived-stopped`, `install-plist-differs`; `dispatch-remote-yes` refrozen on the one-command path; the twelve `prune-*` removed. Live items 39 (superseded) and 40, the phone, and the acceptance write-up in the brief | M06 |
-| M07-b | the offline rule for a closed lane's idle session, the wake on a message that §7 item 1 selects, the grouping finding, derivation 3 counting a person's Remote Control message | M07 |
+| M07-b | `lib/lifecycle.sh` (D-087): `lifecycle_finished <log json> <rows json>` (every session whose `complete` handover was consumed, one per milestone, none for a milestone dispatched since, each with its live row's pid, job and status); `offline_check <project> <rows json>` (REQ-LIFE-01; an empty project acts across every project, which is how the tick calls it); `offline_after <log json> <session> <epoch>`; `wake_resume <session> <text>` (a flagless resume classified fork-first, printing `{outcome, note, copy}`); `wake_session_prompt`; `wake_session_ensure <rows json>` (REQ-LIFE-04); `verb_wake [<milestone>] [<text>]` (REQ-LIFE-03). `bin/baton`: verb `wake`. `lib/tick.sh`: `tick_run` calls `offline_check` and `wake_session_ensure` once, between steps 6 and 7. `lib/derive.sh`: `typed_hashes` reads every message record — a `user` record whose `promptSource` is `typed` or `queued` or whose `origin.kind` is `human`, and a `queued_command` attachment with `origin.kind` `human` (D-085). `install.sh`: writes `settings/wake.json` when it has changed. Config numbers `keepFinished`, `idleStopMinutes`, `wakeModel`, defaulted in code. `tests/lib-load.sh` sources `lib/lifecycle.sh`. Events `offline`, `wake`. Scenarios `takeover-queued-command`, `takeover-queued-between-turns`, `takeover-peer-not-a-person`, `offline-keeps-recent`, `offline-refusals`, `offline-stop-not-landed`, `wake-session-resumed`, `wake-verb`. The wake-mechanism measurements and the grouping finding (D-086) are in the brief | M07 |
 | M07-c | the notifier applet with Claude's icon and a click that opens the session | M07-b |
 | M07-d | the repeat test at the consume and a ranking of handovers that no delivery order can reverse | M07-c |
 | M08 | `projects/Reclaim/{project.json,permissions.json}`, the hand-written starting artifact, `baton plan Reclaim` green, item 38 against Reclaim's path | M07-d |

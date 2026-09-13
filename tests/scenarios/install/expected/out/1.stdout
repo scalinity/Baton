@@ -5,6 +5,7 @@ copied the launchd agent to @TMP@/Library/LaunchAgents/com.baton.tick.plist; loa
 home2/config.json
 home2/projects/Baton/permissions.json
 home2/projects/Baton/project.json
+home2/settings/wake.json
 home2/bin:
 baton
 lib
@@ -21,6 +22,7 @@ derive.sh
 dispatch.sh
 escalate.sh
 inbox.sh
+lifecycle.sh
 lock.sh
 log.sh
 notify.sh

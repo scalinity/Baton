@@ -18,6 +18,11 @@ record() {
     case "$a" in *" "*|*"·"*) line="$line '$a'" ;; *) line="$line $a" ;; esac
   done
   printf '%s\n' "$line" >> "$S/calls.log"
+  # env.claude: also record the names of the CLAUDE* variables the call carried, because a process
+  # started from inside a Claude Code session inherits them and they tie the new session to that one.
+  if [ -f "$S/env.claude" ]; then
+    printf '[env] %s\n' "$(env | sed -n 's/^\(CLAUDE[A-Z0-9_]*\)=.*/\1/p' | sort | tr '\n' ' ')" >> "$S/calls.log"
+  fi
 }
 
 case "${1:-}" in

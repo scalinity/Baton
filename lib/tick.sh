@@ -366,6 +366,11 @@ tick_run() {
       echo "reconcile   $tr_key · the dispositions could not be read: $tr_doc"
     fi
   done
+  # A finished session's process, once across every project: its ranking bounds memory, which is the
+  # Mac's, as the cap is. Before the dispatch, so a process taken offline is gone before a new one
+  # starts; and the wake session after it, because the first `offline` event is what calls for one.
+  offline_check "" "$tr_rows" || echo "offline     the offline pass failed; no finished session was taken offline this tick"
+  wake_session_ensure "$tr_rows" || echo "wake        the wake session could not be checked this tick"
   dispatch_run "$tr_cands" "$tr_plans" "$tr_rows" || echo "dispatch    the dispatch pass failed; nothing more is dispatched this tick"
 
   # The gap belongs to Baton and not to a project, so it is read once, after every lane.

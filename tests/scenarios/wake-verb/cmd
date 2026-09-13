@@ -1,0 +1,8 @@
+echo "== the list =="
+"$BATON" wake || echo "status $?"
+echo "== running: named, not resumed =="
+"$BATON" wake M03 "what did you decide?" || echo "status $?"
+echo "== an open lane is not finished =="
+"$BATON" wake M04 || echo "status $?"
+echo "== offline: woken with the person's words =="
+"$BATON" wake Fixture/M02 "what did you decide about the cap?" || echo "status $?"

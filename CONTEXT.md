@@ -114,8 +114,9 @@ _Avoid_: blocked, paused, stalled, on hold
 **Takeover**:
 A person typing into a dispatched session's own conversation, rather than answering through Baton.
 Baton stops acting on that lane while one is in progress and never prompts over a person. Nothing
-in the session marks one, so Baton recognises a takeover by the newest typed message in a session
-being one it did not itself send. Not a park: a parked lane waits for a decision, a taken-over lane
+in the session marks one, so Baton recognises a takeover by the newest message in a session — typed
+at a terminal, or sent from Claude.app or the phone through Remote Control — being one it did not
+itself send. Not a park: a parked lane waits for a decision, a taken-over lane
 waits for the person already making it.
 _Avoid_: interrupt, override, manual intervention
 
@@ -282,6 +283,18 @@ is stored on Anthropic's servers. A milestone marked `Remote: yes` is one whose 
 expected to be answered from the phone, so the tick does not read its row as a park.
 _Avoid_: phone mode, mobile session, remote session (when a `Remote: yes` lane is meant)
 
+**Finished session**:
+The session of a milestone whose `complete` handover Baton has acted on. Its lane is closed and its
+hooks stand down, but its conversation stays worth going back to. Its process is kept while it is one of
+the few most recently active; an older one is taken offline once idle and woken on the person's word.
+_Avoid_: dead session, old session, archived session (claude.ai's word for a state, not this)
+
+**Wake session**:
+The one always-on Remote Control session, `Baton · wake`, that a person messages from Claude.app or the
+phone to reach a finished session that has gone offline; it runs `baton wake` with their words, and the
+woken session answers in its own thread. The tick keeps it running once anything has gone offline.
+_Avoid_: concierge, dispatcher, bot
+
 **Self-check**:
 The first thing a tick does for each target project: read the plan file and ask git for `main`'s
 head. A failure parks the project.
@@ -294,7 +307,7 @@ _Avoid_: conflict, disagreement (that term is reserved for the two cases that es
 
 **Verb**:
 One of the things the `baton` script does when run by hand or by launchd: `tick`, `answer`,
-`status`, `plan`, `dispatch`, `allow`. Every verb runs under the same lock and writes the log
+`status`, `plan`, `dispatch`, `allow`, `wake`. Every verb runs under the same lock and writes the log
 through the same code path.
 _Avoid_: command, subcommand, mode
 
