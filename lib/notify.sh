@@ -97,6 +97,19 @@ notify() {
     > /dev/null 2>&1 || true
 }
 
+# notify_flush: launch the applet when the spool still holds a message, once, at the start of a tick. A
+# launch that reaches the applet while it is quitting posts nothing and the message waits; without this
+# it would wait for whatever next launches the applet, and if that is a click, the click would post the
+# old message instead of opening a session. So a stranded message is at most a tick late.
+notify_flush() {
+  [ -d "$BATON_HOME/bin/Baton.app" ] || return 0
+  for nf_f in "$BATON_HOME"/notify/spool/*; do
+    [ -f "$nf_f" ] || continue
+    "$BATON_OPEN" -g "$BATON_HOME/bin/Baton.app" > /dev/null 2>&1 || true
+    return 0
+  done
+}
+
 # notify_title <project> <milestone> <class>: the address, REQ-ESC-03's first part. The lane when
 # the event has one, Baton itself when it does not — a stale lock and a gap belong to no milestone.
 notify_title() {

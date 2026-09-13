@@ -15,13 +15,28 @@ use framework "Foundation"
 use scripting additions
 
 on run
-	-- The applet sits at $BATON_HOME/bin/Baton.app, so the home is two directories up from it.
-	set baton_home to do shell script "cd " & quoted form of (POSIX path of (path to me)) & "/../.. && pwd"
-	set spool to baton_home & "/notify/spool"
-	set target_file to baton_home & "/notify/target"
+	if not post_spooled() then open_newest()
+end run
+
+-- A launch that reaches the applet while it is still running arrives as a reopen, not a run; it may
+-- carry a message spooled after the last listing, so it posts too. The tick's `notify_flush` covers a
+-- launch that reached the applet too late for either.
+on reopen
+	post_spooled()
+end reopen
+
+-- The applet sits at $BATON_HOME/bin/Baton.app, so the home is two directories up from it.
+on baton_home()
+	return do shell script "cd " & quoted form of (POSIX path of (path to me)) & "/../.. && pwd"
+end baton_home
+
+-- Posts every spooled message, oldest first, until the spool is empty, and says whether it posted any. A
+-- message spooled while this launch is posting does not relaunch a running applet, and left behind it
+-- would be posted by the next click instead of opening a session.
+on post_spooled()
+	set spool to baton_home() & "/notify/spool"
+	set target_file to baton_home() & "/notify/target"
 	set posted to false
-	-- Until the spool is empty: a message spooled while this launch is posting does not relaunch a
-	-- running applet, and left behind it would be posted by the next click instead of opening a session.
 	repeat
 		set names to paragraphs of (do shell script "ls " & quoted form of spool & " 2>/dev/null || true")
 		if (count of names) is 0 then exit repeat
@@ -34,11 +49,14 @@ on run
 			set posted to true
 		end repeat
 	end repeat
-	if posted then return
+	return posted
+end post_spooled
 
+-- A click: clear Baton's messages and open the newest one's session.
+on open_newest()
 	current application's NSUserNotificationCenter's defaultUserNotificationCenter()'s removeAllDeliveredNotifications()
-	set target to do shell script "cat " & quoted form of target_file & " 2>/dev/null || true"
+	set target to do shell script "cat " & quoted form of (baton_home() & "/notify/target") & " 2>/dev/null || true"
 	-- Only a link into Claude.app is opened; `notify` writes nothing else, and the check keeps it so.
 	if target does not start with "claude://claude.ai/code/session_" then set target to "claude://code/needs-input"
 	do shell script "open " & quoted form of target
-end run
+end open_newest
