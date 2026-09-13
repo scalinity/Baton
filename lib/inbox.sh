@@ -270,21 +270,32 @@ reject() {
 # the handover left: the first, and each earlier repeat's, so a person moving the first file aside does
 # not turn the next delivery into a second consumption. A handover with no archived copy left can no
 # longer be recognised, and a file with nothing to compare against is acted on, never skipped on a
-# guess. Prints nothing and returns 1 when the file repeats nothing; prints the detail and returns 1
-# when the log cannot be read, so the caller leaves the file for a tick that can read it.
+# guess. Prints the consumed event and returns 0 for a repeat; prints nothing and returns 1 when the
+# file repeats nothing; prints the detail and returns 2 when the log cannot be read, so the caller
+# leaves the file for a tick that can read it.
+#
+# The log is derived again for every file rather than once before the inbox loop, because the loop
+# writes to it: a second file holding a handover consumed earlier in the same pass is a repeat only
+# once the first one's consumed event can be read.
 repeat_of() {
   ro_one='if length == 1 and (.[0] | type) == "object" then .[0] else empty end'
   ro_v=$(jq -cSs "$ro_one" "$1" 2>/dev/null) || return 1
   [ -n "$ro_v" ] || return 1
-  ro_doc=$(derive_consumed "") || { echo "$ro_doc"; return 1; }
+  # Without both ids as strings the file can name no handover; artifact_check rejects it. The guard
+  # sits here because `null == null` holds in jq and would match an event with the same field absent.
+  printf '%s' "$ro_v" | jq -e '(.milestone | type) == "string" and (.session | type) == "string"' \
+    > /dev/null 2>&1 || return 1
+  ro_doc=$(derive_consumed "") || { echo "$ro_doc"; return 2; }
   # Each copy is {file, first}: the archived file to compare and the consumed event of the handover it
   # is a copy of, which is the envelope and the `repeats` a match is recorded under.
   ro_copies=$(printf '%s' "$ro_doc" | jq -c --argjson v "$ro_v" '
     [ .consumed[] | select(.milestone == $v.milestone and .session == $v.session) ] as $mine
     | [ ($mine[] | select(.archive_present) | {file: .archive, first: .}),
         (.repeated[] | select(.archive_present and .milestone == $v.milestone and .session == $v.session)
-         | .repeats as $r | first($mine[] | select(.archive == $r)) as $c | {file: .archive, first: $c}) ]')
-  ro_n=$(printf '%s' "$ro_copies" | jq length); ro_i=0
+         | .repeats as $r | first($mine[] | select(.archive == $r)) as $c | {file: .archive, first: $c}) ]' \
+    2>/dev/null) || ro_copies='[]'
+  ro_n=$(printf '%s' "$ro_copies" | jq length 2>/dev/null) || ro_n=0
+  ro_n=${ro_n:-0}; ro_i=0
   while [ "$ro_i" -lt "$ro_n" ]; do
     ro_c=$(printf '%s' "$ro_copies" | jq -c ".[$ro_i]"); ro_i=$((ro_i + 1))
     ro_a=$(printf '%s' "$ro_c" | jq -r .file)
@@ -319,10 +330,11 @@ repeat_one() {
 inbox_consume() {
   for ic_f in "$BATON_HOME"/inbox/*.json; do
     [ -f "$ic_f" ] || continue
-    if ic_first=$(repeat_of "$ic_f"); then
-      repeat_one "$ic_f" "$ic_first"
-    elif [ -n "$ic_first" ]; then
-      echo "baton: $ic_first" >&2
+    ic_rc=0; ic_repeat=$(repeat_of "$ic_f") || ic_rc=$?
+    if [ "$ic_rc" -eq 0 ]; then
+      repeat_one "$ic_f" "$ic_repeat"
+    elif [ "$ic_rc" -eq 2 ]; then
+      echo "baton: $ic_repeat" >&2
     elif ic_ok=$(artifact_check "$ic_f"); then
       consume_one "$ic_f" "$ic_ok" "$1"
     else
