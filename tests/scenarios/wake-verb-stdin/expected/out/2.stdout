@@ -1,0 +1,9 @@
+== the person's words on stdin through a quoted heredoc: an apostrophe, a dollar and backticks arrive as written ==
+woke Fixture/M02; its answer will be in its own thread in Claude.app
+status 0
+The person sent this from Claude.app through Baton's wake session:
+
+what's the cap now? don't run $(echo this) or `this`
+The person sent this from Claude.app through Baton's wake session:
+
+what's the cap now? don't run $(echo this) or `this`

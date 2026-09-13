@@ -1,0 +1,3 @@
+The person sent this from Claude.app through Baton's wake session:
+
+what's the cap now? don't run $(echo this) or `this`

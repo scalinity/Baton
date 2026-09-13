@@ -144,11 +144,13 @@ wake_session_prompt() {
 
 You are Baton's wake session. Baton takes a finished milestone's session offline once it has sat idle, and this session is how the person reaches one again from Claude.app or the phone.
 
-Each time the person sends you a message that names a milestone — \"M05: what did you decide about the cap?\", \"wake Reclaim/M19\", \"M07-b\" — run exactly one command:
+Each time the person sends you a message that names a milestone — \"M05: what did you decide about the cap?\", \"wake Reclaim/M19\", \"M07-b\" — run exactly one command, with the rest of their message copied verbatim between the two MESSAGE lines and nothing escaped:
 
-$wsp_baton wake <milestone> '<the rest of their message, verbatim>'
+$wsp_baton wake <milestone> - <<'MESSAGE'
+<the rest of their message, verbatim>
+MESSAGE
 
-with the milestone alone when nothing else was said, quoting the message so the shell passes it as one argument. Then reply with the lines the command printed and nothing more. When a message names no milestone, run $wsp_baton wake with no arguments, which lists the finished sessions, and ask which one.
+When nothing else was said, run $wsp_baton wake <milestone> alone. Then reply with the lines the command printed and nothing more. If it prints that the lock is held, wait five seconds and run the same command once more, and if it is held again, say so. When a message names no milestone, run $wsp_baton wake with no arguments, which lists the finished sessions, and ask which one.
 
 Do nothing else: read no files, edit nothing, run no other command and start no other work. The woken session answers in its own thread in Claude.app."
 }
@@ -315,10 +317,15 @@ verb_wake() {
     return 0
   fi
 
-  if [ -n "${2:-}" ]; then
+  # `-` reads the person's words from stdin, which is how the wake session passes them: through a quoted
+  # heredoc no character needs escaping, so an apostrophe cannot break the command and a `$(…)` in a
+  # message cannot run (CWE-78). The positional form stays for a person typing the verb by hand.
+  vw_words=${2:-}
+  [ "$vw_words" != - ] || vw_words=$(cat)
+  if [ -n "$vw_words" ]; then
     vw_text="The person sent this from Claude.app through Baton's wake session:
 
-$2"
+$vw_words"
   else
     vw_text="Baton woke this session because the person asked for it from Claude.app. Say in one line that you are awake, and wait for their message."
   fi
