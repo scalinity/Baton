@@ -115,10 +115,9 @@ offline_after() {
   return 1
 }
 
-# wake_resume <session> <text>: a flagless `claude --bg --resume` and what it printed, classified the
-# way `resume_session` classifies it — the fork test before the success test, both streams, colour
-# removed — without the stop, because a session this is asked to wake has no process to stop. Prints
-# {outcome, note, copy}.
+# wake_resume <session> <text>: a flagless `claude --bg --resume`, classified by `resume_classify` as
+# every resume is, without the stop, because a session this is asked to wake has no process to stop.
+# Prints {outcome, note, copy}.
 wake_resume() {
   wr_tmp=$(mktemp "${TMPDIR:-/tmp}/baton-wake.XXXXXX")
   set +e
@@ -127,22 +126,7 @@ wake_resume() {
   set -e
   wr_out=$(cli_plain < "$wr_tmp"); wr_err=$(cli_plain < "$wr_tmp.err")
   rm -f "$wr_tmp" "$wr_tmp.err"
-  wr_both=$(printf '%s\n%s\n' "$wr_out" "$wr_err")
-  wr_copy=''
-  wr_note=$(printf '%s\n' "$wr_both" | grep -F 'started a copy' | head -1 || true)
-  if [ -n "$wr_note" ]; then
-    wr_outcome=forked
-    wr_copy=$(printf '%s\n' "$wr_note" | sed -n 's/.* as \([0-9a-f]\{8,\}\).*/\1/p' | head -1)
-  elif printf '%s\n' "$wr_both" | grep -Fq 'woke session '; then
-    wr_outcome=delivered
-    wr_note=$(printf '%s\n' "$wr_both" | grep -F 'woke session ' | head -1)
-  else
-    wr_outcome=refused
-    wr_note=$(printf '%s\n' "$wr_err" | grep -v '^[[:space:]]*$' | head -1 || true)
-    [ -n "$wr_note" ] || wr_note="the resume printed nothing and exited $wr_status"
-  fi
-  jq -nc --arg o "$wr_outcome" --arg n "$wr_note" --arg c "$wr_copy" \
-    '{outcome: $o, note: $n} | if $c != "" then . + {copy: $c} else . end'
+  resume_classify "$wr_out" "$wr_err" "$wr_status"
 }
 
 # wake_session_prompt: the wake session's standing instruction. It names the relay by absolute path

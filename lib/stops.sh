@@ -247,25 +247,13 @@ resume_session() {
   # kept apart as well as together, because the refusal below wants the diagnostic and the CLI puts
   # a `backgrounded` line on stdout whichever way the resume went.
   rs_out=$(cli_plain < "$rs_tmp"); rs_err=$(cli_plain < "$rs_tmp.err")
-  rs_both=$(printf '%s\n%s\n' "$rs_out" "$rs_err")
   rm -f "$rs_tmp" "$rs_tmp.err"
 
-  rs_note=$(printf '%s\n' "$rs_both" | grep -F 'started a copy' | head -1 || true)
-  rs_new=''
-  if [ -n "$rs_note" ]; then
-    rs_outcome=forked
-    rs_new=$(printf '%s\n' "$rs_note" | sed -n 's/.* as \([0-9a-f]\{8,\}\).*/\1/p' | head -1)
-  elif printf '%s\n' "$rs_both" | grep -Fq 'woke session '; then
-    rs_outcome=delivered
-    rs_note=$(printf '%s\n' "$rs_both" | grep -F 'woke session ' | head -1)
-  else
-    rs_outcome=refused
-    # stderr first, because that is where the CLI says what went wrong, and stdout carries a
-    # `backgrounded` line on every resume — taking the first line of the two together would report
-    # that line as the reason and bury the one a person needs.
-    rs_note=$(printf '%s\n' "$rs_err" | grep -v '^[[:space:]]*$' | head -1 || true)
-    [ -n "$rs_note" ] || rs_note=$(printf '%s\n' "$rs_out" | grep -v '^[[:space:]]*$' | grep -v '^backgrounded ' | head -1 || true)
-    [ -n "$rs_note" ] || rs_note="the resume printed nothing and exited $rs_status"
+  rs_cls=$(resume_classify "$rs_out" "$rs_err" "$rs_status")
+  rs_outcome=$(printf '%s' "$rs_cls" | jq -r .outcome)
+  rs_note=$(printf '%s' "$rs_cls" | jq -r .note)
+  rs_new=$(printf '%s' "$rs_cls" | jq -r '.copy // ""')
+  if [ "$rs_outcome" = refused ]; then
     # The `resume` event records that it was refused; the table fixes its fields and the reason is
     # not one of them. So the reason goes where a dispatch failure's detail already goes, which is
     # the one place a person looking at why the ladder is climbing will find it.

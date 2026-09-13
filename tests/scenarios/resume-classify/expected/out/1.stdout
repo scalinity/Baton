@@ -1,0 +1,7 @@
+== the one classifier every resume uses: fork first, then success, else refused with stderr's reason ==
+{"outcome":"forked","note":"note: started a copy of that conversation as c0b1e5e1.","copy":"c0b1e5e1"}
+{"outcome":"delivered","note":"note: woke session f2 with its saved options (-n, --model)."}
+{"outcome":"refused","note":"error: session f2 not found"}
+{"outcome":"refused","note":"the resume printed nothing and exited 3"}
+== a reason longer than 500 bytes is cut, so the event that carries it is never refused ==
+{"outcome":"refused","bytes":500}
