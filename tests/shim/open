@@ -14,7 +14,10 @@ for a in "$@"; do app=$a; done
 home=$(cd "$app/../.." && pwd)
 for f in "$home"/notify/spool/*; do
   [ -f "$f" ] || continue
-  printf '  posted: %s | %s | %s\n' "$(sed -n 1p "$f")" "$(sed -n 2p "$f")" "$(sed -n 3p "$f")" >> "$S/calls.log"
-  sed -n 3p "$f" > "$home/notify/target"
+  # A message with no title is removed unposted, as the applet does.
+  if [ -n "$(sed -n 1p "$f")" ]; then
+    printf '  posted: %s | %s | %s\n' "$(sed -n 1p "$f")" "$(sed -n 2p "$f")" "$(sed -n 3p "$f")" >> "$S/calls.log"
+    sed -n 3p "$f" > "$home/notify/target"
+  fi
   rm -f "$f"
 done
