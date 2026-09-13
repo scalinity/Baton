@@ -87,7 +87,15 @@ offline_check() {
     ! offline_after "$oc_log" "$oc_s" "$oc_mt" || continue
     oc_m=$(printf '%s' "$oc_f" | jq -r .milestone)
     oc_job=$(printf '%s' "$oc_f" | jq -r .job)
-    "$BATON_CLAUDE" stop "$oc_job" > /dev/null 2>&1 || true
+    # The event records a stop the CLI took, never one it refused: the event is what keeps the next tick
+    # from stopping again, so recorded over a refusal it would leave the process running for good. A
+    # refused stop is said and tried again next tick, which the rank and idle tests bound to the
+    # sessions that still qualify.
+    if ! oc_err=$("$BATON_CLAUDE" stop "$oc_job" 2>&1 > /dev/null); then
+      printf 'offline     %s/%s · %s · the stop was refused, so it is tried again next tick: %s\n' \
+        "$oc_p" "$oc_m" "$oc_s" "$(printf '%s' "$oc_err" | cli_plain | head -1)"
+      continue
+    fi
     log_event offline "$oc_p" "$oc_m" "$oc_s" "$oc_a" "$(jq -nc --arg j "$oc_job" \
       --argjson idle $((oc_age / 60)) --argjson rank "$oc_i" --argjson keep "$oc_keep" \
       '{job: $j, idle_minutes: $idle, rank: $rank, kept: $keep}')"
