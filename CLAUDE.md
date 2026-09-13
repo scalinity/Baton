@@ -40,8 +40,10 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
    3–7; part 4 additively; part 2 stays the slot line); write `done` in this milestone's `Status`
    cell in `docs/MILESTONES.md`; correct the plan file if this session learned it is wrong, with a
    decision entry; leave the session's worktree (`../Baton-M<nn>`) in place, so the session can be
-   resumed later; commit. Then run `sh install.sh` from the canonical checkout, so the tick that
-   consumes this handover and dispatches the next milestone runs the relay just merged (D-079). The
+   resumed later; commit. Then run `BATON_HOME=/Users/danny/.baton sh install.sh` from the canonical
+   checkout, so the tick that consumes this handover and dispatches the next milestone runs the relay
+   just merged (D-079); the home is named because a session inherits the background service's
+   environment, which can carry another home's `BATON_HOME` (D-091). The
    script never replaces an installed launchd agent that differs from `launchd/com.baton.tick.plist`
    and never loads one: if it prints that the agent differs, quote the line in the completion
    evidence and the final message, because copying the agent and reloading it is a person's act.
