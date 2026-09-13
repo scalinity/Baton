@@ -284,8 +284,9 @@ derive_consumed() {
         | ((.archive // "") | sub("^.*/"; "")) as $name
         | . + {archive_present: (($present | index($name)) != null)} ] as $repeated
     | [ .[] | select(.kind == "rejected") | (.path // "") | sub("^.*/"; "") ] as $claimed
-    | [ ($consumed[] | .archive // ""),
-        (.[] | select(.kind == "repeated") | .archive // "") | sub("^.*/"; "") ] as $archived
+    # Claimed from the events of every project, as `rejected` is: archive/ is one directory for all of
+    # them, so a claim read through the project filter would call the handovers of another unrecorded.
+    | [ .[] | select(.kind == "consumed" or .kind == "repeated") | (.archive // "") | sub("^.*/"; "") ] as $archived
     | { consumed: $consumed,
         repeated: $repeated,
         waiting: $w,
