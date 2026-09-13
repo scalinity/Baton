@@ -1,0 +1,4 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/home-wake] claude --bg -n 'Baton · wake' --model claude-haiku-4-5-20251001 --permission-mode bypassPermissions --settings @TMP@/home/settings/wake.json <prompt>
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json

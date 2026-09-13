@@ -38,10 +38,10 @@ lifecycle_finished() {
           | with_entries(select(.value != null)))'
 }
 
-# offline_check <project> <rows json>: the offline rule. A finished session is taken offline — one
+# offline_check <rows json>: the offline rule, across every project. A finished session is taken offline — one
 # `claude stop`, one `offline` event — when its row has a pid and reads idle, its transcripts have not
 # changed for idleStopMinutes, and it is not among the keepFinished most recently active finished
-# sessions with a process. An empty project acts across every project, which is how the tick calls it.
+# sessions with a process.
 #
 # The ranking is across every project, because what it bounds is memory, and memory is the Mac's —
 # the cap's reason (D-014). Activity is the newest modification time across the session's transcripts
@@ -58,7 +58,7 @@ lifecycle_finished() {
 # stands.
 offline_check() {
   oc_log=$(log_json) || { echo "$oc_log" >&2; return 1; }
-  oc_fin=$(lifecycle_finished "$oc_log" "$2")
+  oc_fin=$(lifecycle_finished "$oc_log" "$1")
   oc_keep=$(config_num keepFinished 3)
   oc_idle=$(config_num idleStopMinutes 60)
   oc_now=$(now_epoch)
@@ -82,7 +82,6 @@ offline_check() {
     oc_f=$(printf '%s' "$oc_live" | jq -c --argjson i "$oc_i" '.[$i]'); oc_i=$((oc_i + 1))
     [ "$oc_i" -gt "$oc_keep" ] || continue
     oc_p=$(printf '%s' "$oc_f" | jq -r .project)
-    [ -z "$1" ] || [ "$oc_p" = "$1" ] || continue
     [ "$(printf '%s' "$oc_f" | jq -r '.status // ""')" = idle ] || continue
     oc_mt=$(printf '%s' "$oc_f" | jq -r '.mtime // ""')
     [ -n "$oc_mt" ] || continue
@@ -235,7 +234,13 @@ wake_session_ensure() {
   # spell, and the session needs nothing from its directory — its one command is an absolute path.
   wse_dir=${BATON_HOME}-wake
   mkdir -p "$wse_dir"
-  claude_bg "$wse_dir" "$WAKE_SESSION_NAME" "$(config_num wakeModel haiku)" "" "$wse_settings" "$wse_text"
+  # The model through config.json's aliases, as a plan cell is read, so a renamed alias starts the wake
+  # session on the model it now names rather than on a word the CLI may not know.
+  wse_alias=$(config_num wakeModel haiku)
+  if ! wse_model=$(parse_model "$wse_alias" "$(jq -c '.models // {}' "$BATON_HOME/config.json" 2>/dev/null || echo '{}')"); then
+    wse_model=$wse_alias
+  fi
+  claude_bg "$wse_dir" "$WAKE_SESSION_NAME" "$wse_model" "" "$wse_settings" "$wse_text"
   wse_row=''; wse_detail=''
   if [ -n "$bg_id" ] && ! wse_row=$(row_for_id "$bg_id"); then
     wse_detail=$wse_row

@@ -1,0 +1,1 @@
+{ "retryMinutes": 15, "models": { "fable": "fable", "opus": "opus", "sonnet": "sonnet", "haiku": "claude-haiku-4-5-20251001" } }
