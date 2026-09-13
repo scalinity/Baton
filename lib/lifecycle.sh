@@ -175,9 +175,20 @@ wake_session_ensure() {
   if [ -n "$wse_at" ] && [ $(( $(now_epoch) - $(iso_epoch "$wse_at") )) -lt $(( $(config_num retryMinutes 15) * 60 )) ]; then
     return 0
   fi
+  # The wake session runs shell under bypassPermissions, so it starts only with the rail: a settings
+  # file that is missing, or whose deny list is empty, is refused the way `settings_compose` refuses a
+  # dispatch. The refusal is an event, so the retry bound above throttles it rather than a line a tick.
   wse_settings=$BATON_HOME/settings/wake.json
+  wse_refusal=''
   if [ ! -f "$wse_settings" ]; then
-    echo "wake        $wse_settings is missing, so the wake session is not started; sh install.sh writes it"
+    wse_refusal="$wse_settings is missing; sh install.sh writes it"
+  elif ! jq -e '((.permissions.deny // []) | length) > 0' "$wse_settings" > /dev/null 2>&1; then
+    wse_refusal="$wse_settings carries no deny rules, and a bypassPermissions session is not started without them; sh install.sh writes it"
+  fi
+  if [ -n "$wse_refusal" ]; then
+    log_event wake "" "" "" "" "$(jq -nc --arg n "$WAKE_SESSION_NAME" --arg d "$wse_refusal" \
+      '{how: "started", name: $n, outcome: "refused", note: $d}')"
+    printf 'wake        %s · not started: %s\n' "$WAKE_SESSION_NAME" "$wse_refusal"
     return 0
   fi
   wse_text=$(wake_session_prompt)
@@ -217,12 +228,19 @@ wake_session_ensure() {
     return 0
   fi
 
-  mkdir -p "$BATON_HOME/wake"
-  claude_bg "$BATON_HOME/wake" "$WAKE_SESSION_NAME" "$(config_num wakeModel haiku)" "" "$wse_settings" "$wse_text"
-  wse_row=''
-  [ -z "$bg_id" ] || wse_row=$(row_for_id "$bg_id") || wse_row=''
+  # Its working directory is beside Baton's home and not inside it: the deny list's Bash rules name
+  # Baton's state as `.baton/<path>` fragments, which a relative path from inside ~/.baton would not
+  # spell, and the session needs nothing from its directory — its one command is an absolute path.
+  wse_dir=${BATON_HOME}-wake
+  mkdir -p "$wse_dir"
+  claude_bg "$wse_dir" "$WAKE_SESSION_NAME" "$(config_num wakeModel haiku)" "" "$wse_settings" "$wse_text"
+  wse_row=''; wse_detail=''
+  if [ -n "$bg_id" ] && ! wse_row=$(row_for_id "$bg_id"); then
+    wse_detail=$wse_row
+    wse_row=''
+  fi
   if [ -z "$wse_row" ]; then
-    wse_detail=$bg_stderr
+    [ -n "$wse_detail" ] || wse_detail=$bg_stderr
     [ -n "$wse_detail" ] || wse_detail="exit $bg_status, no session with a pid; stdout: $bg_stdout"
     wse_detail=$(printf '%s' "$wse_detail" | head -c 500)
     log_event wake "" "" "" "" "$(jq -nc --arg n "$WAKE_SESSION_NAME" --arg d "$wse_detail" \

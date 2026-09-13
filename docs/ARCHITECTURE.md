@@ -84,8 +84,7 @@ which is the other reason the running copy lives under `~/.baton/`.
 │   ├── project.json         {"path": "/Users/danny/Documents/Apps/Reclaim", "plan": "docs/MILESTONES.md"}
 │   └── permissions.json     {"permissions": {"allow": [...], "deny": [...]}}
 ├── settings/<project>-<milestone>.json   the composed --settings file (below)
-├── settings/wake.json                    the wake session's settings: Remote Control on, the deny list, no hooks
-├── wake/                                 the wake session's working directory
+├── settings/wake.json                    the wake session's settings: Remote Control on, the deny list, no hooks; it runs in ~/.baton-wake/
 ├── prompts/<session>/<n>.txt             prompt sidecars, n from 1 per session
 ├── inbox/<milestone>-<session>.json      handover artifacts, .tmp then rename
 ├── archive/<milestone>-<session>-<consumed-at>.json
@@ -268,7 +267,7 @@ process, newest transcript first: `claude stop <job>` and one `offline` event. I
 because what it bounds is memory, which is the Mac's, and before the dispatch so a process is gone
 before a new one starts. Then `wake_session_ensure` keeps the wake session, `Baton · wake`, once any
 `offline` event exists: nothing while its session has a live row, a flagless resume when its process is
-gone, a fresh `--bg` start in `~/.baton/wake/` with `settings/wake.json` when it never started or its
+gone, a fresh `--bg` start in `~/.baton-wake/` with `settings/wake.json` (refused, with a `wake` event, when the file is missing or its deny list is empty) when it never started or its
 last resume was refused, at most once per `retryMinutes`. Its session is read from the log's `wake`
 events, because a stopped session drops out of `claude agents --json` and a search by name would start
 a new one after every stop.

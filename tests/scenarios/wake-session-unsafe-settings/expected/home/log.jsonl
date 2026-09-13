@@ -1,0 +1,4 @@
+{"at":"2026-09-12T08:00:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"name":"Baton · Fixture · M02","model":"opus","remote":false,"worktree":"/w/M02","branch":"M02","worktree_reused":false,"settings":"/s","prompt_path":"/p/f2/1.txt","prompt_sha256":"sidecar-missing: /p/f2/1.txt"}
+{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"outcome":"complete","written_by":"session","merged_as":"abc1234","archive":"/a/M02-f2-x.json"}
+{"at":"2026-09-12T11:00:00+01:00","kind":"offline","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"job":"0badf2","idle_minutes":61,"rank":4,"kept":3}
+{"at":"2026-09-12T12:00:00+01:00","kind":"wake","how":"started","name":"Baton · wake","outcome":"refused","note":"@TMP@/home/settings/wake.json carries no deny rules, and a bypassPermissions session is not started without them; sh install.sh writes it"}
