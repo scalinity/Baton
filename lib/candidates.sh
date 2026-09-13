@@ -31,8 +31,8 @@ project_held() {
 }
 
 # dispositions_in_force <project>: for every milestone a complete handover of the project names with
-# a disposition Baton knows, the entry from the newest archived handover that lists it —
-# {milestone, disposition, wait_for, held_by, archive, rank, index}, `rank` 0 for the newest archive
+# a disposition Baton knows, the entry from the newest consumed handover that lists it —
+# {milestone, disposition, wait_for, held_by, archive, rank, index}, `rank` 0 for the newest consumed
 # and `index` the entry's place in that archive's `eligible[]`. Prints {has_handover, in_force}.
 #
 # The newest handover **that lists the milestone**, not the newest handover full stop: a milestone
