@@ -1,0 +1,8 @@
+. "$ROOT/tests/lib-load.sh"
+lock_take
+rows=$(rows_read)
+offline_check "$rows" || echo "status $?"
+wake_session_ensure "$rows" || echo "status $?"
+lock_release
+echo "== status shows the offline session and the refused wake session =="
+status_render "$(rows_json)"

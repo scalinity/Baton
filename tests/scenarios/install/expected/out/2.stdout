@@ -3,6 +3,7 @@ the launchd agent at @TMP@/Library/LaunchAgents/com.baton.tick.plist is current
 home2/config.json
 home2/projects/Baton/permissions.json
 home2/projects/Baton/project.json
+home2/settings/wake.json
 home2/bin:
 baton
 lib
@@ -19,6 +20,7 @@ derive.sh
 dispatch.sh
 escalate.sh
 inbox.sh
+lifecycle.sh
 lock.sh
 log.sh
 notify.sh
@@ -30,6 +32,7 @@ templates.sh
 tick.sh
 waits.sh
 ["Bash(sudo:*)","Bash(su:*)","Bash(doas:*)","Bash(osascript * administrator privileges*)","Read(/@TMP@/home2/log.jsonl)","Edit(/@TMP@/home2/log.jsonl)","Write(/@TMP@/home2/log.jsonl)","Edit(/@TMP@/home2/archive/**)","Write(/@TMP@/home2/archive/**)","Edit(/@TMP@/home2/rejected/**)","Write(/@TMP@/home2/rejected/**)","Edit(/@TMP@/home2/prompts/**)","Write(/@TMP@/home2/prompts/**)","Edit(/@TMP@/home2/settings/**)","Write(/@TMP@/home2/settings/**)","Edit(/@TMP@/home2/projects/**)","Write(/@TMP@/home2/projects/**)","Edit(/@TMP@/home2/bin/**)","Write(/@TMP@/home2/bin/**)","Edit(/@TMP@/home2/status/**)","Write(/@TMP@/home2/status/**)","Edit(/@TMP@/home2/lock/**)","Write(/@TMP@/home2/lock/**)","Edit(/@TMP@/home2/config.json)","Write(/@TMP@/home2/config.json)","Edit(/@TMP@/home2/last-tick)","Write(/@TMP@/home2/last-tick)","Bash(*.baton/log.jsonl*)","Bash(*.baton/archive*)","Bash(*.baton/rejected*)","Bash(*.baton/prompts*)","Bash(*.baton/settings*)","Bash(*.baton/projects*)","Bash(*.baton/status*)","Bash(*.baton/lock*)","Bash(*.baton/config.json*)","Bash(*.baton/last-tick*)","Edit(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)","Write(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)","Bash(*com.baton.tick*)"]
+{"remoteControlAtStartup":true,"deny":44,"verbs":["Bash(*baton tick*)","Bash(*baton answer*)","Bash(*baton dispatch*)","Bash(*baton allow*)"]}
 {"cap":2,"fableReserve":80,"stallMinutes":30,"longRunningHours":6,"retryMinutes":15,"caffeinateMaxHours":6,"models":{"fable":"fable","opus":"opus","sonnet":"sonnet","haiku":"haiku"}}
 {
   "path": "/Users/danny/Documents/Apps/Baton",

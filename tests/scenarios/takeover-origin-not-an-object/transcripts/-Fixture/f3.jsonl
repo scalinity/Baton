@@ -1,0 +1,3 @@
+{"parentUuid":null,"type":"user","promptSource":"typed","origin":{"kind":"human"},"uuid":"u3a","timestamp":"2026-09-12T09:00:00.000Z","message":{"role":"user","content":"KICKOFF M03: implement the third milestone."}}
+{"parentUuid":"u3a","isSidechain":false,"origin":"system","type":"user","message":{"role":"user","content":"a record from some later format"},"uuid":"s3a","timestamp":"2026-09-12T10:00:00.000Z"}
+{"parentUuid":"s3a","isSidechain":false,"attachment":{"type":"queued_command","prompt":"also later","commandMode":"prompt","origin":"system"},"type":"attachment","uuid":"s3b","timestamp":"2026-09-12T10:05:00.000Z"}

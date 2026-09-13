@@ -19,3 +19,4 @@
 . "$ROOT/lib/declared.sh"
 . "$ROOT/lib/waits.sh"
 . "$ROOT/lib/tick.sh"
+. "$ROOT/lib/lifecycle.sh"

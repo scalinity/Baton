@@ -34,7 +34,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M05 | Escalations, answer, allow, takeover | M04 | opus | | | done | Every escalation class parks and reaches the Mac as a three-part message; `baton answer` delivers a ruling; `baton allow` widens in place; a takeover stands Baton off and hands back | No |
 | M06 | The cap, the holds and the broken main | M05 | opus | | | done | Two lanes at once under the cap and the order; `fableReserve`; plan overrides; `main-broken` parks the project; leftover worktrees pruned on a verified merge (the prune was removed by M07, D-078); the first unattended night on Baton's own repo | Yes at the time (prunes a worktree, guarded three ways); no longer, since D-078 |
 | M07 | Remote dispatch and acceptance | M06 | opus | | | done | `Remote: yes` dispatches as one command with Remote Control in its settings, and a question is answered from the phone; the acceptance evidence of Baton driving itself unattended | No |
-| M07-b | A finished session: offline when idle, awake when messaged | M07 | opus | | | | A finished session holds no process while idle and answers when the person messages it from Claude.app or the phone, with no command typed; sessions grouped by project if Claude Code offers a way; the takeover rule sees Remote Control messages | No (takes idle processes of closed lanes offline) |
+| M07-b | A finished session: offline when idle, awake when messaged | M07 | opus | | | | The three most recently active finished sessions answer a message in their own threads; an older one is taken offline once idle and reached by messaging the `Baton · wake` session from Claude.app or the phone (D-087); the takeover rule sees Remote Control messages (D-085); Claude.app grouping measured as not settable by a session (D-086) | No (takes idle processes of closed lanes offline) |
 | M07-c | The Mac message: Claude's icon and a click that opens the session | M07-b | opus | | | | A park or notification appears under Baton with Claude's icon, and clicking it opens the session in Claude.app | No |
 | M07-d | A handover is acted on once | M07-c | opus | | | | A handover delivered twice changes nothing: no older disposition back in force, no session a newer handover held back | No |
 | M08 | Reclaim onboarding | M07-d | opus | | | | Reclaim is registered, its migrated plan parses, its starting artifact is in the inbox, and item 38 holds against its path | No |
@@ -55,14 +55,15 @@ The gate is cleared by the D-number of the entry that records the migration comm
 | REQ-CONTRACT | 01–06 | **M01** (03, 06: the slot line, Baton's own CLAUDE.md), **M02** (04), M06 (05), M08 (01, 02 for Reclaim) |
 | REQ-ARTIFACT | 01–09 | **M01** (09: the gate; 04: the api-error hook), **M02** (01–08) |
 | REQ-TICK | 01–09 | M01 (08: the seams; 09: the installed relay), **M03** (01–07) |
-| REQ-STOP | 01–14 | M03 (08, 09, 10, 14), **M04** (01–07, 13), **M05** (11, 14 hand-back), M06 (12) |
+| REQ-STOP | 01–14 | M03 (08, 09, 10, 14), **M04** (01–07, 13), **M05** (11, 14 hand-back), M06 (12), M07-b (14: Remote Control messages) |
 | REQ-ESC | 01–11 | M02 (11: `status`), M03 (02: the Mac message; 10: the gap), **M05** (01, 03–07, 09), M06 (04 project scope), M07 (08) |
 | REQ-PLAN | 01–08 | **M01** (01–05, 06 for Baton, 07, 08), M08 (06 for Reclaim) |
 | REQ-DISPATCH | 01–10 | **M01** (03–06, 08, 10), M03 (03 prune reserved), **M06** (01, 02, 09), **M07** (03 worktrees kept, 07) |
 | REQ-PERM | 01–05 | **M01** (01–04), M05 (02: `allow` as writer), M06 (05) |
 | REQ-LOG | 01–08 | **M01** (01–03, 05, 08), **M02** (04, 06, 07) |
-| REQ-VERB | 01–07 | **M01** (01, 05, 06), M02 (04), M03 (02), M05 (03, 07) |
+| REQ-VERB | 01–08 | **M01** (01, 05, 06), M02 (04), M03 (02), M05 (03, 07), M07-b (08) |
 | REQ-SETUP | 01–08 | **M01** (05), **M03** (01, 04, 07, 08), M07 (06), M03 (02, 03: checked, recorded) |
+| REQ-LIFE | 01–04 | **M07-b** (01–04) |
 
 Every requirement in `docs/SPEC.md` §2 appears above; every milestone owns at least one in bold
 except M07 and M08, which are acceptance and onboarding.

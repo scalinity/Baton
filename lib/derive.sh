@@ -86,19 +86,26 @@ orphaned_of() {
   return 1
 }
 
-# typed_hashes <transcript>: one line per typed record — "<at> <uuid> <sha256>" in file order.
-# Typed is type user, promptSource typed, not meta and not a compact summary; compaction appends
-# and never rewrites. The text is normalised and hashed the one way the sidecar was (D-025).
+# typed_hashes <transcript>: one line per message a person or Baton put into the session — "<at>
+# <uuid> <sha256>" in file order. That is a user record, not meta and not a compact summary, that
+# was typed (promptSource typed, Baton's own prompts among them), queued from Remote Control
+# between turns (promptSource queued), or carries origin human (a slash command); or a
+# queued_command attachment with origin human, which is how a message sent from Claude.app arrives
+# mid-turn. A peer session's message, a task notification and the Stop gate's feedback are none of
+# these (D-085). Compaction appends and never rewrites. The text is normalised and hashed the one
+# way the sidecar was (D-025).
 # A transcript that does not parse — a line half-written while the session was mid-append — fails
 # the read rather than returning what parsed so far: a truncated list can lose the newest typed
 # record, and the newest typed record is the whole of the takeover decision. Reading it short would
 # report a lane a person is typing into as clean, which is the one thing INV-04 forbids.
 typed_hashes() {
-  th_recs=$(jq -c 'select(.type == "user" and .promptSource == "typed"
-                          and (.isMeta != true) and (.isCompactSummary != true))
-                   | {at: .timestamp, uuid: .uuid,
-                      text: (if (.message.content | type) == "string" then .message.content
-                             else ([.message.content[]? | select(.type == "text") | .text] | join("")) end)}' \
+  th_recs=$(jq -c 'def text_of: if type == "string" then . else ([.[]? | select(.type == "text") | .text] | join("")) end;
+                   if .type == "user" and (.promptSource == "typed" or .promptSource == "queued" or (.origin | objects | .kind) == "human")
+                      and (.isMeta != true) and (.isCompactSummary != true)
+                   then {at: .timestamp, uuid: .uuid, text: (.message.content | text_of)}
+                   elif .type == "attachment" and .attachment.type == "queued_command" and (.attachment.origin | objects | .kind) == "human"
+                   then {at: .timestamp, uuid: .uuid, text: (.attachment.prompt | text_of)}
+                   else empty end' \
              "$1" 2>/dev/null) || return 1
   [ -n "$th_recs" ] || return 0
   # Three fixed columns: a record missing its timestamp or uuid prints a dash rather than nothing,

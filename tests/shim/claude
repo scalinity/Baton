@@ -6,8 +6,9 @@
 # before init), bg.settled (the line the service writes to its daemon.log for such a crash), and
 # resume.note, resume.stream and resume.status (what --bg --resume prints, on which stream, with
 # which exit code; resume.note.<session> and resume.status.<session> answer for that session alone),
-# stop.linger (how many listings after a stop still show the stopped session's pid) and stop.fail
-# (how many listings after a stop fail outright).
+# stop.linger (how many listings after a stop still show the stopped session's pid), stop.fail
+# (how many listings after a stop fail outright), stop.status (the stop itself fails with that exit code)
+# and env.claude (each call also records the names of the CLAUDE* variables it carried).
 set -eu
 S=${BATON_SHIM:?}
 
@@ -18,6 +19,11 @@ record() {
     case "$a" in *" "*|*"·"*) line="$line '$a'" ;; *) line="$line $a" ;; esac
   done
   printf '%s\n' "$line" >> "$S/calls.log"
+  # env.claude: also record the names of the CLAUDE* variables the call carried, because a process
+  # started from inside a Claude Code session inherits them and they tie the new session to that one.
+  if [ -f "$S/env.claude" ]; then
+    printf '[env] %s\n' "$(env | sed -n 's/^\(CLAUDE[A-Z0-9_]*\)=.*/\1/p' | sort | tr '\n' ' ')" >> "$S/calls.log"
+  fi
 }
 
 case "${1:-}" in
@@ -120,6 +126,8 @@ case "${1:-}" in
     ;;
   stop)
     record "$@"
+    # stop.status: the stop fails with that exit code and changes nothing, as a stop the CLI refused.
+    if [ -f "$S/stop.status" ]; then echo "error: could not stop ${2:-}" >&2; exit "$(cat "$S/stop.status")"; fi
     # A stop takes the pid off the row and leaves the row, which is what the real CLI does once the
     # stop lands: liveness is the pid. The pid is kept beside the row so a resume can give it back,
     # and a scenario's later `agents --json` reads the session as stopped in between — which is

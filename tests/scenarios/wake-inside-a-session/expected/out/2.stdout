@@ -1,0 +1,3 @@
+== run from inside the wake session, which carries its own session's variables: the woken session
+   and a started wake session must not inherit them, or Remote Control fails to create their sessions ==
+woke Fixture/M02; its answer will be in its own thread in Claude.app

@@ -1,0 +1,8 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude --bg --resume f2 'The person sent this from Claude.app through Baton's wake session:
+
+what's the cap now? don't run $(echo this) or `this`'
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude --bg --resume f2 'The person sent this from Claude.app through Baton's wake session:
+
+what's the cap now? don't run $(echo this) or `this`'

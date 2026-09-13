@@ -74,6 +74,28 @@ if [ ! -f "$BATON_HOME/projects/$project/permissions.json" ]; then
         ) } }' > "$BATON_HOME/projects/$project/permissions.json"
 fi
 
+# The wake session's settings (D-087): Remote Control on, so the person can message it from Claude.app
+# and the phone, and the same deny list as Baton's own sessions, because it runs `baton wake` under
+# bypassPermissions like any dispatched session. On top of that list, every verb but `wake`, `status`
+# and `plan`: its standing prompt runs one command, and the deny list rather than the prompt is the
+# rail, so a misread message cannot tick, answer, dispatch or widen an allowlist from the phone. With
+# no base list there is no rail to add to, so the file carries none and the tick refuses to start the
+# session. No hooks: it is not a milestone and owes no handover. Written only when it changes, so a
+# second install changes nothing.
+mkdir -p "$BATON_HOME/settings"
+jq '(.permissions.deny // []) as $base
+    | {permissions: {defaultMode: "bypassPermissions", allow: [],
+                     deny: (if ($base | length) == 0 then []
+                            else $base + ["Bash(*baton tick*)", "Bash(*baton answer*)",
+                                          "Bash(*baton dispatch*)", "Bash(*baton allow*)"] end)},
+       remoteControlAtStartup: true}' \
+  "$BATON_HOME/projects/$project/permissions.json" > "$BATON_HOME/settings/wake.json.tmp"
+if cmp -s "$BATON_HOME/settings/wake.json.tmp" "$BATON_HOME/settings/wake.json"; then
+  rm -f "$BATON_HOME/settings/wake.json.tmp"
+else
+  mv "$BATON_HOME/settings/wake.json.tmp" "$BATON_HOME/settings/wake.json"
+fi
+
 # The launchd agent is copied only when none is installed, and never loaded: loading is a person's
 # act, after they have read the merge and granted Full Disk Access to the shell the job runs
 # (REQ-SETUP-01, REQ-SETUP-04). An installed agent that differs is left in place, because a

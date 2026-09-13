@@ -1,0 +1,9 @@
+. "$ROOT/tests/lib-load.sh"
+echo "== the one classifier every resume uses: fork first, then success, else refused with stderr's reason =="
+resume_classify "backgrounded · f2" "note: started a copy of that conversation as c0b1e5e1." 0
+resume_classify "backgrounded · f2
+note: woke session f2 with its saved options (-n, --model)." "" 0
+resume_classify "backgrounded · f2" "error: session f2 not found" 1
+resume_classify "backgrounded · f2" "" 3
+echo "== a reason longer than 500 bytes is cut, so the event that carries it is never refused =="
+resume_classify "" "$(awk 'BEGIN { while (i++ < 700) printf "x" }')" 1 | jq -c '{outcome, bytes: (.note | length)}'

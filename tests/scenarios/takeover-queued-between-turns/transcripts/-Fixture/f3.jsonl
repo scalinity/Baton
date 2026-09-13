@@ -1,0 +1,6 @@
+{"parentUuid":null,"type":"user","promptSource":"typed","origin":{"kind":"human"},"uuid":"u3a","timestamp":"2026-09-12T09:00:00.000Z","message":{"role":"user","content":"KICKOFF M03: implement the third milestone."}}
+{"parentUuid":"u3a","type":"assistant","uuid":"a3a","timestamp":"2026-09-12T09:00:05.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Which option should I take?"}]}}
+{"type":"system","subtype":"turn_duration","uuid":"d3a","timestamp":"2026-09-12T09:00:06.000Z"}
+{"type":"queue-operation","operation":"enqueue","timestamp":"2026-09-12T10:30:00.000Z","sessionId":"f3","content":""}
+{"type":"queue-operation","operation":"dequeue","timestamp":"2026-09-12T10:30:00.010Z","sessionId":"f3"}
+{"parentUuid":"d3a","isSidechain":false,"promptSource":"queued","origin":{"kind":"human"},"type":"user","message":{"role":"user","content":[{"type":"text","text":"hold on, I will take this one myself"}]},"uuid":"u3b","timestamp":"2026-09-12T10:30:00.030Z"}

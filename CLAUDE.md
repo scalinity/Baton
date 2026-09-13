@@ -81,7 +81,9 @@ session that remembers nothing of the one that wrote it.
    session does not re-derive.
 5. **Constraints.** Never Python; shell only (`/bin/sh` with `set -eu`, `jq -e`, `awk`, git); no
    packages; the standing check is `sh tests/run.sh`; never touch Reclaim; which sessions, if
-   any, the milestone may start; the log has one writer; every resume is flagless; stage by name,
+   any, the milestone may start; a question for the person is asked in the session with
+   `AskUserQuestion`, never as an `asking` artifact the milestone could have avoided; the log has
+   one writer; every resume is flagless; stage by name,
    never `git add -A`; commit locally, neutral voice, no trailers; the next free D-number at the
    moment it is written.
 6. **Verification.** Point at the brief's §8; an unrun check is never reported as passed.
@@ -107,6 +109,11 @@ reason.
   deny classes in `docs/SPEC.md` REQ-PERM-04 are what stops a session escalating privileges or
   rewriting Baton's own record. A session writes `~/.baton/inbox/` and nothing else under
   `~/.baton/`, except through `sh install.sh` at close-out, which writes the installed relay.
+- **Ask in the session.** A question for the person is put with `AskUserQuestion` in the session
+  itself: Remote Control pushes it to the phone, the tick parks the lane as `question` with the Mac
+  message, and the answer given in Claude.app releases it with the session still running. An `asking`
+  artifact is consumed by stopping the session, which archives it on claude.ai and leaves the question
+  readable only in JSON, so it is only for a question asked as the turn ends (D-089).
 - **The log has one writer**, one function, under the lock. Hooks write per-session files.
 - **Every resume is flagless.** Any flag on `--bg --resume` forks a copy.
 - **Never start, stop, attach to, respawn or resume a session** except the fixture-project sessions

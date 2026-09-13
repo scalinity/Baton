@@ -134,6 +134,54 @@ slot_line() {
 # `baton dispatch` from inside a session saw it every time.
 cli_plain() { sed "s/$(printf '\033')\[[0-9;]*[a-zA-Z]//g"; }
 
+# resume_classify <stdout> <stderr> <exit status>: what a flagless `claude --bg --resume` printed, as
+# {outcome, note, copy}, both streams already through cli_plain. The one classifier every resume uses —
+# a ruling, a continuation, a wake — so a note variant learned once is learned everywhere (D-058).
+#
+# The fork test comes first and matches the family: a note saying the CLI `started a copy` is a fork,
+# and the copy is the 8-hex job id after the last ` as `. Then the success line, `woke session `. Else
+# refused, with stderr's first line as the reason, because stdout carries a `backgrounded` line
+# whichever way the resume went. The note is cut to 500 bytes: it is copied onto an event, and a line
+# `log_event` refused after the resume had landed would lose the record of a resume that happened.
+resume_classify() {
+  rcl_both=$(printf '%s\n%s\n' "$1" "$2")
+  rcl_copy=''
+  rcl_note=$(printf '%s\n' "$rcl_both" | grep -F 'started a copy' | head -1 || true)
+  if [ -n "$rcl_note" ]; then
+    rcl_outcome=forked
+    rcl_copy=$(printf '%s\n' "$rcl_note" | sed -n 's/.* as \([0-9a-f]\{8,\}\).*/\1/p' | head -1)
+  elif printf '%s\n' "$rcl_both" | grep -Fq 'woke session '; then
+    rcl_outcome=delivered
+    rcl_note=$(printf '%s\n' "$rcl_both" | grep -F 'woke session ' | head -1)
+  else
+    rcl_outcome=refused
+    rcl_note=$(printf '%s\n' "$2" | grep -v '^[[:space:]]*$' | head -1 || true)
+    [ -n "$rcl_note" ] || rcl_note=$(printf '%s\n' "$1" | grep -v '^[[:space:]]*$' | grep -v '^backgrounded ' | head -1 || true)
+    [ -n "$rcl_note" ] || rcl_note="the resume printed nothing and exited $3"
+  fi
+  rcl_note=$(printf '%s' "$rcl_note" | head -c 500)
+  jq -nc --arg o "$rcl_outcome" --arg n "$rcl_note" --arg c "$rcl_copy" \
+    '{outcome: $o, note: $n} | if $c != "" then . + {copy: $c} else . end'
+}
+
+# claude_env_clean: removes from this process every CLAUDE* variable but CLAUDE_CONFIG_DIR. `bin/baton`
+# calls it once, before any verb, so no `claude` Baton starts or resumes inherits them.
+#
+# A process started from inside a Claude Code session inherits that session's variables — its session
+# id, its Remote Control bridge session id, its entrypoint — and the wake session runs `baton wake`
+# from inside itself by design, as a person may run any verb by hand. Measured live (D-087): a `--bg`
+# session started from a shell carrying them recorded "Remote Control disconnected — Session creation
+# failed", while the same start under launchd's clean environment connected and recorded its claude.ai
+# URL; a session that cannot reach Claude.app answers into a thread nobody can read. CLAUDE_CONFIG_DIR
+# stays, because it names which Claude Code the person runs rather than which session this is. An
+# authentication variable of that family is removed with the rest, which is accepted on this Mac, where
+# login lives in the keychain.
+claude_env_clean() {
+  for cec_v in $(env | sed -n 's/^\(CLAUDE[A-Z0-9_]*\)=.*/\1/p'); do
+    [ "$cec_v" = CLAUDE_CONFIG_DIR ] || unset "$cec_v"
+  done
+}
+
 # claude_bg <worktree> <name> <model> <effort> <settings> <prompt>: the one command, with the
 # worktree as cwd and LC_ALL set. Sets bg_status, bg_stdout, bg_stderr and bg_id (empty when no
 # "backgrounded · <id>" line was printed, which is the failure test).

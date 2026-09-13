@@ -33,6 +33,10 @@ if [ -d "$here/lib" ]; then BATON_LIB=$here/lib; else BATON_LIB=$here/../lib; fi
 . "$BATON_LIB/declared.sh"
 . "$BATON_LIB/waits.sh"
 . "$BATON_LIB/tick.sh"
+. "$BATON_LIB/lifecycle.sh"
+
+# Before any verb: nothing Baton starts inherits the Claude Code session this may be running inside.
+claude_env_clean
 
 usage() {
   cat <<USAGE
@@ -43,6 +47,7 @@ usage: baton <verb> ...
   plan <project>                     print the graph as the tick sees it; validate every Model cell
   dispatch <project> <milestone>     step 8 by hand: worktree, settings, prompt, claude --bg, one event
   allow <milestone> '<rule>'         write the rule into the project's allowlist and the live settings
+  wake [<milestone> [<text>]]        bring a finished session back, carrying the text; with none, list them
 USAGE
 }
 
@@ -95,6 +100,14 @@ case "$verb" in
     lock_stale_report
     lock_take
     verb_allow "$2" "$3" "${4:-}"
+    ;;
+  wake)
+    # At most two arguments: the milestone and the text the woken session receives, which the wake
+    # session quotes as one shell argument. With neither, the finished sessions are listed.
+    [ $# -le 3 ] || { usage >&2; exit 2; }
+    lock_stale_report
+    lock_take
+    verb_wake "${2:-}" "${3:-}"
     ;;
   ''|help|-h|--help)
     usage

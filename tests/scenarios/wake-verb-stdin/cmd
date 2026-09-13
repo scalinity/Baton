@@ -1,0 +1,6 @@
+echo "== the person's words on stdin through a quoted heredoc: an apostrophe, a dollar and backticks arrive as written =="
+"$BATON" wake Fixture/M02 - <<'MESSAGE'
+what's the cap now? don't run $(echo this) or `this`
+MESSAGE
+echo "status $?"
+jq -r 'select(.kind == "wake") | .prompt_path' "$BATON_HOME/log.jsonl" | while read -r p; do cat "$p"; done
