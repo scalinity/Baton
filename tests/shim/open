@@ -3,11 +3,13 @@
 # spooled message, oldest first, is recorded as the notification it would raise and removed, and the
 # newest one's target is left in notify/target as the applet leaves it — so a scenario asserts on the
 # title, body and link a person would have seen and clicked. Nothing is launched and nothing is posted.
-# `open.fails` in the shim directory makes the launch fail, which is the path back to osascript.
+# `open.fails` in the shim directory makes the launch fail, which is the path back to osascript;
+# `open.running` makes the launch reach an applet already running, which posts nothing now.
 set -eu
 S=${BATON_SHIM:?}
 printf 'open %s\n' "$*" >> "$S/calls.log"
 [ ! -f "$S/open.fails" ] || exit 1
+[ ! -f "$S/open.running" ] || exit 0
 for a in "$@"; do app=$a; done
 home=$(cd "$app/../.." && pwd)
 for f in "$home"/notify/spool/*; do

@@ -71,12 +71,19 @@ notify() {
   if [ -d "$BATON_HOME/bin/Baton.app" ]; then
     nt_target=
     [ -z "${3:-}" ] || nt_target=$(session_url "$3" | sed 's|^https://|claude://|')
-    notify_seq=$(( ${notify_seq:-0} + 1 ))
     # Named so the spool lists in the order the messages were written, which is the order the applet
-    # posts them and so which one is the newest a click opens; written under a dot name the applet's
-    # listing skips and renamed, so the applet never reads half a message.
-    nt_name=$(now_epoch)-$$-$notify_seq
+    # posts them and so which one is the newest a click opens: the counter is padded, because the
+    # listing is lexical and `-10` would sort before `-2`. A name already on disk is skipped rather than
+    # overwritten, because the counter is a shell variable and a call from a subshell — a rule's
+    # `| while read` loop — increments a copy the next call does not see. Written under a dot name the
+    # applet's listing skips and renamed, so the applet never reads half a message.
     nt_spool=$BATON_HOME/notify/spool
+    nt_epoch=$(now_epoch 2>/dev/null) || nt_epoch=0
+    while :; do
+      notify_seq=$(( ${notify_seq:-0} + 1 ))
+      nt_name=$(printf '%s-%s-%06d' "$nt_epoch" "$$" "$notify_seq")
+      [ -e "$nt_spool/$nt_name" ] || [ -e "$nt_spool/.$nt_name" ] || break
+    done
     if mkdir -p "$nt_spool" 2>/dev/null \
        && printf '%s\n%s\n%s\n' "$(notify_line "$1")" "$(notify_line "$2")" "$nt_target" > "$nt_spool/.$nt_name" 2>/dev/null \
        && mv "$nt_spool/.$nt_name" "$nt_spool/$nt_name" 2>/dev/null; then
