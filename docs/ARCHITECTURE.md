@@ -261,7 +261,7 @@ the only ownership marker a row carries and is never dropped; the key is only no
 row of the same name reads the same function.
 
 **A finished session's process**, between steps 6 and 7, once across every project (REQ-LIFE, D-087).
-`offline_check` takes offline each finished session — its `complete` handover consumed and its milestone
+`offline_check` takes offline each finished session Baton dispatched — its `complete` handover consumed with an attempt and its milestone
 not dispatched since — whose row has a pid and reads `idle`, whose transcripts are at least
 `idleStopMinutes` old, and which ranks past `keepFinished` among the finished sessions with a live
 process, newest transcript first: `claude stop <job>` and one `offline` event. It runs across projects

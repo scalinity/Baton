@@ -57,11 +57,14 @@ offline_check() {
   oc_idle=$(config_num idleStopMinutes 60)
   oc_now=$(now_epoch)
 
-  # The live ones, each with its activity, newest first; a transcript that cannot be stat'd ranks last.
+  # The live ones Baton dispatched, each with its activity, newest first; a transcript that cannot be
+  # stat'd ranks last. Baton never stops what it did not start (the consume's own rule): a complete
+  # handover consumed with no attempt came from a session no dispatch put there — a person's own — so
+  # it is neither stopped nor counted against keepFinished, whose slots are for Baton's sessions.
   oc_live='[]'
-  oc_n=$(printf '%s' "$oc_fin" | jq 'map(select(has("pid"))) | length'); oc_i=0
+  oc_n=$(printf '%s' "$oc_fin" | jq 'map(select(has("pid") and has("attempt"))) | length'); oc_i=0
   while [ "$oc_i" -lt "$oc_n" ]; do
-    oc_f=$(printf '%s' "$oc_fin" | jq -c --argjson i "$oc_i" 'map(select(has("pid")))[$i]'); oc_i=$((oc_i + 1))
+    oc_f=$(printf '%s' "$oc_fin" | jq -c --argjson i "$oc_i" 'map(select(has("pid") and has("attempt")))[$i]'); oc_i=$((oc_i + 1))
     oc_mt=$(transcript_mtime "$(printf '%s' "$oc_f" | jq -r .session)") || oc_mt=''
     oc_live=$(printf '%s' "$oc_live" | jq -c --argjson f "$oc_f" --arg mt "$oc_mt" \
       '. + [$f + (if $mt == "" then {} else {mtime: ($mt | tonumber)} end)]')
@@ -79,10 +82,10 @@ offline_check() {
     [ -n "$oc_mt" ] || continue
     oc_age=$((oc_now - oc_mt))
     [ "$oc_age" -ge $((oc_idle * 60)) ] || continue
+    oc_a=$(printf '%s' "$oc_f" | jq -r .attempt)
     oc_s=$(printf '%s' "$oc_f" | jq -r .session)
     ! offline_after "$oc_log" "$oc_s" "$oc_mt" || continue
     oc_m=$(printf '%s' "$oc_f" | jq -r .milestone)
-    oc_a=$(printf '%s' "$oc_f" | jq -r '.attempt // ""')
     oc_job=$(printf '%s' "$oc_f" | jq -r .job)
     "$BATON_CLAUDE" stop "$oc_job" > /dev/null 2>&1 || true
     log_event offline "$oc_p" "$oc_m" "$oc_s" "$oc_a" "$(jq -nc --arg j "$oc_job" \
