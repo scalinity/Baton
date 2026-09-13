@@ -1,0 +1,10 @@
+# Without Claude.app's icon on the Mac the applet is still built and keeps its own icon — the asset
+# catalog osacompile writes and the key naming it — so a Mac without Claude.app still gets the "Baton"
+# sender and a click; the second run changes nothing.
+base=$(cd "$SHIM/.." && pwd)
+HOME=$base BATON_HOME="$base/home2" BATON_CLAUDE_ICON="$base/no-such/electron.icns" sh "$ROOT/install.sh" | grep -i applet || echo "no applet line"
+app=$base/home2/bin/Baton.app/Contents
+/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist"
+/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$app/Info.plist"
+[ -f "$app/Resources/Assets.car" ] && echo "asset catalog present" || echo "asset catalog absent"
+codesign --verify "$base/home2/bin/Baton.app" > /dev/null 2>&1 && echo "signature valid" || echo "signature invalid"

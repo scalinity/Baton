@@ -6,6 +6,7 @@ home2/projects/Baton/project.json
 home2/settings/wake.json
 home2/bin:
 baton
+Baton.app
 lib
 sh
 statusline
@@ -40,3 +41,11 @@ waits.sh
 }
 --- LaunchAgents ---
 com.baton.tick.plist
+--- the applet ---
+com.baton.notify
+true
+CFBundleIconName absent
+asset catalog absent
+icon is the Claude icon file
+source copy matches
+signature valid

@@ -183,7 +183,7 @@ escalate() {
     "$(jq -nc --arg c "$esc_class" --arg s "$esc_scope" --argjson carries "$esc_carries" \
        '{class: $c, scope: $s, carries: $carries, channel: ["notification"]}')" || return 1
   esc_msg=$(message_render "$1" "$2" "$esc_class" "$esc_carries" "$3" "$4")
-  notify "$(printf '%s' "$esc_msg" | jq -r .address)" "$(printf '%s' "$esc_msg" | jq -r .body)"
+  notify "$(printf '%s' "$esc_msg" | jq -r .address)" "$(printf '%s' "$esc_msg" | jq -r .body)" "$3"
 }
 
 # resolve <project> <milestone> <session> <attempt> <escalation at> <how>: the unpark. One of
@@ -280,12 +280,9 @@ escalation_verb() {
         printf 'baton answer %s "<ruling>"' "$evb_m"
       fi ;;
     question)
-      evb_job=$(printf '%s' "$3" | jq -r '.job // ""' 2>/dev/null || true)
-      if [ -n "$evb_job" ]; then
-        printf 'answer it in place (claude attach %s), or baton answer %s "<ruling>"' "$evb_job" "$evb_m"
-      else
-        printf 'answer it in place, or baton answer %s "<ruling>"' "$evb_m"
-      fi ;;
+      # Every dispatched session is on Remote Control (D-081) and a click on the message opens its
+      # thread, so Claude.app is where the question is answered; the same words serve `status`.
+      printf 'answer it in place in Claude.app, or baton answer %s "<ruling>"' "$evb_m" ;;
     merge-failed)
       printf 'baton answer %s "merge resolved; finish the close-out from step (c)"' "$evb_m" ;;
     ladder-end)

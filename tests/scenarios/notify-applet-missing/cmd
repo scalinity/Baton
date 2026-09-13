@@ -1,0 +1,3 @@
+# No applet installed: the message goes through osascript as before, so a failed install never
+# silences the relay, and nothing is spooled.
+"$BATON" tick

@@ -1,4 +1,5 @@
 copied /bin/sh to @TMP@/home2/bin/sh and signed it ad hoc — grant it Full Disk Access (REQ-SETUP-01)
+built the notifier applet at @TMP@/home2/bin/Baton.app (com.baton.notify) with Claude's icon
 installed the relay under @TMP@/home2/bin; project Baton registered at /Users/danny/Documents/Apps/Baton
 copied the launchd agent to @TMP@/Library/LaunchAgents/com.baton.tick.plist; load it with
   launchctl bootstrap gui/$(id -u) @TMP@/Library/LaunchAgents/com.baton.tick.plist
@@ -8,6 +9,7 @@ home2/projects/Baton/project.json
 home2/settings/wake.json
 home2/bin:
 baton
+Baton.app
 lib
 sh
 statusline
@@ -42,3 +44,11 @@ waits.sh
 }
 --- LaunchAgents ---
 com.baton.tick.plist
+--- the applet ---
+com.baton.notify
+true
+CFBundleIconName absent
+asset catalog absent
+icon is the Claude icon file
+source copy matches
+signature valid

@@ -1,6 +1,6 @@
 #!/bin/sh
-# install.sh — installs the relay under ~/.baton/bin (baton, lib/, the three hooks, and a copy of
-# /bin/sh for the Full Disk Access grant), creates the state directories, config.json and Baton's
+# install.sh — installs the relay under ~/.baton/bin (baton, lib/, the three hooks, a copy of
+# /bin/sh for the Full Disk Access grant, and the notifier applet Baton.app), creates the state directories, config.json and Baton's
 # own registration if absent. Idempotent: a second run changes nothing. launchd and every
 # dispatched session's hooks run the installed copy, so a merge on main changes nothing until this
 # is run (D-018).
@@ -94,6 +94,45 @@ if cmp -s "$BATON_HOME/settings/wake.json.tmp" "$BATON_HOME/settings/wake.json";
   rm -f "$BATON_HOME/settings/wake.json.tmp"
 else
   mv "$BATON_HOME/settings/wake.json.tmp" "$BATON_HOME/settings/wake.json"
+fi
+
+# The notifier applet (REQ-ESC-02, REQ-SETUP-05): notify/Baton.applescript compiled by the system's
+# osacompile into bin/Baton.app, so the Mac message is posted under "Baton" rather than Script Editor
+# and a click opens the session. osacompile writes no bundle identifier, which Notification Center
+# keys a sender on, and carries its icon twice — applet.icns and an asset catalog that wins over it —
+# so the identifier is added, and Claude's icon replaces both when the installed Claude.app has one.
+# The icon is Anthropic's mark: it is copied from this Mac's Claude.app here and never committed. The
+# edits break osacompile's own signature, so the bundle is signed ad hoc last. Built in a staging
+# directory and moved into place, and only when the source or the icon differs from what the installed
+# applet holds, so a second install changes nothing. A failed build leaves any applet already installed,
+# and without one `notify` posts through osascript, so a failed install never silences the relay.
+claude_icon=${BATON_CLAUDE_ICON:-/Applications/Claude.app/Contents/Resources/electron.icns}
+app=$BATON_HOME/bin/Baton.app
+if ! cmp -s "$here/notify/Baton.applescript" "$app/Contents/Resources/Baton.applescript" \
+   || { [ -f "$claude_icon" ] && ! cmp -s "$claude_icon" "$app/Contents/Resources/applet.icns"; }; then
+  stage=$BATON_HOME/bin/.Baton-build
+  rm -rf "$stage"
+  mkdir -p "$stage"
+  if /usr/bin/osacompile -o "$stage/Baton.app" "$here/notify/Baton.applescript" > /dev/null 2>&1 \
+     && cp "$here/notify/Baton.applescript" "$stage/Baton.app/Contents/Resources/Baton.applescript" \
+     && { [ ! -f "$claude_icon" ] \
+          || { cp "$claude_icon" "$stage/Baton.app/Contents/Resources/applet.icns" \
+               && rm -f "$stage/Baton.app/Contents/Resources/Assets.car" \
+               && { /usr/libexec/PlistBuddy -c 'Delete :CFBundleIconName' "$stage/Baton.app/Contents/Info.plist" > /dev/null 2>&1 || true; }; }; } \
+     && /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string com.baton.notify' \
+          -c 'Add :LSUIElement bool true' "$stage/Baton.app/Contents/Info.plist" > /dev/null 2>&1 \
+     && codesign --force --sign - "$stage/Baton.app" > /dev/null 2>&1; then
+    rm -rf "$app"
+    mv "$stage/Baton.app" "$app"
+    if [ -f "$claude_icon" ]; then
+      echo "built the notifier applet at $app (com.baton.notify) with Claude's icon"
+    else
+      echo "built the notifier applet at $app (com.baton.notify); $claude_icon is missing, so it keeps the applet's own icon"
+    fi
+  else
+    echo "warning: could not build the notifier applet at $app; the Mac message goes through osascript"
+  fi
+  rm -rf "$stage"
 fi
 
 # The launchd agent is copied only when none is installed, and never loaded: loading is a person's

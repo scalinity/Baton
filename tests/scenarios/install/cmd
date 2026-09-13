@@ -1,5 +1,14 @@
 # HOME is redirected so the launchd agent install.sh copies lands inside the scenario's own tree
-# and never in the person's ~/Library/LaunchAgents.
+# and never in the person's ~/Library/LaunchAgents. BATON_CLAUDE_ICON names a fixture file, so the
+# applet's icon is the same bytes on every Mac and Anthropic's icon never enters the repository.
 home2=$(cd "$SHIM/.." && pwd)/home2
-HOME=$(cd "$SHIM/.." && pwd) BATON_HOME="$home2" sh "$ROOT/install.sh"
+HOME=$(cd "$SHIM/.." && pwd) BATON_HOME="$home2" BATON_CLAUDE_ICON="$SCENARIO/icon.icns" sh "$ROOT/install.sh"
 cd "$home2/.." && find home2 -type f | grep -v "^home2/bin/" | sort && ls home2/bin home2/bin/lib && jq -c .permissions.deny home2/projects/Baton/permissions.json && jq -c '{remoteControlAtStartup, deny: (.permissions.deny | length), verbs: .permissions.deny[-4:]}' home2/settings/wake.json && jq -c . home2/config.json && cat home2/projects/Baton/project.json && echo "--- LaunchAgents ---" && ls Library/LaunchAgents
+echo "--- the applet ---"
+app=home2/bin/Baton.app/Contents
+/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' -c 'Print :LSUIElement' "$app/Info.plist"
+/usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$app/Info.plist" > /dev/null 2>&1 && echo "CFBundleIconName present" || echo "CFBundleIconName absent"
+[ -f "$app/Resources/Assets.car" ] && echo "asset catalog present" || echo "asset catalog absent"
+cmp -s "$SCENARIO/icon.icns" "$app/Resources/applet.icns" && echo "icon is the Claude icon file" || echo "icon differs"
+cmp -s "$ROOT/notify/Baton.applescript" "$app/Resources/Baton.applescript" && echo "source copy matches" || echo "source copy differs"
+codesign --verify home2/bin/Baton.app > /dev/null 2>&1 && echo "signature valid" || echo "signature invalid"

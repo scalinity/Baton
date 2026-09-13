@@ -1,3 +1,4 @@
+built the notifier applet at @TMP@/home2/bin/Baton.app (com.baton.notify) with Claude's icon
 installed the relay under @TMP@/home2/bin; project Baton registered at /Users/danny/Documents/Apps/Baton
 launchd/com.baton.tick.plist differs from the installed agent at @TMP@/Library/LaunchAgents/com.baton.tick.plist, which is left in place; copy it by hand and reload the agent if the change is wanted
 --- the installed agent ---

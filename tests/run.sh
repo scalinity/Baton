@@ -122,7 +122,7 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
 
   for run in 1 2; do
     ( export BATON_HOME="$tmp/home" BATON_CLAUDE="$here/shim/claude" BATON_DATE="$here/shim/date" \
-             BATON_CAFFEINATE="$here/shim/caffeinate" BATON_OSASCRIPT="$here/shim/osascript" \
+             BATON_CAFFEINATE="$here/shim/caffeinate" BATON_OSASCRIPT="$here/shim/osascript" BATON_OPEN="$here/shim/open" \
              BATON_SHIM="$tmp/shim" BATON_DAEMON_LOG="$tmp/shim/daemon.log" \
              BATON_TRANSCRIPTS="$tmp/transcripts" \
              BATON="$root/bin/baton" ROOT="$root" SCENARIO="$sc" SHIM="$tmp/shim"
