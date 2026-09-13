@@ -1,0 +1,4 @@
+# One tick raises two messages — the gap, which belongs to no session, and the question park on the
+# lane — and both are spooled and posted in the order raised, the newest target being the one a click
+# opens. The gap's empty session leaves its own target empty rather than failing.
+"$BATON" tick
