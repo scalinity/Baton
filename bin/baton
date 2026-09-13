@@ -35,6 +35,9 @@ if [ -d "$here/lib" ]; then BATON_LIB=$here/lib; else BATON_LIB=$here/../lib; fi
 . "$BATON_LIB/tick.sh"
 . "$BATON_LIB/lifecycle.sh"
 
+# Before any verb: nothing Baton starts inherits the Claude Code session this may be running inside.
+claude_env_clean
+
 usage() {
   cat <<USAGE
 usage: baton <verb> ...

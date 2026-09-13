@@ -134,6 +134,24 @@ slot_line() {
 # `baton dispatch` from inside a session saw it every time.
 cli_plain() { sed "s/$(printf '\033')\[[0-9;]*[a-zA-Z]//g"; }
 
+# claude_env_clean: removes from this process every CLAUDE* variable but CLAUDE_CONFIG_DIR. `bin/baton`
+# calls it once, before any verb, so no `claude` Baton starts or resumes inherits them.
+#
+# A process started from inside a Claude Code session inherits that session's variables — its session
+# id, its Remote Control bridge session id, its entrypoint — and the wake session runs `baton wake`
+# from inside itself by design, as a person may run any verb by hand. Measured live (D-087): a `--bg`
+# session started from a shell carrying them recorded "Remote Control disconnected — Session creation
+# failed", while the same start under launchd's clean environment connected and recorded its claude.ai
+# URL; a session that cannot reach Claude.app answers into a thread nobody can read. CLAUDE_CONFIG_DIR
+# stays, because it names which Claude Code the person runs rather than which session this is. An
+# authentication variable of that family is removed with the rest, which is accepted on this Mac, where
+# login lives in the keychain.
+claude_env_clean() {
+  for cec_v in $(env | sed -n 's/^\(CLAUDE[A-Z0-9_]*\)=.*/\1/p'); do
+    [ "$cec_v" = CLAUDE_CONFIG_DIR ] || unset "$cec_v"
+  done
+}
+
 # claude_bg <worktree> <name> <model> <effort> <settings> <prompt>: the one command, with the
 # worktree as cwd and LC_ALL set. Sets bg_status, bg_stdout, bg_stderr and bg_id (empty when no
 # "backgrounded · <id>" line was printed, which is the failure test).

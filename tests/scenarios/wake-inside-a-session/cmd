@@ -7,5 +7,6 @@ export CLAUDECODE=1 CLAUDE_CODE_SESSION_ID=a1a1a1a1-0000-4000-8000-000000000000 
 . "$ROOT/tests/lib-load.sh"
 lock_take
 printf '%s\n' '{"at":"2026-09-12T11:00:00+01:00","kind":"offline","project":"Fixture","milestone":"M03","session":"f3","attempt":1,"job":"0badf3","idle_minutes":61,"rank":1,"kept":0}' >> "$BATON_HOME/log.jsonl"
+claude_env_clean   # what bin/baton does before every verb, the tick included
 wake_session_ensure '[]' || echo "status $?"
 lock_release

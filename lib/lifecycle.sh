@@ -107,22 +107,6 @@ offline_after() {
   return 1
 }
 
-# lifecycle_env_clean: removes from this process every CLAUDE* variable but CLAUDE_CONFIG_DIR, before a
-# CLI call that starts or resumes a session.
-#
-# `baton wake` is run by the wake session, so it inherits that session's variables — its session id,
-# its Remote Control bridge session id, its entrypoint — and so does every `claude` it starts. Measured
-# live (D-087): a `--bg` session started from a shell carrying them recorded "Remote Control
-# disconnected — Session creation failed", while the same start under launchd's clean environment
-# connected and recorded its claude.ai URL. A woken session that cannot reach Claude.app would answer
-# into a thread nobody can read. CLAUDE_CONFIG_DIR stays, because it names which Claude Code the
-# person runs rather than which session this is.
-lifecycle_env_clean() {
-  for lec_v in $(env | sed -n 's/^\(CLAUDE[A-Z0-9_]*\)=.*/\1/p'); do
-    [ "$lec_v" = CLAUDE_CONFIG_DIR ] || unset "$lec_v"
-  done
-}
-
 # wake_resume <session> <text>: a flagless `claude --bg --resume` and what it printed, classified the
 # way `resume_session` classifies it — the fork test before the success test, both streams, colour
 # removed — without the stop, because a session this is asked to wake has no process to stop. Prints
@@ -180,7 +164,6 @@ Do nothing else: read no files, edit nothing, run no other command and start no 
 # fresh when it has never been started or its last resume was refused. At most one attempt per
 # retryMinutes, so a cause that will not clear costs a line a quarter of an hour, not a minute.
 wake_session_ensure() {
-  lifecycle_env_clean
   wse_log=$(log_json) || { echo "$wse_log" >&2; return 1; }
   printf '%s' "$wse_log" | jq -e 'any(.[]; .kind == "offline")' > /dev/null || return 0
   wse_last=$(printf '%s' "$wse_log" | jq -c '[ .[] | select(.kind == "wake" and .milestone == null) ] | last // {}')
@@ -245,7 +228,6 @@ wake_session_ensure() {
 # is delivered as the resume's prompt, labelled as the person's; the session answers it in its own
 # thread, which the resume makes active again in Claude.app even after the stop archived it.
 verb_wake() {
-  lifecycle_env_clean
   vw_rows=$(rows_read) || { echo "baton: claude agents --json could not be read, so whether a session is running cannot be told; nothing woken" >&2; exit 1; }
   vw_log=$(log_json) || { echo "baton: $vw_log" >&2; exit 1; }
   vw_fin=$(lifecycle_finished "$vw_log" "$vw_rows")
