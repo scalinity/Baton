@@ -270,7 +270,9 @@ before a new one starts. Then `wake_session_ensure` keeps the wake session, `Bat
 gone, a fresh `--bg` start in `~/.baton-wake/` with `settings/wake.json` (refused, with a `wake` event, when the file is missing or its deny list is empty) when it never started or its
 last resume was refused, at most once per `retryMinutes`. Its session is read from the log's `wake`
 events, because a stopped session drops out of `claude agents --json` and a search by name would start
-a new one after every stop.
+a new one after every stop. The two passes read the whole log once each beside the tick's other reads
+and scan it for each consumed handover; at today's size that is milliseconds, and it is counted
+against REQ-LOG-01's rule that the log is split only once a tick's scan is measurably slow.
 
 Then the marker, after the lock is released.
 
@@ -461,6 +463,9 @@ The two bits per class: retry, and notify now. ("What stops a session" §1, amen
 7. silent waits — a `blocked_by` whose blocker is in flight or eligible, and a distant `wait_for`;
 8. an open gap, if one was reported and nothing has cleared it;
 9. what is waiting in the inbox — one line per artifact Baton has not acted on, with its outcome.
+10. finished sessions taken offline — `offline  <project>/<milestone> · message Baton · wake, or baton wake
+    <project>/<milestone>` — and the wake session when its last start or resume was refused, with the
+    reason; a running finished session is the ordinary case and prints nothing (REQ-LIFE).
 
 Whole file, every time; no flags; no denials line. A section with nothing in it prints nothing, so
 the file is as short as the state is quiet. Line 9 exists because the move is the consumption: a

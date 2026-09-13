@@ -1,1 +1,5 @@
 wake        Baton · wake · could not be started: Error: Settings file not found: /nowhere
+== status shows the offline session and the refused wake session ==
+last tick 2026-09-12T11:59:00+01:00 (1 m ago) · unattended needs the lid open or clamshell
+offline  Fixture/M02 · message Baton · wake, or baton wake Fixture/M02
+wake session  not running · Error: Settings file not found: /nowhere

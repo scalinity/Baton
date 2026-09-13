@@ -206,6 +206,17 @@ status_render() {
   sr_consumed=$(derive_consumed "") || { echo "$sr_consumed"; return 1; }
   printf '%s' "$sr_consumed" | jq -r '.waiting[] |
     "inbox  \(.file) · \(.outcome // "unreadable") · not yet consumed"'
+
+  # 10. Finished sessions the offline rule took offline, with the way back, and the wake session when
+  # its last start or resume was refused — the one thing that would leave them out of reach (REQ-LIFE).
+  # A running finished session is the ordinary case and prints nothing.
+  sr_log=$(log_json) || { echo "$sr_log"; return 1; }
+  lifecycle_finished "$sr_log" "$sr_rows" | jq -r --argjson log "$sr_log" '
+    .[] | select(has("pid") | not) | . as $f
+    | select($log | any(.kind == "offline" and .session == $f.session))
+    | "offline  \(.project)/\(.milestone) · message Baton · wake, or baton wake \(.project)/\(.milestone)"'
+  printf '%s' "$sr_log" | jq -r '[ .[] | select(.kind == "wake" and .milestone == null) ] | last // empty
+    | select(.outcome == "refused") | "wake session  not running · \(.note // "refused")"'
 }
 
 # verb_status: the whole view, for the rows read once. Writes nothing.
