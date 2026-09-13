@@ -1,0 +1,2 @@
+echo "== the first archived file of M02's handover has been moved away, and its repeat's archived copy stands: a third delivery is still a repeat =="
+sh "$ROOT/tests/consume-once.sh"

@@ -31,8 +31,8 @@ project_held() {
 }
 
 # dispositions_in_force <project>: for every milestone a complete handover of the project names with
-# a disposition Baton knows, the entry from the newest archived handover that lists it —
-# {milestone, disposition, wait_for, held_by, archive, rank, index}, `rank` 0 for the newest archive
+# a disposition Baton knows, the entry from the newest consumed handover that lists it —
+# {milestone, disposition, wait_for, held_by, archive, rank, index}, `rank` 0 for the newest consumed
 # and `index` the entry's place in that archive's `eligible[]`. Prints {has_handover, in_force}.
 #
 # The newest handover **that lists the milestone**, not the newest handover full stop: a milestone
@@ -40,6 +40,13 @@ project_held() {
 # only the newest would drop it silently. An entry whose disposition is not `run`, `wait` or `held`
 # does not list the milestone, so a garbled one reaches the person as an omission rather than as a
 # guess.
+#
+# The order is the order the handovers were first acted on: derivation 4's `consumed`, which holds a
+# handover once while an archived copy of it stands. A file delivered again repeats a handover rather
+# than being one, is recorded as `repeated` and never as `consumed`, and so takes no place here —
+# however late it arrives, it cannot stand in front of a handover written after it (D-095). A handover
+# whose every archived copy has been moved away is no longer recognised, and a delivery of it after that
+# is consumed and ranked like a new one. `cap_order` reads the rank this prints.
 dispositions_in_force() {
   dif_doc=$(derive_consumed "$1") || { echo "$dif_doc"; return 1; }
   dif_files=$(printf '%s' "$dif_doc" | jq -c \

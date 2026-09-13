@@ -1,0 +1,1 @@
+== archive/ is a file, so the move that consumes a handover fails: nothing is recorded, the handover stays in the inbox, and the next tick tries again ==

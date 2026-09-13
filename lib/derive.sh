@@ -253,7 +253,10 @@ derive_taken_over() {
 # the archived file's path verbatim and a reader never rebuilds the name from parts. The join runs
 # both ways: `unrecorded` names every file in archive/ and rejected/ that no event claims, which is
 # what a tick killed between the move and its event leaves behind, and which nothing else would
-# show — derivation 1 would read such a lane as still open and M03's crash rule as a crash.
+# show — derivation 1 would read such a lane as still open and M03's crash rule as a crash. A repeat
+# sits in archive/ too, claimed by its `repeated` event and listed under `repeated`, and is not a
+# consumed handover: `consumed` lists each handover once while an archived copy of it stands, in the
+# order it was first acted on (D-095).
 derive_consumed() {
   dc_log=$(log_json) || { echo "$dc_log"; return 1; }
   dc_waiting='[]'
@@ -276,12 +279,22 @@ derive_consumed() {
       | . as $c
       | (($c.archive // "") | sub("^.*/"; "")) as $name
       | $c + {archive_present: (($present | index($name)) != null)} ] as $consumed
+    | [ .[] | select(.kind == "repeated" and ($p == "" or .project == $p))
+        | {at, project, milestone, session, attempt, outcome, archive, repeats}
+        | with_entries(select(.value != null))
+        | ((.archive // "") | sub("^.*/"; "")) as $name
+        | . + {archive_present: (($present | index($name)) != null)} ] as $repeated
     | [ .[] | select(.kind == "rejected") | (.path // "") | sub("^.*/"; "") ] as $claimed
-    | [ $consumed[] | (.archive // "") | sub("^.*/"; "") ] as $archived
+    # Claimed from the events of every project, as `rejected` is: archive/ is one directory for all of
+    # them, so a claim read through the project filter would call the handovers of another unrecorded.
+    | [ .[] | select(.kind == "consumed" or .kind == "repeated") | (.archive // "") | sub("^.*/"; "") ] as $archived
     | { consumed: $consumed,
+        repeated: $repeated,
         waiting: $w,
-        unrecorded: ( [ $present[] | select(($archived | index(.)) == null) | {file: ., where: "archive"} ]
-                    + [ $rejects[] | select(($claimed  | index(.)) == null) | {file: ., where: "rejected"} ] ) }'
+        # The name is bound before the pipe: inside `$archived | index(.)` the dot is $archived itself,
+        # which finds itself at 0 and never names a file.
+        unrecorded: ( [ $present[] | . as $f | select(($archived | index($f)) == null) | {file: ., where: "archive"} ]
+                    + [ $rejects[] | . as $f | select(($claimed  | index($f)) == null) | {file: ., where: "rejected"} ] ) }'
 }
 
 # 5. Each active wait and its first-failure time. The newest consumed with reason api-error for a

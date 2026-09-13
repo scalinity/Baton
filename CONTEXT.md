@@ -209,6 +209,14 @@ _Avoid_: header, metadata, schema
 Where a handover goes once Baton has acted on it. Half of the run record.
 _Avoid_: done folder, history
 
+**Repeat**:
+A handover delivered to the inbox again after Baton acted on it: the same artifact, to the last
+field, from the same session. It goes to the archive beside the first with a line saying so, and
+nothing follows from it, because a handover is acted on once. It is recognised against the copies the
+archive keeps, so a handover whose every copy has been moved away is not. A session's second, different artifact
+is a second handover, not a repeat.
+_Avoid_: duplicate, replay, retry
+
 **Run record**:
 Everything Baton knows about what ran: the archive and the dispatch log together.
 _Avoid_: ledger, history

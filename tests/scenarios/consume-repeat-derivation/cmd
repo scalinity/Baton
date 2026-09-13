@@ -1,0 +1,3 @@
+echo "== after a repeat: derivation 4 lists the handover once, as consumed; the repeat's archived file is claimed by its repeated event, another project's consumed handover is claimed by its own event, and only the file a killed tick left without an event is unrecorded =="
+. "$ROOT/tests/lib-load.sh"
+derive_consumed Fixture | jq -c .unrecorded

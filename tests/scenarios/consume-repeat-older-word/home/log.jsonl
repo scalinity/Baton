@@ -1,0 +1,4 @@
+{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"f1","outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M01-f1-a.json"}
+{"at":"2026-09-12T09:01:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"name":"Baton · Fixture · M02","model":"opus","remote":false,"worktree":"@TMP@/Fixture-M02","branch":"m02","worktree_reused":false}
+{"at":"2026-09-12T11:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M02-f2-b.json"}
+{"at":"2026-09-12T11:01:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M03","session":"f3","attempt":1,"name":"Baton · Fixture · M03","model":"claude-opus-5","remote":false,"worktree":"@TMP@/Fixture-M03","branch":"m03","worktree_reused":false}

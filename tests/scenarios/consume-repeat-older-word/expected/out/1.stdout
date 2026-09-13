@@ -1,0 +1,4 @@
+== M01 said run M07; M02, consumed after it, said M07 waits for M03, which is in flight; M01's handover is delivered again: M02's word stays in force and nothing is dispatched ==
+repeated  M01-f1.json → @TMP@/home/archive/M01-f1-2026-09-12T12:00:00+01:00.json (repeats M01-f1-a.json, acted on once)
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M03 · f3 · claude-opus-5 · attempt 1 · 59 m

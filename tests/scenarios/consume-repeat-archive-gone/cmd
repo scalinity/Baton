@@ -1,0 +1,2 @@
+echo "== M02's handover was consumed and its archived file is gone, with no repeat's copy beside it: nothing is left to compare against, so the delivery is acted on =="
+sh "$ROOT/tests/consume-once.sh"

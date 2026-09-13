@@ -91,7 +91,7 @@ which is the other reason the running copy lives under `~/.baton/`.
 ├── settings/wake.json                    the wake session's settings: Remote Control on, the deny list, no hooks; it runs in ~/.baton-wake/
 ├── prompts/<session>/<n>.txt             prompt sidecars, n from 1 per session
 ├── inbox/<milestone>-<session>.json      handover artifacts, .tmp then rename
-├── archive/<milestone>-<session>-<consumed-at>.json
+├── archive/<milestone>-<session>-<consumed-at>.json   handovers acted on, and the repeats of them
 ├── rejected/<milestone>-<session>.json
 ├── status/<session_id>.json              the status feed, overwritten per turn
 ├── log.jsonl                             the dispatch log
@@ -200,7 +200,11 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    and parse both tables; run `git -C <path> rev-parse HEAD`. Either failing parks the project
    (project scope, `plan-unreadable` or `plan-unparseable`, the path and what failed) and skips it
    for the rest of the tick. A stale lock is reported before this, and one past the interval whose pid answers no signal is cleared by the tick, which then writes the `baton-unhealthy` escalation under the lock it takes (D-039).
-2. **Consume the inbox.** For each `*.json` (never `.tmp`): parse; check provenance (the `session`
+2. **Consume the inbox.** For each `*.json` (never `.tmp`), first the repeat test: a file holding
+   the same JSON value, `written_at` included, as an archived copy of a `consumed` handover for its
+   milestone and session — its first file or an earlier repeat's — is moved to the archive with a
+   `repeated` event naming the first file, and nothing else follows — no check, stop, route, park or
+   `consumed` event (D-095, D-097); a log the test cannot read leaves the file in the inbox. Otherwise: parse; check provenance (the `session`
    has a transcript found by glob, the `project` is a registered checkout); for `complete`, verify
    `merged_as` is an ancestor of `main` in the canonical checkout; verify each `brief` pointer's
    path and heading on `main`. Reject loudly to `~/.baton/rejected/` with a `rejected` event and a
@@ -220,8 +224,9 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    and every redispatch for the project waits the same way, while steps 3 and 4 run on.
 6. **Intersect with the handover's dispositions** (`dispositions_intersect`, D-071). For each
    eligible milestone, and each milestone a handover in force names, the disposition in force is
-   the entry in the newest archived `complete` handover of that project that lists it with `run`,
-   `wait` or `held`: `run` → a candidate; `wait` → honoured while any `wait_for` is not `done`,
+   the entry in the newest consumed `complete` handover of that project that lists it with `run`,
+   `wait` or `held`, newest by the order derivation 4 first recorded each handover, which a repeat
+   does not enter (D-096): `run` → a candidate; `wait` → honoured while any `wait_for` is not `done`,
    dispatched the moment all read `done`, a distant `wait_for` notifying once; `held` on a milestone
    the plan makes eligible — its gate cleared, or a gate the plan does not name → the plan wins,
    dispatch, `plan_override` (`dispatched_over_held`, written once the dispatch happened); `run` on a milestone
@@ -488,7 +493,7 @@ file still in the inbox is a handover Baton has not read, and nothing else in th
 
 ## 6. The dispatch log
 
-One append-only JSONL at `~/.baton/log.jsonl`, nineteen event kinds over a five-field envelope,
+One append-only JSONL at `~/.baton/log.jsonl`, twenty event kinds over a five-field envelope,
 prompt bodies in per-session sidecars the events point at and hash, every count derived over
 `(project, milestone, attempt)`. Sections 6.1, 6.2, 6.4 and 6.5 are "The dispatch log" §1, §2, §5
 and §8, copied.
@@ -500,7 +505,7 @@ Every event is one JSON object on one line, with `at` and `kind` always present.
 | Field | Always? | Value |
 |---|---|---|
 | `at` | yes | ISO 8601 **with offset** (`2026-09-11T23:14:02+01:00`) |
-| `kind` | yes | one of the nineteen in §6.2 |
+| `kind` | yes | one of the twenty in §6.2 |
 | `project` | when the event has one | the project key: the basename of the canonical checkout |
 | `milestone` | when the event has one | the plan file's `ID` cell |
 | `session` | when the event has one | the `sessionId` — `CLAUDE_CODE_SESSION_ID`, the row's `sessionId`, the transcript's filename |
@@ -550,13 +555,14 @@ named. And **the session currently carrying an attempt** is the newest of that a
 
 ### 6.2 The event table
 
-Nineteen kinds. Fields listed are those beyond the envelope.
+Twenty kinds. Fields listed are those beyond the envelope.
 
 | Kind | Fields | Which rule reads it | Once-only key |
 |---|---|---|---|
 | `dispatch` | `name`, `model`, `effort`, `remote`, `worktree`, `branch`, `worktree_reused`, `worktree_commit`, `settings`, `prompt_path`, `prompt_sha256` | the attempt count; the ladder's reset point; in flight; the long-running clock; the takeover candidate set; the cap; **the model actually run**, for grading after the fact | — |
 | `dispatch_failed` | `stage` (`worktree`\|`settings`\|`prompt`\|`launch`\|`service`), `detail`; no `session` | the second consecutive since the pair's newest `dispatch` escalates, lane scope, and that park is then what stops the retry (D-049); `stage: service` escalates, project scope, which is M06's | — |
 | `consumed` | `outcome`, `reason` or `error`, `written_by` (`session`\|`stop-gate`\|`stop-failure`), `merged_as`, `blocked_by`, `archive` | every ending's routing; the ladder's reset; the notification keys' reset; the terminal test for in flight; the wait's start before its first retry | — |
+| `repeated` | `outcome`, `archive` (where the file came to rest), `repeats` (the `archive` of the `consumed` handover it repeats); the envelope is that handover's | derivation 4's join, which claims the archived file; no rule acts on it, so a repeat routes, parks, resets and ranks nothing (D-095) | — |
 | `rejected` | `path` (where the file came to rest: `~/.baton/rejected/` for a rejected file, `~/.baton/archive/` for a rejected `eligible[]` entry of a file that was consumed), `reason` (the rule's name) | the lane escalation that follows a rejection (the log is the record, so no sidecar) | — |
 | `resume` | `resume_kind` (`continue`\|`finish`\|`ruling`), `resume`, `class`, `outcome` (`delivered`\|`forked`\|`refused`), `prompt_path`, `prompt_sha256` | the resume count; the ladder (`refused` is a failure ending); the long-running clock; the takeover candidate set | — |
 | `copy_fork` | `from_session`, `note` | the session currently carrying an attempt | — |
@@ -709,7 +715,12 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
    `<consumed-at>` and the event's own `at` are two readings of the clock and can differ by a
    second, which is why nothing joins on them matching. The join runs both ways: the derivation
    also names every file in `archive/` and `rejected/` that no event claims, which is what a tick
-   killed between the move and its event leaves behind and which nothing else would show.
+   killed between the move and its event leaves behind and which nothing else would show; the claims
+   are read from every project's events, because `archive/` is one directory for all of them. **A
+   handover is listed once while an archived copy of it stands.** A file delivered again holding the
+   same value as an archived copy — the first file, or an earlier repeat's — is archived too, claimed
+   by a `repeated` event rather than a `consumed` one and listed under `repeated`, so the `consumed`
+   list's order — the order each handover was first acted on — is the ranking step 6 reads (D-096).
 5. **Each active wait and its first-failure time.** The newest `consumed` with `reason: api-error`
    for a `(project, milestone, attempt)` that has no later `consumed` with `written_by: session` and
    no later `dispatch`. Its start is the `since` its `wait_retry` events carry — and **before the
@@ -871,8 +882,8 @@ through `cmd`. launchd is never in the tests.
 
 ## 8. Data flow
 
-Session → artifact (inbox) → tick consumes → archive + `consumed` event → eligibility (plan) ∩
-dispositions (newest archived handover) → holds, cap → dispatch (worktree, settings, sidecar,
+Session → artifact (inbox) → tick consumes → archive + `consumed` event (or, for a repeat, archive +
+`repeated` and nothing further) → eligibility (plan) ∩ dispositions (newest consumed handover) → holds, cap → dispatch (worktree, settings, sidecar,
 `claude --bg`, caffeinate) → `dispatch` event → session. Rows are read once per tick and never
 written. The status feed is read for two numbers. The person enters through `answer`, `allow`, an
 edit, or by typing into a session, and `status` is the view.
@@ -898,5 +909,5 @@ edit, or by typing into a session, and `status` is the view.
 | M07 | `lib/dispatch.sh`: `settings_compose <project> <milestone>` now writes `remoteControlAtStartup: true` for every dispatch (D-081); `dispatch_one` dispatches a `Remote: yes` milestone with the ordinary command and records the plan's `remote` on the `dispatch` event (D-080); `worktree_prune` removed (D-078). `lib/candidates.sh`: `dispositions_intersect` no longer skips a remote candidate. `lib/rows.sh`: `stall_check` judges a remote lane whose row reads `waiting`. `lib/tick.sh`: `tick_project` is steps 3 and 4 without the prune. `hooks/stop-gate`, `hooks/stop-failure`: exit 0 writing nothing, as their first rule, when an archived file has this session, this milestone and `outcome: complete`, matched by content (D-078). `lib/rows.sh`: a remote lane's stall key is spent only while its transcript has not moved since the notification. `install.sh`: copies the launchd agent only when none is installed (D-079). Close-out: `sh install.sh` (D-079). Scenarios `remote-dispatch-tick`, `remote-row-not-a-park`, `remote-stall-rearms`, `stop-gate-closed-lane`, `stop-failure-closed-lane`, `stop-gate-closed-lane-misnamed`, `stop-failure-closed-lane-misnamed`, `stop-gate-archived-stopped`, `stop-failure-archived-stopped`, `install-plist-differs`; `dispatch-remote-yes` refrozen on the one-command path; the twelve `prune-*` removed. Live items 39 (superseded) and 40, the phone, and the acceptance write-up in the brief | M06 |
 | M07-b | `lib/lifecycle.sh` (D-087): `lifecycle_finished <log json> <rows json>` (every session whose `complete` handover was consumed, one per milestone, none for a milestone dispatched since, following a forked wake to its `copy`, each with its live row's pid, job and status); `offline_check <rows json>` (REQ-LIFE-01, across every project, sessions Baton dispatched only, an event only for a stop the CLI took); `offline_after <log json> <session> <epoch>`; `wake_resume <session> <text>`; `wake_session_prompt`; `wake_session_ensure <rows json>` (REQ-LIFE-04); `verb_wake [<milestone>] [<text> \| -]` (REQ-LIFE-03). `lib/dispatch.sh`: `resume_classify <stdout> <stderr> <status>` (the one classifier of every flagless resume, printing `{outcome, note, copy}` with the note cut to 500 bytes; `resume_session` and `wake_resume` both call it); `claude_env_clean`, which `bin/baton` runs before every verb so nothing Baton starts inherits the `CLAUDE*` variables of a session it runs inside. `bin/baton`: verb `wake`. `lib/tick.sh`: `tick_run` calls `offline_check` and `wake_session_ensure` once, between steps 6 and 7. `lib/derive.sh`: `typed_hashes` reads every message record — a `user` record whose `promptSource` is `typed` or `queued` or whose `origin` is an object with `kind` `human`, and a `queued_command` attachment likewise (D-085). `lib/status.sh`: a tenth section, offline finished sessions and a refused wake session. `install.sh`: writes `settings/wake.json` when it has changed, with four rules refusing the `tick`, `answer`, `dispatch` and `allow` verbs. Config numbers `keepFinished`, `idleStopMinutes`, `wakeModel`, defaulted in code. `tests/lib-load.sh` sources `lib/lifecycle.sh`; `tests/shim/claude` gains `stop.status` and `env.claude`. Events `offline`, `wake`. Scenarios `takeover-{queued-command,queued-between-turns,peer-not-a-person,slash-command,origin-not-an-object}`, `offline-{keeps-recent,refusals,stop-not-landed,stop-fails,refuses-hand-started,refuses-redispatched}`, `wake-verb`, `wake-verb-{stdin,forked,two-projects}`, `wake-session-{resumed,forked,start-refused,settings-missing,unsafe-settings,model-alias}`, `wake-inside-a-session`, `resume-classify`; `install` asserts `wake.json`. The wake-mechanism measurements and the grouping finding (D-086) are in the brief | M07 |
 | M07-c | `notify/Baton.applescript`, compiled by `install.sh` into `~/.baton/bin/Baton.app` (`com.baton.notify`, `LSUIElement`, Claude's icon when `BATON_CLAUDE_ICON` — default `/Applications/Claude.app/Contents/Resources/electron.icns` — exists, signed ad hoc, rebuilt only when the source, the icon or `install.sh`'s checksum in `Resources/built-by` differs, swapped in by rename) (D-092, D-094): a launch or a reopen posts every file in `~/.baton/notify/spool/`, a message without a title removed unposted and a failure ending the pass without a dialog, and writes the newest one's target to `~/.baton/notify/target` aside and renamed; a launch with nothing spooled is a click, which clears Baton's delivered notifications and opens the target, or `claude://code/needs-input` when it is empty. `lib/notify.sh`: `notify <title> <body> [<session>]` (spools under a name never reused, counter padded, and runs `$BATON_OPEN -g Baton.app` when the applet is installed, `osascript` otherwise or when the launch fails); `notify_line <string>` (the capped line, unescaped); `notify_flush` (at the start of `tick_run`, launches the applet once when the spool still holds a message); `session_url <session>` (the newest claude.ai session URL among the transcript's `remote_session_change` attachments, else the job state's `bridgeSessionId` as one, else empty; D-093). `escalate` and `notification_write` pass the event's session. The `question` verb reads `answer it in place in Claude.app, or baton answer <milestone> "<ruling>"`. Seams `BATON_OPEN` and `BATON_JOBS`; `tests/shim/open` (knobs `open.fails`, `open.running`); scenarios `notify-session-url`, `notify-job-state`, `notify-no-session-url`, `notify-applet-missing`, `notify-open-fails`, `notify-spool-names`, `notify-spool-stranded`, `notify-stall-session`, `notify-two-in-a-tick`, `install-no-claude-icon`, `install-rebuild`, and the `install` scenario's applet checks | `notify`, `notification_write`, `escalate`, `message_render`, `escalation_verb`, `transcript_of`, `session_id_ok`, `now_epoch`; M07-b |
-| M07-d | the repeat test at the consume and a ranking of handovers that no delivery order can reverse | M07-c |
+| M07-d | `lib/inbox.sh`: `repeat_of <file>` (prints the `consumed` event of the handover the file repeats — the same JSON value, `written_at` included, as an archived copy of it for the same milestone and session, its first file or an earlier repeat's — with status 0; nothing with status 1; the log's read failure with status 2); `repeat_one <file> <consumed event>` (the move, the `repeated` event under the first handover's envelope, one line); `inbox_consume` runs the repeat test before `artifact_check` and leaves a file whose test could not read the log for the next tick (D-095, D-097). **Changes** `archive_move` and `reject_move` to print the reason and return 1 on a directory they cannot make, a destination that exists or a move that fails, and `consume_one`, `repeat_one` and `reject` to write nothing then; `consume_one` moves the file before stopping an asking session (D-097). `lib/derive.sh`: `derive_consumed` prints `{consumed[], repeated[], waiting[], unrecorded[]}`, each `repeated` entry `{at, project, milestone, session, attempt, outcome, archive, repeats, archive_present}`; its `unrecorded` join claims names from every project's `consumed` and `repeated` events and binds each name before comparing, where it had compared the list with itself and named nothing. `lib/candidates.sh`: `dispositions_in_force` and `cap_order` unchanged — the ranking is derivation 4's order of first consumption, which a repeat no longer enters (D-096). Event `repeated`. Scenarios `consume-repeat-{identical,reserialised,asking,older-word,two-handovers,new-written-at,derivation,first-archive-moved,archive-gone,log-unreadable}`, `consume-archive-move-fails`, `consume-archive-name-taken`; `derive-consumed` refrozen with the `repeated` list | `consume_one`, `archive_move`, `artifact_check`, `derive_consumed`, `log_event`, `baton_now`; M07-c |
 | M08 | `projects/Reclaim/{project.json,permissions.json}`, the hand-written starting artifact, `baton plan Reclaim` green, item 38 against Reclaim's path | M07-d |
