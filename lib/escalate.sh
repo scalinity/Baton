@@ -222,7 +222,7 @@ ruling_target() {
 #
 # This is `one_line`'s longer sibling and the two are deliberately different. `status` prints one
 # line per park (§5.3 line 3), so `one_line` takes the first; the Mac message is where the decision
-# is made, so this takes the whole of it and lets `notify_text` cap what Notification Center would
+# is made, so this takes the whole of it and lets `notify_line` cap what Notification Center would
 # have truncated anyway.
 escalation_content() {
   printf '%s' "$2" | jq -r '
@@ -320,11 +320,11 @@ escalation_verb() {
 # the address takes the title. The decision leads and the verb is last, which is the order the
 # ticket fixed for a lock screen and which still holds at a keyboard: a person reads to decide and
 # then reads what to type.
-# **The verb is never the part that gets cut.** `notify_text` caps the body at 250 code points
+# **The verb is never the part that gets cut.** `notify_line` caps the body at 250 code points
 # because Notification Center truncates far shorter, and the verb is last — so a long detail would
 # eat exactly the sentence that says what to do, which is the one part a person cannot reconstruct.
 # The content is cut to what is left after the verb instead, in code points and by jq, for the same
-# two reasons `notify_text` gives: this Mac's awk counts bytes, and a cut applied after escaping can
+# two reasons `notify_line` gives: this Mac's awk counts bytes, and a cut applied after escaping can
 # leave a literal ending in a lone backslash.
 message_render() {
   mrn_content=$(escalation_content "$3" "$4")

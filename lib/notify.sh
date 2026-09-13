@@ -13,26 +13,26 @@
 # (`message_render`, REQ-ESC-03), because a park is a decision to be made and not a fact to be told.
 set -eu
 
-# notify_text <string>: one line, safe inside an AppleScript string literal. Newlines and tabs
-# become spaces (a notification is one line), the result is capped because Notification Center
-# truncates far shorter than this and an unbounded carries would otherwise reach osascript whole,
-# and only then are a backslash and a double quote escaped.
+# notify_line <string>: one line of a Mac message, as the applet's spool holds it, where a field is read
+# as a value and never parsed as script. Newlines and tabs become spaces (a notification is one line,
+# and a newline would forge the spool's next field), and the result is capped because Notification
+# Center truncates far shorter than this and an unbounded carries would otherwise be spooled whole.
 #
-# The cap comes before the escaping and not after, and it is jq's and not awk's. Two measured
-# reasons. Applied after the escaping it would count the escapes and could cut between a backslash
-# and what it escapes, leaving the literal ending in a lone backslash, which escapes the closing
-# quote — a syntax error osascript reports and `notify` swallows, so the long messages are the ones
-# lost. And this Mac's awk (version 20200816) counts bytes, not characters, even under a UTF-8
-# locale: `printf 'a·b' | awk '{print substr($0,1,2)}'` yields `61 c2`, half of the two-byte
-# separator every composed message carries. jq slices by code point.
-notify_text() {
-  notify_line "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
-}
-
-# notify_line <string>: the same line and the same cap, unescaped — what the applet's spool holds, where
-# a field is read as a value and never parsed as script.
+# The cap is jq's and not awk's, and it comes before any escaping. Two measured reasons. Applied after
+# `notify_text`'s escaping it would count the escapes and could cut between a backslash and what it
+# escapes, leaving the literal ending in a lone backslash, which escapes the closing quote — a syntax
+# error osascript reports and `notify` swallows, so the long messages are the ones lost. And this Mac's
+# awk (version 20200816) counts bytes, not characters, even under a UTF-8 locale:
+# `printf 'a·b' | awk '{print substr($0,1,2)}'` yields `61 c2`, half of the two-byte separator every
+# composed message carries. jq slices by code point.
 notify_line() {
   printf '%s' "$1" | tr '\n\r\t' '   ' | jq -Rr '.[0:250]' | tr -d '\n'
+}
+
+# notify_text <string>: `notify_line`, then safe inside an AppleScript string literal — a backslash and
+# a double quote escaped — for the osascript path.
+notify_text() {
+  notify_line "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
 # session_url <session>: the claude.ai URL of the session's Remote Control thread — the newest

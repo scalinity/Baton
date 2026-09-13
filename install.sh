@@ -1,9 +1,9 @@
 #!/bin/sh
 # install.sh — installs the relay under ~/.baton/bin (baton, lib/, the three hooks, a copy of
-# /bin/sh for the Full Disk Access grant, and the notifier applet Baton.app), creates the state directories, config.json and Baton's
-# own registration if absent. Idempotent: a second run changes nothing. launchd and every
-# dispatched session's hooks run the installed copy, so a merge on main changes nothing until this
-# is run (D-018).
+# /bin/sh for the Full Disk Access grant, and the notifier applet Baton.app), creates the state
+# directories, config.json and Baton's own registration if absent. Idempotent: a second run changes
+# nothing. launchd and every dispatched session's hooks run the installed copy, so a merge on main
+# changes nothing until this is run (D-018).
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 BATON_HOME=${BATON_HOME:-$HOME/.baton}
