@@ -60,10 +60,12 @@ if [ ! -f "$BATON_HOME/projects/$project/permissions.json" ]; then
         deny: (
           ["Bash(sudo:*)", "Bash(su:*)", "Bash(doas:*)", "Bash(osascript * administrator privileges*)"]
           + ["Read(\($h)/log.jsonl)", "Edit(\($h)/log.jsonl)", "Write(\($h)/log.jsonl)"]
-          + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock" ]
+          + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock", "notify" ]
              | map("Edit(\($h)/\(.)/**)", "Write(\($h)/\(.)/**)"))
           + ["Edit(\($h)/config.json)", "Write(\($h)/config.json)", "Edit(\($h)/last-tick)", "Write(\($h)/last-tick)"]
-          + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick" ]
+          # `bin` stays out of the Bash fragments: a session runs the installed `baton` by its path, as
+          # the wake session does, and the Edit and Write rules above already keep bin/ out of reach.
+          + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick", "notify" ]
              | map("Bash(*.baton/\(.)*)"))
           # The launchd agent joins the named paths from M03. It sits outside ~/.baton but is
           # Baton state by every other measure, and what it names is executed every sixty

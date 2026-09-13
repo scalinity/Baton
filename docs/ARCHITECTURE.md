@@ -140,11 +140,13 @@ at the installed relay. The prototype's `settings-A.json` and `hooks/` under
       "Edit(//Users/danny/.baton/bin/**)", "Write(//Users/danny/.baton/bin/**)",
       "Edit(//Users/danny/.baton/status/**)", "Write(//Users/danny/.baton/status/**)",
       "Edit(//Users/danny/.baton/lock/**)", "Write(//Users/danny/.baton/lock/**)",
+      "Edit(//Users/danny/.baton/notify/**)", "Write(//Users/danny/.baton/notify/**)",
       "Edit(//Users/danny/.baton/config.json)", "Write(//Users/danny/.baton/config.json)",
       "Edit(//Users/danny/.baton/last-tick)", "Write(//Users/danny/.baton/last-tick)",
       "Bash(*.baton/archive*)", "Bash(*.baton/rejected*)", "Bash(*.baton/prompts*)",
       "Bash(*.baton/settings*)", "Bash(*.baton/projects*)", "Bash(*.baton/status*)",
-      "Bash(*.baton/lock*)", "Bash(*.baton/config.json*)", "Bash(*.baton/last-tick*)"
+      "Bash(*.baton/lock*)", "Bash(*.baton/config.json*)", "Bash(*.baton/last-tick*)",
+      "Bash(*.baton/notify*)"
     ]
   },
   "remoteControlAtStartup": true,
