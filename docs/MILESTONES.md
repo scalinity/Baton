@@ -36,7 +36,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M07 | Remote dispatch and acceptance | M06 | opus | | | done | `Remote: yes` dispatches as one command with Remote Control in its settings, and a question is answered from the phone; the acceptance evidence of Baton driving itself unattended | No |
 | M07-b | A finished session: offline when idle, awake when messaged | M07 | opus | | | done | The three most recently active finished sessions answer a message in their own threads; an older one is taken offline once idle and reached by messaging the `Baton · wake` session from Claude.app or the phone (D-087); the takeover rule sees Remote Control messages (D-085); Claude.app grouping measured as not settable by a session (D-086) | No (takes idle processes of closed lanes offline) |
 | M07-c | The Mac message: Claude's icon and a click that opens the session | M07-b | opus | | | done | A park or notification appears under Baton with Claude's icon, and clicking it opens the session in Claude.app | No |
-| M07-d | A handover is acted on once | M07-c | opus | | | | A handover delivered twice changes nothing: no older disposition back in force, no session a newer handover held back | No |
+| M07-d | A handover is acted on once | M07-c | opus | | | done | A handover delivered twice changes nothing: no older disposition back in force, no session a newer handover held back | No |
 | M08 | Reclaim onboarding | M07-d | opus | | | | Reclaim is registered, its migrated plan parses, its starting artifact is in the inbox, and item 38 holds against its path | No |
 
 ## Gates
