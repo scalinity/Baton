@@ -1,4 +1,4 @@
-# The applet is installed and the transcript holds no usable URL — a null one, and one that is not
-# exactly a claude.ai session URL — so the message is spooled with an empty target, which a click
-# opens as Claude.app's needs-input view.
+# The applet is installed, the transcript holds no usable URL — a null one, and one that is not
+# exactly a claude.ai session URL — and the job state's bridgeSessionId is not a well-formed id either,
+# so the message is spooled with an empty target, which a click opens as Claude.app's needs-input view.
 "$BATON" tick

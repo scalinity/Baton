@@ -37,16 +37,27 @@ notify_line() {
 
 # session_url <session>: the claude.ai URL of the session's Remote Control thread — the newest
 # `remote_session_change` attachment in its transcript whose url is one, found by the same glob
-# derivation 3 uses (SPEC §4 item 7). Empty when there is no transcript or no URL yet: a connection is
-# first recorded with a null url, and a session's URL can arrive a turn or more after it started.
-# Anything that is not exactly a claude.ai session URL is not one, because the applet opens what this
-# returns.
+# derivation 3 uses (SPEC §4 item 7). A connection is first recorded with a null url, and a session
+# whose first turn is blocked on a question records nothing more until it is answered — which is the
+# moment a `question` park is raised — so without a URL the job state's `bridgeSessionId` is read
+# instead: `~/.claude/jobs/<job>/state.json`, the job being the session id's first eight characters,
+# holding `cse_<id>` from the session's first turn, the same id as `session_<id>` (D-092). Empty when
+# neither has one. Anything that is not exactly a claude.ai session id is not one, because the applet
+# opens what this returns.
 session_url() {
-  su_file=$(transcript_of "$1") || return 0
-  grep -F '"remote_session_change"' "$su_file" 2>/dev/null \
-    | jq -Rr 'fromjson? | select(.type == "attachment" and .attachment.type == "remote_session_change")
-              | .attachment.url | strings' 2>/dev/null \
-    | grep -E '^https://claude\.ai/code/session_[A-Za-z0-9_-]+$' | tail -n 1 || true
+  session_id_ok "$1" || return 0
+  su_url=
+  if su_file=$(transcript_of "$1"); then
+    su_url=$(grep -F '"remote_session_change"' "$su_file" 2>/dev/null \
+      | jq -Rr 'fromjson? | select(.type == "attachment" and .attachment.type == "remote_session_change")
+                | .attachment.url | strings' 2>/dev/null \
+      | grep -E '^https://claude\.ai/code/session_[A-Za-z0-9_-]+$' | tail -n 1 || true)
+  fi
+  if [ -z "$su_url" ]; then
+    su_url=$(jq -r '.bridgeSessionId | strings' "$BATON_JOBS/$(printf '%s' "$1" | cut -c1-8)/state.json" 2>/dev/null \
+      | grep -E '^cse_[A-Za-z0-9_-]+$' | sed 's|^cse_|https://claude.ai/code/session_|' || true)
+  fi
+  [ -z "$su_url" ] || printf '%s\n' "$su_url"
 }
 
 # notify <title> <body> [<session>]: the one Mac message. Through the notifier applet when it is
