@@ -216,19 +216,26 @@ attempt_for_session() {
 
 # archive_move <file> <consumed-at>: the move that is the consumption. The suffix exists because
 # one session may end more than once — an api-error, then its real handover under the same inbox
-# name. Prints the archived path.
+# name. Prints the archived path; on failure prints why and returns 1, having moved nothing.
+#
+# Each step is checked by hand, because the tick runs its whole call tree where `set -e` does not
+# stop a failed command: an unchecked failure here printed an empty path, and the caller wrote a
+# consumed event for a file still in the inbox, again on every tick. A name already taken is refused
+# rather than overwritten, since the file under it is a record of its own.
 archive_move() {
   am_dest=$BATON_HOME/archive/$(basename "$1" .json)-$2.json
-  mkdir -p "$BATON_HOME/archive"
-  mv "$1" "$am_dest"
+  mkdir -p "$BATON_HOME/archive" 2>/dev/null || { echo "$BATON_HOME/archive is not a directory Baton can write"; return 1; }
+  [ ! -e "$am_dest" ] || { echo "$am_dest already exists"; return 1; }
+  mv "$1" "$am_dest" 2>/dev/null || { echo "$1 could not be moved to $am_dest"; return 1; }
   printf '%s\n' "$am_dest"
 }
 
-# reject_move <file>: rejected files move to rejected/ and keep their name. Prints the path.
+# reject_move <file>: rejected files move to rejected/ and keep their name. Prints the path; on
+# failure prints why and returns 1, for the reason archive_move does.
 reject_move() {
-  mkdir -p "$BATON_HOME/rejected"
+  mkdir -p "$BATON_HOME/rejected" 2>/dev/null || { echo "$BATON_HOME/rejected is not a directory Baton can write"; return 1; }
   rm_dest=$BATON_HOME/rejected/$(basename "$1")
-  mv "$1" "$rm_dest"
+  mv "$1" "$rm_dest" 2>/dev/null || { echo "$1 could not be moved to $rm_dest"; return 1; }
   printf '%s\n' "$rm_dest"
 }
 
@@ -254,7 +261,7 @@ reject() {
     rj_project=$(printf '%s' "$rj_lane" | jq -r '.project // empty')
     rj_attempt=$(printf '%s' "$rj_lane" | jq -r '.attempt // empty')
   fi
-  rj_dest=$(reject_move "$1")
+  rj_dest=$(reject_move "$1") || { echo "baton: $rj_dest" >&2; return 1; }
   log_event rejected "$rj_project" "$rj_milestone" "$rj_session" "$rj_attempt" \
     "$(jq -nc --arg p "$rj_dest" --arg r "$2" '{path: $p, reason: $r}')"
   escalate_rejection "$rj_project" "$rj_milestone" "$rj_session" "$rj_attempt" "$2" "$rj_dest"
@@ -314,7 +321,7 @@ repeat_of() {
 # ranking of handovers in force reads only those, so a repeat has no place in either.
 repeat_one() {
   rp_first=$(printf '%s' "$2" | jq -r .archive)
-  rp_archive=$(archive_move "$1" "$(baton_now)")
+  rp_archive=$(archive_move "$1" "$(baton_now)") || { echo "baton: $rp_archive" >&2; return 1; }
   log_event repeated "$(printf '%s' "$2" | jq -r '.project // ""')" "$(printf '%s' "$2" | jq -r .milestone)" \
     "$(printf '%s' "$2" | jq -r .session)" "$(printf '%s' "$2" | jq -r '.attempt // ""')" \
     "$(printf '%s' "$2" | jq -c --arg a "$rp_archive" '{outcome, archive: $a, repeats: .archive}
@@ -384,6 +391,22 @@ consume_one() {
     || { echo "baton: $co_attempt" >&2; return 1; }
   co_note=$co_outcome
 
+  # The event is composed before the move, and the three fields an outside process sizes — error,
+  # detail's neighbours blocked_by and merged_as — are cut the way dispatch_failed cuts its detail.
+  # log_event refuses a line at 4 KB, and a refusal after the move would leave an archived file
+  # with no consumed event, which derivation 1 then reads as a lane still open.
+  co_fields=$(printf '%s' "$co_a" | jq -c --arg w "$co_written_by" '
+    (if .outcome == "stopped" then {outcome, reason, error, blocked_by} else {outcome, merged_as} end)
+    | with_entries(select(.value != null))
+    | with_entries(if (.value | type) == "string" and (.value | length) > 500
+                   then .value |= (.[0:500] + "…") else . end)
+    | . + {written_by: $w}')
+
+  # The move comes before anything the decision does: a move that fails leaves the file in the
+  # inbox for the next tick, and a session stopped ahead of it would be stopped again on every tick.
+  co_at=$(baton_now)
+  co_archive=$(archive_move "$1" "$co_at") || { echo "baton: $co_archive" >&2; return 1; }
+
   # An asking session is stopped at once, so that the ruling M05 delivers resumes it under the
   # same id rather than racing a session that is still holding the prompt open. The verb takes the
   # background job's id, which only the row carries; a session with no live row is already stopped.
@@ -412,19 +435,6 @@ consume_one() {
     co_note="$co_note, no context"
   fi
 
-  # The event is composed before the move, and the three fields an outside process sizes — error,
-  # detail's neighbours blocked_by and merged_as — are cut the way dispatch_failed cuts its detail.
-  # log_event refuses a line at 4 KB, and a refusal after the move would leave an archived file
-  # with no consumed event, which derivation 1 then reads as a lane still open.
-  co_fields=$(printf '%s' "$co_a" | jq -c --arg w "$co_written_by" '
-    (if .outcome == "stopped" then {outcome, reason, error, blocked_by} else {outcome, merged_as} end)
-    | with_entries(select(.value != null))
-    | with_entries(if (.value | type) == "string" and (.value | length) > 500
-                   then .value |= (.[0:500] + "…") else . end)
-    | . + {written_by: $w}')
-
-  co_at=$(baton_now)
-  co_archive=$(archive_move "$1" "$co_at")
   log_event consumed "$co_project" "$co_milestone" "$co_session" "$co_attempt" \
     "$(printf '%s' "$co_fields" | jq -c --arg a "$co_archive" '. + {archive: $a}')"
   printf 'consumed  %s → %s (%s)\n' "$(basename "$1")" "$co_archive" "$co_note"
