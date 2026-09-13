@@ -1,0 +1,16 @@
+# The applet is already running, so a launch posts nothing and the spool keeps every message. A message
+# spooled from a subshell — as distant_wait_for_check's pipeline does — and one from the shell after it,
+# in the same second, are two files, not one overwriting the other; and eleven messages list in the
+# order they were written, so the newest a click opens is the last.
+. "$ROOT/tests/lib-load.sh"
+spool=$BATON_HOME/notify/spool
+rm -rf "$spool"
+( notify "first" "from a subshell" "" )
+notify "second" "from the shell" ""
+echo "--- two writers, one second"
+for f in "$spool"/*; do sed -n 1p "$f"; done
+rm -rf "$spool"
+i=1; while [ "$i" -le 11 ]; do notify "m$i" "body" ""; i=$((i + 1)); done
+echo "--- eleven, in listing order"
+ls "$spool" | while read -r n; do sed -n 1p "$spool/$n"; done | tr '\n' ' '; echo
+rm -rf "$spool"

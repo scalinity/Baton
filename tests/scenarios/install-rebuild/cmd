@@ -1,0 +1,16 @@
+# What rebuilds the applet and what does not, from a fresh home on each run: the same source, icon and
+# install script build once; a changed icon rebuilds it; a changed recipe — the checksum of the install
+# script that built it, recorded in built-by — rebuilds it. The rebuilt applet carries the new icon, the
+# identifier once, and a valid signature.
+base=$(cd "$SHIM/.." && pwd)
+rm -rf "$base/home2"
+inst() { HOME=$base BATON_HOME="$base/home2" BATON_CLAUDE_ICON="$1" sh "$ROOT/install.sh" | grep -i applet | sed "s|$base|@BASE@|g" || echo "no applet line"; }
+res=$base/home2/bin/Baton.app/Contents/Resources
+echo "--- first install";      inst "$SCENARIO/icon-a.icns"
+echo "--- same again";         inst "$SCENARIO/icon-a.icns"
+echo "--- the icon changed";   inst "$SCENARIO/icon-b.icns"
+cmp -s "$SCENARIO/icon-b.icns" "$res/applet.icns" && echo "icon is B"
+echo "--- the recipe changed"; echo "an older install script" > "$res/built-by"; inst "$SCENARIO/icon-b.icns"
+/usr/libexec/PlistBuddy -c 'Print' "$base/home2/bin/Baton.app/Contents/Info.plist" | grep -c 'CFBundleIdentifier'
+ls -A "$base/home2/bin" | grep -c Baton
+codesign --verify "$base/home2/bin/Baton.app" > /dev/null 2>&1 && echo "signature valid"

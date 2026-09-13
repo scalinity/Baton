@@ -11,6 +11,7 @@
 # first), now (the clock), optional shim/ (the claude shim's knobs), optional project/ (a fixture
 # project; tests/project/ otherwise), optional other/ (a second fixture project at $tmp/Other, its
 # commit @OTHERCOMMIT@), optional transcripts/ (the tree BATON_TRANSCRIPTS points at), optional
+# jobs/ (the tree BATON_JOBS points at), optional
 # mtimes (one "<path under transcripts/ or home/> <seconds before now>" per line, for the rules that
 # stat a file rather than read it; every transcript starts at the scenario's now), and expected/. install.sh needs codesign, which the Command Line Tools carry, for the install scenario.
 #
@@ -92,6 +93,8 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
   # gets an empty tree, which is a lane with no transcript.
   if [ -d "$sc/transcripts" ]; then cp -R "$sc/transcripts" "$tmp/transcripts"; else mkdir "$tmp/transcripts"; fi
   find "$tmp/transcripts" -type f -exec sed -i '' "s|@TMP@|$tmp|g" {} +
+  # The background sessions' job states, as ~/.claude/jobs holds them: jobs/<job>/state.json.
+  if [ -d "$sc/jobs" ]; then cp -R "$sc/jobs" "$tmp/jobs"; else mkdir "$tmp/jobs"; fi
   # The stall rule is a stat and never a read, so a scenario that exercises it has to own the
   # modification times: a copied file carries the time of the copy, which is the machine's real
   # clock, while the scenario's `now` is frozen at whatever date it names. Every copied transcript
@@ -122,9 +125,9 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
 
   for run in 1 2; do
     ( export BATON_HOME="$tmp/home" BATON_CLAUDE="$here/shim/claude" BATON_DATE="$here/shim/date" \
-             BATON_CAFFEINATE="$here/shim/caffeinate" BATON_OSASCRIPT="$here/shim/osascript" \
+             BATON_CAFFEINATE="$here/shim/caffeinate" BATON_OSASCRIPT="$here/shim/osascript" BATON_OPEN="$here/shim/open" \
              BATON_SHIM="$tmp/shim" BATON_DAEMON_LOG="$tmp/shim/daemon.log" \
-             BATON_TRANSCRIPTS="$tmp/transcripts" \
+             BATON_TRANSCRIPTS="$tmp/transcripts" BATON_JOBS="$tmp/jobs" \
              BATON="$root/bin/baton" ROOT="$root" SCENARIO="$sc" SHIM="$tmp/shim"
       cd "$tmp"
       set +e

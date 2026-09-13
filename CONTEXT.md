@@ -100,6 +100,14 @@ A message to the person that Baton keeps working past: the session runs on, or t
 continues.
 _Avoid_: alert
 
+**Mac message**:
+How an escalation or a notification reaches the person at the Mac: one banner under the sender
+"Baton" with Claude's icon, whose click opens the session it is about in Claude.app. It is posted by
+the *notifier applet*, `Baton.app`, which the install builds; Baton hands it each message through
+the applet's spool, and the applet keeps the newest message's session as the *target* a click opens.
+The spool is the applet's and holds nothing but messages; handover artifacts wait in the inbox.
+_Avoid_: alert, toast, popup
+
 **Ruling**:
 A person's answer to an asking session, delivered verbatim as its next instruction and
 labelled so the session treats it as decided.
@@ -170,7 +178,7 @@ _Avoid_: CI, pipeline, health check
 
 **Inbox**:
 Where handover artifacts wait for Baton. A handover leaves it when Baton acts on it.
-_Avoid_: queue, spool, drop folder
+_Avoid_: queue, spool (that is the notifier applet's, under Mac message), drop folder
 
 **Slot line**:
 The one fixed paragraph in a brief's prompt where "what else is in flight" goes: a label and

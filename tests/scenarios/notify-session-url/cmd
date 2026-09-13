@@ -1,0 +1,4 @@
+# The applet is installed and the session's transcript carries its Remote Control URL: the question
+# park is spooled with the newest claude.ai session URL as a claude://claude.ai link and the applet is
+# launched. A null url, and a URL that is not a claude.ai session, are skipped even when newer.
+"$BATON" tick

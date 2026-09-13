@@ -1,9 +1,9 @@
 #!/bin/sh
-# install.sh — installs the relay under ~/.baton/bin (baton, lib/, the three hooks, and a copy of
-# /bin/sh for the Full Disk Access grant), creates the state directories, config.json and Baton's
-# own registration if absent. Idempotent: a second run changes nothing. launchd and every
-# dispatched session's hooks run the installed copy, so a merge on main changes nothing until this
-# is run (D-018).
+# install.sh — installs the relay under ~/.baton/bin (baton, lib/, the three hooks, a copy of
+# /bin/sh for the Full Disk Access grant, and the notifier applet Baton.app), creates the state
+# directories, config.json and Baton's own registration if absent. Idempotent: a second run changes
+# nothing. launchd and every dispatched session's hooks run the installed copy, so a merge on main
+# changes nothing until this is run (D-018).
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 BATON_HOME=${BATON_HOME:-$HOME/.baton}
@@ -60,10 +60,12 @@ if [ ! -f "$BATON_HOME/projects/$project/permissions.json" ]; then
         deny: (
           ["Bash(sudo:*)", "Bash(su:*)", "Bash(doas:*)", "Bash(osascript * administrator privileges*)"]
           + ["Read(\($h)/log.jsonl)", "Edit(\($h)/log.jsonl)", "Write(\($h)/log.jsonl)"]
-          + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock" ]
+          + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock", "notify" ]
              | map("Edit(\($h)/\(.)/**)", "Write(\($h)/\(.)/**)"))
           + ["Edit(\($h)/config.json)", "Write(\($h)/config.json)", "Edit(\($h)/last-tick)", "Write(\($h)/last-tick)"]
-          + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick" ]
+          # `bin` stays out of the Bash fragments: a session runs the installed `baton` by its path, as
+          # the wake session does, and the Edit and Write rules above already keep bin/ out of reach.
+          + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick", "notify" ]
              | map("Bash(*.baton/\(.)*)"))
           # The launchd agent joins the named paths from M03. It sits outside ~/.baton but is
           # Baton state by every other measure, and what it names is executed every sixty
@@ -94,6 +96,55 @@ if cmp -s "$BATON_HOME/settings/wake.json.tmp" "$BATON_HOME/settings/wake.json";
   rm -f "$BATON_HOME/settings/wake.json.tmp"
 else
   mv "$BATON_HOME/settings/wake.json.tmp" "$BATON_HOME/settings/wake.json"
+fi
+
+# The notifier applet (REQ-ESC-02, REQ-SETUP-05): notify/Baton.applescript compiled by the system's
+# osacompile into bin/Baton.app, so the Mac message is posted under "Baton" rather than Script Editor
+# and a click opens the session. osacompile writes no bundle identifier, which Notification Center
+# keys a sender on, and carries its icon twice — applet.icns and an asset catalog that wins over it —
+# so the identifier is added, and Claude's icon replaces both when the installed Claude.app has one.
+# The icon is Anthropic's mark: it is copied from this Mac's Claude.app here and never committed. The
+# edits break osacompile's own signature, so the bundle is signed ad hoc last. Built in a staging
+# directory and swapped into place, so a tick never finds the applet missing mid-install; and only when
+# the source, the icon or this script — the recipe, recorded as its checksum in built-by — differs from
+# what the installed applet was built from, so a second install changes nothing and a changed step
+# reaches an applet already installed. Each key is deleted before it is added, because PlistBuddy's Add
+# refuses a key that exists and a later osacompile may write one. A failed build leaves any applet
+# already installed, and without one `notify` posts through osascript, so a failed install never
+# silences the relay.
+claude_icon=${BATON_CLAUDE_ICON:-/Applications/Claude.app/Contents/Resources/electron.icns}
+app=$BATON_HOME/bin/Baton.app
+recipe=$(cksum < "$here/install.sh")
+if ! cmp -s "$here/notify/Baton.applescript" "$app/Contents/Resources/Baton.applescript" \
+   || [ "$recipe" != "$(cat "$app/Contents/Resources/built-by" 2>/dev/null)" ] \
+   || { [ -f "$claude_icon" ] && ! cmp -s "$claude_icon" "$app/Contents/Resources/applet.icns"; }; then
+  stage=$BATON_HOME/bin/.Baton-build
+  rm -rf "$stage"
+  mkdir -p "$stage"
+  plist=$stage/Baton.app/Contents/Info.plist
+  if /usr/bin/osacompile -o "$stage/Baton.app" "$here/notify/Baton.applescript" > /dev/null 2>&1 \
+     && cp "$here/notify/Baton.applescript" "$stage/Baton.app/Contents/Resources/Baton.applescript" \
+     && printf '%s\n' "$recipe" > "$stage/Baton.app/Contents/Resources/built-by" \
+     && { [ ! -f "$claude_icon" ] \
+          || { cp "$claude_icon" "$stage/Baton.app/Contents/Resources/applet.icns" \
+               && rm -f "$stage/Baton.app/Contents/Resources/Assets.car" \
+               && { /usr/libexec/PlistBuddy -c 'Delete :CFBundleIconName' "$plist" > /dev/null 2>&1 || true; }; }; } \
+     && { /usr/libexec/PlistBuddy -c 'Delete :CFBundleIdentifier' "$plist" > /dev/null 2>&1 || true; } \
+     && { /usr/libexec/PlistBuddy -c 'Delete :LSUIElement' "$plist" > /dev/null 2>&1 || true; } \
+     && /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string com.baton.notify' \
+          -c 'Add :LSUIElement bool true' "$plist" > /dev/null 2>&1 \
+     && codesign --force --sign - "$stage/Baton.app" > /dev/null 2>&1; then
+    [ ! -e "$app" ] || mv "$app" "$stage/Baton.old.app"
+    mv "$stage/Baton.app" "$app"
+    if [ -f "$claude_icon" ]; then
+      echo "built the notifier applet at $app (com.baton.notify) with Claude's icon"
+    else
+      echo "built the notifier applet at $app (com.baton.notify); $claude_icon is missing, so it keeps the applet's own icon"
+    fi
+  else
+    echo "warning: could not build the notifier applet at $app; the Mac message goes through osascript"
+  fi
+  rm -rf "$stage"
 fi
 
 # The launchd agent is copied only when none is installed, and never loaded: loading is a person's

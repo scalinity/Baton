@@ -1,0 +1,5 @@
+# A message spooled by an earlier tick is still in the spool — its launch reached the applet as it
+# was quitting — and nothing this tick raises would launch the applet again. The tick launches it
+# first, so the message is at most a minute late and a click never posts it instead of opening a
+# session. The second run finds the spool empty and launches nothing.
+"$BATON" tick

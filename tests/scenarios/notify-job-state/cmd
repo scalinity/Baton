@@ -1,0 +1,4 @@
+# A session asking in its first turn has recorded its connection with a null url and nothing since,
+# because the turn is blocked on the question; its job state already names its claude.ai session as
+# bridgeSessionId, cse_ with the same suffix as session_, so the message links to that.
+"$BATON" tick

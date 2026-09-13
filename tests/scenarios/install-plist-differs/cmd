@@ -5,6 +5,6 @@ base=$(cd "$SHIM/.." && pwd)
 agents=$base/Library/LaunchAgents
 mkdir -p "$agents"
 [ -f "$agents/com.baton.tick.plist" ] || printf '<plist><!-- an agent a person edited --></plist>\n' > "$agents/com.baton.tick.plist"
-HOME=$base BATON_HOME="$base/home2" sh "$ROOT/install.sh" | grep -v '^copied /bin/sh'
+HOME=$base BATON_HOME="$base/home2" BATON_CLAUDE_ICON="$SCENARIO/../install/icon.icns" sh "$ROOT/install.sh" | grep -v '^copied /bin/sh'
 echo "--- the installed agent ---"
 cat "$agents/com.baton.tick.plist"

@@ -282,6 +282,7 @@ dispatch_run() {
 # same tick.
 tick_run() {
   tr_now=$(baton_now)
+  notify_flush
   # The stale lock the tick cleared before it took this one. It is a project-scope escalation
   # because REQ-TICK-03 names one, and it is resolved in the same breath because the condition it
   # names is already over: Baton kept working past it, which is what separates a message from a

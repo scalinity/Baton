@@ -383,8 +383,8 @@ question_check() {
     fi
     qc_job=$(printf '%s' "$qc_l" | jq -r '.row.id // ""')
     qc_name=$(printf '%s' "$qc_l" | jq -r '.row.name // ""')
-    # What is happening, and nothing about what to do: the message's verb carries the attach
-    # command and `status` prints the same verb, so a detail repeating it says it twice.
+    # What is happening, and nothing about what to do: the message's verb says where to answer and
+    # `status` prints the same verb, so a detail repeating it says it twice.
     qc_detail="$qc_name is waiting for input, and no payload carries the question, so it can only be read in the session"
     qc_carries=$(jq -nc --arg n "$qc_name" --arg j "$qc_job" --arg d "$qc_detail" \
       '{row: $n, job: $j, waiting_for: "input needed", detail: $d}')

@@ -1,0 +1,3 @@
+# The applet is installed but will not launch: the spooled message is removed, so a later launch does
+# not post it late, and the message goes through osascript instead.
+"$BATON" tick

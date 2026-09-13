@@ -1,0 +1,3 @@
+# A notification, not an escalation, reaches the applet with its session: notification_write passes
+# the stalled session, so the stall message links to that session's thread.
+"$BATON" tick
