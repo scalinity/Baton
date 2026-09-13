@@ -105,26 +105,36 @@ fi
 # so the identifier is added, and Claude's icon replaces both when the installed Claude.app has one.
 # The icon is Anthropic's mark: it is copied from this Mac's Claude.app here and never committed. The
 # edits break osacompile's own signature, so the bundle is signed ad hoc last. Built in a staging
-# directory and moved into place, and only when the source or the icon differs from what the installed
-# applet holds, so a second install changes nothing. A failed build leaves any applet already installed,
-# and without one `notify` posts through osascript, so a failed install never silences the relay.
+# directory and swapped into place, so a tick never finds the applet missing mid-install; and only when
+# the source, the icon or this script — the recipe, recorded as its checksum in built-by — differs from
+# what the installed applet was built from, so a second install changes nothing and a changed step
+# reaches an applet already installed. Each key is deleted before it is added, because PlistBuddy's Add
+# refuses a key that exists and a later osacompile may write one. A failed build leaves any applet
+# already installed, and without one `notify` posts through osascript, so a failed install never
+# silences the relay.
 claude_icon=${BATON_CLAUDE_ICON:-/Applications/Claude.app/Contents/Resources/electron.icns}
 app=$BATON_HOME/bin/Baton.app
+recipe=$(cksum < "$here/install.sh")
 if ! cmp -s "$here/notify/Baton.applescript" "$app/Contents/Resources/Baton.applescript" \
+   || [ "$recipe" != "$(cat "$app/Contents/Resources/built-by" 2>/dev/null)" ] \
    || { [ -f "$claude_icon" ] && ! cmp -s "$claude_icon" "$app/Contents/Resources/applet.icns"; }; then
   stage=$BATON_HOME/bin/.Baton-build
   rm -rf "$stage"
   mkdir -p "$stage"
+  plist=$stage/Baton.app/Contents/Info.plist
   if /usr/bin/osacompile -o "$stage/Baton.app" "$here/notify/Baton.applescript" > /dev/null 2>&1 \
      && cp "$here/notify/Baton.applescript" "$stage/Baton.app/Contents/Resources/Baton.applescript" \
+     && printf '%s\n' "$recipe" > "$stage/Baton.app/Contents/Resources/built-by" \
      && { [ ! -f "$claude_icon" ] \
           || { cp "$claude_icon" "$stage/Baton.app/Contents/Resources/applet.icns" \
                && rm -f "$stage/Baton.app/Contents/Resources/Assets.car" \
-               && { /usr/libexec/PlistBuddy -c 'Delete :CFBundleIconName' "$stage/Baton.app/Contents/Info.plist" > /dev/null 2>&1 || true; }; }; } \
+               && { /usr/libexec/PlistBuddy -c 'Delete :CFBundleIconName' "$plist" > /dev/null 2>&1 || true; }; }; } \
+     && { /usr/libexec/PlistBuddy -c 'Delete :CFBundleIdentifier' "$plist" > /dev/null 2>&1 || true; } \
+     && { /usr/libexec/PlistBuddy -c 'Delete :LSUIElement' "$plist" > /dev/null 2>&1 || true; } \
      && /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string com.baton.notify' \
-          -c 'Add :LSUIElement bool true' "$stage/Baton.app/Contents/Info.plist" > /dev/null 2>&1 \
+          -c 'Add :LSUIElement bool true' "$plist" > /dev/null 2>&1 \
      && codesign --force --sign - "$stage/Baton.app" > /dev/null 2>&1; then
-    rm -rf "$app"
+    [ ! -e "$app" ] || mv "$app" "$stage/Baton.old.app"
     mv "$stage/Baton.app" "$app"
     if [ -f "$claude_icon" ]; then
       echo "built the notifier applet at $app (com.baton.notify) with Claude's icon"
