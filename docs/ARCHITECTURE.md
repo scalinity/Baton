@@ -146,7 +146,10 @@ at the installed relay. The prototype's `settings-A.json` and `hooks/` under
       "Bash(*.baton/archive*)", "Bash(*.baton/rejected*)", "Bash(*.baton/prompts*)",
       "Bash(*.baton/settings*)", "Bash(*.baton/projects*)", "Bash(*.baton/status*)",
       "Bash(*.baton/lock*)", "Bash(*.baton/config.json*)", "Bash(*.baton/last-tick*)",
-      "Bash(*.baton/notify*)"
+      "Bash(*.baton/notify*)",
+      "Edit(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
+      "Write(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
+      "Bash(*com.baton.tick*)"
     ]
   },
   "remoteControlAtStartup": true,
