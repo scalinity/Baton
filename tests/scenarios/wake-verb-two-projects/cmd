@@ -1,0 +1,4 @@
+echo "== M02 finished in two projects: the bare name names both =="
+"$BATON" wake M02 "which cap?" || echo "status $?"
+echo "== the long form wakes the one it names =="
+"$BATON" wake Other/M02 "which cap?" || echo "status $?"

@@ -100,10 +100,10 @@ orphaned_of() {
 # report a lane a person is typing into as clean, which is the one thing INV-04 forbids.
 typed_hashes() {
   th_recs=$(jq -c 'def text_of: if type == "string" then . else ([.[]? | select(.type == "text") | .text] | join("")) end;
-                   if .type == "user" and (.promptSource == "typed" or .promptSource == "queued" or .origin.kind == "human")
+                   if .type == "user" and (.promptSource == "typed" or .promptSource == "queued" or (.origin | objects | .kind) == "human")
                       and (.isMeta != true) and (.isCompactSummary != true)
                    then {at: .timestamp, uuid: .uuid, text: (.message.content | text_of)}
-                   elif .type == "attachment" and .attachment.type == "queued_command" and .attachment.origin.kind == "human"
+                   elif .type == "attachment" and .attachment.type == "queued_command" and (.attachment.origin | objects | .kind) == "human"
                    then {at: .timestamp, uuid: .uuid, text: (.attachment.prompt | text_of)}
                    else empty end' \
              "$1" 2>/dev/null) || return 1

@@ -1,0 +1,10 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude --bg --resume a2 'The person sent this from Claude.app through Baton's wake session:
+
+which cap?'
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude --bg --resume a2 'The person sent this from Claude.app through Baton's wake session:
+
+which cap?'
