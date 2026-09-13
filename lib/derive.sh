@@ -254,8 +254,8 @@ derive_taken_over() {
 # both ways: `unrecorded` names every file in archive/ and rejected/ that no event claims, which is
 # what a tick killed between the move and its event leaves behind, and which nothing else would
 # show — derivation 1 would read such a lane as still open and M03's crash rule as a crash. A repeat
-# sits in archive/ too, claimed by its `repeated` event, and is not a consumed handover: `consumed`
-# lists each handover once, in the order it was first acted on (D-095).
+# sits in archive/ too, claimed by its `repeated` event and listed under `repeated`, and is not a
+# consumed handover: `consumed` lists each handover once, in the order it was first acted on (D-095).
 derive_consumed() {
   dc_log=$(log_json) || { echo "$dc_log"; return 1; }
   dc_waiting='[]'
@@ -278,10 +278,16 @@ derive_consumed() {
       | . as $c
       | (($c.archive // "") | sub("^.*/"; "")) as $name
       | $c + {archive_present: (($present | index($name)) != null)} ] as $consumed
+    | [ .[] | select(.kind == "repeated" and ($p == "" or .project == $p))
+        | {at, project, milestone, session, attempt, outcome, archive, repeats}
+        | with_entries(select(.value != null))
+        | ((.archive // "") | sub("^.*/"; "")) as $name
+        | . + {archive_present: (($present | index($name)) != null)} ] as $repeated
     | [ .[] | select(.kind == "rejected") | (.path // "") | sub("^.*/"; "") ] as $claimed
     | [ ($consumed[] | .archive // ""),
         (.[] | select(.kind == "repeated") | .archive // "") | sub("^.*/"; "") ] as $archived
     | { consumed: $consumed,
+        repeated: $repeated,
         waiting: $w,
         # The name is bound before the pipe: inside `$archived | index(.)` the dot is $archived itself,
         # which finds itself at 0 and never names a file.

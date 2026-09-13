@@ -266,23 +266,30 @@ reject() {
 # the same milestone and session (D-095). The value and not the bytes, because the Stop gate's printed
 # fallback writes the fence's text rather than the session's file; `written_at` stays in the value,
 # because it is the one field that tells two of the gate's `no-handover` endings with the same words
-# apart, and each is a failure ending the ladder counts. Only a consumed handover whose archived file
-# is still there can be repeated: a file with nothing to compare against is acted on, never skipped
-# on a guess. Prints nothing and returns 1 when the file repeats nothing; prints the detail and
-# returns 1 when the log cannot be read, so the caller leaves the file for a tick that can read it.
+# apart, and each is a failure ending the ladder counts. The copies compared are every archived file
+# the handover left: the first, and each earlier repeat's, so a person moving the first file aside does
+# not turn the next delivery into a second consumption. A handover with no archived copy left can no
+# longer be recognised, and a file with nothing to compare against is acted on, never skipped on a
+# guess. Prints nothing and returns 1 when the file repeats nothing; prints the detail and returns 1
+# when the log cannot be read, so the caller leaves the file for a tick that can read it.
 repeat_of() {
   ro_one='if length == 1 and (.[0] | type) == "object" then .[0] else empty end'
   ro_v=$(jq -cSs "$ro_one" "$1" 2>/dev/null) || return 1
   [ -n "$ro_v" ] || return 1
   ro_doc=$(derive_consumed "") || { echo "$ro_doc"; return 1; }
-  ro_firsts=$(printf '%s' "$ro_doc" | jq -c --argjson v "$ro_v" '
-    [ .consumed[] | select(.archive_present and .milestone == $v.milestone and .session == $v.session) ]')
-  ro_n=$(printf '%s' "$ro_firsts" | jq length); ro_i=0
+  # Each copy is {file, first}: the archived file to compare and the consumed event of the handover it
+  # is a copy of, which is the envelope and the `repeats` a match is recorded under.
+  ro_copies=$(printf '%s' "$ro_doc" | jq -c --argjson v "$ro_v" '
+    [ .consumed[] | select(.milestone == $v.milestone and .session == $v.session) ] as $mine
+    | [ ($mine[] | select(.archive_present) | {file: .archive, first: .}),
+        (.repeated[] | select(.archive_present and .milestone == $v.milestone and .session == $v.session)
+         | .repeats as $r | first($mine[] | select(.archive == $r)) as $c | {file: .archive, first: $c}) ]')
+  ro_n=$(printf '%s' "$ro_copies" | jq length); ro_i=0
   while [ "$ro_i" -lt "$ro_n" ]; do
-    ro_c=$(printf '%s' "$ro_firsts" | jq -c ".[$ro_i]"); ro_i=$((ro_i + 1))
-    ro_a=$(printf '%s' "$ro_c" | jq -r .archive)
+    ro_c=$(printf '%s' "$ro_copies" | jq -c ".[$ro_i]"); ro_i=$((ro_i + 1))
+    ro_a=$(printf '%s' "$ro_c" | jq -r .file)
     [ "$(jq -cSs "$ro_one" "$ro_a" 2>/dev/null || true)" = "$ro_v" ] || continue
-    printf '%s\n' "$ro_c"
+    printf '%s' "$ro_c" | jq -c .first
     return 0
   done
   return 1
