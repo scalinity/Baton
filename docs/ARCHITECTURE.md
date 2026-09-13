@@ -201,9 +201,10 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    (project scope, `plan-unreadable` or `plan-unparseable`, the path and what failed) and skips it
    for the rest of the tick. A stale lock is reported before this, and one past the interval whose pid answers no signal is cleared by the tick, which then writes the `baton-unhealthy` escalation under the lock it takes (D-039).
 2. **Consume the inbox.** For each `*.json` (never `.tmp`), first the repeat test: a file holding
-   the same JSON value, `written_at` included, as the archived file of a `consumed` handover for its
-   milestone and session is moved to the archive with a `repeated` event naming that file, and
-   nothing else follows — no check, stop, route, park or `consumed` event (D-095). Otherwise: parse; check provenance (the `session`
+   the same JSON value, `written_at` included, as an archived copy of a `consumed` handover for its
+   milestone and session — its first file or an earlier repeat's — is moved to the archive with a
+   `repeated` event naming the first file, and nothing else follows — no check, stop, route, park or
+   `consumed` event (D-095, D-097); a log the test cannot read leaves the file in the inbox. Otherwise: parse; check provenance (the `session`
    has a transcript found by glob, the `project` is a registered checkout); for `complete`, verify
    `merged_as` is an ancestor of `main` in the canonical checkout; verify each `brief` pointer's
    path and heading on `main`. Reject loudly to `~/.baton/rejected/` with a `rejected` event and a
@@ -714,9 +715,11 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
    `<consumed-at>` and the event's own `at` are two readings of the clock and can differ by a
    second, which is why nothing joins on them matching. The join runs both ways: the derivation
    also names every file in `archive/` and `rejected/` that no event claims, which is what a tick
-   killed between the move and its event leaves behind and which nothing else would show. **A
-   handover is listed once.** A file delivered again holding the same value as a consumed handover's
-   archived file is archived too, claimed by a `repeated` event rather than a `consumed` one, so the
+   killed between the move and its event leaves behind and which nothing else would show; the claims
+   are read from every project's events, because `archive/` is one directory for all of them. **A
+   handover is listed once while an archived copy of it stands.** A file delivered again holding the
+   same value as an archived copy — the first file, or an earlier repeat's — is archived too, claimed
+   by a `repeated` event rather than a `consumed` one and listed under `repeated`, so the `consumed`
    list's order — the order each handover was first acted on — is the ranking step 6 reads (D-096).
 5. **Each active wait and its first-failure time.** The newest `consumed` with `reason: api-error`
    for a `(project, milestone, attempt)` that has no later `consumed` with `written_by: session` and

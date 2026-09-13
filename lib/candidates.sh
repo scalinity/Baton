@@ -42,9 +42,11 @@ project_held() {
 # guess.
 #
 # The order is the order the handovers were first acted on: derivation 4's `consumed`, which holds a
-# handover once. A file delivered again repeats a handover rather than being one, is recorded as
-# `repeated` and never as `consumed`, and so takes no place here — however late it arrives, it cannot
-# stand in front of a handover written after it (D-095). `cap_order` reads the rank this prints.
+# handover once while an archived copy of it stands. A file delivered again repeats a handover rather
+# than being one, is recorded as `repeated` and never as `consumed`, and so takes no place here —
+# however late it arrives, it cannot stand in front of a handover written after it (D-095). A handover
+# whose every archived copy has been moved away is no longer recognised, and a delivery of it after that
+# is consumed and ranked like a new one. `cap_order` reads the rank this prints.
 dispositions_in_force() {
   dif_doc=$(derive_consumed "$1") || { echo "$dif_doc"; return 1; }
   dif_files=$(printf '%s' "$dif_doc" | jq -c \

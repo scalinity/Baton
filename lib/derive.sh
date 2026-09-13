@@ -255,7 +255,8 @@ derive_taken_over() {
 # what a tick killed between the move and its event leaves behind, and which nothing else would
 # show — derivation 1 would read such a lane as still open and M03's crash rule as a crash. A repeat
 # sits in archive/ too, claimed by its `repeated` event and listed under `repeated`, and is not a
-# consumed handover: `consumed` lists each handover once, in the order it was first acted on (D-095).
+# consumed handover: `consumed` lists each handover once while an archived copy of it stands, in the
+# order it was first acted on (D-095).
 derive_consumed() {
   dc_log=$(log_json) || { echo "$dc_log"; return 1; }
   dc_waiting='[]'

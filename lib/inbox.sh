@@ -5,7 +5,7 @@
 # a lane escalation. Consumption is the move (INV-06): a file in the inbox has not been acted on,
 # one in the archive has, so a second run over the same inbox does nothing; and a file that repeats a
 # handover already consumed is archived with a repeated event and acted on not at all, so a handover is
-# acted on once however often it is delivered. On failure every function prints its detail on stdout
+# acted on once however often it is delivered, for as long as an archived copy of it stands. On failure every function prints its detail on stdout
 # and returns non-zero (D-030).
 set -eu
 
