@@ -41,7 +41,7 @@ notify_line() {
 # whose first turn is blocked on a question records nothing more until it is answered — which is the
 # moment a `question` park is raised — so without a URL the job state's `bridgeSessionId` is read
 # instead: `~/.claude/jobs/<job>/state.json`, the job being the session id's first eight characters,
-# holding `cse_<id>` from the session's first turn, the same id as `session_<id>` (D-092). Empty when
+# holding `cse_<id>` from the session's first turn, the same id as `session_<id>` (D-093). Empty when
 # neither has one. Anything that is not exactly a claude.ai session id is not one, because the applet
 # opens what this returns.
 session_url() {
