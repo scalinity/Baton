@@ -1,0 +1,7 @@
+== the row showed no process, but the session was running: the resume starts a copy ==
+Fixture/M02 is running; message it in its own thread in Claude.app
+== the copy holds the person's message now, so the next wake names the copy, not the original ==
+Fixture/M02 is running; message it in its own thread in Claude.app
+{"session":"f2","outcome":"forked","copy":"c0b1e5e1-0000-4000-8000-000000000000","from_session":null}
+== a session whose stop was issued this minute still shows its process: said, not pointed at ==
+Fixture/M05 is being taken offline this minute; send the message again in a minute

@@ -17,13 +17,19 @@ WAKE_SESSION_NAME='Baton · wake'
 # lifecycle_finished <log json> <rows json>: every session whose handover Baton consumed as
 # `complete`, one per (project, milestone) — the newest — and none for a milestone dispatched again
 # since, whose lane is open. Each carries its live row's pid, job and status when a row has a pid.
+#
+# The session is the one now holding the conversation: the consumed handover's, or the copy a later
+# `baton wake` forked into, which the `wake` event names in `copy` — a wake that forked delivered the
+# person's words to the copy, so the next wake must address the copy and not start another.
 lifecycle_finished() {
   printf '%s' "$1" | jq -c --argjson rows "$2" '
     [ to_entries[] | {i: .key} + .value ] as $ev
     | [ $ev[] | select(.kind == "consumed" and .outcome == "complete" and .session != null) | . as $c
         | select(($ev | any(.kind == "dispatch" and .project == $c.project
                             and .milestone == $c.milestone and .i > $c.i)) | not)
-        | {i, project, milestone, attempt, session, consumed_at: .at} ]
+        | ([ $ev[] | select(.kind == "wake" and .project == $c.project and .milestone == $c.milestone
+                            and .i > $c.i and .copy != null) ] | last | .copy) as $copy
+        | {i, project, milestone, attempt, session: ($copy // .session), consumed_at: .at} ]
     | group_by([.project, .milestone]) | map(max_by(.i))
     | sort_by(.i)
     | map(. as $f | ($rows | map(select(.sessionId == $f.session and .pid != null)) | first) as $row
@@ -178,16 +184,35 @@ wake_session_ensure() {
 
   if [ -n "$wse_cur" ] && [ "$(printf '%s' "$wse_last" | jq -r '.outcome // ""')" != refused ] \
      && transcript_of "$wse_cur" > /dev/null; then
+    # One listing without a pid is not yet a session that is gone: a restart of the background service
+    # leaves a live session pid-less for a moment (D-008), and a resume into it forks. So the absence
+    # is read again for five seconds, as `stop_settle` reads a stop, before anything is resumed.
+    wse_i=0
+    while [ "$wse_i" -lt 10 ]; do
+      sleep 0.5
+      wse_i=$((wse_i + 1))
+      wse_again=$(rows_read) || continue
+      if printf '%s' "$wse_again" | jq -e --arg s "$wse_cur" 'any(.[]; .sessionId == $s and .pid != null)' > /dev/null; then
+        return 0
+      fi
+    done
     wse_r=$(wake_resume "$wse_cur" "$wse_text")
     wse_o=$(printf '%s' "$wse_r" | jq -r .outcome)
     wse_s=$wse_cur
-    if [ "$wse_o" = forked ] && wse_copy=$(printf '%s' "$wse_r" | jq -re '.copy // empty'); then
-      wse_s=$(fork_session "$wse_copy") || wse_s=$wse_copy
+    if [ "$wse_o" = forked ]; then
+      if wse_copy=$(printf '%s' "$wse_r" | jq -re '.copy // empty'); then
+        wse_s=$(fork_session "$wse_copy") || wse_s=$wse_copy
+      fi
+      # The original was running after all: stopped, so two wake sessions do not both answer.
+      if wse_again=$(rows_read) && wse_job=$(job_of_session "$wse_again" "$wse_cur") && [ -n "$wse_job" ]; then
+        "$BATON_CLAUDE" stop "$wse_job" > /dev/null 2>&1 || true
+      fi
     fi
     wse_side=$(sidecar_write "$wse_s" "$wse_text")
     log_event wake "" "" "$wse_s" "" "$(printf '%s' "$wse_r" | jq -c --arg n "$WAKE_SESSION_NAME" \
-      --arg pp "${wse_side% *}" --arg sha "${wse_side##* }" \
-      '{how: "resumed", name: $n, outcome, note, prompt_path: $pp, prompt_sha256: $sha}')"
+      --arg f "$wse_cur" --arg s "$wse_s" --arg pp "${wse_side% *}" --arg sha "${wse_side##* }" \
+      '{how: "resumed", name: $n, outcome, note} + (if $s != $f then {from_session: $f} else {} end)
+       + {prompt_path: $pp, prompt_sha256: $sha}')"
     printf 'wake        %s · resumed · %s\n' "$WAKE_SESSION_NAME" "$wse_o"
     return 0
   fi
@@ -262,7 +287,13 @@ verb_wake() {
   vw_s=$(printf '%s' "$vw_f" | jq -r .session)
   vw_a=$(printf '%s' "$vw_f" | jq -r '.attempt // ""')
   if printf '%s' "$vw_f" | jq -e 'has("pid")' > /dev/null; then
-    echo "$vw_p/$vw_m is running; message it in its own thread in Claude.app"
+    # A stop the offline rule issued takes a few seconds to land, and the row keeps its pid meanwhile;
+    # pointing the person at a thread that is being archived would send their message nowhere.
+    if vw_mt=$(transcript_mtime "$vw_s") && offline_after "$vw_log" "$vw_s" "$vw_mt"; then
+      echo "$vw_p/$vw_m is being taken offline this minute; send the message again in a minute"
+    else
+      echo "$vw_p/$vw_m is running; message it in its own thread in Claude.app"
+    fi
     return 0
   fi
 
@@ -275,13 +306,26 @@ $2"
   fi
   vw_r=$(wake_resume "$vw_s" "$vw_text")
   vw_o=$(printf '%s' "$vw_r" | jq -r .outcome)
+  vw_copy=''
+  if [ "$vw_o" = forked ] && vw_short=$(printf '%s' "$vw_r" | jq -re '.copy // empty'); then
+    vw_copy=$(fork_session "$vw_short") || vw_copy=$vw_short
+  fi
   vw_side=$(sidecar_write "$vw_s" "$vw_text")
-  log_event wake "$vw_p" "$vw_m" "$vw_s" "$vw_a" "$(printf '%s' "$vw_r" | jq -c \
+  log_event wake "$vw_p" "$vw_m" "$vw_s" "$vw_a" "$(printf '%s' "$vw_r" | jq -c --arg c "$vw_copy" \
     --arg pp "${vw_side% *}" --arg sha "${vw_side##* }" \
-    '{how: "verb", outcome, note, prompt_path: $pp, prompt_sha256: $sha}')"
+    '{how: "verb", outcome, note} + (if $c != "" then {copy: $c} else {} end)
+     + {prompt_path: $pp, prompt_sha256: $sha}')"
+  if [ "$vw_o" = forked ]; then
+    # The session was running after all, so the copy is a second process beside it, and the copy is
+    # the one holding the person's words. The original is stopped, as `resume_session` stops it, so
+    # one conversation does not run twice.
+    if vw_rows=$(rows_read) && vw_job=$(job_of_session "$vw_rows" "$vw_s") && [ -n "$vw_job" ]; then
+      "$BATON_CLAUDE" stop "$vw_job" > /dev/null 2>&1 || true
+    fi
+  fi
   case "$vw_o" in
     delivered) echo "woke $vw_p/$vw_m; its answer will be in its own thread in Claude.app" ;;
-    forked)    echo "woke $vw_p/$vw_m, but as a copy: $(printf '%s' "$vw_r" | jq -r .note)" ;;
+    forked)    echo "woke $vw_p/$vw_m in a copy of its session, which answers in its own thread in Claude.app" ;;
     *)         echo "baton: $vw_p/$vw_m could not be woken: $(printf '%s' "$vw_r" | jq -r .note)" >&2; exit 1 ;;
   esac
 }
