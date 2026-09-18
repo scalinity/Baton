@@ -1,0 +1,3 @@
+the reader keeps its whole previous set, byte for byte, while the new one is published beside it
+both the published relay and the reader load their own library set
+an unchanged reinstall keeps every inode, publishes no second set and leaves nothing temporary

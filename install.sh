@@ -31,10 +31,69 @@ fi
 mkdir -p "$BATON_HOME/bin/lib" "$BATON_HOME/inbox" "$BATON_HOME/archive" "$BATON_HOME/rejected" \
   "$BATON_HOME/status" "$BATON_HOME/settings" "$BATON_HOME/prompts" "$BATON_HOME/projects"
 
-cp "$here/bin/baton" "$BATON_HOME/bin/baton"
-cp "$here"/lib/*.sh "$BATON_HOME/bin/lib/"
-cp "$here/hooks/stop-gate" "$here/hooks/stop-failure" "$here/hooks/statusline" "$BATON_HOME/bin/"
-chmod 755 "$BATON_HOME/bin/baton" "$BATON_HOME/bin/stop-gate" "$BATON_HOME/bin/stop-failure" "$BATON_HOME/bin/statusline"
+# The relay is published, not copied over (D-131). `bin/baton` sources eighteen libraries before it
+# takes any lock, so a file-by-file copy landing while a tick starts gave that tick a mixture of two
+# library sets — live on every unattended close-out, which runs this script itself (D-079). The
+# repair is one immutable set per content, named for it, and one atomic reference change:
+#
+#   * the set is staged in a directory of its own and published by renaming that directory to a name
+#     that does not exist, which is `rename(2)` and cannot be seen half-made;
+#   * the name is written into the copy of `bin/baton` installed here, and that file is published by
+#     renaming over the old one — also `rename(2)`, so a shell already reading the previous copy
+#     holds its inode open, reads it whole, and goes on naming the previous bundle;
+#   * the previous bundle is kept, so that reader finds its whole set where it left it.
+#
+# A symlink flipped by `mv` was the obvious alternative and is wrong on this Mac: `mv new old` where
+# `old` is a symlink to a directory does not replace the symlink, it follows it and moves the new
+# link inside the directory. Measured, not assumed.
+#
+# Nothing is written twice: a bundle already published is left alone, and each file is compared
+# before it is replaced, so an unchanged reinstall keeps every inode and leaves no temporary file —
+# the idiom permissions.json and wake.json already use below.
+bundle=$( { shasum -a 256 "$here/bin/baton"; shasum -a 256 "$here"/lib/*.sh; } \
+          | awk '{ print $1 }' | LC_ALL=C sort | shasum -a 256 | awk '{ print substr($1, 1, 16) }')
+# The bundle the copy being replaced named, read before it is replaced. It is what the reader that
+# is mid-source right now is using, so it is the one bundle beside the new one that must survive.
+previous=$(sed -n 's/^baton_bundle=\(.*\)$/\1/p' "$BATON_HOME/bin/baton" 2>/dev/null | head -1 || true)
+
+if [ ! -d "$BATON_HOME/bin/lib/$bundle" ]; then
+  stage=$BATON_HOME/bin/lib/.stage-$$
+  rm -rf "$stage"
+  mkdir -p "$stage"
+  cp "$here"/lib/*.sh "$stage/"
+  mv "$stage" "$BATON_HOME/bin/lib/$bundle"
+fi
+
+# publish <source> <destination> [<sed script>]: the file as it should be installed, in place only if
+# it differs. The mode is set on the temporary file, so what appears at the destination is already
+# executable — a rename publishes the whole file or none of it, never a file that is not yet runnable.
+publish() {
+  if [ -n "${3:-}" ]; then sed "$3" "$1" > "$2.tmp"; else cat "$1" > "$2.tmp"; fi
+  chmod 755 "$2.tmp"
+  if cmp -s "$2.tmp" "$2"; then rm -f "$2.tmp"; else mv "$2.tmp" "$2"; fi
+  # The mode is set on the destination too, so a reinstall still repairs one that lost it, as the
+  # unconditional chmod did before. It changes no inode, so an unchanged file is still the same file.
+  chmod 755 "$2"
+}
+
+publish "$here/bin/baton" "$BATON_HOME/bin/baton" "s|^baton_bundle=.*|baton_bundle=$bundle|"
+publish "$here/hooks/stop-gate" "$BATON_HOME/bin/stop-gate"
+publish "$here/hooks/stop-failure" "$BATON_HOME/bin/stop-failure"
+publish "$here/hooks/statusline" "$BATON_HOME/bin/statusline"
+
+# Every other bundle goes, and any stage a killed install left behind. The flat set a pre-bundle
+# relay installed is the previous set for a reader still sourcing from it, so it is kept until a
+# bundled copy has been superseded — one install later, by which time no such reader remains.
+for stale in "$BATON_HOME"/bin/lib/*/; do
+  [ -d "$stale" ] || continue
+  stale=${stale%/}; stale=${stale##*/}
+  [ "$stale" != "$bundle" ] && [ "$stale" != "$previous" ] || continue
+  rm -rf "${BATON_HOME:?}/bin/lib/$stale"
+done
+# A stage is named with a leading dot, which the glob above does not match; one left by a killed
+# install is swept here, after this install's own has been renamed away.
+rm -rf "${BATON_HOME:?}"/bin/lib/.stage-*
+[ -z "$previous" ] || rm -f "$BATON_HOME"/bin/lib/*.sh
 
 # Baton's own copy of the shell, which the launchd job runs and which the person grants Full Disk
 # Access. A plain copy cannot execute at all: it carries Apple's platform signature, and the kernel

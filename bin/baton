@@ -16,8 +16,32 @@ export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_OSASCRIPT BATON_OPEN BATON
   BATON_TRANSCRIPTS BATON_JOBS
 
 here=$(cd "$(dirname "$0")" && pwd)
+
+# The bundle this copy's libraries were published as. Empty here and rewritten by `install.sh` into
+# the copy it installs, which is the whole of F08's repair (D-131).
+#
+# `install.sh` copies file by file and takes no lock, and this script sources eighteen libraries
+# before the verb is read and long before any `lock_take` below — so an install landing while a tick
+# is starting used to give that tick some libraries from the old set and some from the new, and no
+# lock could have prevented it, because the sourcing is already over by the time one is taken. The
+# repair is to make the library set immutable and name it: `install.sh` publishes each set once,
+# under a directory named for its own content, and writes that name here. A copy of this script
+# therefore sources the set it was installed with and no other, whatever is installed afterwards.
+#
+# The reference changes by one `rename(2)` over this file. A shell already reading the previous copy
+# holds that inode open and reads it to the end unchanged, so it keeps naming the previous bundle,
+# which `install.sh` keeps; a shell started afterwards opens the new copy and names the new one.
+# There is no reading in between. An empty value is either the checkout or a relay installed before
+# this scheme, where the libraries sit flat under bin/lib/ and are read from there.
+baton_bundle=
+
 # In the checkout the libraries sit beside bin/; in the installed relay they sit under bin/lib/.
-if [ -d "$here/lib" ]; then BATON_LIB=$here/lib; else BATON_LIB=$here/../lib; fi
+if [ -d "$here/lib" ]; then
+  BATON_LIB=$here/lib
+  [ -z "$baton_bundle" ] || BATON_LIB=$here/lib/$baton_bundle
+else
+  BATON_LIB=$here/../lib
+fi
 . "$BATON_LIB/lock.sh"
 . "$BATON_LIB/log.sh"
 . "$BATON_LIB/plan.sh"

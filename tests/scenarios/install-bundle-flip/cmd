@@ -1,0 +1,72 @@
+#!/bin/sh
+set -eu
+# F08: the installed relay is published as one immutable library set per content, named for it, with
+# the name written into the copy of bin/baton installed beside it (D-131). A reader that opened the
+# previous copy of that script goes on naming the previous set, which is kept — so it sources one
+# whole set and never a mixture of two. A file-by-file copy could not promise that, and no lock
+# could have fixed it, the sourcing being over before any lock is taken.
+#
+# Every check below is written against where a given copy of the relay would actually look, so it
+# reads the same question of a flat installed tree and of a bundled one, and fails on the defect
+# rather than on the absence of the mechanism.
+#
+# The linked fixture worktree is the harness's own (install-harness-linked builds one the same way);
+# no real branch or worktree is touched, and BATON_INSTALL_TEST=1 is the runner's seam (D-113).
+base=$(cd "$SHIM/.." && pwd)
+source=$base/Fixture
+linked=$base/linked
+if [ ! -d "$linked" ]; then git -C "$source" worktree add -q --detach "$linked" HEAD; fi
+cp "$ROOT/install.sh" "$linked/install.sh"
+for component in bin lib hooks notify launchd; do
+  rm -rf "$linked/$component"
+  cp -R "$ROOT/$component" "$linked/$component"
+done
+home=$base/bundle-home
+rm -rf "$home"
+inst() { HOME=$base BATON_HOME=$home BATON_CLAUDE_ICON="$ROOT/tests/scenarios/install/icon.icns" \
+           sh "$linked/install.sh" > "$base/install.out"; }
+
+# Where the given copy of the relay sources its libraries: the set it names, or the flat directory
+# if it names none.
+libdir_of() {
+  ldo_pin=$(sed -n 's/^baton_bundle=//p' "$1" | head -1)
+  if [ -n "$ldo_pin" ]; then printf '%s\n' "$home/bin/lib/$ldo_pin"; else printf '%s\n' "$home/bin/lib"; fi
+}
+whole_of() { shasum -a 256 "$1"/*.sh | shasum -a 256 | awk '{ print $1 }'; }
+
+inst
+# What a process that has already opened the installed script holds for the rest of its run. It is
+# kept beside the original so that its own path resolution is the one the installed relay performs.
+cp "$home/bin/baton" "$home/bin/baton-reader"
+reader_lib=$(libdir_of "$home/bin/baton-reader")
+[ "$(ls "$reader_lib"/*.sh | wc -l | tr -d ' ')" -eq 18 ]
+whole=$(whole_of "$reader_lib")
+
+# A later close-out installs a changed library set while that reader is still sourcing.
+printf '\n# a later close-out changes a library\n' >> "$linked/lib/derive.sh"
+inst
+[ "$(ls "$reader_lib"/*.sh | wc -l | tr -d ' ')" -eq 18 ]
+[ "$whole" = "$(whole_of "$reader_lib")" ]
+! grep -q 'a later close-out' "$reader_lib/derive.sh"
+grep -q 'a later close-out' "$(libdir_of "$home/bin/baton")/derive.sh"
+[ "$(libdir_of "$home/bin/baton")" != "$reader_lib" ]
+echo 'the reader keeps its whole previous set, byte for byte, while the new one is published beside it'
+
+# Both copies run, each loading eighteen libraries from its own set.
+BATON_HOME=$home sh "$home/bin/baton" help > /dev/null
+BATON_HOME=$home sh "$home/bin/baton-reader" help > /dev/null
+echo 'both the published relay and the reader load their own library set'
+
+# An unchanged reinstall replaces nothing: the same files, no temporary artifact, and no third set
+# left behind — the previous one and the current one, and nothing older.
+baton_inode=$(stat -f %i "$home/bin/baton")
+gate_inode=$(stat -f %i "$home/bin/stop-gate")
+live_lib=$(libdir_of "$home/bin/baton")
+lib_inode=$(stat -f %i "$live_lib/derive.sh")
+inst
+[ "$baton_inode" = "$(stat -f %i "$home/bin/baton")" ]
+[ "$gate_inode" = "$(stat -f %i "$home/bin/stop-gate")" ]
+[ "$lib_inode" = "$(stat -f %i "$live_lib/derive.sh")" ]
+[ -z "$(find "$home/bin" -name '*.tmp' -o -name '.stage-*')" ]
+[ "$(ls -A "$home/bin/lib" | wc -l | tr -d ' ')" -eq 1 ]
+echo 'an unchanged reinstall keeps every inode, publishes no second set and leaves nothing temporary'

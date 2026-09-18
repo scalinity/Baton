@@ -13,7 +13,11 @@ printf '\n# fixture-only unmerged library content\n' >> "$linked/lib/tick.sh"
 # The runner's seam tests these exact working-tree bytes, wherever ROOT itself lives.
 HOME=$base BATON_HOME="$base/harness-home" BATON_CLAUDE_ICON="$ROOT/tests/scenarios/install/icon.icns" \
   sh "$linked/install.sh" > "$base/install.out"
-cmp -s "$linked/lib/tick.sh" "$base/harness-home/bin/lib/tick.sh"
+# The installed libraries are a bundle named for their own content, and the installed baton names
+# it (D-131), so the bytes are checked where that copy would actually source them from.
+pin=$(sed -n 's/^baton_bundle=//p' "$base/harness-home/bin/baton")
+[ -n "$pin" ]
+cmp -s "$linked/lib/tick.sh" "$base/harness-home/bin/lib/$pin/tick.sh"
 jq -e --arg canonical "$source" '.path == $canonical' "$base/harness-home/projects/Fixture/project.json" > /dev/null
 echo 'harness mode installs the linked fixture bytes and registers its canonical checkout'
 # Turning off the seam must restore production behavior, even though the target is disposable.
