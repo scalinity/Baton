@@ -1,0 +1,31 @@
+set -eu
+# Both repositories/worktrees belong to the fixture. No real branch or worktree is touched.
+base=$(cd "$SHIM/.." && pwd)
+source=$base/Fixture
+linked=$base/linked
+if [ ! -d "$linked" ]; then
+  git -C "$source" worktree add -q --detach "$linked" HEAD
+fi
+cp "$ROOT/install.sh" "$linked/install.sh"
+refuses_install() {
+  if HOME=$base BATON_HOME="$base/refused-home" sh "$1/install.sh" > "$base/refused.out" 2>&1; then
+    echo 'unexpected install success'; exit 1
+  else
+    result=$?
+  fi
+  [ "$result" -eq 2 ]
+  cat "$base/refused.out"
+  [ ! -e "$base/refused-home" ]
+  [ ! -e "$base/Library" ]
+  echo 'refused before runtime or launchd writes'
+}
+refuses_install "$linked"
+cp "$ROOT/install.sh" "$source/install.sh"
+if ! git -C "$source" show-ref --verify --quiet refs/heads/install-test; then
+  git -C "$source" branch install-test
+fi
+git -C "$source" checkout -q install-test
+refuses_install "$source"
+git -C "$source" checkout -q --detach main
+refuses_install "$source"
+git -C "$source" checkout -q main

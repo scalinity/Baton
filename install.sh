@@ -1,12 +1,20 @@
 #!/bin/sh
 # install.sh — installs the relay under ~/.baton/bin (baton, lib/, the three hooks, a copy of
 # /bin/sh for the Full Disk Access grant, and the notifier applet Baton.app), creates the state
-# directories, config.json and Baton's own registration if absent. Idempotent: a second run changes
+# directories, config.json and Baton's own registration; permissions are upgraded. A second run changes
 # nothing. launchd and every dispatched session's hooks run the installed copy, so a merge on main
 # changes nothing until this is run (D-018).
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 BATON_HOME=${BATON_HOME:-$HOME/.baton}
+
+# Refuse before any writes: close-out installs the canonical main checkout (D-079, D-113).
+# Registration and runtime bytes must come from the same tree.
+canonical=$(git -C "$here" worktree list --porcelain | awk '/^worktree / { print substr($0, 10); exit }')
+if [ "$here" != "$canonical" ] || [ "$(git -C "$here" symbolic-ref --quiet --short HEAD)" != main ]; then
+  echo "install: run from the canonical checkout $canonical with HEAD on main" >&2
+  exit 2
+fi
 
 mkdir -p "$BATON_HOME/bin/lib" "$BATON_HOME/inbox" "$BATON_HOME/archive" "$BATON_HOME/rejected" \
   "$BATON_HOME/status" "$BATON_HOME/settings" "$BATON_HOME/prompts" "$BATON_HOME/projects"
@@ -41,39 +49,41 @@ if [ ! -f "$BATON_HOME/config.json" ]; then
 JSON
 fi
 
-# Baton registers itself: the canonical checkout is the main worktree of the repository this
-# script sits in, never a linked worktree, so an install run from ../Baton-M<nn> still points at it.
-canonical=$(git -C "$here" worktree list --porcelain | awk '/^worktree / { print substr($0, 10); exit }')
+# Baton registers itself from the source checkout validated above.
 project=$(basename "$canonical")
 mkdir -p "$BATON_HOME/projects/$project"
 if [ ! -f "$BATON_HOME/projects/$project/project.json" ]; then
   jq -n --arg p "$canonical" '{path: $p, plan: "docs/MILESTONES.md"}' > "$BATON_HOME/projects/$project/project.json"
 fi
-if [ ! -f "$BATON_HOME/projects/$project/permissions.json" ]; then
-  # Two deny classes and nothing else (REQ-PERM-04): privilege escalation, and Baton's own state by
-  # named path — everything under BATON_HOME except inbox/. The // form is an absolute path for the
-  # tools that take one; the Bash fragments catch a shell command that names the path, and can
-  # never be complete (D-026).
-  jq -n --arg h "/$BATON_HOME" '
-    { permissions: {
-        allow: ["Bash(sh tests/run.sh:*)", "Bash(jq:*)"],
-        deny: (
-          ["Bash(sudo:*)", "Bash(su:*)", "Bash(doas:*)", "Bash(osascript * administrator privileges*)"]
-          + ["Read(\($h)/log.jsonl)", "Edit(\($h)/log.jsonl)", "Write(\($h)/log.jsonl)"]
-          + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock", "notify" ]
-             | map("Edit(\($h)/\(.)/**)", "Write(\($h)/\(.)/**)"))
-          + ["Edit(\($h)/config.json)", "Write(\($h)/config.json)", "Edit(\($h)/last-tick)", "Write(\($h)/last-tick)"]
-          # `bin` stays out of the Bash fragments: a session runs the installed `baton` by its path, as
-          # the wake session does, and the Edit and Write rules above already keep bin/ out of reach.
-          + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick", "notify" ]
-             | map("Bash(*.baton/\(.)*)"))
-          # The launchd agent joins the named paths from M03. It sits outside ~/.baton but is
-          # Baton state by every other measure, and what it names is executed every sixty
-          # seconds by a shell with Full Disk Access (D-048).
-          + ["Edit(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
-             "Write(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
-             "Bash(*com.baton.tick*)"]
-        ) } }' > "$BATON_HOME/projects/$project/permissions.json"
+# Two deny classes and nothing else (REQ-PERM-04): privilege escalation, and Baton's own state by
+# named path — everything under BATON_HOME except inbox/. The // form is an absolute path for the
+# tools that take one; the Bash fragments catch a shell command that names the path, and can
+# never be complete (D-026).
+jq -n --arg h "/$BATON_HOME" '
+  { permissions: {
+      allow: ["Bash(sh tests/run.sh:*)", "Bash(jq:*)"],
+      deny: (
+        ["Bash(sudo:*)", "Bash(su:*)", "Bash(doas:*)", "Bash(osascript * administrator privileges*)"]
+        + ["Read(\($h)/log.jsonl)", "Edit(\($h)/log.jsonl)", "Write(\($h)/log.jsonl)"]
+        + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock", "notify" ]
+           | map("Edit(\($h)/\(.)/**)", "Write(\($h)/\(.)/**)"))
+        + ["Edit(\($h)/config.json)", "Write(\($h)/config.json)", "Edit(\($h)/last-tick)", "Write(\($h)/last-tick)"]
+        # Sessions run bin/baton, but never the sourced bin/lib files (D-112).
+        + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick", "notify" ]
+           | map("Bash(*.baton/\(.)*)"))
+        + ["Bash(*.baton/bin/lib*)"]
+        # The launchd agent joins the named paths from M03. It sits outside ~/.baton but is
+        # Baton state by every other measure, and what it names is executed every sixty
+        # seconds by a shell with Full Disk Access (D-048).
+        + ["Edit(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
+           "Write(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
+           "Bash(*com.baton.tick*)"]
+      ) } }' > "$BATON_HOME/projects/$project/permissions.json.tmp"
+# An existing registration needs new rules too; preserve the file when it already matches.
+if cmp -s "$BATON_HOME/projects/$project/permissions.json.tmp" "$BATON_HOME/projects/$project/permissions.json"; then
+  rm -f "$BATON_HOME/projects/$project/permissions.json.tmp"
+else
+  mv "$BATON_HOME/projects/$project/permissions.json.tmp" "$BATON_HOME/projects/$project/permissions.json"
 fi
 
 # The wake session's settings (D-087): Remote Control on, so the person can message it from Claude.app

@@ -1,0 +1,30 @@
+set -eu
+# Start from the pre-upgrade deny list, not an absent registration. Keep generated state outside
+# the harness snapshot and assert it explicitly, including unchanged-file identity on reinstall.
+base=$(cd "$SHIM/.." && pwd)
+upgrade=$base/home2
+rm -rf "$upgrade"
+mkdir -p "$upgrade/projects/Baton"
+printf '%s\n' '{"permissions":{"allow":["Bash(sh tests/run.sh:*)","Bash(jq:*)"],"deny":["Bash(sudo:*)"]}}' > "$upgrade/projects/Baton/permissions.json"
+install_upgrade() {
+  HOME=$base BATON_HOME=$upgrade BATON_CLAUDE_ICON="$SCENARIO/../install/icon.icns" sh "$ROOT/install.sh" > "$base/install.out"
+}
+install_upgrade
+permissions=$upgrade/projects/Baton/permissions.json
+jq -ce '{count: (.permissions.deny | length), library: (.permissions.deny | index("Bash(*.baton/bin/lib*)") != null), plist: (.permissions.deny | index("Bash(*com.baton.tick*)") != null), notify: (.permissions.deny | index("Bash(*.baton/notify*)") != null)}' "$permissions"
+jq -e '.permissions.deny | length == 44' "$permissions" > /dev/null
+# Composition must carry the upgraded rail into the next dispatch, not just the registration.
+. "$ROOT/tests/lib-load.sh"
+saved_home=$BATON_HOME
+BATON_HOME=$upgrade
+settings=$(settings_compose Baton M17)
+jq -ce '{count: (.permissions.deny | length), library: (.permissions.deny | index("Bash(*.baton/bin/lib*)") != null)}' "$settings"
+BATON_HOME=$saved_home
+jq -ce '.permissions.deny | length' "$upgrade/settings/wake.json"
+permissions_inode=$(stat -f %i "$permissions")
+wake_inode=$(stat -f %i "$upgrade/settings/wake.json")
+install_upgrade
+[ "$permissions_inode" = "$(stat -f %i "$permissions")" ]
+[ "$wake_inode" = "$(stat -f %i "$upgrade/settings/wake.json")" ]
+[ ! -e "$permissions.tmp" ] && [ ! -e "$upgrade/settings/wake.json.tmp" ]
+echo 'unchanged permissions and wake settings retained; no temporary files'

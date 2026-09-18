@@ -65,13 +65,16 @@ hundred lines, means a Swift command-line tool for that piece.
     └── milestones/M01.md … M08.md
 ```
 
-**The installed relay.** `sh install.sh` copies `bin/baton`, `lib/` and `hooks/` to `~/.baton/bin/`
+**The installed relay.** `sh install.sh` refuses before writing unless its source is the canonical
+checkout with HEAD on `main` (D-113). It copies `bin/baton`, `lib/` and `hooks/` to `~/.baton/bin/`
 (flat: `baton`, `lib/`, `stop-gate`, `stop-failure`, `statusline`), builds the notifier applet `Baton.app` there from `notify/Baton.applescript` with Claude's icon copied from the installed Claude.app and never committed (D-092), copies `launchd/com.baton.tick.plist` to `~/Library/LaunchAgents/` without loading it, and creates the state directories
-and `config.json` if absent. launchd runs the installed copy and every dispatched session's hooks
+and `config.json` if absent. It regenerates Baton's own `permissions.json` on upgrades, replacing it
+by rename only when the generated content differs; wake settings inherit that current deny list
+(D-111). launchd runs the installed copy and every dispatched session's hooks
 point at it. A Baton milestone's close-out runs the script on `main` once the standing check has
 passed there, before it writes its handover, so the next dispatch is made by the merged relay; a
-milestone can never break the tick that dispatched it, and a broken install is undone by checking
-out an earlier commit and installing again (D-018, D-079). A launchd job cannot execute anything under `~/Documents`,
+milestone can never break the tick that dispatched it, and a broken install is undone by restoring
+reviewed earlier code on `main` and installing again (D-018, D-079, D-113). A launchd job cannot execute anything under `~/Documents`,
 which is the other reason the running copy lives under `~/.baton/`.
 
 ---
@@ -146,7 +149,7 @@ at the installed relay. The prototype's `settings-A.json` and `hooks/` under
       "Bash(*.baton/archive*)", "Bash(*.baton/rejected*)", "Bash(*.baton/prompts*)",
       "Bash(*.baton/settings*)", "Bash(*.baton/projects*)", "Bash(*.baton/status*)",
       "Bash(*.baton/lock*)", "Bash(*.baton/config.json*)", "Bash(*.baton/last-tick*)",
-      "Bash(*.baton/notify*)",
+      "Bash(*.baton/notify*)", "Bash(*.baton/bin/lib*)",
       "Edit(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
       "Write(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
       "Bash(*com.baton.tick*)"
@@ -170,7 +173,8 @@ The deny list above is the one `install.sh` writes for Baton (D-026). The two cl
 ("Where an escalation goes" §3): privilege escalation, and Baton's own state by named path — a
 session writes `~/.baton/inbox/` and nothing else under `~/.baton/`. The path forms are
 `Read|Edit|Write(//<absolute path>)` for the tools that take a path and `Bash(*.baton/<name>*)` for
-a shell command that names the path (`bin` excepted, so a session can run `baton status`); each
+a shell command that names the path (`bin` excepted except for `bin/lib`, so a session can run
+`baton status` but cannot name a write into the sourced libraries; D-112); each
 named path is one rule, so a directory the list does not name (one a session creates itself under
 `~/.baton/`) is not denied, and a Bash fragment is never complete, which is the stated limit of the
 class. A `permissions.json` with no deny rules fails the `settings` stage rather than dispatching
