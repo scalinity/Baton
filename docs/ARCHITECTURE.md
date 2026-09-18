@@ -264,15 +264,19 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    - Run, with the worktree as `cwd` and `LC_ALL` set:
      `claude --bg -n "<session name>" --model <Model> [--effort <Effort>]
      --permission-mode bypassPermissions --settings <file> "<prompt>"`; parse `backgrounded · <id>`
-     from stdout. No parsed id → inspect fresh live rows with the lane's `session_name` and stop
-     their jobs before `dispatch_failed` (§6.2). Preserve stdout with nonempty stderr too; the
+     from stdout. No parsed id → the first cleanup in this process inspects fresh live rows with
+     the lane's `session_name` and stops their jobs before `dispatch_failed` (§6.2). Later failures
+     record `cleanup skipped; budget spent this tick`. Preserve stdout with nonempty stderr too; the
      empty-stderr fallback already preserves it (D-114).
    - `Remote: yes` is the same command. Every settings file carries `remoteControlAtStartup: true`,
      which connects the session and keeps its prompt, and a flagless resume restores it (D-080,
      D-081). `--remote-control` is never passed.
    - Read the row's `pid` from `claude agents --json`; if the row lookup fails, stop the known job
-     id before recording failure. Cleanup checks settlement by job id and includes any refused
-     or unsettled stop in the bounded failure detail. On a valid row, start `caffeinate -i -w <pid>` detached.
+     id before recording failure if this process's cleanup budget is unspent. All jobs in that
+     cleanup share one settlement loop. Refused, skipped or unsettled cleanup remains in the
+     bounded failure detail. This limits added polling to one lookup and one settlement loop
+     per process, not wall-clock time: calls have no timeout and ordinary row discovery remains
+     per candidate (D-114). On a valid row, start `caffeinate -i -w <pid>` detached.
    - Log the `dispatch` event.
 
 **The session name** is `Baton · <project> · <milestone>`, except when the project key is `Baton`

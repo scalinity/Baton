@@ -1,0 +1,15 @@
+baton: dispatch of Fixture M02 failed at launch: exit 0 with nothing on stderr; stdout: [?25lbackgrounded · 0badc0d1 · Baton · Fixture · M02
+  claude agents             list sessions
+  claude attach 0badc0d1    open in this terminal
+  claude logs 0badc0d1      show recent output
+  claude stop 0badc0d1      stop this session
+baton: dispatch of Fixture M03 failed at launch: cleanup skipped; budget spent this tick; exit 0 with nothing on stderr; stdout: [?25lbackgrounded · 0badc0d2 · Baton · Fixture · M03
+  claude agents             list sessions
+  claude attach 0badc0d2    open in this terminal
+  claude logs 0badc0d2      show recent output
+  claude stop 0badc0d2      stop this session
+baton: dispatch of Fixture M07 failed at launch: cleanup skipped; budget spent this tick; exit 0 with nothing on stderr; stdout: [?25lbackgrounded · 0badc0d3 · Baton · Fixture · M07
+  claude agents             list sessions
+  claude attach 0badc0d3    open in this terminal
+  claude logs 0badc0d3      show recent output
+  claude stop 0badc0d3      stop this session

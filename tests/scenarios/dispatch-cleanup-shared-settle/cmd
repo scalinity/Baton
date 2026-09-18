@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+sleep() { printf '%s\n' "$*" >> "$SHIM/settle-sleeps"; }
+# A fresh three-job fixture for each independent process; all three stops stay live past the bound.
+printf '%s\n' '[{"id":"abc00001","pid":4241},{"id":"abc00002","pid":4242},{"id":"abc00003","pid":4243}]' > "$SHIM/rows.json"
+settle_reads=$(awk '/claude agents --json/ { n++ } END { print n+0 }' "$SHIM/calls.log")
+settle_stops=$(awk '/claude stop / { n++ } END { print n+0 }' "$SHIM/calls.log")
+settle_sleeps=0
+if [ -f "$SHIM/settle-sleeps" ]; then settle_sleeps=$(wc -l < "$SHIM/settle-sleeps" | tr -d ' '); fi
+if settle_detail=$(dispatch_stop_jobs abc00001 abc00002 abc00003); then exit 1; fi
+printf '%s\n' "$settle_detail"
+[ "$(( $(awk '/claude agents --json/ { n++ } END { print n+0 }' "$SHIM/calls.log") - settle_reads ))" -eq 60 ]
+[ "$(( $(awk '/claude stop / { n++ } END { print n+0 }' "$SHIM/calls.log") - settle_stops ))" -eq 3 ]
+[ "$(( $(wc -l < "$SHIM/settle-sleeps" | tr -d ' ') - settle_sleeps ))" -eq 60 ]
+jq -e 'length == 3 and all(.[]; .pid != null)' "$SHIM/rows.json" > /dev/null
+printf 'three stop commands share sixty settlement reads and sixty half-second sleeps\n'

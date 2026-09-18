@@ -1,0 +1,3 @@
+dispatch  Fixture/M02 · 2 consecutive failures · the lane is parked
+dispatch  Fixture/M07 · 2 consecutive failures · the lane is parked
+2 failures with cap two; one cleanup; 1 explicit skips; four polling sleeps

@@ -1,0 +1,2 @@
+cleanup truncated: stops for abc00001 abc00002 abc00003 did not settle within the shared thirty-second polling budget
+three stop commands share sixty settlement reads and sixty half-second sleeps

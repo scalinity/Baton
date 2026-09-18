@@ -5,6 +5,10 @@
 # on stdout and returns non-zero, so a caller captures once and branches on the status.
 set -eu
 
+# One cleanup admission per process (one tick or hand-run verb). Claim it in dispatch_one's
+# caller shell, before any command substitution, so another candidate cannot replenish it.
+do_cleanup_spent=false
+
 # row_for_id <id>: the agents row whose id is <id> and which carries a pid, polled for up to
 # thirty seconds because the row appears a beat after backgrounded is printed. A worker that
 # crashes before init never gets a row; the service records that in its own log as
@@ -244,24 +248,30 @@ dispatch_failed() {
   echo "baton: dispatch of $1 $2 failed at $3: $df_detail" >&2
 }
 
-# dispatch_stop_job <job>: stop a worker a failed dispatch may already have started. Use the
-# job id even when no row has appeared. A refused stop or unsettled listing is failure evidence,
-# never silently treated as cleanup; the caller includes it in dispatch_failed's bounded detail.
-dispatch_stop_job() {
-  if ! dsj_out=$("$BATON_CLAUDE" stop "$1" 2>&1); then
-    printf 'cleanup: stop %s failed: %s\n' "$1" "$dsj_out"
-    return 1
-  fi
+# dispatch_stop_jobs <job>...: stop the admitted cleanup's jobs, then settle all successful
+# stops together in one loop. A matching row must not buy another thirty seconds of polling.
+# Calls themselves have no timeout; this bounds polling, not wall-clock duration (D-114).
+dispatch_stop_jobs() {
+  dsj_pending='[]'; dsj_status=0
+  for dsj_job do
+    if dsj_out=$("$BATON_CLAUDE" stop "$dsj_job" 2>&1); then
+      dsj_pending=$(printf '%s' "$dsj_pending" | jq -c --arg id "$dsj_job" '. + [$id]')
+    else
+      printf 'cleanup: stop %s failed: %s\n' "$dsj_job" "$dsj_out"
+      dsj_status=1
+    fi
+  done
+  [ "$dsj_pending" != '[]' ] || return "$dsj_status"
   dsj_i=0
   while [ "$dsj_i" -lt 60 ]; do
-    if dsj_rows=$(rows_read) && printf '%s' "$dsj_rows" | jq -e --arg id "$1" \
-        'all(.[]; .id != $id or .pid == null)' > /dev/null 2>&1; then
-      return 0
+    if dsj_rows=$(rows_read) && printf '%s' "$dsj_rows" | jq -e --argjson ids "$dsj_pending" \
+        'all(.[]; .pid == null or (.id as $id | ($ids | index($id)) == null))' > /dev/null 2>&1; then
+      return "$dsj_status"
     fi
     dsj_i=$((dsj_i + 1))
     sleep 0.5
   done
-  printf 'cleanup: stop %s did not settle within thirty seconds\n' "$1"
+  printf 'cleanup truncated: stops for %s did not settle within the shared thirty-second polling budget\n' "$*"
   return 1
 }
 
@@ -309,6 +319,12 @@ dispatch_one() {
     if [ -n "$bg_stderr" ] && [ -n "$bg_stdout" ]; then
       do_detail="stdout: $bg_stdout; stderr: $bg_stderr"
     fi
+    if [ "$do_cleanup_spent" = true ]; then
+      do_detail="cleanup skipped; budget spent this tick; $do_detail"
+      dispatch_failed "$do_project" "$do_id" "$(dispatch_failed_classify "$bg_stderr")" "$do_detail"
+      return 1
+    fi
+    do_cleanup_spent=true
     # A row can lag the launch acknowledgement. Poll a successful or nonempty launch for the
     # same bound as row_for_id; a failed launch with no stdout still gets one fresh inspection.
     do_cleanup_limit=1
@@ -331,11 +347,12 @@ dispatch_one() {
         do_detail="cleanup: no live row identified for $do_name within thirty seconds; $do_detail"
       fi
     fi
-    for do_cleanup_id in $do_cleanup_ids; do
-      if ! do_cleanup=$(dispatch_stop_job "$do_cleanup_id"); then
+    if [ -n "$do_cleanup_ids" ]; then
+      # The listing's job ids are hex tokens, so this split introduces no glob characters.
+      if ! do_cleanup=$(dispatch_stop_jobs $do_cleanup_ids); then
         do_detail="$do_cleanup; $do_detail"
       fi
-    done
+    fi
     dispatch_failed "$do_project" "$do_id" "$(dispatch_failed_classify "$bg_stderr")" "$do_detail"
     return 1
   fi
@@ -343,8 +360,13 @@ dispatch_one() {
   if ! do_agent=$(row_for_id "$bg_id"); then
     do_stage=$(dispatch_failed_classify "$do_agent")
     # The launch gave us this id: even a listing that timed out cannot make it unknowable.
-    if ! do_cleanup=$(dispatch_stop_job "$bg_id"); then
-      do_agent="$do_cleanup; $do_agent"
+    if [ "$do_cleanup_spent" = true ]; then
+      do_agent="cleanup skipped; budget spent this tick; $do_agent"
+    else
+      do_cleanup_spent=true
+      if ! do_cleanup=$(dispatch_stop_jobs "$bg_id"); then
+        do_agent="$do_cleanup; $do_agent"
+      fi
     fi
     dispatch_failed "$do_project" "$do_id" "$do_stage" "$do_agent"
     return 1

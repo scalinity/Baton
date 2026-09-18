@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+sleep() { printf '%s\n' "$*" >> "$SHIM/cleanup-sleeps"; }
+# Each runner invocation is a new tick process: its first failed candidate may spend the budget.
+budget_stops=$(awk '/claude stop / { n++ } END { print n+0 }' "$SHIM/calls.log")
+budget_ended=$(jq '[.[] | select(.pid == null)] | length' "$SHIM/rows.json")
+budget_before=$(jq -s '[.[] | select(.kind == "dispatch_failed")] | length' "$BATON_HOME/log.jsonl")
+# On run two M03's skipped worker is visible and admission stands down. M07's last launch is
+# still hidden by the shim's two-read delay. Preserve both workers rather than resetting rows.
+budget_candidates=3
+[ "$budget_before" -eq 0 ] || budget_candidates=2
+budget_sleeps=0
+if [ -f "$SHIM/cleanup-sleeps" ]; then budget_sleeps=$(wc -l < "$SHIM/cleanup-sleeps" | tr -d ' '); fi
+lock_take
+verb_tick
+jq -es --argjson before "$budget_before" --argjson n "$budget_candidates" '
+  [.[] | select(.kind == "dispatch_failed")] as $failed
+  | ($failed | length == $before + $n)
+    and ($failed[$before:] | map(select(.detail | startswith("cleanup skipped; budget spent this tick"))) | length == $n - 1)
+    and all(.[]; .kind != "dispatch")' "$BATON_HOME/log.jsonl" > /dev/null
+[ "$(( $(grep -c 'claude stop ' "$SHIM/calls.log") - budget_stops ))" -eq 1 ]
+[ "$(( $(wc -l < "$SHIM/cleanup-sleeps" | tr -d ' ') - budget_sleeps ))" -eq 4 ]
+jq -e --argjson launches "$(cat "$SHIM/bg.count")" --argjson ended "$budget_ended" \
+  'length == $launches and ([.[] | select(.pid == null)] | length == $ended + 1)' "$SHIM/rows.json" > /dev/null
+printf '%s failures with cap two; one cleanup; %s explicit skips; four polling sleeps\n' "$budget_candidates" "$((budget_candidates - 1))"
