@@ -18,6 +18,6 @@
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
-osascript -e 'display notification "2 dispatches in a row produced no session, the last at the launch stage: exit 0 with nothing on stderr; stdout: [?25lbackgrounded · 0badc0d4 · Baton · Fixture · M02   claude agents  … · fix what the launch stage names; the next tick dispatches again" with title "Baton · Fixture/M02 · dispatch-failed"'
+osascript -e 'display notification "2 dispatches in a row produced no session, the last at the launch stage: exit 0 with nothing on stderr; stdout: [?25lbackgrounded · 0badc0d4 · Baton · Fixture · M02   claude agents… · fix what the launch stage names, then baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · dispatch-failed"'
 [cwd @TMP@/Fixture-M07] claude --bg -n 'Baton · Fixture · M07' --model opus --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M07.json <prompt>
-osascript -e 'display notification "2 dispatches in a row produced no session, the last at the launch stage: cleanup skipped; budget spent this tick; exit 0 with nothing on stderr; stdout: [?25lbackgrounded · 0badc0d5 … · fix what the launch stage names; the next tick dispatches again" with title "Baton · Fixture/M07 · dispatch-failed"'
+osascript -e 'display notification "2 dispatches in a row produced no session, the last at the launch stage: cleanup skipped; budget spent this tick; exit 0 with nothing on stderr; stdout: [?25lbackgrounded · 0badc0d… · fix what the launch stage names, then baton answer M07 \"<ruling>\"" with title "Baton · Fixture/M07 · dispatch-failed"'

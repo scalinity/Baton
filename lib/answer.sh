@@ -57,7 +57,8 @@ answer_options() {
 # a ruling and never a digit — it may have compacted since it asked, and a digit means nothing to a
 # context that no longer holds the list.
 #
-# **The resolution follows a delivered resume and never precedes one.** A park is closed by a ruling
+# A sessionless dispatch-failed park accepts a hand-back ruling without a resume. For a session,
+# **the resolution follows a delivered resume and never precedes one.** A park is closed by a ruling
 # that reached the session, and only the resume's outcome can say it did. Closed first, a resume the
 # CLI refused would leave the lane unparked with the ruling undelivered: `baton answer` would then
 # say nothing is waiting, so the person could not send it again, and the next tick would resume the
@@ -76,6 +77,16 @@ answer_deliver() {
   # The same test the message's verb was chosen by, so the command a person was told to type is never
   # one this refuses, and a session Baton did not dispatch is never resumed by it.
   if [ -z "$(ruling_target "$and_p" "$and_s" "$and_a")" ]; then
+    if [ "$and_class" = dispatch-failed ] && [ -z "$and_s" ] && [ -n "$and_p" ] && [ -n "$and_m" ] \
+       && [ "$(printf '%s' "$1" | jq -r '.scope // ""')" = lane ]; then
+      if [ -z "$2" ]; then
+        echo "baton: a hand-back ruling must not be empty" >&2
+        return 1
+      fi
+      resolve "$and_p" "$and_m" "" "" "$and_at" ruling || return 1
+      printf 'retry     %s/%s · the dispatch-failed park is released; the next tick may dispatch when eligible\n' "$and_p" "$and_m"
+      return 0
+    fi
     echo "baton: the $and_class park on $and_p/$and_m names no session Baton dispatched, so there is nothing a ruling can reach; the way out is an edit to the plan or the brief" >&2
     return 1
   fi
@@ -377,6 +388,18 @@ verb_allow() {
       echo "baton: $vbl_pj/$vbl_m is parked ($vbl_class), so --resume would wake it behind its own park; run baton allow $vbl_pj/$vbl_m with the rule alone, then baton answer $vbl_pj/$vbl_m \"<ruling>\", which resumes it and closes the park" >&2
       return 1
     fi
+    vbl_rows=$(rows_read) || { echo "baton: the session rows could not be read; --resume refused before widening" >&2; return 1; }
+    vbl_over=$(derive_taken_over "$vbl_pj" "$vbl_rows") || { echo "baton: $vbl_over" >&2; return 1; }
+    if printf '%s' "$vbl_over" | jq -e --arg m "$vbl_m" \
+         'any(.taken_over[]; .milestone == $m)' > /dev/null; then
+      echo "baton: $vbl_pj/$vbl_m is taken over; --resume would interrupt the person. Use the rule alone to widen without resuming, or baton answer $vbl_pj/$vbl_m \"continue\" to hand the lane back" >&2
+      return 1
+    fi
+    if printf '%s' "$vbl_over" | jq -e --arg m "$vbl_m" \
+         'any((.orphaned + .unreadable)[]; .milestone == $m)' > /dev/null; then
+      echo "baton: $vbl_pj/$vbl_m could not be checked for takeover; --resume refused before widening" >&2
+      return 1
+    fi
   fi
   allow_write "$vbl_pj" "$vbl_m" "$2" || return 1
 
@@ -391,7 +414,7 @@ verb_allow() {
     return 1
   fi
   vbl_out=$(resume_session "$vbl_pj" "$vbl_m" "$vbl_a" "$vbl_s" \
-    "$(job_of_session "$(rows_json)" "$vbl_s")" continue 'the allowlist was widened') \
+    "$(job_of_session "$vbl_rows" "$vbl_s")" continue 'the allowlist was widened') \
     || { echo "$vbl_out" >&2; return 1; }
   printf 'resumed   %s/%s · %s · %s\n' "$vbl_pj" "$vbl_m" "$vbl_s" \
     "$(printf '%s' "$vbl_out" | jq -r .outcome)"

@@ -839,7 +839,9 @@ for reading; each is one line in the file.
 ```
 
 The resolution follows the resume it depends on: a ruling closes its park only once the resume was
-delivered or forked, and a refused one leaves the park standing (D-061).
+delivered or forked, and a refused one leaves the park standing (D-061). A sessionless
+dispatch-failed park instead accepts a nonempty hand-back ruling without a resume; candidate
+admission on the next tick still applies all ordinary gates (D-120).
 
 ```json
 {"at":"2026-09-12T09:17:03+01:00","kind":"takeover","project":"Reclaim","milestone":"M19",

@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+before_permissions=$(cksum < "$BATON_HOME/projects/Fixture/permissions.json")
+before_settings=$(cksum < "$BATON_HOME/settings/Fixture-M02.json")
+before_log=$(cksum < "$BATON_HOME/log.jsonl")
+if "$BATON" allow Fixture/M02 'Bash(xcodebuild:*)' --resume; then exit 1; else result=$?; fi
+[ "$result" -eq 1 ]
+[ "$(cksum < "$BATON_HOME/projects/Fixture/permissions.json")" = "$before_permissions" ]
+[ "$(cksum < "$BATON_HOME/settings/Fixture-M02.json")" = "$before_settings" ]
+[ "$(cksum < "$BATON_HOME/log.jsonl")" = "$before_log" ]
+if grep -Eq 'claude (stop|--bg)' "$SHIM/calls.log"; then exit 1; fi
+echo 'unreadable transcript protected: no widening, log write, stop or resume'

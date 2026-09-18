@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+if ! jq -se 'any(.kind == "dispatch" and .milestone == "M02")' "$BATON_HOME/log.jsonl" > /dev/null; then
+  # This is a real worktree-stage failure, not a fabricated changed-hash sentinel.
+  mkdir Fixture-M02
+  "$BATON" tick
+  "$BATON" tick
+  derive_parked Fixture | jq -e 'any(.parked[]; .milestone == "M02" and .class == "dispatch-failed" and (.session // "") == "")' > /dev/null
+  rmdir Fixture-M02
+  "$BATON" tick
+  jq -es 'all(.[]; .kind != "dispatch" or .milestone != "M02")' "$BATON_HOME/log.jsonl" > /dev/null
+  if "$BATON" answer Fixture/M02 ''; then exit 1; fi
+  "$BATON" answer Fixture/M02 'the worktree stage is fixed; retry when eligible'
+  "$BATON" tick
+fi
+jq -es '([.[] | select(.kind == "dispatch" and .milestone == "M02")] | length) == 1 and any(.[]; .kind == "resolution" and .milestone == "M02" and .how == "ruling") and all(.[]; .kind != "resume")' "$BATON_HOME/log.jsonl" > /dev/null
+derive_parked Fixture | jq -e 'all(.parked[]; .milestone != "M02")' > /dev/null
+echo 'fixed worktree stage plus explicit retry released the sessionless park and dispatched once'

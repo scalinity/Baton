@@ -301,8 +301,8 @@ escalation_verb() {
     main-broken)
       printf 'fix main, then baton answer %s "main fixed; finish the close-out from step (c)"' "$evb_m" ;;
     dispatch-failed)
-      printf 'fix what the %s stage names; the next tick dispatches again' \
-        "$(printf '%s' "$3" | jq -r '.stage // "failed"' 2>/dev/null || echo failed)" ;;
+      printf 'fix what the %s stage names, then baton answer %s "<ruling>"' \
+        "$(printf '%s' "$3" | jq -r '.stage // "failed"' 2>/dev/null || echo failed)" "$evb_m" ;;
     baton-unhealthy)
       # The only writer of this class is the stale-lock break, which has already done the one thing
       # there was to do and resolves its own park in the same tick. A verb here would tell a person
