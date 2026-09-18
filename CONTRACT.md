@@ -30,9 +30,11 @@ requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `do
    (b) merge into `main` — if the merge fails, write a `stopped` artifact with reason `merge-failed`
    and go no further; then run the project's standing check on `main`, the combined tree; if it
    fails, fix it on `main`, and if that cannot be done, write `stopped` with reason `main-broken`;
-   (c) on `main`: refresh the prompt only of a listed milestone with no open lane (parts 1 and
+   (c) on `main`: refresh the prompt only of a listed milestone with neither an open lane nor an open park (parts 1 and
    3–7; part 4 additively, by thread; part 2 stays verbatim). Run `baton status` to identify
-   in-flight lanes, then check the dispatch log (`$BATON_HOME/log.jsonl`, normally
+   in-flight lanes and open parks: an `in flight` line names a running milestone and a `parked`
+   line names a park that has not been resolved. Withhold the refresh of either milestone.
+   Then check the dispatch log (`$BATON_HOME/log.jsonl`, normally
    `~/.baton/log.jsonl`) for each listed milestone: its newest `dispatch` opens a lane unless a
    later `consumed` with outcome `complete` names the same project, milestone and attempt.
    Use log order, not timestamps. A lane missing from status can still be open while its process

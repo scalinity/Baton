@@ -30,8 +30,8 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
 2. Merge into `main`. If the merge fails, write a `stopped` artifact with reason `merge-failed`
    and go no further. Then run the standing check, `sh tests/run.sh`, on `main`; fix `main` if it
    fails, else write `stopped` with reason `main-broken`.
-3. On `main`: refresh the copy-ready prompt only of a listed milestone with no open lane (parts 1 and
-   3–7; part 4 additively; part 2 stays the slot line). Establish open lanes
+3. On `main`: refresh the copy-ready prompt only of a listed milestone with neither an open lane nor an open park (parts 1 and
+   3–7; part 4 additively; part 2 stays the slot line). Establish open lanes and open parks
    by `baton status` and the dispatch-log check in `CONTRACT.md` clause 3(c); absence from status
    does not prove closure. Still name every eligible milestone with its correct disposition; write
    `done` in this milestone's `Status`

@@ -186,9 +186,9 @@ one sentence. Baton replaces it whole at dispatch; a person leaves it as written
 _Avoid_: placeholder, template variable
 
 **Refresh**:
-The finishing session's update of a listed milestone's prompt only when it has no open lane,
+The finishing session's update of a listed milestone's prompt only when it has neither an open lane nor an open park,
 made on the main branch after its own merge. The handover still names every eligible milestone;
-`CONTRACT.md` clause 3(c) establishes open lanes from status and the dispatch log.
+`CONTRACT.md` clause 3(c) establishes open lanes and open parks from status and the dispatch log.
 _Avoid_: rewrite, regenerate
 
 **Dispatch log**:
