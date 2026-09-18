@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+# No open lane, park or wait can hide a wrong comparison of the closed lane's time.
+for ending in 2026-09-12T09:30:00+01:00 2026-09-12T10:30:00+03:00 2026-09-12T09:00:00+01:00; do
+  jq -c --arg at "$ending" 'if .kind == "consumed" then .at = $at else . end' "$BATON_HOME/log.jsonl" > "$BATON_HOME/log.jsonl.tmp"
+  mv "$BATON_HOME/log.jsonl.tmp" "$BATON_HOME/log.jsonl"
+  case "$ending" in *09:30*) wanted=true ;; *) wanted=false ;; esac
+  gap_result=$(derive_gap '[]')
+  printf '%s\n' "$gap_result"
+  printf '%s' "$gap_result" | jq -e --argjson want "$wanted" '.had_lane == $want and .report == $want and .gap_seconds == 7200' > /dev/null
+done

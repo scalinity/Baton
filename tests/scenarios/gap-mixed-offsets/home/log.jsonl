@@ -1,0 +1,2 @@
+{"at":"2026-09-12T08:00:00+02:00","kind":"dispatch","project":"Fixture","milestone":"M07","session":"f7","attempt":1,"name":"Baton · Fixture · M07","model":"opus","remote":false,"worktree":"/w","branch":"m07","worktree_reused":false,"settings":"/s","prompt_path":"/p/1.txt","prompt_sha256":"h"}
+{"at":"2026-09-12T09:30:00+01:00","kind":"consumed","project":"Fixture","milestone":"M07","session":"f7","attempt":1,"outcome":"complete","merged_as":"abc1234","written_by":"session","archive":"/a/M07.json"}

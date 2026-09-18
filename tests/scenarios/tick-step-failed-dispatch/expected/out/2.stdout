@@ -1,0 +1,2 @@
+dispatch    the dispatch pass failed; nothing more is dispatched this tick
+incomplete tick: status 3, original marker retained, lock released

@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+if [ -d "$BATON_HOME/lock" ]; then
+  rm -f "$BATON_HOME/lock/at"
+  TZ=UTC touch -t 202609121050.00 "$BATON_HOME/lock"
+fi
+"$BATON" tick
+[ ! -d "$BATON_HOME/lock" ]

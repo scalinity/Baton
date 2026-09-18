@@ -1,0 +1,2 @@
+offline     the offline pass failed; no finished session was taken offline this tick
+incomplete tick: status 3, original marker retained, lock released

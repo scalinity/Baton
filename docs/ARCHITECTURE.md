@@ -189,6 +189,9 @@ example is `.scratch/baton/prototype/obs/28926e91-26fc-4602-9abd-1ce89cefeb28.js
 
 **The lock**: `mkdir ~/.baton/lock` succeeds or the verb exits; the directory holds `pid` and `at`
 so a stale lock can be reported with its age. Released on exit; the marker is written after.
+If `at` is missing or cannot be parsed, reporting and rescue read the directory's mtime instead.
+Rescue still requires an aged lock and a holder that is gone, claims by rename, and rechecks the
+claimed metadata; it never repairs a live lock's files (D-117).
 
 ---
 
@@ -303,7 +306,9 @@ a new one after every stop. The two passes read the whole log once each beside t
 and scan it for each consumed handover; at today's size that is milliseconds, and it is counted
 against REQ-LOG-01's rule that the log is split only once a tick's scan is measurably slow.
 
-Then the marker, after the lock is released.
+Then the marker, after the lock is released, only when every top-level pass completed. A failed
+pass is retained as status 3 through the remaining work; it withholds the marker so the next gap
+reading still uses the last completed tick (D-115). A handled self-check park is not a failed pass.
 
 ### 4.2 The verbs
 
@@ -776,7 +781,7 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
 14. **`baton plan`'s provenance of allow rules**: every `widening` for the project, newest first,
     each naming the rule and the milestone that earned it.
 15. **The gap**: `now` minus `~/.baton/last-tick`. Reported as a `notification` with class `gap`
-    only when derivations 1, 2 or 5 show a lane was in flight, waiting or parked during it. Keyed on
+    only when `lanes_open` (including lanes without a live row), parks or waits show work during it. Keyed on
     the marker value it was measured against, so one outage reports once. **The threshold is two
     intervals**, not one: the marker holds the `at` of the tick that completed and is written after
     the lock is released, so at the next tick it is already a full interval old plus that tick's own
@@ -784,7 +789,8 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
     being the marker value, changes every tick and so would suppress nothing. **"During it" is not
     "now"**: a lane that ran through the outage and finished before the read still means Baton was
     not running while something needed it, so the window counts lanes open now plus anything that
-    closed after the marker.
+    closed after the marker. Closing events are ordered against the marker by `iso_epoch`, so UTC
+    offsets cannot reverse the comparison and an equal instant does not count as later (D-116).
 
 **The recovery test is idempotence**: tick twice against the same log, agents listing, inbox, plan
 file and git check, and the second tick changes nothing. Every derivation above is a pure function

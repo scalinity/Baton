@@ -17,8 +17,11 @@ set -eu
 # about to refuse rather than a bare "lock held".
 lock_stale_report() {
   [ -d "$BATON_HOME/lock" ] || return 0
-  ls_at=$(cat "$BATON_HOME/lock/at" 2>/dev/null) || return 0
-  ls_epoch=$(iso_epoch "$ls_at" 2>/dev/null) || return 0
+  ls_at=$(cat "$BATON_HOME/lock/at" 2>/dev/null || true)
+  if ! ls_epoch=$(iso_epoch "$ls_at" 2>/dev/null); then
+    ls_epoch=$(stat -f %m "$BATON_HOME/lock" 2>/dev/null) || return 0
+    ls_at="directory mtime $ls_epoch"
+  fi
   ls_age=$(( $(now_epoch) - ls_epoch ))
   [ "$ls_age" -ge "$BATON_TICK_SECONDS" ] || return 0
   printf 'stale lock  %s held by pid %s since %s (%s ago); if no verb is running, remove it\n' \
@@ -40,21 +43,30 @@ lock_stale_report() {
 # what was judged, and a lock somebody else has since taken is put back untouched.
 lock_stale_break() {
   [ -d "$BATON_HOME/lock" ] || return 0
-  lb_at=$(cat "$BATON_HOME/lock/at" 2>/dev/null) || return 0
+  lb_at=$(cat "$BATON_HOME/lock/at" 2>/dev/null || true)
   lb_pid=$(cat "$BATON_HOME/lock/pid" 2>/dev/null || echo '')
-  lb_epoch=$(iso_epoch "$lb_at" 2>/dev/null) || return 0
+  lb_stamp=
+  if ! lb_epoch=$(iso_epoch "$lb_at" 2>/dev/null); then
+    lb_stamp=$(stat -f %m "$BATON_HOME/lock" 2>/dev/null) || return 0
+    lb_epoch=$lb_stamp
+    lb_since="directory mtime $lb_epoch"
+  else
+    lb_since=$lb_at
+  fi
   lb_age=$(( $(now_epoch) - lb_epoch ))
   [ "$lb_age" -ge "$BATON_TICK_SECONDS" ] || return 0
   if [ -n "$lb_pid" ] && kill -0 "$lb_pid" 2>/dev/null; then return 0; fi
   lb_claim=$BATON_HOME/lock.stale.$$
   mv "$BATON_HOME/lock" "$lb_claim" 2>/dev/null || return 0
-  if [ "$(cat "$lb_claim/at" 2>/dev/null)" != "$lb_at" ]; then
+  if [ "$(cat "$lb_claim/at" 2>/dev/null || true)" != "$lb_at" ] \
+     || [ "$(cat "$lb_claim/pid" 2>/dev/null || true)" != "$lb_pid" ] \
+     || { [ -n "$lb_stamp" ] && [ "$(stat -f %m "$lb_claim" 2>/dev/null)" != "$lb_stamp" ]; }; then
     mv "$lb_claim" "$BATON_HOME/lock" 2>/dev/null || rm -rf "$lb_claim"
     return 0
   fi
   rm -rf "$lb_claim"
-  jq -nc --arg p "${lb_pid:-unknown}" --arg at "$lb_at" --argjson age "$lb_age" \
-    --arg d "the lock was held by pid ${lb_pid:-unknown} since $lb_at ($(duration "$lb_age")) and its holder is gone; it has been cleared and the tick proceeded" \
+  jq -nc --arg p "${lb_pid:-unknown}" --arg at "$lb_since" --argjson age "$lb_age" \
+    --arg d "the lock was held by pid ${lb_pid:-unknown} since $lb_since ($(duration "$lb_age")) and its holder is gone; it has been cleared and the tick proceeded" \
     '{pid: $p, held_since: $at, held_seconds: $age, detail: $d}'
 }
 
@@ -281,16 +293,17 @@ dispatch_run() {
 # artifact in the inbox for this session", which is true only after the inbox has been read in the
 # same tick.
 tick_run() {
-  tr_now=$(baton_now)
+  tr_status=0
+  tr_now=$(baton_now) || return 3
   notify_flush
   # The stale lock the tick cleared before it took this one. It is a project-scope escalation
   # because REQ-TICK-03 names one, and it is resolved in the same breath because the condition it
   # names is already over: Baton kept working past it, which is what separates a message from a
   # park, and leaving it open would hold every project on something nobody has to do.
   if [ -n "${1:-}" ]; then
-    escalate "" "" "" "" baton-unhealthy project "$1"
-    printf '%s' "$1" | jq -r '"unhealthy   " + .detail'
-    park_resolve "" '^baton-unhealthy$' 'the lock was cleared' > /dev/null
+    escalate "" "" "" "" baton-unhealthy project "$1" || tr_status=3
+    printf '%s' "$1" | jq -r '"unhealthy   " + .detail' || tr_status=3
+    park_resolve "" '^baton-unhealthy$' 'the lock was cleared' > /dev/null || tr_status=3
   fi
 
   if tr_rows=$(rows_read); then
@@ -308,7 +321,7 @@ tick_run() {
     tr_key=$(basename "$(dirname "$tr_pj")")
     if tr_plan=$(self_check "$tr_key"); then
       tr_plans=$(printf '%s' "$tr_plans" | jq -c --arg k "$tr_key" --argjson p "$tr_plan" '. + {($k): $p}')
-      park_resolve "$tr_key" '^plan-(unreadable|unparseable)$' 'the plan file reads again'
+      park_resolve "$tr_key" '^plan-(unreadable|unparseable)$' 'the plan file reads again' || tr_status=3
     else
       echo "self-check  $tr_key · $tr_plan"
     fi
@@ -325,7 +338,10 @@ tick_run() {
 
   # 2. Consume the inbox. Moving the call is all this is: inbox_consume is M02's, it takes the lock
   #    and nothing else, and the lock is already held here.
-  inbox_consume "$tr_rows" "$tr_rows_ok"
+  inbox_consume "$tr_rows" "$tr_rows_ok" || {
+    echo "inbox       the inbox pass failed; some artifacts may remain unread" >&2
+    tr_status=3
+  }
 
   # The dispatch hold, once, before any project's step 4. A usage limit is a fact about the account
   # and not about a lane: the model one project's session was refused on is the model every
@@ -336,10 +352,16 @@ tick_run() {
   # that failed would be stepped over in silence. A hold pass that failed writes no `hold`, and
   # `hold_bites` reads the log rather than this function, so the next dispatch would land on the
   # very model a limit had just refused.
-  holds_apply || echo "holds       the hold pass failed; a dispatch may not be withheld this tick" >&2
+  holds_apply || {
+    echo "holds       the hold pass failed; a dispatch may not be withheld this tick" >&2
+    tr_status=3
+  }
   # The reserve beside it, for the same reason: the seven-day window is the account's, so it is read
   # once and holds Fable for every project alike.
-  reserve_check || echo "holds       the reserve pass failed; a Fable dispatch may not be withheld this tick" >&2
+  reserve_check || {
+    echo "holds       the reserve pass failed; a Fable dispatch may not be withheld this tick" >&2
+    tr_status=3
+  }
 
   # 3 to 6, per project; then 7 and 8 once, across all of them.
   #
@@ -355,6 +377,7 @@ tick_run() {
     tr_plan=$(printf '%s' "$tr_plans" | jq -c --arg k "$tr_key" '.[$k]')
     if ! tick_project "$tr_key" "$tr_plan" "$tr_rows" "$tr_now"; then
       echo "reconcile   $tr_key · the tick could not finish this project"
+      tr_status=3
       continue
     fi
     # Step 5 skips a project a project-scope park holds: nothing new starts on ground a person has
@@ -365,17 +388,30 @@ tick_run() {
       tr_cands=$(printf '%s' "$tr_doc" | jq -c --argjson a "$tr_cands" '$a + .candidates')
     else
       echo "reconcile   $tr_key · the dispositions could not be read: $tr_doc"
+      tr_status=3
     fi
   done
   # A finished session's process, once across every project: its ranking bounds memory, which is the
   # Mac's, as the cap is. Before the dispatch, so a process taken offline is gone before a new one
   # starts; and the wake session after it, because the first `offline` event is what calls for one.
-  offline_check "$tr_rows" || echo "offline     the offline pass failed; no finished session was taken offline this tick"
-  wake_session_ensure "$tr_rows" || echo "wake        the wake session could not be checked this tick"
-  dispatch_run "$tr_cands" "$tr_plans" "$tr_rows" || echo "dispatch    the dispatch pass failed; nothing more is dispatched this tick"
+  offline_check "$tr_rows" || {
+    echo "offline     the offline pass failed; no finished session was taken offline this tick"
+    tr_status=3
+  }
+  wake_session_ensure "$tr_rows" || {
+    echo "wake        the wake session could not be checked this tick"
+    tr_status=3
+  }
+  dispatch_run "$tr_cands" "$tr_plans" "$tr_rows" || {
+    echo "dispatch    the dispatch pass failed; nothing more is dispatched this tick"
+    tr_status=3
+  }
 
   # The gap belongs to Baton and not to a project, so it is read once, after every lane.
-  gap_check "$tr_rows"
+  gap_check "$tr_rows" || tr_status=3
+  # Other projects may have progressed, but a skipped step cannot certify a completed tick.
+  # Keep the last honest marker so the gap continues to be measured against it (D-115).
+  return "$tr_status"
 }
 
 # verb_tick [<broken lock's carries>]: the tick under the lock, then the marker outside it. The
@@ -383,9 +419,8 @@ tick_run() {
 # completed"; a tick that dies halfway leaves the previous value and the next tick's gap report is
 # true (INV-11).
 #
-# A tick that could not read the rows returns 3 and gets no marker either. It skipped six of the
-# eight steps, so it did not complete, and saying it did would advance the clock the gap is measured
-# against — which is the only thing that would tell a person the relay had been blind all night.
+# A tick that could not read the rows or finish a pass returns 3 and gets no marker either.
+# Saying it completed would advance the clock the gap is measured against (D-049, D-115).
 verb_tick() {
   vt_status=0
   tick_run "${1:-}" || vt_status=$?

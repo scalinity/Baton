@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+probe_epoch=$(iso_epoch '2026-09-12T11:50:00+01:00')
+for probe_kind in missing invalid; do
+  for probe_holder in dead live; do
+    rm -rf "$BATON_HOME/lock"
+    mkdir "$BATON_HOME/lock"
+    probe_pid=999999
+    [ "$probe_holder" != live ] || probe_pid=$$
+    printf '%s\n' "$probe_pid" > "$BATON_HOME/lock/pid"
+    [ "$probe_kind" != invalid ] || printf 'broken timestamp\n' > "$BATON_HOME/lock/at"
+    TZ=UTC touch -t 202609121050.00 "$BATON_HOME/lock"
+    [ "$(stat -f %m "$BATON_HOME/lock")" = "$probe_epoch" ]
+    probe_report=$(lock_stale_report)
+    printf '%s\n' "$probe_report" | sed "s/pid $$ /pid <live> /"
+    probe_carries=$(lock_stale_break)
+    if [ "$probe_holder" = dead ]; then
+      [ ! -d "$BATON_HOME/lock" ]
+      [ ! -e "$BATON_HOME/lock.stale.$$" ]
+      printf '%s' "$probe_carries" | jq -e --arg since "directory mtime $probe_epoch" \
+        '.pid == "999999" and .held_since == $since and .held_seconds == 600' > /dev/null
+      printf '%s timestamp: dead lock reclaimed and reported\n' "$probe_kind"
+    else
+      [ -z "$probe_carries" ]
+      [ "$(cat "$BATON_HOME/lock/pid")" = "$$" ]
+      [ "$(stat -f %m "$BATON_HOME/lock")" = "$probe_epoch" ]
+      if [ "$probe_kind" = missing ]; then [ ! -e "$BATON_HOME/lock/at" ];
+      else [ "$(cat "$BATON_HOME/lock/at")" = 'broken timestamp' ]; fi
+      printf '%s timestamp: live lock and metadata unchanged\n' "$probe_kind"
+    fi
+  done
+done
+rm -rf "$BATON_HOME/lock"
+mkdir "$BATON_HOME/lock"
+TZ=UTC touch -t 202609121050.00 "$BATON_HOME/lock"
+probe_carries=$(lock_stale_break)
+[ ! -d "$BATON_HOME/lock" ]
+printf '%s' "$probe_carries" | jq -e '.pid == "unknown" and .held_seconds == 600' > /dev/null
+echo 'missing pid and timestamp: aged directory reclaimed'
+mkdir "$BATON_HOME/lock"
+printf '999999\n' > "$BATON_HOME/lock/pid"
+TZ=UTC touch -t 202609121100.00 "$BATON_HOME/lock"
+[ -z "$(lock_stale_report)" ]
+[ -z "$(lock_stale_break)" ]
+[ "$(cat "$BATON_HOME/lock/pid")" = 999999 ]
+[ ! -e "$BATON_HOME/lock/at" ]
+echo 'fresh incomplete lock retained without a stale report'
+rm -rf "$BATON_HOME/lock"

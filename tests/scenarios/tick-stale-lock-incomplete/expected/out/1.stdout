@@ -1,0 +1,1 @@
+unhealthy   the lock was held by pid 999999 since directory mtime 1789210200 (10 m) and its holder is gone; it has been cleared and the tick proceeded

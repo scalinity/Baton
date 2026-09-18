@@ -468,8 +468,8 @@ derive_widenings() {
                                             | with_entries(select(.value != null)) ]}'
 }
 
-# 15. The gap: now minus the marker. Reported only when derivations 1, 2 or 5 show a lane was in
-# flight, waiting or parked during it — a gap with nothing to do is not one — and keyed on the
+# 15. The gap: now minus the marker. Reported only when open lanes, parks or waits show work
+# during it, including a lane whose process died — a gap with nothing to do is not one — keyed on the
 # marker value it was measured against, so one outage reports once.
 #
 # The threshold is two intervals, not one. The marker holds the at of the tick that completed and
@@ -488,17 +488,22 @@ derive_gap() {
     return 0
   fi
   dg_marker=$(printf '%s' "$dg_tick" | jq -r .last_tick)
-  dg_f=$(derive_in_flight "" "$1") || { echo "$dg_f"; return 1; }
+  dg_log=$(log_json) || { echo "$dg_log"; return 1; }
+  dg_f=$(lanes_open "" "$dg_log") || { echo "$dg_f"; return 1; }
   dg_p=$(derive_parked "") || { echo "$dg_p"; return 1; }
   dg_w=$(derive_waits "") || { echo "$dg_w"; return 1; }
-  dg_log=$(log_json) || { echo "$dg_log"; return 1; }
-  dg_open=$(( $(printf '%s' "$dg_f" | jq '.in_flight | length') \
+  dg_open=$(( $(printf '%s' "$dg_f" | jq length) \
             + $(printf '%s' "$dg_p" | jq '.parked | length') \
             + $(printf '%s' "$dg_w" | jq '.waits | length') ))
-  dg_closed=$(printf '%s' "$dg_log" | jq --arg m "$dg_marker" '
-    [ .[] | select(.at > $m)
-      | select((.kind == "consumed" and (.outcome == "complete" or .written_by == "session"))
-               or .kind == "resolution") ] | length')
+  dg_marker_epoch=$(iso_epoch "$dg_marker") || { echo "$dg_marker_epoch"; return 1; }
+  dg_closed_ats=$(printf '%s' "$dg_log" | jq -r '
+    .[] | select((.kind == "consumed" and (.outcome == "complete" or .written_by == "session"))
+                  or .kind == "resolution") | .at') || return 1
+  dg_closed=0
+  for dg_at in $dg_closed_ats; do
+    dg_epoch=$(iso_epoch "$dg_at") || { echo "$dg_epoch"; return 1; }
+    [ "$dg_epoch" -le "$dg_marker_epoch" ] || dg_closed=$((dg_closed + 1))
+  done
   printf '%s' "$dg_tick" | jq -c --argjson interval "$BATON_TICK_SECONDS" \
     --argjson lanes "$((dg_open + dg_closed))" '
     {present: true, marker: .last_tick, gap_seconds: .age_seconds, had_lane: ($lanes > 0),

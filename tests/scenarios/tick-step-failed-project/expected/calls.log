@@ -1,0 +1,3 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "no tick for 2 h 0 m; the last one completed at 2026-09-12T10:00:00+01:00, and a lane was open through it" with title "Baton · gap"'
+[cwd @TMP@] claude agents --json

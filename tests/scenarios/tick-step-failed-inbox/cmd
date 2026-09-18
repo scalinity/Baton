@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+inbox_consume() { return 1; }
+marker_before=$(cat "$BATON_HOME/last-tick")
+lock_take
+step_status=0
+verb_tick || step_status=$?
+[ "$step_status" -eq 3 ]
+[ "$(cat "$BATON_HOME/last-tick")" = "$marker_before" ]
+[ ! -d "$BATON_HOME/lock" ]
+echo 'incomplete tick: status 3, original marker retained, lock released'
+exit "$step_status"
