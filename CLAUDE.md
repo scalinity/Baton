@@ -1,11 +1,5 @@
 # Baton
 
-> User update, 2026-09-12: M03 is already in progress. Before close-out or integrating overlapping
-> foundation work, read `docs/M03-FOUNDATION-HANDOFF.md` and the committed foundation documents it names.
-> Preserve this worktree and its current changes; do not restart M03. Current user-directed
-> contract-2 requirements supersede conflicting contract-1 close-out instructions below.
-> This notice does not grant new build/live permissions or mean that reconciliation is complete.
-
 Baton carries a build from one Claude Code session to the next: a relay, shell only, run by launchd
 every sixty seconds on one Mac, that reads its inbox, its dispatch log, a target project's plan
 file and one git check, then dispatches, resumes, waits and escalates by fixed rules. It embeds no

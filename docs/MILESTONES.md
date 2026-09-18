@@ -37,13 +37,23 @@ Rules for every session (also in `CLAUDE.md`):
 | M07-b | A finished session: offline when idle, awake when messaged | M07 | opus | | | done | The three most recently active finished sessions answer a message in their own threads; an older one is taken offline once idle and reached by messaging the `Baton · wake` session from Claude.app or the phone (D-087); the takeover rule sees Remote Control messages (D-085); Claude.app grouping measured as not settable by a session (D-086) | No (takes idle processes of closed lanes offline) |
 | M07-c | The Mac message: Claude's icon and a click that opens the session | M07-b | opus | | | done | A park or notification appears under Baton with Claude's icon, and clicking it opens the session in Claude.app | No |
 | M07-d | A handover is acted on once | M07-c | opus | | | done | A handover delivered twice changes nothing: no older disposition back in force, no session a newer handover held back | No |
-| M08 | Reclaim onboarding | M07-d | opus | | | | Reclaim is registered, its migrated plan parses, its starting artifact is in the inbox, and item 38 holds against its path | No |
+| M08 | Reclaim onboarding | M07-d | opus | | | held | Superseded by docs/v1.1/SCOPE.md M16, which carries its acceptance. Held permanently; the manual Reclaim migration it required is replaced by baton onboard. | No |
+| M09 | Where sessions live, and how they surface | M17 | opus | medium | | | Worktrees live under BATON_HOME, existing branches survive relocation, guarded retention removes old merged worktrees, and sessions group under their project | Yes (removes only clean, done, merged worktrees after grace; keeps branches) |
+| M10 | Completion that proves the work | M17 | opus | medium | | | Completion proves dispatch ancestry and in-scope changes, with a standing-check result recorded by Baton | No |
+| M11 | baton onboard <path> | M09, M10 | opus | high | | | An unprepared or partly completed repository is registered and its existing plan adapted after one intent confirmation | No |
+| M12 | Plan generation from a repository | M11 | opus | high | | | A repository without a usable plan generates conforming briefs and its first milestone dispatches and completes | No |
+| M13 | Autonomous handoff, and more than one at a time | M12 | opus | high | | | Newly eligible work runs up to the cap, an independent pair overlaps, and effort follows declared Size | No |
+| M14 | Budget-aware pacing | M13 | opus | medium | | | Budget exhaustion produces a visible pause and resume time; work resumes automatically when the window rolls | No |
+| M15 | The escalation taxonomy | M12 | opus | high | | | Four dispositions, including HOST-EXPLAINED; solvable parks resolve without notification; replan preserves the goal | No |
+| M15-b | Host-explained gaps and wake reconciliation | M15 | opus | high | | | Sleep-explained gaps stay recorded and visible without notifications; unexplained gaps notify; confirmed dead sessions use existing recovery | No |
+| M15-c | The independent scope guard | M15-b | opus | high | | | Goal-only checks at plan adoption and close-out; drift always reaches a person | No |
+| M16 | Cold live trial on Reclaim | M14, M15-c | opus | medium | | | Unregistered Reclaim completes at least three cold milestones with one intent confirmation and a live budget pause/resume | No |
+| M17 | What Baton says, and how it reads | – | opus | high | | | Every verb and every notification renders through one layer that stays plain and matchable when piped and under `NO_COLOR`; `baton plan` states every unmet dispatch precondition for every eligible milestone in one pass, before any dispatch is attempted; a precondition failure escalates on its first occurrence, in Baton's words, and leaves no branch behind | No |
 
 ## Gates
 
 | Gate | Holds | Cleared |
 |---|---|---|
-| Reclaim migrated | M08 | |
 
 The gate is cleared by the D-number of the entry that records the migration commit in Reclaim
 (D-021 says what that commit contains and that a person makes it, after M14 closes).
@@ -73,14 +83,22 @@ except M07 and M08, which are acceptance and onboarding.
 | Milestone | The person's part |
 |---|---|
 | M01 | Starts the session by hand with the kickoff prompt; runs `sh install.sh` and the setup facts REQ-SETUP-01 to 03 after reading the merge; reads the printed handover. |
-| M02 | `baton dispatch Baton M02`; watches through `claude agents` and `Claude.app`; on completion reads the handover and runs `sh install.sh`. ||||| done 
+| M02 | `baton dispatch Baton M02`; watches through `claude agents` and `Claude.app`; on completion reads the handover and runs `sh install.sh`. |
 | M03 | `baton dispatch Baton M03`; same; then loads the plist and confirms `baton status` prints a last tick. Runs the live proofs 36–38 the brief names. |
 | M04 | The tick dispatches it. The person watches: a stopped session is still theirs to notice from `baton status` and `Claude.app`, because the ladder does not exist yet. Installs after the merge. |
 | M05 | The tick dispatches it; the person watches for the same reason; installs after the merge. |
 | M06 | The tick dispatches it, unattended. The person reads `baton status` in the morning and installs. |
 | M07, M07-b, M07-c, M07-d, M08 | Unattended; each close-out installs its own merge (D-079). M08 waits on the gate, which the person clears after the migration commit. |
+| M17 | The one hand-dispatch of V1.1: `baton dispatch Baton M17`, after the V1.1 briefs are on `main`. Nothing else in V1.1 is started by hand. |
+| M09 … M16 | Unattended; each close-out installs its own merge (D-079). The person answers a park when Baton asks, and nothing else. |
 
 ## Split rule
+
+M15 was split before implementation on 2026-09-17: taxonomy/L33/replan stays in M15,
+host-explained gaps and wake reconciliation move to M15-b, and the original natural remainder
+(independent scope guard) moves to M15-c. M16 waits for M15-c and M14. No part is marked done;
+this planning-only split produces no runtime handover or stopped artifact. Recheck the file-count
+rule in each part against the actual interfaces before implementation and split further if needed.
 
 A milestone is split before implementation if its checklist has more than about 15 items or
 touches more than two `lib/` files beyond the ones it introduces. Briefs already marked with a
