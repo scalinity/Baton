@@ -802,9 +802,11 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
     closed after the marker. Closing events are ordered against the marker by `iso_epoch`, so UTC
     offsets cannot reverse the comparison and an equal instant does not count as later (D-116).
 
-**The recovery test is idempotence**: tick twice against the same log, agents listing, inbox, plan
-file and git check, and the second tick changes nothing. Every derivation above is a pure function
-of those inputs.
+**Recovery is stateless derivation**: each tick reads the current log, agents listing, inbox, plan
+file and git check without retained process memory. Every derivation above is a pure function of
+its inputs. A tick's writes become inputs to the next tick, so counters and once-only keys can
+legitimately advance. The harness checks both runs' output and one final state snapshot after two
+fresh-process runs, not an empty second-tick diff (D-126).
 
 ### 6.5 Example lines
 
@@ -865,7 +867,7 @@ is the transcript record's own `timestamp`, carried exactly as it arrived.
 | Variable | Default | The shim's role |
 |---|---|---|
 | `BATON_CLAUDE` | `/Users/danny/.local/bin/claude` | `--bg` prints `backgrounded · <id>` (and `Starting background service…` on stderr when told to) and later writes an inbox artifact from the scenario; `agents --json` answers from `rows.json`; `stop` and `--bg --resume` append their argv to `calls.log`; `stop` takes the pid off the session's row — after `stop.fail` failed listings and `stop.linger` listings that still show it, when a scenario sets them — and a resume that wakes the session gives it back; `--bg --resume` prints the success note by default, the copy-fork note when the session's row still has a pid, and a scenario's own `note:` line otherwise, on either stream, with its own exit code; `bg.color` wraps every id in the colour escapes the real CLI prints whenever `FORCE_COLOR` is in the environment |
-| `BATON_DATE` | `date` | prints the scenario's `now`, one reading for both runs: the clock is frozen, so the second run's diff shows what the run itself changed and nothing the clock did |
+| `BATON_DATE` | `date` | prints the scenario's `now` for both runs: the clock is frozen, so changes arise from scenario activity rather than elapsed real time |
 | `BATON_CAFFEINATE` | `/usr/bin/caffeinate` | appends its argv to `calls.log` and exits |
 | `BATON_HOME` | `~/.baton` | the scenario's own state directory |
 | `BATON_DAEMON_LOG` | `~/.claude/daemon.log` | the service's own log, read only for `bg settled <id> (crashed): <detail>` when a backgrounded worker never gets a row (item 47); the claude shim writes the line when told to |

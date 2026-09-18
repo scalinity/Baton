@@ -97,7 +97,7 @@ path. These entries bind Baton to it.
 | ID | Requirement | Acceptance | Decided by |
 |---|---|---|---|
 | REQ-TICK-01 | One launchd agent with `StartInterval` 60 runs one short script that exits. `WatchPaths` and `QueueDirectories` are not used. A firing missed during sleep or while the job still runs is caught up by the next. | The plist has `StartInterval`, `AbandonProcessGroup`, `EnvironmentVariables` with `LC_ALL`, and a `ProgramArguments` of the granted shell and the installed script. | Relay or conductor §4 |
-| REQ-TICK-02 | The tick remembers nothing. Every run reconciles from the five inputs and the status feed; a sleep, a restart or a killed process leaves the same inputs for the next tick, so every tick is a recovery. | Idempotence: tick twice on the same fixture and the second changes nothing. | Relay or conductor §4; What stops a session §6 |
+| REQ-TICK-02 | The tick remembers nothing. Every run reconciles from the five inputs and the status feed; a sleep, a restart or a killed process leaves the same inputs for the next tick, so every tick is a recovery. | Review that each tick derives its decisions from the inputs without retained process memory; fresh-process fixture runs assert the expected outputs and durable state, including multi-tick transitions (D-126). | Relay or conductor §4; What stops a session §6 |
 | REQ-TICK-03 | An atomic `mkdir` lock serialises a launchd firing against a hand run; every verb runs under it and the log is written only under it. A stale lock is reported first by `status`, before anything else, and is the `baton-unhealthy` project-scope escalation. The tick clears a lock past the interval whose pid answers no signal and writes that escalation under the lock it then takes; one whose holder is alive is left and the verb refuses (D-039). Missing or unparseable at uses the lock directory mtime for age in reporting and rescue; a live pid still refuses rescue (D-117). | A held lock makes a second tick exit without acting; the age of a stale lock is printed. | Relay or conductor §4, §6; Where an escalation goes §5 |
 | REQ-TICK-04 | The order is self-check → consume → reconcile rows → waits and resumes → dispatch. Stall, crash and the dispatch hold all test "no artifact in the inbox for this session", which is true only after the inbox has been read in the same tick. | A fixture with an artifact that landed a second ago is neither a stall nor a crash. | What stops a session §0; Dispatching more than one at once §3 |
 | REQ-TICK-05 | The self-check, first, per registered project: read the plan file in full, parse both tables, run `git -C <path> rev-parse HEAD`.  Either failing parks the project — a project-scope escalation, `plan-unreadable` for a read or a git failure and `plan-unparseable` for a parse failure, carrying the path and for a parse failure the table, row and cell — and skips it for the rest of the tick. The first self-check that passes writes the `resolution`, which is REQ-ESC-05's edit route and the only one the tick itself can see (D-041). | A plan file with one bad cell parks its project and dispatches nothing; the event names the cell. | Dispatching more than one at once §2, §3 step 1 |
@@ -287,14 +287,14 @@ restated here. Three policies sit over them:
 | INV-02 | The log has one writer: the one append function, called only with the lock held. | `grep` for `log.jsonl` outside `lib/log.sh`; a test that runs a verb without the lock and asserts no line was written |
 | INV-03 | An artifact's `merged_as` is verified as a commit id — not a name that resolves to one (D-037) — and as an ancestor of `main` before a `complete` handover is acted on. | Three fixtures, one per way of lying: a ref name, a commit that does not exist, and a real commit off `main`; each ends in `rejected/` |
 | INV-04 | A session nobody typed into is never prompted over: a taken-over lane receives no resume, redispatch or ruling. | Fixture transcript with a foreign typed record; the tick writes only `takeover` and a notification |
-| INV-05 | The tick remembers nothing between runs: every fact it acts on is a derivation over the five inputs. | Idempotence: the double-tick diff is empty on every scenario fixture |
+| INV-05 | The tick remembers nothing between runs: every fact it acts on is a derivation over the five inputs. | Review of stateless derivation from the five inputs, plus fresh-process fixture runs asserting expected outputs and durable state; no between-run snapshot comparison is claimed (D-126) |
 | INV-06 | Consumption is the move, and a handover is acted on once: a file is acted on exactly once, because it leaves the inbox when it is, and a file repeating a handover already consumed is archived as a repeat and acted on not at all, however often or late it is delivered, while an archived copy of that handover stands. | Double-tick over an inbox fixture archives once; the `consume-repeat-*` fixtures |
 | INV-07 | Every count keys on `(project, milestone, attempt)`, never on a session id. | Fixture with two projects each holding an M01 and a copy fork |
 | INV-08 | Every resume is flagless. | `grep` for `--resume` with any following flag; shim records the argv |
 | INV-09 | The dispatched settings file holds no `ask` rule and exactly three hooks. | Composed-file fixture |
 | INV-10 | Hooks write per-session files (an artifact in the inbox, a status file), never a shared one. | Hook fixtures; `grep` in the hooks for `>>` |
-| INV-11 | The marker is written after the lock is released and never before the work. | Fixture tick killed mid-run leaves the old marker |
-| INV-12 | Nothing under a target project is executed by the launchd job; only read, and only through the granted shell. | The plist names only paths under `~/.baton/`; review |
+| INV-11 | The marker is written after the lock is released and never before the work. | Review of lock-release and marker-write ordering; failure fixtures assert a retained marker, but no killed-mid-run scenario exists (D-128) |
+| INV-12 | Nothing under a target project is executed by the launchd job; only read, and only through the granted shell. | The plist names only paths under `~/.baton/`; manual review, with no scenario asserting its execution contents (D-128) |
 
 ---
 
@@ -318,8 +318,11 @@ restated here. Three policies sit over them:
   printed.
 - **Scenarios are fixture directories**: a fixture project as a git repository with a plan file and
   briefs, an inbox, a log, a rows file; the assertion is a diff of `BATON_HOME` after the tick
-  against the expected directory. **Idempotence is the recovery test**: every scenario is ticked
-  twice and the second diff is empty.
+  against the expected directory. The runner executes each scenario twice in fresh shell processes,
+  preserving fixture state between runs; it asserts both runs' streams and statuses and takes one
+  final state snapshot after run two. It does not compare snapshots between runs. Recovery means
+  deriving the next decision from the durable inputs without retained process memory; persisted
+  counters and once-only keys can legitimately advance on the second run (D-126).
 - **launchd stays out of the tests**; the tick is invoked directly under the same lock. The live
   proofs — items 36–47 on "Watching a dispatched session" — are run once, by hand, by the milestone
   that owns each, and recorded in that brief's completion evidence.
