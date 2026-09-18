@@ -352,7 +352,11 @@ At every close-out re-read current Status cells, dependencies and gates. Name ev
 successor and all other eligible work: an open gate takes precedence (`held`, with `held_by`),
 otherwise unfinished dependencies mean `wait` with all their IDs in `wait_for`, otherwise `run`.
 Both M09 and M10 name M11; both M14 and M15-c name M16, without assuming which sibling finishes
-first. Refresh every listed prompt on main before writing the artifact. If a formal M17-b split
+first. Refresh a listed prompt on main before writing the artifact only if its milestone has no
+open lane. Run `baton status` and check the dispatch log as `CONTRACT.md` clause 3(c) specifies;
+absence from status does not prove closure. Still name every eligible milestone with its correct
+disposition and brief pointer, including those whose refresh is withheld. The M17/M17-b refreshes
+above have the same no-open-lane condition. If a formal M17-b split
 exists, its remainder must be named and the actual revised graph used; never silently drop it.
 
 Marking a milestone done without its handover can leave the newly eligible successor unlisted

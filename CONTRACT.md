@@ -30,8 +30,16 @@ requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `do
    (b) merge into `main` — if the merge fails, write a `stopped` artifact with reason `merge-failed`
    and go no further; then run the project's standing check on `main`, the combined tree; if it
    fails, fix it on `main`, and if that cannot be done, write `stopped` with reason `main-broken`;
-   (c) on `main`: refresh the prompt of every brief the handover will list (parts 1 and 3–7; part 4
-   additively, by thread), write `done` in this milestone's `Status` cell, correct the plan file if
+   (c) on `main`: refresh the prompt only of a listed milestone with no open lane (parts 1 and
+   3–7; part 4 additively, by thread; part 2 stays verbatim). Run `baton status` to identify
+   in-flight lanes, then check the dispatch log (`$BATON_HOME/log.jsonl`, normally
+   `~/.baton/log.jsonl`) for each listed milestone: its newest `dispatch` opens a lane unless a
+   later `consumed` with outcome `complete` names the same project, milestone and attempt.
+   Use log order, not timestamps. A lane missing from status can still be open while its process
+   is gone; withhold its refresh too. If the log cannot be read, do not assume the lane is closed.
+   Still name every eligible milestone with its correct disposition and brief pointer under
+   clause 6; withholding a refresh changes neither eligibility nor disposition nor the artifact.
+   Write `done` in this milestone's `Status` cell, correct the plan file if
    the session learned it is wrong with the reason as a decision entry, remove the build products
    from the session's worktree and leave the worktree in place — it is the working directory that
    lets the session be resumed later — and commit;

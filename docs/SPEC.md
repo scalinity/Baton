@@ -28,7 +28,7 @@ Judgement is dispatched as a session and returns as an artifact; what is left is
 
 ### 1.3 Principal workflows
 
-1. A session finishes a milestone, merges, refreshes the successor briefs, writes a handover
+1. A session finishes a milestone, merges, refreshes listed briefs without open lanes (CONTRACT.md clause 3(c)), writes a handover
    artifact and prints it. The next tick consumes it, computes what the plan makes eligible,
    intersects that with the handover's dispositions, and dispatches the next session into a fresh
    worktree with the kickoff prompt from its brief.
@@ -74,7 +74,7 @@ path. These entries bind Baton to it.
 | REQ-CONTRACT-01 | A target project's `CLAUDE.md` implements the six clauses of `CONTRACT.md`: briefs with the two exact headings and the slot line; the plan file; the close-out order (a)–(e); the artifact; the outcomes; every eligible milestone listed. Baton drives a project only through those clauses and reads nothing else from it. | Reclaim's and Baton's `CLAUDE.md` each name the brief path, the plan file and the close-out; a fixture project with the six clauses is driven end to end in tests. | What a project hands to Baton §5; amended by Dispatching more than one at once |
 | REQ-CONTRACT-02 | The contract has six clauses and gains none for permissions, hooks or Baton's state: those are Baton's own state under `~/.baton/`, so the target repository holds no `.claude/settings.json` for Baton's sake. | No Baton-owned file exists in a target repository. | Where an escalation goes §2 |
 | REQ-CONTRACT-03 | The slot line is the whole of part 2 and is replaced whole at dispatch; a person leaves it as written. The standing parallel-run rules live in part 5 and the refusal in part 7. | Every brief's prompt carries the slot line verbatim; `baton dispatch` replaces exactly that paragraph. | What a project hands to Baton §5 clause 1 |
-| REQ-CONTRACT-04 | The close-out writes `done` in the milestone's `Status` cell at step (c), on `main`, in the same commit as the refreshed briefs; `merged_as` on the artifact is verified independently, so the column and the commit are two checks of one fact. | A close-out that wrote `done` without the merge landing fails consumption with the reason. | Dispatching more than one at once §1 |
+| REQ-CONTRACT-04 | The close-out writes `done` in the milestone's `Status` cell at step (c), on `main`, in the same commit as the refreshed briefs; refresh only listed milestones with no open lane, established by `baton status` and the dispatch-log check in clause 3(c), while still naming every eligible milestone with its correct disposition and brief pointer; `merged_as` on the artifact is verified independently, so the column and the commit are two checks of one fact. | A close-out that wrote `done` without the merge landing fails consumption with the reason. | Dispatching more than one at once §1; D-109 |
 | REQ-CONTRACT-05 | The merging session runs the project's standing check on `main` after its merge and writes `main-broken` if it cannot fix a failure; the standing check is named by the project's `CLAUDE.md`, never by a plan-file field. | Baton's `CLAUDE.md` names `sh tests/run.sh`; Reclaim's names its builds and tests. | Dispatching more than one at once §5 |
 | REQ-CONTRACT-06 | A hand-started session carries no injected gate; the contract in `CLAUDE.md` alone makes it write the artifact. | Baton's M01 session, started by hand, writes `~/.baton/inbox/M01-<session>.json`. | What a project hands to Baton §1 |
 
