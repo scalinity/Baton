@@ -1,0 +1,4 @@
+== recovery redispatches Fixture/M02 during reconciliation; with a cap of two and two more ==
+== candidates, the replacement occupies a slot and exactly one of them is admitted ==
+== one redispatch and one admission: two launches this tick, not three ==
+== the replacement carries attempt two and has a live row, so it is what filled the slot ==

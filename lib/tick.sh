@@ -240,7 +240,7 @@ tick_project() {
   caffeinate_rearm "$1" "$3" || return 1
 }
 
-# dispatch_run <candidates json> <plans json> <rows json>: steps 7 and 8, once, across every project.
+# dispatch_run <candidates json> <plans json>: steps 7 and 8, once, across every project.
 # The holds drop their candidates first — a model with a rate-limit or billing wait, and the Fable
 # family while the reserve bites — and are silent about it, because each hold already wrote its own
 # event and its own message and a line per candidate per minute would bury them. What is left is
@@ -252,11 +252,33 @@ tick_project() {
 # is not, because the consume stopped it. Counting rows by name would miss a copy fork, whose row the
 # CLI names for itself (M05's live proof). The cap is the Mac's, so no project has a share of it.
 #
-# A dispatch that produced no session takes no slot: the count moves only on a new `dispatch` event,
-# and the next candidate in order is tried in its place.
+# The listing is read here and not handed down from the top of the tick, because steps 3 and 4 make
+# it out of date in the one way that matters: `redispatch` stops a session and opens a new attempt
+# under a new one, and a resume that forked moves the lane onto the copy's id. Derivation 1 reads the
+# log itself, so it already names those identities — but it joins them against the listing it is
+# given, and against the tick's opening one a replaced lane matches no row, counts as nothing, and
+# the cap admits a second and a third worker over the one recovery has just started (D-130). A fresh
+# listing holds them, because `dispatch_one` records a session only once `row_for_id` has seen a row
+# carrying its pid, and `fork_session` adopts a copy the same way.
+#
+# A listing that cannot be read is not an empty one. `[]` would say nothing is in flight and admit
+# every candidate over whatever is running, which is the failure the read exists to prevent, so the
+# pass fails instead and the tick is incomplete — the same answer the top of the tick gives.
+#
+# A dispatch that produced no session takes no slot — the count moves only on a new `dispatch` event,
+# and the next candidate in order is tried in its place — unless it could not be proved to have
+# started nothing. `do_unresolved` is that proof's absence: a launch whose worker was neither
+# identified nor stopped may be running under no id Baton holds, so derivation 1 cannot see it and
+# only a conservative count keeps the cap honest. It is read in the loop's own condition because
+# `dispatch_try` can raise it, and it outlives this pass only as far as the process does: the next
+# tick reads the listing from nothing, where a worker that really started is a row like any other.
 dispatch_run() {
+  # No candidate is no admission, and no admission asks the CLI anything: a tick with nothing to
+  # dispatch neither takes a listing it would not read nor counts a cap it would not spend.
+  [ "$(printf '%s' "$1" | jq length)" -gt 0 ] || return 0
   drn_cap=$(config_num cap 2)
-  drn_flight=$(derive_in_flight "" "$3") || { echo "$drn_flight" >&2; return 1; }
+  drn_rows=$(rows_read) || { echo "claude agents --json could not be read before the cap was counted" >&2; return 1; }
+  drn_flight=$(derive_in_flight "" "$drn_rows") || { echo "$drn_flight" >&2; return 1; }
   drn_counts=$(printf '%s' "$drn_flight" | jq -c \
     '[ .in_flight[] | .project ] | group_by(.) | map({key: .[0], value: length}) | from_entries')
   drn_total=$(printf '%s' "$drn_flight" | jq '.in_flight | length')
@@ -269,13 +291,13 @@ dispatch_run() {
   done
   drn_order=$(cap_order "$drn_kept" "$drn_counts") || { echo "the cap order could not be computed" >&2; return 1; }
   drn_n=$(printf '%s' "$drn_order" | jq length); drn_i=0
-  while [ "$drn_i" -lt "$drn_n" ] && [ "$drn_total" -lt "$drn_cap" ]; do
+  while [ "$drn_i" -lt "$drn_n" ] && [ "$((drn_total + do_unresolved))" -lt "$drn_cap" ]; do
     drn_c=$(printf '%s' "$drn_order" | jq -c ".[$drn_i]"); drn_i=$((drn_i + 1))
     drn_p=$(printf '%s' "$drn_c" | jq -r .project)
     drn_m=$(printf '%s' "$drn_c" | jq -r .milestone)
     drn_plan=$(printf '%s' "$2" | jq -c --arg k "$drn_p" '.[$k]')
     drn_before=$(attempt_of "$drn_p" "$drn_m") || { echo "$drn_before" >&2; return 1; }
-    dispatch_try "$drn_p" "$drn_m" "$drn_plan" "$3"
+    dispatch_try "$drn_p" "$drn_m" "$drn_plan" "$drn_rows"
     drn_after=$(attempt_of "$drn_p" "$drn_m") || { echo "$drn_after" >&2; return 1; }
     [ "$drn_after" -gt "$drn_before" ] || continue
     drn_total=$((drn_total + 1))
@@ -402,7 +424,7 @@ tick_run() {
     echo "wake        the wake session could not be checked this tick"
     tr_status=3
   }
-  dispatch_run "$tr_cands" "$tr_plans" "$tr_rows" || {
+  dispatch_run "$tr_cands" "$tr_plans" || {
     echo "dispatch    the dispatch pass failed; nothing more is dispatched this tick"
     tr_status=3
   }

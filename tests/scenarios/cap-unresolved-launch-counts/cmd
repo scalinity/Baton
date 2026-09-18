@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+echo "== every launch prints an id the reader cannot parse; the first spends the cleanup budget and =="
+echo "== is stopped, the second cannot be and so occupies the only slot, and the third is not tried =="
+launches_before=$(cat "$SHIM/bg.count" 2>/dev/null || echo 0)
+failed_before=$(jq -s '[.[] | select(.kind == "dispatch_failed")] | length' "$BATON_HOME/log.jsonl")
+"$BATON" tick
+[ "$(( $(cat "$SHIM/bg.count") - launches_before ))" -eq 2 ]
+jq -es --argjson before "$failed_before" '. as $l
+  | (([$l[] | select(.kind == "dispatch_failed")] | length) == $before + 2)
+    and (([$l[] | select(.kind == "dispatch")] | length) == 0)
+    and (([$l[] | select(.kind == "dispatch_failed")] | last | .detail
+           | startswith("cleanup skipped; budget spent this tick")))' "$BATON_HOME/log.jsonl" > /dev/null
+echo "== two launches with a cap of one: the unstopped worker took the slot the third would have had =="

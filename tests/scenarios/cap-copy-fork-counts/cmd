@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+echo "== the ladder's resume forked, so Fixture/M02 is now carried by the copy; with a cap of two =="
+echo "== and two more candidates, the copy occupies a slot and exactly one of them is admitted =="
+"$BATON" tick
+echo "== one admission: one launch this tick, not two =="
+[ "$(cat "$SHIM/bg.count" 2>/dev/null || echo 0)" = 1 ]
+echo "== the lane is carried by the copy, which is what filled the slot =="
+. "$ROOT/tests/lib-load.sh"
+current_session Fixture M02 1

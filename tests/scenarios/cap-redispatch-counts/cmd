@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+echo "== recovery redispatches Fixture/M02 during reconciliation; with a cap of two and two more =="
+echo "== candidates, the replacement occupies a slot and exactly one of them is admitted =="
+"$BATON" tick
+echo "== one redispatch and one admission: two launches this tick, not three =="
+[ "$(cat "$SHIM/bg.count")" = 2 ]
+jq -es '[.[] | select(.kind == "dispatch")] | length == 3' "$BATON_HOME/log.jsonl" > /dev/null
+echo "== the replacement carries attempt two and has a live row, so it is what filled the slot =="
+jq -es '[.[] | select(.kind == "dispatch" and .project == "Fixture" and .milestone == "M02")]
+        | last | .attempt == 2' "$BATON_HOME/log.jsonl" > /dev/null
+jq -e '[.[] | select(.pid != null)] | length == 2' "$SHIM/rows.json" > /dev/null

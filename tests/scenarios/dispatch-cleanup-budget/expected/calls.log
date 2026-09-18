@@ -1,4 +1,5 @@
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 [cwd @TMP@/Fixture-M02] claude --bg -n 'Baton · Fixture · M02' --model opus --effort high --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M02.json <prompt>
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
@@ -9,6 +10,7 @@
 [cwd @TMP@] claude agents --json
 [cwd @TMP@/Fixture-M03] claude --bg -n 'Baton · Fixture · M03' --model claude-opus-5 --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M03.json <prompt>
 [cwd @TMP@/Fixture-M07] claude --bg -n 'Baton · Fixture · M07' --model opus --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M07.json <prompt>
+[cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
 [cwd @TMP@/Fixture-M02] claude --bg -n 'Baton · Fixture · M02' --model opus --effort high --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M02.json <prompt>
 [cwd @TMP@] claude agents --json

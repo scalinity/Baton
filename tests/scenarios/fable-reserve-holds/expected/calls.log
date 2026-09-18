@@ -1,4 +1,5 @@
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 [cwd @TMP@/Fixture-M02] claude --bg -n 'Baton · Fixture · M02' --model opus --effort high --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M02.json <prompt>
 [cwd @TMP@] claude agents --json
 caffeinate -i -w 4241
@@ -9,4 +10,5 @@ caffeinate -i -w 4242
 [cwd @TMP@] claude agents --json
 caffeinate -i -w 4241
 caffeinate -i -w 4242
+[cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json

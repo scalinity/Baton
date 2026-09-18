@@ -1,0 +1,11 @@
+== the ladder's resume forked, so Fixture/M02 is now carried by the copy; with a cap of two ==
+== and two more candidates, the copy occupies a slot and exactly one of them is admitted ==
+resume    Fixture/M02 · f2 · finish · forked
+backgrounded · 0badc0d1 · Baton · Other · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/Other-M02 (branch m02)
+settings  @TMP@/home/settings/Other-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+== one admission: one launch this tick, not two ==
+== the lane is carried by the copy, which is what filled the slot ==
+1a2b3c4d-0000-4000-8000-000000000000

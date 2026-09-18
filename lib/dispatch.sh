@@ -9,6 +9,21 @@ set -eu
 # caller shell, before any command substitution, so another candidate cannot replenish it.
 do_cleanup_spent=false
 
+# Launches this process could not prove started nothing. A `claude --bg` whose id did not parse, or
+# whose row never appeared, may have left a worker running; when that worker is neither identified
+# nor stopped — the cleanup budget was already spent, no job answered to the lane's name, or the stop
+# was refused or never settled — nothing names it. No `dispatch` event was written, so derivation 1
+# cannot count it, and the cap would admit over it: this is the other half of the same defect as a
+# lane counted against a stale listing (D-130). `dispatch_run` adds this to the in-flight count, so
+# an unresolved launch occupies a slot until something proves it did not start.
+#
+# A count and not a flag, because one tick can leave more than one behind. Claimed in the caller's
+# shell like the budget above, and for the same reason. It lives no longer than the process: the next
+# tick reads the listing from nothing, and a worker that really started carries a row there like any
+# other — so the conservative reading costs at most the rest of one tick and needs no file, no clock
+# and no event of its own.
+do_unresolved=0
+
 # row_for_id <id>: the agents row whose id is <id> and which carries a pid, polled for up to
 # thirty seconds because the row appears a beat after backgrounded is printed. A worker that
 # crashes before init never gets a row; the service records that in its own log as
@@ -321,6 +336,7 @@ dispatch_one() {
     fi
     if [ "$do_cleanup_spent" = true ]; then
       do_detail="cleanup skipped; budget spent this tick; $do_detail"
+      do_unresolved=$((do_unresolved + 1))
       dispatch_failed "$do_project" "$do_id" "$(dispatch_failed_classify "$bg_stderr")" "$do_detail"
       return 1
     fi
@@ -341,16 +357,25 @@ dispatch_one() {
       [ "$do_cleanup_i" -ge "$do_cleanup_limit" ] || sleep 0.5
     done
     if [ -z "$do_cleanup_ids" ]; then
+      # Nothing to stop, which is not the same as nothing to worry about. A listing that could not be
+      # read says nothing either way, and a launch the CLI acknowledged — it exited zero, or printed
+      # something — whose row never appeared is the case `row_for_id` already treats as needing a
+      # stop. Both leave a worker possibly running under no id, so both are unresolved. A launch that
+      # exited non-zero printing nothing at all, whose one fresh inspection found no row of the
+      # lane's name, is the one reading that says the CLI never got as far as starting anything.
       if [ "$do_cleanup_read" = false ]; then
         do_detail="cleanup: could not read live rows for $do_name; $do_detail"
+        do_unresolved=$((do_unresolved + 1))
       elif [ "$do_cleanup_limit" -gt 1 ]; then
         do_detail="cleanup: no live row identified for $do_name within thirty seconds; $do_detail"
+        do_unresolved=$((do_unresolved + 1))
       fi
     fi
     if [ -n "$do_cleanup_ids" ]; then
       # The listing's job ids are hex tokens, so this split introduces no glob characters.
       if ! do_cleanup=$(dispatch_stop_jobs $do_cleanup_ids); then
         do_detail="$do_cleanup; $do_detail"
+        do_unresolved=$((do_unresolved + 1))
       fi
     fi
     dispatch_failed "$do_project" "$do_id" "$(dispatch_failed_classify "$bg_stderr")" "$do_detail"
@@ -362,10 +387,12 @@ dispatch_one() {
     # The launch gave us this id: even a listing that timed out cannot make it unknowable.
     if [ "$do_cleanup_spent" = true ]; then
       do_agent="cleanup skipped; budget spent this tick; $do_agent"
+      do_unresolved=$((do_unresolved + 1))
     else
       do_cleanup_spent=true
       if ! do_cleanup=$(dispatch_stop_jobs "$bg_id"); then
         do_agent="$do_cleanup; $do_agent"
+        do_unresolved=$((do_unresolved + 1))
       fi
     fi
     dispatch_failed "$do_project" "$do_id" "$do_stage" "$do_agent"

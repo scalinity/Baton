@@ -1,0 +1,3 @@
+== every launch prints an id the reader cannot parse; the first spends the cleanup budget and ==
+== is stopped, the second cannot be and so occupies the only slot, and the third is not tried ==
+== two launches with a cap of one: the unstopped worker took the slot the third would have had ==
