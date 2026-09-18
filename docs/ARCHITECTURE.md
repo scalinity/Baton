@@ -219,6 +219,11 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    path and heading on `main`. Reject loudly to `~/.baton/rejected/` with a `rejected` event and a
    lane escalation; otherwise archive as `<milestone>-<session>-<consumed-at>.json` and log the
    `consumed` event. `asking` stops the session at once; `stopped` routes by reason.
+   For rejection and the orphan sweep, JSON supplies identity first. Missing identity comes from
+   the longest filename milestone prefix accepted by `parse_id` that leaves a complete UUID or
+   bare hexadecimal session id. If both ids cannot be recovered, leave the file in the inbox and
+   return failure rather than move it under a guessed lane. This keeps hyphenated milestones'
+   live `.tmp` writers protected by the same session-row check (D-118).
 3. **Reconcile rows** against the log's in-flight sessions: crash (`pid: null`, confirmed on two
    ticks), stall (`stallMinutes` of unchanged transcripts, the session's and its subagents'), live
    questions (`waitingFor: "input needed"`), a takeover (a typed record the log did not send), and

@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+identity_session=11111111-2222-4333-8444-555555555555
+identity_name=M07-d-$identity_session.json
+case "$SCENARIO" in *orphan-tmp*) identity_name=$identity_name.tmp ;; esac
+identity_file=$BATON_HOME/inbox/$identity_name
+[ -f "$identity_file" ] || identity_file=$BATON_HOME/rejected/$identity_name
+identity_result=$(artifact_ids "$identity_file")
+printf 'recovered identity: %s\n' "$identity_result"
+lock_take
+inbox_consume "$(rows_json)"
+lock_release
+printf '%s' "$identity_result" | jq -e --arg s "$identity_session" '.milestone == "M07-d" and .session == $s' > /dev/null
+jq -es --arg s "$identity_session" \
+  'any(.[]; .kind == "rejected" and .project == "Fixture" and .milestone == "M07-d" and .session == $s and .attempt == 1)' "$BATON_HOME/log.jsonl" > /dev/null
+derive_parked Fixture | jq -e --arg s "$identity_session" \
+  'any(.parked[]; .milestone == "M07-d" and .session == $s)' > /dev/null
+echo 'rejection belongs to Fixture/M07-d and the complete session id; its park is visible'

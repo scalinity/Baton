@@ -1,0 +1,9 @@
+{
+  "baton": 1,
+  "project": "@TMP@/Fixture",
+  "session": "11111111-2222-4333-8444-555555555555",
+  "written_at": "2026-09-11T22:00:00Z",
+  "outcome": "complete",
+  "merged_as": "@COMMIT@",
+  "eligible": []
+}

@@ -1,0 +1,3 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "orphan-tmp · @TMP@/home/rejected/M07-d-11111111-2222-4333-8444-555555555555.json.tmp · baton answer M07-d \"<ruling>\"" with title "Baton · Fixture/M07-d · other"'
+[cwd @TMP@] claude agents --json

@@ -1,0 +1,3 @@
+recovered identity: {"milestone":"M07-d","session":"11111111-2222-4333-8444-555555555555"}
+rejected  M07-d-11111111-2222-4333-8444-555555555555.json.tmp → @TMP@/home/rejected/M07-d-11111111-2222-4333-8444-555555555555.json.tmp (orphan-tmp: no live row with a pid carries session 11111111-2222-4333-8444-555555555555)
+rejection belongs to Fixture/M07-d and the complete session id; its park is visible

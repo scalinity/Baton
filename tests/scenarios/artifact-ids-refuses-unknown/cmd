@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+lock_take
+identity_status=0
+inbox_consume "$(rows_json)" || identity_status=$?
+lock_release
+[ "$identity_status" -eq 1 ]
+for identity_fixture in "$SCENARIO"/home/inbox/*; do
+  cmp -s "$identity_fixture" "$BATON_HOME/inbox/${identity_fixture##*/}"
+done
+[ ! -d "$BATON_HOME/rejected" ]
+log_json | jq -e 'length == 0' > /dev/null
+# A complete UUID must not lose its first group to a spurious M02-11111111 milestone suffix.
+identity_result=$(artifact_ids "$BATON_HOME/inbox/M02-11111111-2222-4333-8444-555555555555.json.tmp")
+printf '%s\n' "$identity_result"
+printf '%s' "$identity_result" | jq -e '.milestone == "M02" and .session == "11111111-2222-4333-8444-555555555555"' > /dev/null
+echo 'unrecoverable identities refused; all inbox bytes preserved; no rejection event'

@@ -83,17 +83,34 @@ stop_route() {
   esac
 }
 
-# artifact_ids <file>: the milestone and session an artifact belongs to, best effort — from the
-# file when it parses and from its <milestone>-<session>.json name when it does not, so that even
-# a rejected file that is not JSON is recorded against a lane.
+# artifact_ids <file>: JSON supplies each identity field when present; the filename supplies a
+# missing one. Search the longest parse_id prefix that leaves a complete session id (D-118).
+# A failed recovery returns a diagnostic, never guessed identities that could move a live .tmp.
 artifact_ids() {
-  ai_base=$(basename "$1" .json); ai_base=${ai_base%.json.tmp}; ai_base=${ai_base%.tmp}
-  ai_milestone=${ai_base%%-*}
-  ai_session=${ai_base#*-}
-  jq -c --arg m "$ai_milestone" --arg s "$ai_session" \
+  ai_base=${1##*/}; ai_base=${ai_base%.tmp}; ai_base=${ai_base%.json}
+  ai_milestone=; ai_session=; ai_prefix=$ai_base
+  while [ "${ai_prefix%-*}" != "$ai_prefix" ]; do
+    ai_prefix=${ai_prefix%-*}
+    parse_id "$ai_prefix" > /dev/null || continue
+    ai_tail=${ai_base#"$ai_prefix"-}
+    # UUIDs and the bare hexadecimal ids used by fixtures. Checking the complete shape keeps
+    # M02-<uuid>'s first UUID group from becoming a milestone suffix with a truncated session.
+    printf '%s\n' "$ai_tail" | grep -Eq '^([0-9a-fA-F]+|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$' || continue
+    ai_milestone=$ai_prefix; ai_session=$ai_tail
+    break
+  done
+  ai_ids=$(jq -c --arg m "$ai_milestone" --arg s "$ai_session" \
     '{milestone: (.milestone // $m), session: (.session // $s), project: .project}
-     | with_entries(select(.value != null))' "$1" 2>/dev/null \
-    || jq -nc --arg m "$ai_milestone" --arg s "$ai_session" '{milestone: $m, session: $s}'
+     | with_entries(select(.value != null))' "$1" 2>/dev/null) || ai_ids=
+  [ -n "$ai_ids" ] || ai_ids=$(jq -nc --arg m "$ai_milestone" --arg s "$ai_session" '{milestone: $m, session: $s}')
+  if ai_milestone=$(printf '%s' "$ai_ids" | jq -er '.milestone | select(type == "string")') \
+     && ai_session=$(printf '%s' "$ai_ids" | jq -er '.session | select(type == "string")') \
+     && parse_id "$ai_milestone" > /dev/null && session_id_ok "$ai_session"; then
+    printf '%s\n' "$ai_ids"
+    return 0
+  fi
+  printf 'cannot recover milestone and session from %s; left in inbox\n' "$ai_base"
+  return 1
 }
 
 # artifact_check <file>: every rule REQ-ARTIFACT-01 to 06 states, in order. On success prints
@@ -245,7 +262,7 @@ reject_move() {
 # loses the record, and that is the accepted trade: a file sitting in rejected/ with no event is
 # visible and harmless, while a file rejected twice would escalate the same lane twice.
 reject() {
-  rj_ids=$(artifact_ids "$1")
+  rj_ids=$(artifact_ids "$1") || { echo "baton: $rj_ids" >&2; return 1; }
   rj_milestone=$(printf '%s' "$rj_ids" | jq -r .milestone)
   rj_session=$(printf '%s' "$rj_ids" | jq -r .session)
   rj_project=$(project_key_of "$(printf '%s' "$rj_ids" | jq -r '.project // ""')" 2>/dev/null || echo '')
@@ -335,6 +352,7 @@ repeat_one() {
 # file saying what was decided. The repeat test comes first, so a handover already acted on is not
 # checked again: a transcript since removed would otherwise reject it and park its lane.
 inbox_consume() {
+  ic_status=0
   for ic_f in "$BATON_HOME"/inbox/*.json; do
     [ -f "$ic_f" ] || continue
     ic_rc=0; ic_repeat=$(repeat_of "$ic_f") || ic_rc=$?
@@ -354,7 +372,7 @@ inbox_consume() {
         ic_rule=check-failed
         ic_detail="the checks ended without naming a rule; they printed: $ic_ok"
       fi
-      reject "$ic_f" "$ic_rule" "$ic_detail"
+      reject "$ic_f" "$ic_rule" "$ic_detail" || ic_status=1
     fi
   done
   # A .tmp is a handover half-written. Its session having no live row with a pid says the writer
@@ -365,15 +383,21 @@ inbox_consume() {
   # writing its .tmp and renaming it would have its handover moved to rejected/, its own `mv` would
   # then fail, and the handover would be lost. The window is milliseconds and the loss is
   # unrecoverable, so the sweep waits for a tick that can see the rows.
-  [ "${2:-yes}" = yes ] || return 0
+  [ "${2:-yes}" = yes ] || return "$ic_status"
   for ic_t in "$BATON_HOME"/inbox/*.json.tmp; do
     [ -f "$ic_t" ] || continue
-    ic_sid=$(artifact_ids "$ic_t" | jq -r .session)
+    if ! ic_ids=$(artifact_ids "$ic_t"); then
+      echo "baton: $ic_ids" >&2
+      ic_status=1
+      continue
+    fi
+    ic_sid=$(printf '%s' "$ic_ids" | jq -r .session)
     if printf '%s' "$1" | jq -e --arg s "$ic_sid" 'any(.[]; .sessionId == $s and .pid != null)' > /dev/null; then
       continue
     fi
-    reject "$ic_t" orphan-tmp "no live row with a pid carries session $ic_sid"
+    reject "$ic_t" orphan-tmp "no live row with a pid carries session $ic_sid" || ic_status=1
   done
+  return "$ic_status"
 }
 
 # consume_one <file> <artifact_check document> <rows json>: the decision for one checked artifact

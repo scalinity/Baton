@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+identity_session=11111111-2222-4333-8444-555555555555
+case "$SCENARIO" in *tick-inbox*) identity_session=f2 ;; esac
+identity_file=$BATON_HOME/inbox/M07-d-$identity_session.json.tmp
+identity_before=$(cksum < "$identity_file")
+identity_result=$(artifact_ids "$identity_file")
+printf 'recovered identity: %s\n' "$identity_result"
+lock_take
+case "$SCENARIO" in
+  *tick-inbox*) verb_tick ;;
+  *) inbox_consume "$(rows_json)"; lock_release ;;
+esac
+printf '%s' "$identity_result" | jq -e --arg s "$identity_session" '.milestone == "M07-d" and .session == $s' > /dev/null
+[ -f "$identity_file" ]
+[ "$(cksum < "$identity_file")" = "$identity_before" ]
+jq -es 'all(.[]; .kind != "rejected" and .kind != "escalation" and .kind != "takeover" and (.class // "") != "stall")' "$BATON_HOME/log.jsonl" > /dev/null
+echo 'live writer retains its unchanged temporary artifact; no rejection, park or stall'

@@ -1,0 +1,9 @@
+{
+  "baton": 1,
+  "project": "@TMP@/Fixture",
+  "milestone": "M07-d",
+  "written_at": "2026-09-11T22:00:00Z",
+  "outcome": "complete",
+  "merged_as": "@COMMIT@",
+  "eligible": []
+}
