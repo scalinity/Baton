@@ -306,6 +306,10 @@ restated here. Three policies sit over them:
   (`/usr/bin/open`, the notifier applet's launch; D-092), `BATON_TRANSCRIPTS` (`~/.claude/projects`, the tree
   derivation 3 globs for `*/<session>.jsonl`; D-032), `BATON_JOBS` (`~/.claude/jobs`, a background
   session's `<job>/state.json`; D-093).
+  `BATON_INSTALL_TEST=1` is the install harness seam (D-113): test the current checkout's install
+  behavior in a disposable home, including from a linked worktree. Without it, installation
+  requires the canonical checkout on main and install inputs matching committed main. A session
+  can deliberately set the seam too; it is a test discriminator, not an authorization boundary.
   The claude shim plays the roles the tick sees: `--bg` prints `backgrounded · <id>` and later writes
   an inbox artifact; `agents --json` answers from a fixture state file; `stop` and `--bg --resume`
   record their argv. ("Relay or conductor" §5.)

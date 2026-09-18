@@ -8,7 +8,7 @@ if [ ! -d "$linked" ]; then
 fi
 cp "$ROOT/install.sh" "$linked/install.sh"
 refuses_install() {
-  if HOME=$base BATON_HOME="$base/refused-home" sh "$1/install.sh" > "$base/refused.out" 2>&1; then
+  if HOME=$base BATON_HOME="$base/refused-home" BATON_INSTALL_TEST=0 sh "$1/install.sh" > "$base/refused.out" 2>&1; then
     echo 'unexpected install success'; exit 1
   else
     result=$?

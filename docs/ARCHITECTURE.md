@@ -66,7 +66,9 @@ hundred lines, means a Swift command-line tool for that piece.
 ```
 
 **The installed relay.** `sh install.sh` refuses before writing unless its source is the canonical
-checkout with HEAD on `main` (D-113). It copies `bin/baton`, `lib/` and `hooks/` to `~/.baton/bin/`
+checkout with HEAD on `main` and its install inputs match committed `main`. The scenario harness
+sets `BATON_INSTALL_TEST=1` to install the tested checkout into a disposable home from any worktree;
+that forgeable test seam is not a security boundary (D-113). It copies `bin/baton`, `lib/` and `hooks/` to `~/.baton/bin/`
 (flat: `baton`, `lib/`, `stop-gate`, `stop-failure`, `statusline`), builds the notifier applet `Baton.app` there from `notify/Baton.applescript` with Claude's icon copied from the installed Claude.app and never committed (D-092), copies `launchd/com.baton.tick.plist` to `~/Library/LaunchAgents/` without loading it, and creates the state directories
 and `config.json` if absent. It regenerates Baton's own `permissions.json` on upgrades, replacing it
 by rename only when the generated content differs; wake settings inherit that current deny list

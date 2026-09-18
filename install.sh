@@ -8,12 +8,24 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 BATON_HOME=${BATON_HOME:-$HOME/.baton}
 
-# Refuse before any writes: close-out installs the canonical main checkout (D-079, D-113).
-# Registration and runtime bytes must come from the same tree.
+# The harness installs its checkout into a disposable home, including from a linked worktree.
+# This explicit seam is forgeable like the other seams, not an authorization boundary (D-113).
 canonical=$(git -C "$here" worktree list --porcelain | awk '/^worktree / { print substr($0, 10); exit }')
-if [ "$here" != "$canonical" ] || [ "$(git -C "$here" symbolic-ref --quiet --short HEAD)" != main ]; then
-  echo "install: run from the canonical checkout $canonical with HEAD on main" >&2
-  exit 2
+if [ "${BATON_INSTALL_TEST:-}" != 1 ]; then
+  if [ "$here" != "$canonical" ] || [ "$(git -C "$here" symbolic-ref --quiet --short HEAD)" != main ]; then
+    echo "install: run from the canonical checkout $canonical with HEAD on main" >&2
+    exit 2
+  fi
+  # A branch name alone cannot certify committed input. Include untracked/ignored shell files
+  # that the lib/*.sh copy would otherwise pick up, without requiring unrelated documents clean.
+  if ! git -C "$here" diff --quiet main -- install.sh bin/baton 'lib/*.sh' \
+       hooks/stop-gate hooks/stop-failure hooks/statusline notify/Baton.applescript launchd/com.baton.tick.plist \
+     || ! install_untracked=$(git -C "$here" ls-files --others -- install.sh bin/baton 'lib/*.sh' \
+       hooks/stop-gate hooks/stop-failure hooks/statusline notify/Baton.applescript launchd/com.baton.tick.plist) \
+     || [ -n "$install_untracked" ]; then
+    echo 'install: source inputs must match committed main before installation' >&2
+    exit 2
+  fi
 fi
 
 mkdir -p "$BATON_HOME/bin/lib" "$BATON_HOME/inbox" "$BATON_HOME/archive" "$BATON_HOME/rejected" \

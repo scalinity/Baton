@@ -1,0 +1,5 @@
+harness mode installs the linked fixture bytes and registers its canonical checkout
+install: run from the canonical checkout @TMP@/Fixture with HEAD on main
+production mode refuses the linked tree before writing
+install: source inputs must match committed main before installation
+production mode refuses uncommitted install inputs on main
