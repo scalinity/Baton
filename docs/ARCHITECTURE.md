@@ -763,7 +763,8 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
 9. **The ladder's position.** For a `(project, milestone, attempt)`, the count of failure endings
    since the newest reset point, where a **failure ending** is a `consumed` with `reason:
    no-handover`, the second `crash_sighting` of a confirmed crash, or a `resume` with `outcome:
-   refused`; and a **reset point** is a `consumed` with `written_by: session` or the attempt's own
+   refused` and `resume_kind` other than `ruling`; a person's failed ruling delivery is not a
+   session failure. A **reset point** is a `consumed` with `written_by: session` or the attempt's own
    `dispatch`. One resume, then one redispatch, then escalate. `ladder_position` also counts
    ineffective failure endings across attempts since the newest session-written `consumed`;
    dispatches do not reset that count. At three, a failure in the current attempt takes the

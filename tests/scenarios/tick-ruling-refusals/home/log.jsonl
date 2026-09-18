@@ -1,0 +1,4 @@
+{"at":"2026-09-12T09:00:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M07","session":"f7","attempt":1,"name":"Baton · Fixture · M07","model":"opus","remote":false,"worktree":"/w","branch":"m07","worktree_reused":false,"settings":"/s","prompt_path":"@TMP@/home/prompts/f7/1.txt","prompt_sha256":"d9bdab282bb01c0b8dbfa5fcab09924c18e4bb087150b34267b9fa08e794385b"}
+{"at":"2026-09-12T09:30:00+01:00","kind":"resume","project":"Fixture","milestone":"M07","session":"f7","attempt":1,"resume_kind":"ruling","outcome":"refused"}
+{"at":"2026-09-12T10:00:00+01:00","kind":"resume","project":"Fixture","milestone":"M07","session":"f7","attempt":1,"resume_kind":"ruling","outcome":"refused"}
+{"at":"2026-09-12T11:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M07","session":"f7","attempt":1,"outcome":"stopped","reason":"no-handover","written_by":"stop-gate","archive":"/a/M07-f7-a.json"}

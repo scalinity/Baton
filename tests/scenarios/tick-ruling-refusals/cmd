@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+"$BATON" tick
+jq -se '([.[] | select(.kind == "resume" and .resume_kind == "finish" and .outcome == "delivered")] | length) == 1 and all(.[]; .kind != "escalation" or .class != "ladder-end") and ([.[] | select(.kind == "dispatch")] | length) == 1' "$BATON_HOME/log.jsonl" > /dev/null
+echo 'two refused rulings did not spend the resume rung earned by one genuine ending'

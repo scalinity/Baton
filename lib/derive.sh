@@ -384,7 +384,7 @@ derive_last_tick() {
 
 # 9. The ladder's position for a (project, milestone, attempt): the count of failure endings since
 # the newest reset point. A failure ending is a consumed with reason no-handover, the second
-# crash_sighting of a confirmed crash, or a resume with outcome refused; a reset point is a
+# crash_sighting of a confirmed crash, or an automatic resume with outcome refused; a reset point is a
 # consumed written_by session or the attempt's own dispatch. One resume, then one redispatch, then
 # escalate.
 derive_ladder() {
@@ -397,7 +397,7 @@ derive_ladder() {
     | ([ $ev[] | select(.i > ($reset.i // -1))
          | select((.kind == "consumed" and .reason == "no-handover")
                   or (.kind == "crash_sighting" and .sighting == 2)
-                  or (.kind == "resume" and .outcome == "refused")) ] | length) as $failures
+                  or (.kind == "resume" and .outcome == "refused" and .resume_kind != "ruling")) ] | length) as $failures
     | {project: $p, milestone: $m, attempt: $a, reset_at: $reset.at, failures: $failures,
        next: (if $failures == 0 then "none" elif $failures == 1 then "resume"
               elif $failures == 2 then "redispatch" else "escalate" end)}

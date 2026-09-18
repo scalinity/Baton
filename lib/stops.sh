@@ -324,7 +324,7 @@ ladder_position() {
   printf '%s' "$lpo_log" | jq -c --arg p "$1" --arg m "$2" --argjson a "$3" '
     def failure: (.kind == "consumed" and .reason == "no-handover")
                  or (.kind == "crash_sighting" and .sighting == 2)
-                 or (.kind == "resume" and .outcome == "refused");
+                 or (.kind == "resume" and .outcome == "refused" and .resume_kind != "ruling");
     [ to_entries[] | {i: .key} + .value
       | select(.project == $p and .milestone == $m) ] as $lane
     | ([$lane[] | select(.kind == "consumed" and .written_by == "session")] | last) as $progress

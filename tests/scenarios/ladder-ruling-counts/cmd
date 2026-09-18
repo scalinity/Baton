@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+cp "$BATON_HOME/log.jsonl" "$SHIM/original-log.jsonl"
+derive_ladder Fixture M07 1 | jq -ce 'select(.failures == 1 and .next == "resume")'
+ladder_position Fixture M07 1 | jq -ce 'select(.failures == 1 and .ineffective_failures == 1 and .next == "resume" and .acted == false)'
+# The same refusals before a later attempt must not spend its cross-attempt remedies either.
+jq -sc '.[0] as $dispatch | .[] | if .kind == "consumed" then
+  ($dispatch | .attempt=2 | .session="f8" | .at="2026-09-12T10:30:00+01:00"),
+  (.attempt=2 | .session="f8") else . end' "$SHIM/original-log.jsonl" > "$BATON_HOME/log.jsonl"
+ladder_position Fixture M07 2 | jq -ce 'select(.failures == 1 and .ineffective_failures == 1 and .next == "resume")'
+# A refused automatic recovery still counts, in both readers.
+printf '%s\n' '{"at":"2026-09-12T11:30:00+01:00","kind":"resume","project":"Fixture","milestone":"M07","session":"f8","attempt":2,"resume_kind":"continue","outcome":"refused"}' >> "$BATON_HOME/log.jsonl"
+derive_ladder Fixture M07 2 | jq -ce 'select(.failures == 2 and .next == "redispatch")'
+ladder_position Fixture M07 2 | jq -ce 'select(.failures == 2 and .ineffective_failures == 2 and .next == "redispatch")'
+cp "$SHIM/original-log.jsonl" "$BATON_HOME/log.jsonl"

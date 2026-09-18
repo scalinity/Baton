@@ -1,0 +1,5 @@
+{"project":"Fixture","milestone":"M07","attempt":1,"reset_at":"2026-09-12T09:00:00+01:00","failures":1,"next":"resume"}
+{"failures":1,"ineffective_failures":1,"next":"resume","ending":"consumed","ending_at":"2026-09-12T11:00:00+01:00","archive":"/a/M07-f7-a.json","acted":false}
+{"failures":1,"ineffective_failures":1,"next":"resume","ending":"consumed","ending_at":"2026-09-12T11:00:00+01:00","archive":"/a/M07-f7-a.json","acted":false}
+{"project":"Fixture","milestone":"M07","attempt":2,"reset_at":"2026-09-12T10:30:00+01:00","failures":2,"next":"redispatch"}
+{"failures":2,"ineffective_failures":2,"next":"redispatch","ending":"resume","ending_at":"2026-09-12T11:30:00+01:00","acted":false}

@@ -260,8 +260,9 @@ _Avoid_: hang, timeout, freeze
 
 **Failure ending**:
 An ending Baton counts on the ladder: a turn ended without a handover artifact, a process gone, or
-a session that cannot be resumed. A wait is not one; an artifact the session wrote itself is not
-one.
+a session whose automatic recovery resume is refused. Failure to deliver a person's ruling is
+not the session's failure and never spends its remedies. A wait is not one; an artifact the
+session wrote itself is not one.
 
 **Ladder**:
 The fixed sequence for consecutive failure endings on one milestone: resume, then redispatch, then
