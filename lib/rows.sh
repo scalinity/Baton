@@ -34,16 +34,32 @@ inbox_holds() {
   return 1
 }
 
-# ended_on_disk <session>: whether the session's handover has already been moved out of the inbox,
+# ended_on_disk <session> [delivered execution json]: whether the session's handover has already been moved out of the inbox,
 # whatever the log says. The move is the consumption (INV-06) and the event comes after it, so a
 # tick killed between the two leaves a file in archive/ or rejected/ with nothing in the log — which
 # derivation 1 reads as a lane still open and the crash rule would read as a crash on a session that
 # had in fact finished. derive_consumed's `unrecorded` names such a file; this is the same fact
-# asked of one session.
+# asked of one session. The optional bound holds at and archives consumed before that execution.
+# Equal timestamps need that log-order proof: all events in one tick share a clock reading, and
+# an unrecorded archive at that time must still protect the move-before-log window (INV-06).
+# Rejections remain unbounded: they parked the lane, irrespective of a later execution.
 ended_on_disk() {
-  for eo_f in "$BATON_HOME"/archive/*-"$1"-*.json "$BATON_HOME"/rejected/*-"$1".json \
-              "$BATON_HOME"/rejected/*-"$1".json.tmp; do
+  for eo_f in "$BATON_HOME"/rejected/*-"$1".json "$BATON_HOME"/rejected/*-"$1".json.tmp; do
     [ -f "$eo_f" ] && return 0
+  done
+  eo_bound=${2:-'{}'}
+  eo_at=$(printf '%s' "$eo_bound" | jq -r '.at // ""')
+  eo_epoch=''
+  if [ -n "$eo_at" ]; then eo_epoch=$(iso_epoch "$eo_at") || return 0; fi
+  for eo_f in "$BATON_HOME"/archive/*-"$1"-*.json; do
+    [ -f "$eo_f" ] || continue
+    [ -n "$eo_epoch" ] || return 0
+    eo_stamp=${eo_f##*/}; eo_stamp=${eo_stamp#*-"$1"-}; eo_stamp=${eo_stamp%.json}
+    eo_when=$(iso_epoch "$eo_stamp") || return 0
+    [ "$eo_when" -lt "$eo_epoch" ] && continue
+    if [ "$eo_when" -eq "$eo_epoch" ] && printf '%s' "$eo_bound" | jq -e --arg p "$eo_f" \
+         '(.archives // []) | index($p) != null' > /dev/null; then continue; fi
+    return 0
   done
   return 1
 }
@@ -160,7 +176,7 @@ takeover_check() {
 # Three guards, each for a failure that has been measured:
 #  - a sleep leaves the row byte-identical, so it is never a crash (D-008); the two-tick rule is
 #    against a momentary read, such as the supervisor restart that gives a session a new pid.
-#  - a lane whose attempt already has a `consumed` event ended in a way that is already routed —
+#  - a lane with an ending since its newest delivered execution is already routed —
 #    an asking artifact Baton itself stopped the session for, a declared stop, an api-error wait.
 #    derivation 1's `no_row` holds all of those, and calling one a crash would act on it twice.
 #  - a sighting this tick wrote is not the previous tick's. The two runs of a scenario share one
@@ -181,17 +197,24 @@ crash_check() {
     cc_attempt=$(printf '%s' "$cc_l" | jq -r '.attempt // ""')
     stood_off "$cc_session" "$3" && continue
     inbox_holds "$cc_session" && continue
-    ended_on_disk "$cc_session" && continue
     [ -n "$cc_attempt" ] || continue
     # An ending on record, by either half of what an ending is. A `consumed` says the artifact was
     # acted on; a `rejected` says it was refused, which parked the lane already — sighting either
     # as a crash would act on one ending twice, and M04's resume would land on a parked lane.
-    if printf '%s' "$cc_log" | jq -e --arg p "$1" --arg m "$cc_milestone" --argjson a "$cc_attempt" \
+    cc_execution=$(printf '%s' "$cc_log" | jq -c --arg p "$1" --arg m "$cc_milestone" --argjson a "$cc_attempt" \
          --arg s "$cc_session" '
-         any(.[]; (.kind == "consumed" and .project == $p and .milestone == $m and .attempt == $a)
-                  or (.kind == "rejected" and .session == $s))' > /dev/null; then
-      continue
-    fi
+         . as $log
+         | [to_entries[] | {i: .key} + .value
+            | select(.project == $p and .milestone == $m and .attempt == $a)] as $ev
+         | ([$ev[] | select(.kind == "dispatch" or
+              (.kind == "resume" and (.outcome == "delivered" or .outcome == "forked")))] | last) as $execution
+         | {at: $execution.at,
+            archives: [$ev[] | select(.kind == "consumed" and .i < ($execution.i // -1))
+                        | .archive | select(. != null)],
+            ended: (any($ev[]; .kind == "consumed" and .i > ($execution.i // -1))
+                    or any($log[]; .kind == "rejected" and .session == $s))}')
+    ended_on_disk "$cc_session" "$cc_execution" && continue
+    [ "$(printf '%s' "$cc_execution" | jq -r .ended)" = false ] || continue
 
     # The sightings that count: this attempt's, since its newest dispatch or resume. A sighting
     # bearing this tick's own reading of the clock is one this tick wrote, so there is nothing left

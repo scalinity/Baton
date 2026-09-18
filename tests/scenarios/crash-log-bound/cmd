@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+BATON_TICK_SECONDS=60
+lock_take
+mkdir -p "$BATON_HOME/archive"
+path="$BATON_HOME/archive/M02-f2-2026-09-12T10:00:00+01:00.json"
+base='[{"at":"2026-09-12T10:00:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M02","session":"f2","attempt":1},{"at":"2026-09-12T10:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"reason":"no-handover","written_by":"stop-gate"}]'
+for mode in delivered forked refused newer-consumed rejected equal-logged equal-unrecorded other-attempt other-project; do
+  echo "== $mode =="
+  events=$(printf '%s' "$base" | jq -c --arg mode "$mode" --arg path "$path" '
+    . + [{at:"2026-09-12T10:00:00+01:00", kind:"resume", project:"Fixture", milestone:"M02", session:"f2", attempt:1, outcome:(if $mode == "refused" then "refused" elif $mode == "forked" then "forked" else "delivered" end)}]
+    | if $mode == "newer-consumed" then . + [.[1]]
+      elif $mode == "rejected" then . + [{kind:"rejected", session:"f2"}]
+      elif $mode == "equal-logged" then .[1].archive=$path
+      elif $mode == "other-attempt" then . + [(.[1] | .attempt=2)]
+      elif $mode == "other-project" then . + [(.[1] | .project="Other")]
+      else . end')
+  case "$mode" in equal-logged|equal-unrecorded) printf '{}\n' > "$path" ;; esac
+  printf '%s' "$events" | jq -c '.[]' > "$BATON_HOME/log.jsonl"
+  crash_check Fixture '[]' '' '2026-09-12T12:00:00+01:00'
+  crash_check Fixture '[]' '' '2026-09-12T12:00:00+01:00'
+  case "$mode" in refused|newer-consumed|rejected|equal-unrecorded) want=0 ;; *) want=1 ;; esac
+  jq -e -s --argjson n "$want" '[.[] | select(.kind=="crash_sighting")] | length==$n' "$BATON_HOME/log.jsonl"
+  case "$mode" in equal-logged|equal-unrecorded) rm "$path" ;; esac
+done
+lock_release

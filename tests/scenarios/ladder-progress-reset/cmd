@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+log_json() { printf '%s\n' "$case_log"; }
+base='[{"kind":"dispatch","project":"Fixture","milestone":"M02","attempt":1},{"kind":"consumed","project":"Fixture","milestone":"M02","attempt":1,"reason":"no-handover","written_by":"stop-gate"},{"kind":"resume","project":"Fixture","milestone":"M02","attempt":1,"outcome":"delivered"},{"kind":"crash_sighting","project":"Fixture","milestone":"M02","attempt":1,"sighting":2},{"kind":"dispatch","project":"Fixture","milestone":"M02","attempt":2}]'
+echo '== redispatch retains the count but needs a new failure before acting =='
+case_log=$base
+ladder_position Fixture M02 2
+ladder_position Fixture M02 2 | jq -e '.failures == 0 and .ineffective_failures == 2 and .next == "none"'
+echo '== a refused resume is the third failure across attempts =='
+case_log=$(printf '%s' "$base" | jq -c '. + [{kind:"resume", project:"Fixture", milestone:"M02", attempt:2, outcome:"refused"}]')
+ladder_position Fixture M02 2
+ladder_position Fixture M02 2 | jq -e '.failures == 1 and .ineffective_failures == 3 and .next == "escalate"'
+failed=$case_log
+for writer in stop-failure session; do
+  echo "== $writer consumed after the failure =="
+  case_log=$(printf '%s' "$failed" | jq -c --arg w "$writer" '. + [{kind:"consumed", project:"Fixture", milestone:"M02", attempt:2, written_by:$w, reason:"api-error"}]')
+  ladder_position Fixture M02 2
+  if [ "$writer" = session ]; then
+    ladder_position Fixture M02 2 | jq -e '.failures == 0 and .ineffective_failures == 0 and .next == "none"'
+  else
+    ladder_position Fixture M02 2 | jq -e '.ineffective_failures == 3 and .next == "escalate"'
+  fi
+done
+echo '== a failure after progress restarts at resume =='
+case_log=$(printf '%s' "$case_log" | jq -c '. + [{kind:"consumed", project:"Fixture", milestone:"M02", attempt:2, reason:"no-handover", written_by:"stop-gate"}]')
+ladder_position Fixture M02 2
+ladder_position Fixture M02 2 | jq -e '.failures == 1 and .ineffective_failures == 1 and .next == "resume"'
+echo '== other lanes and delivered/forked resumes cannot reset this lane =='
+case_log=$(printf '%s' "$failed" | jq -c '. + [{kind:"consumed", project:"Other", milestone:"M02", attempt:2, written_by:"session"},{kind:"consumed", project:"Fixture", milestone:"M03", attempt:2, written_by:"session"},{kind:"resume", project:"Fixture", milestone:"M02", attempt:2, outcome:"delivered"},{kind:"resume", project:"Fixture", milestone:"M02", attempt:2, outcome:"forked"}]')
+ladder_position Fixture M02 2
+ladder_position Fixture M02 2 | jq -e '.failures == 1 and .ineffective_failures == 3 and .next == "escalate"'

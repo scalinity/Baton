@@ -1,0 +1,4 @@
+{"outcome":"forked","session":"c0b1e5e1-0000-4000-8000-000000000000","note":"note: session f2 is already running in the background, so this started a copy as c0b1e5e1."}
+true
+[cwd @TMP@] claude stop 0badf2
+true

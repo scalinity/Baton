@@ -1,0 +1,23 @@
+== delivered ==
+crash?    Fixture/M02 · f2 · first sighting, no row and no ending
+true
+== forked ==
+crash?    Fixture/M02 · f2 · first sighting, no row and no ending
+true
+== refused ==
+true
+== newer-consumed ==
+true
+== rejected ==
+true
+== equal-logged ==
+crash?    Fixture/M02 · f2 · first sighting, no row and no ending
+true
+== equal-unrecorded ==
+true
+== other-attempt ==
+crash?    Fixture/M02 · f2 · first sighting, no row and no ending
+true
+== other-project ==
+crash?    Fixture/M02 · f2 · first sighting, no row and no ending
+true

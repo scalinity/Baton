@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+echo '== older archived and logged ending does not hide a post-resume crash =='
+"$BATON" tick
+jq -e -s '([.[] | select(.kind == "crash_sighting" and .sighting == 2)] | length) == 1 and ([.[] | select(.kind == "dispatch" and .attempt == 2)] | length) == 1' "$BATON_HOME/log.jsonl"
+test -f "$BATON_HOME/archive/M02-f2-2026-09-12T10:00:00+01:00.json"

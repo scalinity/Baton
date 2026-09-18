@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+mkdir -p "$BATON_HOME/archive" "$BATON_HOME/rejected"
+bound='{"at":"2026-09-12T10:00:00+01:00","archives":[]}'
+for mode in older equal-logged equal-unrecorded newer malformed rejected; do
+  echo "== $mode =="
+  case "$mode" in
+    older) stamp='2026-09-12T08:59:00Z' ;;
+    newer) stamp='2026-09-12T09:01:00Z' ;;
+    malformed) stamp=unknown ;;
+    *) stamp='2026-09-12T10:00:00+01:00' ;;
+  esac
+  path="$BATON_HOME/archive/M02-f2-$stamp.json"
+  printf '{}\n' > "$path"
+  current=$bound
+  if [ "$mode" = equal-logged ]; then current=$(printf '%s' "$bound" | jq -c --arg p "$path" '.archives=[$p]'); fi
+  if [ "$mode" = rejected ]; then printf '{}\n' > "$BATON_HOME/rejected/M02-f2.json"; fi
+  # The optional argument leaves the old unbounded API intact.
+  ended_on_disk f2
+  case "$mode" in
+    older|equal-logged) if ended_on_disk f2 "$current"; then exit 1; fi; echo 'old ending ignored' ;;
+    *) ended_on_disk f2 "$current"; echo 'ending still suppresses' ;;
+  esac
+  rm "$path"
+  if [ "$mode" = rejected ]; then rm "$BATON_HOME/rejected/M02-f2.json"; fi
+done

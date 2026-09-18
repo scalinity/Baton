@@ -94,9 +94,12 @@ model_of_attempt() {
 }
 
 # job_of_session <rows json> <session>: the background job id `claude stop` takes, which only a
-# live row carries. Empty when no live row does, which means the session is already stopped.
+# live row carries. Recovery can request any-state: a missing pid is not proof no process exists,
+# and an identifiable stopped row still gives claude stop the job it must settle before reuse.
 job_of_session() {
-  printf '%s' "$1" | jq -r --arg s "$2" 'map(select(.sessionId == $s and .pid != null)) | first | .id // empty'
+  printf '%s' "$1" | jq -r --arg s "$2" --arg mode "${3:-live}" \
+    'map(select(.sessionId == $s and ($mode == "any-state" or .pid != null))
+         | select((.id | type) == "string" and (.id | length) > 0)) | first | .id // empty'
 }
 
 # fork_session <short id>: the session id of a copy, from the 8-hex job id its note named.
@@ -290,8 +293,19 @@ resume_session() {
       # a person will read it rather than swallowed.
       echo "baton: $rs_p/$rs_m forked on resume but the note named no id: $rs_note" >&2
     fi
-    # Now the original, which the first stop did not take. It must not run beside its copy.
-    [ -z "$rs_job" ] || "$BATON_CLAUDE" stop "$rs_job" > /dev/null 2>&1 || true
+    # Find the original again by the lane's name and its original session id, without a pid test.
+    # A fork has the same name, so name alone could stop the copy we just adopted. This also works
+    # when the caller had no live-row job id (for example, a wait's stale pid-less listing).
+    rs_original=$(rows_read) || rs_original='[]'
+    rs_original=$(printf '%s' "$rs_original" | jq -c --arg n "$(session_name "$rs_p" "$rs_m")" \
+      'map(select(.name == $n))')
+    rs_original=$(job_of_session "$rs_original" "$rs_s" any-state)
+    rs_original=${rs_original:-$rs_job}
+    if [ -n "$rs_original" ]; then
+      "$BATON_CLAUDE" stop "$rs_original" > /dev/null 2>&1 || true
+    else
+      echo "baton: $rs_p/$rs_m forked but no job identifies the original session $rs_s; it could not be stopped" >&2
+    fi
   fi
 
   jq -nc --arg o "$rs_outcome" --arg s "${rs_new:-$rs_s}" --arg n "$rs_note" \
@@ -299,7 +313,8 @@ resume_session() {
 }
 # ladder_position <project> <milestone> <attempt>: derivation 9, plus the two facts acting on it
 # needs — which ending was the newest, and whether a step has already been taken for it. One resume,
-# then one redispatch, then escalate; a wait never counts and never re-arms.
+# then one redispatch, then escalate; a wait never counts and never re-arms. A second count spans
+# attempts until a session-written consumed proves progress; its third failure also ends the ladder.
 #
 # `acted` is what stops the resume rung firing every sixty seconds. The rung itself does not change
 # the count — a resume is not a failure ending and not a reset point — so without it the same
@@ -307,17 +322,22 @@ resume_session() {
 ladder_position() {
   lpo_log=$(log_json) || { echo "$lpo_log"; return 1; }
   printf '%s' "$lpo_log" | jq -c --arg p "$1" --arg m "$2" --argjson a "$3" '
+    def failure: (.kind == "consumed" and .reason == "no-handover")
+                 or (.kind == "crash_sighting" and .sighting == 2)
+                 or (.kind == "resume" and .outcome == "refused");
     [ to_entries[] | {i: .key} + .value
-      | select(.project == $p and .milestone == $m and .attempt == $a) ] as $ev
+      | select(.project == $p and .milestone == $m) ] as $lane
+    | ([$lane[] | select(.kind == "consumed" and .written_by == "session")] | last) as $progress
+    | ([$lane[] | select(.i > ($progress.i // -1)) | select(failure)] | length) as $ineffective
+    | [$lane[] | select(.attempt == $a)] as $ev
     | ([ $ev[] | select(.kind == "dispatch" or (.kind == "consumed" and .written_by == "session")) ]
        | last) as $reset
     | [ $ev[] | select(.i > ($reset.i // -1))
-        | select((.kind == "consumed" and .reason == "no-handover")
-                 or (.kind == "crash_sighting" and .sighting == 2)
-                 or (.kind == "resume" and .outcome == "refused")) ] as $f
+        | select(failure) ] as $f
     | ($f | last) as $newest
-    | { failures: ($f | length),
+    | { failures: ($f | length), ineffective_failures: $ineffective,
         next: (if ($f | length) == 0 then "none"
+               elif $ineffective >= 3 then "escalate"
                elif ($f | length) == 1 then "resume"
                elif ($f | length) == 2 then "redispatch"
                else "escalate" end),
@@ -352,6 +372,17 @@ redispatch() {
     printf 'held      %s/%s · %s is held, so the redispatch waits for the wait to clear\n' "$1" "$2" "$rdp_model"
     return 0
   fi
+  rdp_attempt=$(attempt_of "$1" "$2")
+  rdp_session=$(current_session "$1" "$2" "$rdp_attempt")
+  rdp_job=$(job_of_session "$4" "$rdp_session" any-state)
+  if [ -z "$rdp_job" ]; then
+    echo "baton: $1/$2 redispatch refused: no job identifies outgoing session $rdp_session in the listing" >&2
+    return 0
+  fi
+  if ! "$BATON_CLAUDE" stop "$rdp_job" > /dev/null 2>&1 || ! stop_settle "$rdp_session"; then
+    echo "baton: $1/$2 redispatch refused: outgoing job $rdp_job has not been confirmed stopped" >&2
+    return 0
+  fi
   printf 'redispatch %s/%s · %s\n' "$1" "$2" "$5"
   dispatch_try "$1" "$2" "$3" "$4"
 }
@@ -362,13 +393,18 @@ ladder_step() {
   [ "$lst_next" != none ] || return 0
   lst_ending=$(printf '%s' "$6" | jq -r '.ending // ""')
   lst_acted=$(printf '%s' "$6" | jq -r .acted)
-  lst_fail=$(printf '%s' "$6" | jq -r .failures)
+  lst_fail=$(printf '%s' "$6" | jq -r '.ineffective_failures // .failures')
   lst_s=$(current_session "$1" "$2" "$3") || { echo "$lst_s" >&2; return 1; }
 
   case "$lst_next" in
     resume)
       [ "$lst_acted" = false ] || return 0
       [ -n "$lst_s" ] || { echo "baton: $1/$2 has a failure ending but no event names its session" >&2; return 0; }
+      lst_job=$(job_of_session "$5" "$lst_s" any-state)
+      if [ -z "$lst_job" ]; then
+        echo "baton: $1/$2 resume rung refused: no job identifies session $lst_s in the listing" >&2
+        return 0
+      fi
       # A crash with no transcript on disk cannot be resumed under its id, so it takes the
       # redispatch instead — the resume-versus-redispatch test REQ-STOP-10 names (and the reason
       # cleanupPeriodDays is a setup fact: a swept transcript changes this answer silently).
@@ -382,7 +418,7 @@ ladder_step() {
         *)              lst_kind=continue
                         lst_class=$(printf '%s' "$6" | jq -r '.ending_class // "process gone"') ;;
       esac
-      lst_out=$(resume_session "$1" "$2" "$3" "$lst_s" "$(job_of_session "$5" "$lst_s")" \
+      lst_out=$(resume_session "$1" "$2" "$3" "$lst_s" "$lst_job" \
         "$lst_kind" "$lst_class") || { echo "$lst_out" >&2; return 1; }
       printf 'resume    %s/%s · %s · %s · %s\n' "$1" "$2" "$lst_s" "$lst_kind" \
         "$(printf '%s' "$lst_out" | jq -r .outcome)"
@@ -411,8 +447,12 @@ ladder_step() {
         *)              lst_says="an ending Baton could not name" ;;
       esac
       [ -n "$lst_detail" ] || lst_detail="it left no detail"
+      lst_span='in a row on this attempt'
+      if [ "$lst_fail" -gt "$(printf '%s' "$6" | jq -r .failures)" ]; then
+        lst_span='since the last session-written handover, across attempts'
+      fi
       lst_carries=$(jq -nc --argjson n "$lst_fail" --arg e "$lst_ending" --arg d "$lst_detail" \
-        --arg dd "$lst_fail failure endings in a row on this attempt, the last $lst_says: $lst_detail" \
+        --arg dd "$lst_fail failure endings $lst_span, the last $lst_says: $lst_detail" \
         '{failures: $n, ending: $e, last_detail: $d, detail: $dd}')
       escalate "$1" "$2" "$lst_s" "$3" ladder-end lane "$lst_carries"
       printf 'ladder    %s/%s · %s failures in a row · the lane is parked\n' "$1" "$2" "$lst_fail"

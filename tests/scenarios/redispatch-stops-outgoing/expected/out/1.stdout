@@ -1,0 +1,9 @@
+== redispatch settles the outgoing live job before starting its replacement ==
+redispatch Fixture/M02 · the session stopped unfinished, so attempt 2 resumes from the brief
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/Fixture-M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+true
+true

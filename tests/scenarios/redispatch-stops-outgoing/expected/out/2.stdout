@@ -1,0 +1,3 @@
+== redispatch settles the outgoing live job before starting its replacement ==
+true
+true

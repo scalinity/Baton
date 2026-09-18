@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+echo '== no listed job means no blind resume or redispatch =='
+"$BATON" tick
+jq -e -s '([.[] | select(.kind == "dispatch")] | length) == 1 and all(.[]; .kind != "resume" and .kind != "copy_fork")' "$BATON_HOME/log.jsonl"

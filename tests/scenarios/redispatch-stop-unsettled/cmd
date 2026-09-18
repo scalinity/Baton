@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+# Exercise all sixty actual settlement checks without waiting thirty wall-clock seconds.
+sleep() { :; }
+echo '== a successful stop with a persistently live row cannot start a replacement =='
+lock_take
+redispatch Fixture M02 "$(plan_of_project Fixture)" "$(rows_read)" 'fixture replacement'
+lock_release
+jq -e -s '([.[] | select(.kind=="dispatch")] | length)==1' "$BATON_HOME/log.jsonl"
+jq -e 'length==1 and .[0].sessionId=="f2" and .[0].pid==4240' "$SHIM/rows.json"

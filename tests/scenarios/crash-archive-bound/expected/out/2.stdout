@@ -1,0 +1,12 @@
+== older ==
+old ending ignored
+== equal-logged ==
+old ending ignored
+== equal-unrecorded ==
+ending still suppresses
+== newer ==
+ending still suppresses
+== malformed ==
+ending still suppresses
+== rejected ==
+ending still suppresses

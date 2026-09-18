@@ -1,0 +1,3 @@
+== a successful stop with a persistently live row cannot start a replacement ==
+true
+true

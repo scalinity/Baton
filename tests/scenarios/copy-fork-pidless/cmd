@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+# Directly exercise a caller with no initial live-row job id, as a wait can supply.
+if ! jq -e -s 'any(.[]; .kind == "copy_fork")' "$BATON_HOME/log.jsonl" > /dev/null; then
+  lock_take
+  resume_session Fixture M02 1 f2 '' continue 'process gone'
+  lock_release
+fi
+jq -e -s '([.[] | select(.kind == "copy_fork")] | length) == 1' "$BATON_HOME/log.jsonl"
+grep -F 'claude stop 0badf2' "$SHIM/calls.log"
+if grep -F 'claude stop c0b1e5e1' "$SHIM/calls.log"; then exit 1; fi
+jq -e 'any(.[]; .id=="c0b1e5e1" and .pid!=null)' "$SHIM/rows.json"

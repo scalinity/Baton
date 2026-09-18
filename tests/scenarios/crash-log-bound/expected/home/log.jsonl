@@ -1,0 +1,5 @@
+{"at":"2026-09-12T10:00:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M02","session":"f2","attempt":1}
+{"at":"2026-09-12T10:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"reason":"no-handover","written_by":"stop-gate"}
+{"at":"2026-09-12T10:00:00+01:00","kind":"resume","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"outcome":"delivered"}
+{"at":"2026-09-12T10:00:00+01:00","kind":"consumed","project":"Other","milestone":"M02","session":"f2","attempt":1,"reason":"no-handover","written_by":"stop-gate"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"crash_sighting","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"pid":null,"sighting":1}

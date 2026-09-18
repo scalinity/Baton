@@ -3,6 +3,7 @@
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude --bg --resume f2 <prompt>
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 [cwd @TMP@] claude stop 0badf2
 caffeinate -i -t 120
 [cwd @TMP@] claude agents --json

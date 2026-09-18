@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+echo '== the third failure parks attempt 2 after a resume and redispatch =='
+"$BATON" tick
+jq -e -s '[.[] | select(.kind == "escalation" and .class == "ladder-end")] as $p | ($p | length) == 1 and $p[0].attempt == 2 and $p[0].carries.failures == 3 and ([.[] | select(.kind == "dispatch")] | length) == 2 and ([.[] | select(.kind == "resume")] | length) == 1' "$BATON_HOME/log.jsonl"

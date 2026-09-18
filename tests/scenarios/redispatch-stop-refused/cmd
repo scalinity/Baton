@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+echo '== a refused stop cannot leave two sessions running on the same branch =='
+"$BATON" tick
+jq -e -s '([.[] | select(.kind == "dispatch")] | length) == 1' "$BATON_HOME/log.jsonl"
+jq -e 'length == 1 and .[0].sessionId == "f2" and .[0].pid == 4240' "$SHIM/rows.json"

@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+echo '== redispatch settles the outgoing live job before starting its replacement =='
+"$BATON" tick
+jq -e '([.[] | select(.name == "Baton · Fixture · M02" and .pid != null)] | length) == 1 and any(.[]; .sessionId == "f2" and .pid == null)' "$SHIM/rows.json"
+jq -e -s '([.[] | select(.kind == "dispatch")] | length) == 2' "$BATON_HOME/log.jsonl"
