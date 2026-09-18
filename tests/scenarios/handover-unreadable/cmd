@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+# An older readable complete handover must not regain authority through a broken newer one.
+if dispositions_in_force Fixture; then echo 'unreadable archive silently accepted'; exit 1; fi
+before_log=$(cksum "$BATON_HOME/log.jsonl")
+before_marker=$(cat "$BATON_HOME/last-tick")
+status=0
+"$BATON" tick || status=$?
+[ "$status" = 3 ]
+[ "$(cksum "$BATON_HOME/log.jsonl")" = "$before_log" ]
+[ "$(cat "$BATON_HOME/last-tick")" = "$before_marker" ]
+# Empty JSON input also fails jq -e rather than supplying a phantom handover.
+: > "$BATON_HOME/archive/M03-f3-new.json"
+if dispositions_in_force Fixture; then exit 1; fi
+printf '{\n' > "$BATON_HOME/archive/M03-f3-new.json"
+echo 'unreadable and empty archives refused; no older disposition, false omission or completed tick'

@@ -53,8 +53,8 @@ template_continue() {
 # lists the three outcomes because a session that cannot honestly write `complete` must still write
 # something rather than end the turn again.
 template_finish() {
-  printf 'Baton resumed this session because its last turn ended without a handover artifact. %s, attempt %s, resume %s. Finish the close-out now by the method in CLAUDE.md and write ~/.baton/inbox/%s-%s.json, printing it last. Write the outcome that is true: complete if the merge is on main, asking if you need a ruling, otherwise stopped with its reason — unfinished carries a split.' \
-    "$1" "$2" "$3" "$1" "$4"
+  printf 'Baton resumed this session because its last turn ended without a handover artifact. %s, attempt %s, resume %s. Finish the close-out now by the method in CLAUDE.md and write %s/inbox/%s-%s.json, printing it last. Write the outcome that is true: complete if the merge is on main, asking if you need a ruling, otherwise stopped with its reason — unfinished carries a split.' \
+    "$1" "$2" "$3" "$BATON_HOME" "$1" "$4"
 }
 
 # template_ruling <milestone> <attempt> <resume> <time> <question> <ruling>: the label `baton

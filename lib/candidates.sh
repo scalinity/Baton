@@ -57,17 +57,18 @@ dispositions_in_force() {
     dif_f=$(printf '%s' "$dif_files" | jq -r ".[$dif_i]")
     dif_rank=$dif_i; dif_i=$((dif_i + 1))
     [ -f "$dif_f" ] || continue
-    # Only a handover that can be read counts as one: a project whose every complete archive has been
-    # moved away has nothing an omission could have been missed by.
-    dif_read=$((dif_read + 1))
-    dif_entries=$(jq -c --arg a "$dif_f" --argjson r "$dif_rank" '
+    # A missing archive is absent; an existing unreadable one is not an empty handover or permission
+    # to fall back to an older word. Refuse this reading before any dispositions are acted on.
+    dif_entries=$(jq -ec --arg a "$dif_f" --argjson r "$dif_rank" '
       [ (.eligible // []) | to_entries[] | .key as $k | .value
         | select(type == "object" and (.milestone | type) == "string")
         | select(.disposition == "run" or .disposition == "wait" or .disposition == "held")
         | {milestone, disposition,
            wait_for: (if (.wait_for | type) == "array" then .wait_for else [] end),
            held_by: (if (.held_by | type) == "string" then .held_by else null end),
-           archive: $a, rank: $r, index: $k} ]' "$dif_f" 2>/dev/null) || dif_entries='[]'
+           archive: $a, rank: $r, index: $k} ]' "$dif_f" 2>/dev/null) \
+      || { echo "the complete handover $dif_f could not be read"; return 1; }
+    dif_read=$((dif_read + 1))
     dif_all=$(jq -nc --argjson a "$dif_all" --argjson b "$dif_entries" '$a + $b')
   done
   jq -nc --argjson all "$dif_all" --argjson n "$dif_read" '

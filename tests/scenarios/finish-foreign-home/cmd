@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+BATON_HOME="$BATON_HOME/foreign home"
+export BATON_HOME BATON_MILESTONE=M07-d
+text=$(template_finish M07-d 2 3 f7)
+artifact="$BATON_HOME/inbox/M07-d-f7.json"
+printf '%s\n' "$text"
+case "$text" in *"write $artifact, printing it last."*) ;; *) exit 1;; esac
+[ ! -f "$artifact" ] || rm "$artifact"
+blocked=$(printf '%s' '{"session_id":"f7"}' | sh "$ROOT/hooks/stop-gate")
+printf '%s' "$blocked" | jq -e --arg p "$artifact" '.decision == "block" and (.reason | contains($p))' > /dev/null
+mkdir -p "$BATON_HOME/inbox"
+printf '%s\n' '{"session":"f7","milestone":"M07-d","outcome":"stopped"}' > "$artifact"
+[ -z "$(printf '%s' '{"session_id":"f7"}' | sh "$ROOT/hooks/stop-gate")" ]
+echo 'finish prompt and stop gate use the same foreign home'

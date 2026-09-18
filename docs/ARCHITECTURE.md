@@ -359,7 +359,7 @@ brief paths, never absolute paths.
 
 > Baton resumed this session because its last turn ended without a handover artifact. <milestone>,
 > attempt <n>, resume <r>. Finish the close-out now by the method in CLAUDE.md and write
-> ~/.baton/inbox/<milestone>-<session>.json, printing it last. Write the outcome that is true:
+> <BATON_HOME>/inbox/<milestone>-<session>.json, printing it last. Write the outcome that is true:
 > complete if the merge is on main, asking if you need a ruling, otherwise stopped with its reason —
 > unfinished carries a split.
 
