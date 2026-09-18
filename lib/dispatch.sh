@@ -78,6 +78,14 @@ worktree_ensure() {
     '{worktree: $w, branch: $b, reused: $r, commit: $c}'
 }
 
+# shell_word <string>: the string as exactly one shell word, single-quoted, with any quote of its
+# own closed, escaped and reopened. What the composed hook commands are built out of, so that a path
+# or a value holding a space, a quote or anything else the shell reads is still one word when the
+# CLI runs the command (D-133).
+shell_word() {
+  printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
 # settings_compose <project> <milestone>: the dispatched settings file at
 # settings/<project>-<milestone>.json from the project's permissions.json: the mode as
 # documentation, allow and deny copied, no ask rules, `remoteControlAtStartup: true`, the three
@@ -94,17 +102,26 @@ settings_compose() {
   sc_perm=$BATON_HOME/projects/$1/permissions.json
   sc_out=$BATON_HOME/settings/$1-$2.json
   [ -f "$sc_perm" ] || { echo "$sc_perm is missing"; return 1; }
-  sc_json=$(jq -e --arg env "BATON_HOME='$BATON_HOME' BATON_PROJECT='$1' BATON_MILESTONE='$2'" --arg bin "$BATON_HOME/bin" '
+  # Every token of the composed command is quoted, the executable path as much as the assignment
+  # values. The CLI runs this string through a shell, so a `BATON_HOME` holding a space used to give
+  # a command whose first word was a truncated path and whose remainder was a stray argument — the
+  # hook simply did not run, and nothing said so (D-133). The quoting is done here rather than inside
+  # the jq program because this is where a shell word is a natural thing to build.
+  sc_env="BATON_HOME=$(shell_word "$BATON_HOME") BATON_PROJECT=$(shell_word "$1") BATON_MILESTONE=$(shell_word "$2")"
+  sc_json=$(jq -e \
+    --arg statusline "$sc_env $(shell_word "$BATON_HOME/bin/statusline")" \
+    --arg stop       "$sc_env $(shell_word "$BATON_HOME/bin/stop-gate")" \
+    --arg failure    "$sc_env $(shell_word "$BATON_HOME/bin/stop-failure")" '
     if ((.permissions.deny // []) | length) == 0
       then error("permissions.deny is empty; a bypassPermissions session needs the two deny classes") else . end
     | { permissions: { defaultMode: "bypassPermissions",
                        allow: (.permissions.allow // []),
                        deny: .permissions.deny },
         remoteControlAtStartup: true,
-        statusLine: { type: "command", command: "\($env) \($bin)/statusline" },
+        statusLine: { type: "command", command: $statusline },
         hooks: {
-          Stop:        [{ hooks: [{ type: "command", command: "\($env) \($bin)/stop-gate" }] }],
-          StopFailure: [{ hooks: [{ type: "command", command: "\($env) \($bin)/stop-failure" }] }] } }' \
+          Stop:        [{ hooks: [{ type: "command", command: $stop }] }],
+          StopFailure: [{ hooks: [{ type: "command", command: $failure }] }] } }' \
     "$sc_perm" 2>&1) || { echo "$sc_perm: $sc_json"; return 1; }
   mkdir -p "$BATON_HOME/settings"
   printf '%s\n' "$sc_json" > "$sc_out.tmp"

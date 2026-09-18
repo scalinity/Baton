@@ -355,13 +355,20 @@ inbox_consume() {
   ic_status=0
   for ic_f in "$BATON_HOME"/inbox/*.json; do
     [ -f "$ic_f" ] || continue
+    # Every branch that leaves work undone is counted, because the pass's status is what decides
+    # whether the tick may write its marker (D-115). `consume_one` and `repeat_one` both return 1
+    # when `archive_move` refuses, and a refusal is a handover still in the inbox with nothing in the
+    # log; a repeat test that could not read the log leaves its file for the next tick in the same
+    # way. Reported as success, any of the three would advance `last-tick` over work that did not
+    # happen, and the gap that follows would be measured from a tick that did not do it (D-133).
     ic_rc=0; ic_repeat=$(repeat_of "$ic_f") || ic_rc=$?
     if [ "$ic_rc" -eq 0 ]; then
-      repeat_one "$ic_f" "$ic_repeat"
+      repeat_one "$ic_f" "$ic_repeat" || ic_status=1
     elif [ "$ic_rc" -eq 2 ]; then
       echo "baton: $ic_repeat" >&2
+      ic_status=1
     elif ic_ok=$(artifact_check "$ic_f"); then
-      consume_one "$ic_f" "$ic_ok" "$1"
+      consume_one "$ic_f" "$ic_ok" "$1" || ic_status=1
     else
       # jq answers an empty document with an empty string and a zero status, so a check that died
       # without naming a rule would reject the file under a blank rule and say nothing useful. Name

@@ -1,0 +1,5 @@
+== each composed command executes under a home whose path holds a space ==
+statusLine ran
+Stop ran
+StopFailure ran
+== and the status feed landed inside that home, so the right executable ran ==

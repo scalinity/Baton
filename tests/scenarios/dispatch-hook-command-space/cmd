@@ -1,0 +1,40 @@
+#!/bin/sh
+set -eu
+# N2: the settings file's three commands are run by the CLI through a shell. Their assignment values
+# were quoted and the executable path was not, so a BATON_HOME holding a space produced a command
+# whose first word was a truncated path: the hook did not run and nothing said so. Every token is
+# quoted now (D-133).
+#
+# The proof has to execute the COMPOSED command, not the hook source. tests/scenarios/finish-foreign-home
+# invokes `sh "$ROOT/hooks/stop-gate"` directly, which never reaches this boundary — its proof of
+# prompt/gate path agreement stands, it is just not proof that the installed command can run.
+. "$ROOT/tests/lib-load.sh"
+base=$(cd "$SHIM/.." && pwd)
+home="$base/foreign home"
+rm -rf "$home"
+mkdir -p "$home/bin" "$home/projects/Fixture" "$home/status" "$home/inbox" "$home/settings"
+cp "$ROOT/hooks/statusline" "$ROOT/hooks/stop-gate" "$ROOT/hooks/stop-failure" "$home/bin/"
+chmod 755 "$home/bin/statusline" "$home/bin/stop-gate" "$home/bin/stop-failure"
+cp "$BATON_HOME/projects/Fixture/permissions.json" "$home/projects/Fixture/permissions.json"
+
+saved=$BATON_HOME
+BATON_HOME=$home
+settings=$(settings_compose Fixture M02)
+BATON_HOME=$saved
+
+run_hook() {
+  rh_cmd=$(jq -r "$1" "$settings")
+  rh_status=0
+  printf '{"session_id":"abc123"}' | sh -c "$rh_cmd" > "$base/hook.out" 2>&1 || rh_status=$?
+  if [ "$rh_status" -eq 127 ]; then
+    echo "$2: the composed command could not be executed: $(cat "$base/hook.out")"
+    return 1
+  fi
+  printf '%s ran\n' "$2"
+}
+echo "== each composed command executes under a home whose path holds a space =="
+run_hook '.statusLine.command' statusLine
+run_hook '.hooks.Stop[0].hooks[0].command' Stop
+run_hook '.hooks.StopFailure[0].hooks[0].command' StopFailure
+echo "== and the status feed landed inside that home, so the right executable ran =="
+[ -f "$home/status/abc123.json" ]

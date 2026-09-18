@@ -1,0 +1,4 @@
+== the destination is taken by a different artifact, so the consume fails before it mutates ==
+tick status 3
+== the marker the tick started with is unchanged ==
+== the handover is still in the inbox and nothing was recorded for it ==
