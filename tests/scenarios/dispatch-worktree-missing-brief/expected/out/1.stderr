@@ -1,0 +1,1 @@
+baton: dispatch of Fixture M03 failed at worktree: Baton needs M03's brief docs/milestones/M03.md readable in its own worktree. Branch m03 predates the brief's commit and its worktree has no readable brief. Bring main into the branch yourself: git -C "@TMP@/Fixture-M03" merge main

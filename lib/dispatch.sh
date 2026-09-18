@@ -98,7 +98,17 @@ settings_compose() {
 # mid-edit cannot change what a session receives. The search ends at the next "## " heading.
 # Prints the block's body.
 prompt_from_brief() {
-  pb_text=$(git -C "$1" show "main:$2" 2>&1) || { echo "brief $2 is not on main: $pb_text"; return 1; }
+  pb_id=${2##*/}; pb_id=${pb_id%.md}
+  pb_needed="Baton needs $pb_id's brief $2 on main with a fenced block under \"## $3\"."
+  pb_commit="git -C \"$1\" add -- \"$2\" && git -C \"$1\" commit -m \"Record $pb_id brief\""
+  pb_text=$(git -C "$1" show "main:$2" 2>&1) || {
+    if [ -f "$1/$2" ]; then
+      printf '%s\n' "$pb_needed It is written on disk but not committed to main. A dispatch reads briefs from main and creates its worktree from main, so the session would not have the file. On main, run: $pb_commit"
+    else
+      printf '%s\n' "$pb_needed It does not exist on main or in the working tree. Write the brief with that heading and fenced block, then commit it on main: $pb_commit"
+    fi
+    return 1
+  }
   pb_body=$(printf '%s\n' "$pb_text" | HEADING="## $3" awk '
     function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
     !found && trim($0) == ENVIRON["HEADING"] { found = 1; next }
@@ -106,7 +116,10 @@ prompt_from_brief() {
     found && !infence && /^```/ { infence = 1; next }
     found && infence && /^```/ { closed = 1; exit }
     found && infence { print }
-    END { exit (closed ? 0 : 1) }') || { echo "no fenced block under \"## $3\" in $2 on main"; return 1; }
+    END { exit (closed ? 0 : 1) }') || {
+      printf '%s\n' "$pb_needed The brief is on main, but no complete fenced block follows that heading. Add the heading and fenced block, then commit it on main: $pb_commit"
+      return 1
+    }
   printf '%s' "$pb_body"
 }
 
@@ -253,6 +266,10 @@ dispatch_one() {
 
   do_brief=docs/milestones/$do_id.md
   do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
+  if [ ! -r "$do_wt_path/$do_brief" ]; then
+    dispatch_failed "$do_project" "$do_id" worktree "Baton needs $do_id's brief $do_brief readable in its own worktree. Branch $do_branch predates the brief's commit and its worktree has no readable brief. Bring main into the branch yourself: git -C \"$do_wt_path\" merge main"
+    return 1
+  fi
   do_inflight=$(derive_in_flight "$do_project" "$do_rows") || { echo "baton: $do_inflight" >&2; return 1; }
   do_inflight=$(printf '%s' "$do_inflight" | jq -c .in_flight)
   do_also=$(printf '%s' "$do_inflight" | jq -r --arg me "$do_id" --argjson plan "$do_plan" '

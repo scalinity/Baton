@@ -1,0 +1,3 @@
+set -eu
+cp "$ROOT/tests/project/docs/milestones/M03.md" Fixture/docs/milestones/M03.md
+"$BATON" dispatch Fixture M03
