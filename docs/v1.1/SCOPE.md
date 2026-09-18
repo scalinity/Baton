@@ -59,7 +59,7 @@ Additive only. No existing field changes meaning.
 
 ## 6. Milestones
 
-Eleven, after M15 split into three during brief authoring and M17 was added on 2026-09-17. Each
+Twelve, after M15 split into three and M17 split into correctness and rendering during brief authoring. Each
 executable in one fresh session with no memory of the others. M17 is numbered last and runs
 first, because it is the one milestone whose output conventions every other milestone inherits;
 §7 is the authority on order.
@@ -239,114 +239,125 @@ memory of its siblings.
 **Done when:** Reclaim goes from unregistered to three milestones completed with no human action
 beyond the single intent confirmation, and the run survives at least one pause and resume.
 
-### M17 — What Baton says, and how it reads
+### M17 — Dispatch preconditions before worktree creation
 
-Baton's output is its whole interface, and it fails in two ways that turn out to be one concern.
+Baton's output defect has two parts: it discovers knowable dispatch failures after creating a
+worktree, and each verb prints its own lines its own way. M17 owns the first; M17-b owns the
+rendering system. They run in that order because both change `lib/plan.sh`.
 
-It says the wrong things at the wrong time. `dispatch_failed` prints the underlying tool's stderr:
-`fatal: path 'docs/milestones/M09.md' exists on disk, but not in 'main'` is git's sentence, not
-Baton's, and it names no fix. It arrives one milestone at a time, after the worktree has already been
-created, for a condition that was knowable before anything ran.
+**Already built.** Commit `7dd3ee6` gave `prompt_from_brief` three Baton-authored failure messages:
+a brief absent everywhere, written on disk but not on `main`, and on `main` without a complete
+fenced block at the requested heading. `dispatch_one` also refuses a worktree without its own
+readable brief. The three new scenarios are `dispatch-brief-absent`, `dispatch-brief-uncommitted`
+and `dispatch-worktree-missing-brief`. These changes prevent a bad session; their checks still
+follow `worktree_ensure` and settings creation. Extend them rather than rewrite working code.
 
-Under the tick it is worse than cosmetic. `dispatch_try` retries once and escalates `dispatch-failed`
-on the second consecutive failure — a bound that is right for a transient cause, and wrong for a
-permanent one, which now gets two attempts. The first attempt leaves a branch created from `main`
-before the brief was committed. A later dispatch reuses that branch, `prompt_from_brief` succeeds
-from `main` because the brief has since landed there, and the session opens in a worktree where its
-own brief does not exist — and its prompt's first instruction is to read that file in full. The loud
-failure becomes a silent one. This is not hypothetical: it is the state branch `m09` was left in on
-2026-09-17, after one hand dispatch.
+**In scope.** `baton plan <project>` already validates every Model cell. It grows a read-only
+report of every eligible milestone's unmet dispatch preconditions in one pass: the committed
+brief and complete fenced kickoff prompt, its replaceable slot paragraph, every literal `docs/…`
+reference in that prompt present on `main`, an existing milestone branch containing the brief's
+latest change on `main`, an existing worktree's readable brief, and permissions with deny rules.
+Each report names the affected milestone, what Baton needed, what it found and a concrete repair
+command. The shared check also runs in `dispatch_one` **before** `worktree_ensure`, so refusal
+creates no branch, worktree, settings, sidecar or session. Existing failure records remain.
 
-And it says them in raw shell text. Nothing in the relay has a rendering layer: each verb prints its
-own lines its own way, so `status`, `plan` and the dispatch messages do not agree on how a milestone,
-a state, a lane or a path is written, and there is nowhere to make them agree.
+Two existing libraries change behaviour: `lib/plan.sh` and `lib/dispatch.sh`. A new read-only
+helper may share their checks. `dispatch_try` deliberately keeps its retry-then-escalate bound;
+first-occurrence escalation is a classification question for M15, not part of M17. D-098's
+unification with the inbox's brief-pointer checker remains deferred, including its archived
+strings. There is no archive migration and no change to `lib/inbox.sh` for M17.
 
-**In scope.**
+**Done when:** a fixture plan with multiple eligible milestones and multiple defects reports
+all inspectable defects and repairs without dispatch; the same preconditions refuse before
+creation; the existing retry bound, plan format, on-main rule and unrelated admission decisions
+remain intact; the standing check and the added no-creation fixtures pass. D-101/D-102 record
+no-pause and working-tree plan authority as findings; neither is fixed by this milestone.
 
-1. **One rendering layer.** `lib/render.sh`, designed with the `/terminal-ui-design` skill — which
-   the implementing session invokes before it writes any rendering code, not only the authoring
-   session that wrote this brief; the brief's copy-ready prompt carries that instruction, and §8
-   takes evidence that it happened. Whether a Baton-dispatched session can reach a user-scope skill
-   under the composed settings is unverified and is the brief's first check: if it cannot, the
-   guidance is carried into the brief instead, and that is a finding worth recording. The layer has
-   named primitives for the shapes the relay actually prints: a heading, a lane, a state, a
-   milestone, a path, a timestamp, a table, a hint, a failure. Every verb — `status`, `plan`,
-   `dispatch`, `answer`, `allow`, `wake` and the usage text — prints through it. POSIX shell only, no
-   packages, no new dependency.
-2. **Plain when it is not a terminal.** Colour and box drawing only on a TTY, honouring `NO_COLOR`,
-   degrading to ASCII where the terminal cannot do better. The tick's output is read by `grep` and by
-   the tests, so piped output stays plain and its existing lines stay matchable; `sh tests/run.sh` is
-   the contract for that and is not weakened to fit the redesign.
-3. **Preconditions stated once, up front.** `baton plan <project>` already validates every Model
-   cell. It grows to check every dispatch precondition, for every eligible milestone, in one pass,
-   before any dispatch is attempted: the brief present on `main` at the heading a dispatch reads;
-   every `docs/…` path that brief's own prompt names present on `main`; an existing branch for the
-   milestone containing that brief at the commit `main` now holds; `permissions.json` present with
-   deny rules. One report, naming each affected milestone, what is missing, and the single command
-   that fixes it. A reused worktree whose branch predates the brief's commit is the same defect
-   arriving silently rather than loudly, and is covered by the same check.
-4. **A precondition is checked before the first attempt, not after the second.** `dispatch_try` is
-   right to bound retries and right to escalate `dispatch-failed` on the second consecutive failure;
-   what is wrong is that a knowable, permanent precondition is attempted at all, and that the attempt
-   leaves a branch behind that will silently lack the brief. A precondition failure is recognised
-   before `worktree_ensure` runs, escalates on its first occurrence rather than its second, and
-   creates nothing. Transient causes keep the existing retry and the existing bound unchanged.
-5. **Baton's words, not the tool's.** A failure on the terminal says what Baton needed, what it found
-   instead, and the one thing to do about it. The underlying stderr stays in the log, where it is
-   already kept in full.
+### M17-b — One rendering layer for Baton's output
 
-**Not in scope.** No new verbs, no change to what any verb decides, no change to the plan format, and
-no change to the on-`main` rule itself — reading a brief from `main` is what keeps a person's
-half-finished edit out of a running session, and what guarantees the brief exists inside the worktree
-the session is handed. This milestone changes what Baton says and when it says it, not what it does.
+Each verb prints its own lines its own way, so status, plan and dispatch do not agree on how a
+milestone, state, lane or path is written, and there is nowhere to make them agree. Introduce
+`lib/render.sh` and convert **every** person-facing verb and Mac-message printing site: status,
+plan, dispatch, answer, allow, wake, usage and the tick. The inventory in the brief distinguishes
+those sites from machine-return JSON, session prompts, archived text and the event log, whose
+formats do not change. The layer has reusable heading, row/table, lane, state, milestone, path,
+timestamp, hint and failure primitives derived from that inventory, not one wrapper per call site.
 
-**Done when:** `baton plan Baton` against a checkout whose briefs are uncommitted names every
-affected milestone and its fix in one pass, and no dispatch is attempted; every verb prints through
-one layer, plain and matchable when piped and under `NO_COLOR`, with `sh tests/run.sh` passing
-unchanged; a precondition failure under the tick escalates on its first occurrence and leaves no
-branch or worktree behind; and no raw tool stderr reaches the terminal.
+Invoke `/terminal-ui-design` in the implementing session **before rendering code**, with the step
+in its copy-ready startup order and actual invocation evidence required by §8. The brief's first
+check inspects user-scope skill reachability under the composed dispatch settings; authoring
+found the installed skill readable, with no skill restriction in the launch flags or Baton deny
+rules. Recheck the effective configuration directory at implementation. If unreachable, carry
+the substantive guidance inline and record the inspected limitation under the next free D-number;
+do not claim the skill ran or widen permissions.
 
-**Why it is the root.** It has no dependencies, and M09 and M10 depend on it — not for machinery, but
-because their output is the first output written after the layer exists, and a convention adopted at
-the root propagates down the chain by the close-out rule that carries interfaces forward into each
-successor's prompt. Retrofitting it after nine merged branches would mean editing nine milestones'
-output by hand.
+Use colour only on a capable TTY, honor `NO_COLOR`, provide ASCII fallback, and keep pipes plain
+and grep-matchable. Below 60 columns retain all identifiers, paths and commands with a compact
+layout. The tick's stdout/stderr are captured by fixtures and searched by people; no new terminal
+escape sequences go into those streams when redirected. Failures explain Baton's need, the
+observed condition and the repair. The useful three-case messages from `7dd3ee6` already do this.
+Other raw tool stderr remains diagnostic data for the existing bounded log field, not the
+terminal's explanation: dispatch detail is capped at 2,000 bytes and marked when truncated,
+not kept in full. No new classifier or change to what any verb decides belongs in the renderer.
+
+The inventory spans sixteen existing library files plus `bin/baton`. Under the owner's D-104
+amendment, only rendering-call substitutions with unchanged decisions and assertion meaning are
+exempt from the two-file count. The new renderer does not count; behavioural changes still do.
+Size is Large, about 5–7 hours, high effort. Convert status and plan first, then the remaining
+whole files. The **natural split point** is status and plan complete with the full suite green;
+subsequent stopping points are whole-file boundaries with the suite green. If the session must
+stop, it writes completion evidence, `stopped`/`unfinished` and a bounded M17-c brief and plan
+entry under the existing split mechanism. Reconcile scope, graph and handover explicitly when
+splitting. A partial conversion is a temporary state for the chain to finish, never an end state;
+the unsplit milestone is not done until every person-facing printing site uses the layer.
+
+**Done when:** every verb and Mac message uses the same layer; plain/TTY/NO_COLOR/narrow/ASCII
+behaviour has evidence; no raw tool stderr substitutes for Baton's explanation; every behaviour
+assertion still verifies the same contract and the full suite passes. Presentation expectations
+are reviewed and updated where necessary, never the checks weakened to fit a redesign.
+
+**Non-goals for both parts.** No packages, new dependencies, new verbs, language rewrite, plan
+format change, on-main rule change or event-log line-format change. POSIX shell with `set -eu`.
+M17 changes precondition reporting and refusal timing only; M17-b changes presentation only.
+D-098's unification and archive-text changes remain deferred. There is no permanent rendering
+deferral and no pre-authored M17-c through M17-i.
 
 ## 7. Order and dependencies
 
-    M17 ─┬─→ M09 ─┐
-         │        ├─→ M11 ─→ M12 ─┬─→ M13 ─→ M14 ─────────────┐
-         └─→ M10 ─┘               │                           ├─→ M16
-                                  └─→ M15 ─→ M15-b ─→ M15-c ──┘
+    M17 ─→ M17-b ─┬─→ M09 ─┐
+                  │        ├─→ M11 ─→ M12 ─┬─→ M13 ─→ M14 ─────────────┐
+                  └─→ M10 ─┘               │                           ├─→ M16
+                                           └─→ M15 ─→ M15-b ─→ M15-c ──┘
 
-M17 is the single root. M09 and M10 depend on it and are independent of each other, so they run
-together under the cap of two once M17 lands. The M15 family runs in parallel with M13 and M14 once
-M12 lands. M16 waits on M14 and M15-c.
+M17 is the single root. M17-b depends on M17; M09 and M10 depend on M17-b and are independent
+of each other. The cap remains two. The M15 family runs alongside M13/M14 after M12;
+M16 waits for M14 and M15-c. No new gate is needed.
 
-M09 and M10 were roots in the first draft of this scope, which meant two hand-dispatches and, for
-whichever root the operator did not reach first, a park. Depending them on M17 is not bookkeeping:
-their output is the first written after the rendering layer exists, and it makes the graph single-
-rooted, which is what reduces kickoff to one command.
-
-**Kickoff instructions.** One hand-dispatch, ever:
+**Kickoff instructions.** The only milestone a person hand-dispatches is M17:
 
 ```sh
 BATON_HOME=/Users/danny/.baton baton dispatch Baton M17
 ```
 
-M17 is the only milestone with no predecessor handover to name it, so it is the only one a person
-starts. Everything after it is admitted by the tick. M17's close-out lists M09 and M10 as its direct
-successors with disposition `run` — both are plan-eligible the moment M17 is marked done — and
-refreshes both of their prompts on `main` with the rendering layer's actual interface, by the
-standing close-out rule that carries interfaces forward. From there each close-out lists every direct
-successor and derives its disposition from the plan as it reads then: an open gate means `held` with
-`held_by`; otherwise any dependency not done means `wait` with those IDs in `wait_for`; otherwise
-`run`. Both M09 and M10 name M11, and both M14 and M15 name M16, regardless of which sibling finishes
-first. No new gate is needed.
+M17's close-out lists M17-b with disposition `run` and refreshes its prompt with the actual
+precondition interface. M17-b's close-out lists **both M09 and M10 as `run`**: both are
+plan-eligible once M17-b is done. On main it refreshes **both copy-ready prompts with render.sh's
+actual interface**, source/init order and output policy. They carry that interface onward through
+the normal handover chain. No milestone after M17 is started by hand.
 
-If M17's session dies before writing its handover, M09 and M10 are plan-eligible and unlisted, and
-each parks as `omitted` on the next tick. That is the intended failure: it stops and says so, rather
-than starting work against conventions that do not exist yet.
+At every close-out re-read current Status cells, dependencies and gates. Name every direct
+successor and all other eligible work: an open gate takes precedence (`held`, with `held_by`),
+otherwise unfinished dependencies mean `wait` with all their IDs in `wait_for`, otherwise `run`.
+Both M09 and M10 name M11; both M14 and M15-c name M16, without assuming which sibling finishes
+first. Refresh every listed prompt on main before writing the artifact. If a formal M17-b split
+exists, its remainder must be named and the actual revised graph used; never silently drop it.
+
+Marking a milestone done without its handover can leave the newly eligible successor unlisted
+and parked as `omitted`. There is also an existing live-state exception to the intended single
+hand-dispatch startup: editing the plan can resolve an omitted park and let the tick admit M17
+before a hand-dispatch (D-102). During authoring, pause the launchd agent before changing the live
+plan, verify the marker stays fixed with `baton status`, and restore it only after publishing;
+restoration can then admit M17 automatically. This operational fact is recorded, not fixed here.
 
 ## 8. Acceptance for V1.1 as a whole
 
@@ -359,9 +370,11 @@ than starting work against conventions that do not exist yet.
 5. Two independent milestones run concurrently.
 6. A milestone that drifts from the stated goal trips the scope guard and reaches a person.
 7. Execution stays on subscription pricing throughout.
-8. Baton's terminal output is Baton's own: one rendering layer, no raw tool stderr on the
-   terminal, and an unmet dispatch precondition stated once for every affected milestone
-   before any dispatch is attempted.
+8. M17 reports every eligible milestone's unmet dispatch preconditions together and refuses them
+   before branch/worktree/settings creation, retaining the existing retry bound. M17-b gives all
+   verbs and Mac messages one rendering layer, plain and matchable when piped and under NO_COLOR;
+   Baton's explanation replaces raw tool stderr on the terminal, with unchanged event-log format
+   and behaviour assertions. A partial conversion is not final acceptance.
 
 ## 9. What happens to M08
 
@@ -381,3 +394,8 @@ versioning — one machine), L11 and L50 (containment and secrecy — the owner'
 (remote reachability — it works), L34, L35 and L41 (lock, hung command, history growth — real, but
 fix them when they bite), and the durability findings behind them. These are recorded so a later
 scope can pick them up knowingly rather than rediscovering them.
+
+D-098's unification of the dispatch and inbox brief-on-main checks is deferred, including any
+change to the detail persisted with rejected handover entries. It is not in M17 or M17-b;
+their work preserves the existing inbox checker and archive strings. First-occurrence escalation
+for precondition failures is assigned to M15's classification scope, not implemented by M17.

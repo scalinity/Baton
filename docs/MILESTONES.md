@@ -38,8 +38,8 @@ Rules for every session (also in `CLAUDE.md`):
 | M07-c | The Mac message: Claude's icon and a click that opens the session | M07-b | opus | | | done | A park or notification appears under Baton with Claude's icon, and clicking it opens the session in Claude.app | No |
 | M07-d | A handover is acted on once | M07-c | opus | | | done | A handover delivered twice changes nothing: no older disposition back in force, no session a newer handover held back | No |
 | M08 | Reclaim onboarding | M07-d | opus | | | held | Superseded by docs/v1.1/SCOPE.md M16, which carries its acceptance. Held permanently; the manual Reclaim migration it required is replaced by baton onboard. | No |
-| M09 | Where sessions live, and how they surface | M17 | opus | medium | | | Worktrees live under BATON_HOME, existing branches survive relocation, guarded retention removes old merged worktrees, and sessions group under their project | Yes (removes only clean, done, merged worktrees after grace; keeps branches) |
-| M10 | Completion that proves the work | M17 | opus | medium | | | Completion proves dispatch ancestry and in-scope changes, with a standing-check result recorded by Baton | No |
+| M09 | Where sessions live, and how they surface | M17-b | opus | medium | | | Worktrees live under BATON_HOME, existing branches survive relocation, guarded retention removes old merged worktrees, and sessions group under their project | Yes (removes only clean, done, merged worktrees after grace; keeps branches) |
+| M10 | Completion that proves the work | M17-b | opus | medium | | | Completion proves dispatch ancestry and in-scope changes, with a standing-check result recorded by Baton | No |
 | M11 | baton onboard <path> | M09, M10 | opus | high | | | An unprepared or partly completed repository is registered and its existing plan adapted after one intent confirmation | No |
 | M12 | Plan generation from a repository | M11 | opus | high | | | A repository without a usable plan generates conforming briefs and its first milestone dispatches and completes | No |
 | M13 | Autonomous handoff, and more than one at a time | M12 | opus | high | | | Newly eligible work runs up to the cap, an independent pair overlaps, and effort follows declared Size | No |
@@ -48,7 +48,8 @@ Rules for every session (also in `CLAUDE.md`):
 | M15-b | Host-explained gaps and wake reconciliation | M15 | opus | high | | | Sleep-explained gaps stay recorded and visible without notifications; unexplained gaps notify; confirmed dead sessions use existing recovery | No |
 | M15-c | The independent scope guard | M15-b | opus | high | | | Goal-only checks at plan adoption and close-out; drift always reaches a person | No |
 | M16 | Cold live trial on Reclaim | M14, M15-c | opus | medium | | | Unregistered Reclaim completes at least three cold milestones with one intent confirmation and a live budget pause/resume | No |
-| M17 | What Baton says, and how it reads | – | opus | high | | | Every verb and every notification renders through one layer that stays plain and matchable when piped and under `NO_COLOR`; `baton plan` states every unmet dispatch precondition for every eligible milestone in one pass, before any dispatch is attempted; a precondition failure escalates on its first occurrence, in Baton's words, and leaves no branch behind | No |
+| M17 | Dispatch preconditions before worktree creation | – | opus | high | | | Plan reports every eligible milestone's unmet dispatch preconditions in one pass; dispatch refuses them before creating a branch, worktree or settings, retaining the existing retry bound | No |
+| M17-b | One rendering layer for Baton's output | M17 | opus | high | | | Every verb and Mac message uses lib/render.sh; terminal output is consistent, plain and matchable when piped and under NO_COLOR; behaviour and event-log format stay unchanged | No |
 
 ## Gates
 
@@ -90,7 +91,7 @@ except M07 and M08, which are acceptance and onboarding.
 | M06 | The tick dispatches it, unattended. The person reads `baton status` in the morning and installs. |
 | M07, M07-b, M07-c, M07-d, M08 | Unattended; each close-out installs its own merge (D-079). M08 waits on the gate, which the person clears after the migration commit. |
 | M17 | The one hand-dispatch of V1.1: `baton dispatch Baton M17`, after the V1.1 briefs are on `main`. Nothing else in V1.1 is started by hand. |
-| M09 … M16 | Unattended; each close-out installs its own merge (D-079). The person answers a park when Baton asks, and nothing else. |
+| M17-b, M09 … M16 | Unattended; each close-out installs its own merge (D-079). The person answers a park when Baton asks, and nothing else. |
 
 ## Split rule
 
@@ -101,7 +102,14 @@ this planning-only split produces no runtime handover or stopped artifact. Reche
 rule in each part against the actual interfaces before implementation and split further if needed.
 
 A milestone is split before implementation if its checklist has more than about 15 items or
-touches more than two `lib/` files beyond the ones it introduces. Briefs already marked with a
+touches more than two counted `lib/` files beyond the ones it introduces. By the owner's amendment
+(D-104), a file whose only change is substituting rendering calls for existing output calls does
+not count: no change to what the verb decides or what any assertion verifies. A file whose
+behaviour or decisions change still counts. This exception is only for rendering-call
+substitution, not a general exemption for mechanical refactoring. The natural split point bounds
+the session size of the exempt work. Recheck the count per part before implementation.
+
+Briefs already marked with a
 "natural split point" name where to stop if the session runs long; the remainder becomes `Mxx-b`
 with its own brief written by the session that stops, a row added to the table above with
 `Depends on` the milestone it came from, and a `stopped` artifact with reason `unfinished` naming
