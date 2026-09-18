@@ -73,8 +73,8 @@ class_ends_on_done() {
 # halves of Baton.
 #
 # A reading that fails is absent rather than empty, the envelope's rule: a plan file that cannot be
-# read parks the project on its own account, and a brief that is not on main is not evidence that
-# anything changed.
+# read parks the project on its own account. Absence is a distinct state: a brief first becoming
+# readable on main is an edit, while a reading becoming unavailable does not release a park.
 reread_hashes() {
   rrh_plan=''; rrh_brief=''
   [ -n "$2" ] || { echo '{}'; return 0; }
@@ -422,9 +422,10 @@ ending_escalate() {
 # the hashes the escalation carried; a difference is the person's decision arriving, and the lane
 # unparks without a second command.
 #
-# Only the fields the escalation carried are compared. A reading that fails now is absent, not
-# different: a plan file that has become unreadable parks the project on its own account and must
-# not also unpark every lane that was waiting on it.
+# Compare present readings with both the old key's presence and its value. A newly readable key
+# ends the park just as a changed value does. A reading that fails now cannot release it: a plan
+# file that has become unreadable parks the project on its own account and must not also unpark
+# every lane that was waiting on it.
 #
 # The unpark is written before step 4 runs, so the rule that parked the lane gets the same tick to
 # act on the edit: a `blocked` lane whose blocker now reads `done` is redispatched a second later
@@ -440,7 +441,8 @@ edit_reread_check() {
     err_was=$(printf '%s' "$err_e" | jq -c .carries.reread)
     err_now=$(reread_hashes "$1" "$err_m" "$(printf '%s' "$err_e" | jq -c .carries)" "${2:-}")
     err_changed=$(jq -nc --argjson was "$err_was" --argjson now "$err_now" '
-      [ $was | keys[] | select(($now[.] // null) != null and $now[.] != $was[.]) ]')
+      [ $now | keys[] as $key
+        | select(($was | has($key) | not) or $now[$key] != $was[$key]) | $key ]')
     [ "$(printf '%s' "$err_changed" | jq length)" -gt 0 ] || continue
     # A park whose way out is the close-out done by hand ends on a change to the rows that leaves the
     # milestone reading `done`, and on nothing else (`class_ends_on_done`).

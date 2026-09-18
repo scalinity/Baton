@@ -73,8 +73,8 @@ directory. Each worktree is a distinct directory that is not a registered projec
 dispatched session lands under **Other**, mixed with every other project's. Both problems come from
 the worktree being both the working directory and an ad-hoc sibling path.
 
-Move the worktree root to `$BATON_HOME/worktrees/<project>/<milestone>`, migrate the existing ones
-with their branches intact, and add a prune.
+Create new worktrees at `$BATON_HOME/worktrees/<project>/<milestone>`. Preserve existing recorded
+session paths, branches and dirty changes; reuse must verify repository and branch identity.
 
 **Do not add a prune.** D-078 is active and deleted `worktree_prune` on purpose: *"A finished
 session is worth going back to — to ask what it decided, or to continue by hand — and it cannot be
@@ -84,17 +84,20 @@ resumed once its working directory is gone."* Its evidence is measured, not theo
 close-out removed `../Baton-M06`. Claude.app then shows each as not connected and a message to it
 does not send.
 
-Relocation alone solves the stated problem. The complaint is Finder clutter in `~/Documents/Apps`;
-moving the root to `$BATON_HOME` removes it from view entirely, and worktrees of a shell repository
-cost almost nothing. Overturning D-078 would need a new decision entry and a better reason than disk
+The managed root prevents new sibling clutter in `~/Documents/Apps`. Relocating an existing
+session-bearing worktree requires a disposable fixture proving a supported mechanism that keeps
+the same session's stop/resume behavior and writes at the new path; Git relocation alone is not
+proof. Never edit Claude's private databases. If that mechanism cannot be proved, grandfather the
+recorded path and state the limitation. Worktrees of a shell repository cost almost nothing.
+Overturning D-078 would need a new decision entry and a better reason than disk
 tidiness. If disk pressure ever becomes real — a Swift target with DerivedData per worktree — add an
 explicit `baton prune` a person runs deliberately, never an automatic one, and record why D-078 no
 longer holds.
 
-**Done when:** a dispatch creates no path outside `$BATON_HOME`; existing worktrees are relocated
-with their branches intact and their sessions still resumable;
-and a dispatched session appears in the desktop sidebar grouped under its project rather than under
-Other.
+**Done when:** new worktrees use the managed root; every existing recorded session path remains
+valid unless supported same-session relocation is proved, with branches and dirty changes intact.
+Grandfathered paths are a stated limitation, not a claim that every existing worktree was relocated.
+A dispatched session appears in the desktop sidebar grouped under its project rather than under Other.
 
 ### M10 — Completion that proves the work
 
@@ -363,8 +366,9 @@ restoration can then admit M17 automatically. This operational fact is recorded,
 
 1. An unprepared repository is onboarded and runs, with exactly one human interaction: the intent
    confirmation.
-2. No Baton artifact appears outside `$BATON_HOME` and the target repository, and dispatched
-   sessions group under their project in the desktop sidebar rather than under Other.
+2. New Baton artifacts stay under `$BATON_HOME` and the target repository; existing recorded
+   session worktree paths may be grandfathered under M09's stated limitation. Dispatched sessions
+   group under their project in the desktop sidebar rather than under Other.
 3. A completion claim that did not do the work is rejected.
 4. A run pauses on budget and resumes without help.
 5. Two independent milestones run concurrently.

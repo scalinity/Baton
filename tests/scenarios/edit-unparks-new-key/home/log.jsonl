@@ -1,0 +1,1 @@
+{"at":"2026-09-12T10:05:00+01:00","kind":"escalation","project":"Fixture","milestone":"M02","class":"dispatch-failed","scope":"lane","carries":{"consecutive":2,"stage":"prompt","detail":"the brief was absent on main when the lane parked","reread":{}},"channel":["notification"]}
