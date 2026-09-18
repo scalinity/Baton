@@ -264,11 +264,15 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    - Run, with the worktree as `cwd` and `LC_ALL` set:
      `claude --bg -n "<session name>" --model <Model> [--effort <Effort>]
      --permission-mode bypassPermissions --settings <file> "<prompt>"`; parse `backgrounded · <id>`
-     from stdout. No line → `dispatch_failed` (§6.2).
+     from stdout. No parsed id → inspect fresh live rows with the lane's `session_name` and stop
+     their jobs before `dispatch_failed` (§6.2). Preserve stdout with nonempty stderr too; the
+     empty-stderr fallback already preserves it (D-114).
    - `Remote: yes` is the same command. Every settings file carries `remoteControlAtStartup: true`,
      which connects the session and keeps its prompt, and a flagless resume restores it (D-080,
      D-081). `--remote-control` is never passed.
-   - Read the row's `pid` from `claude agents --json`; start `caffeinate -i -w <pid>` detached.
+   - Read the row's `pid` from `claude agents --json`; if the row lookup fails, stop the known job
+     id before recording failure. Cleanup checks settlement by job id and includes any refused
+     or unsettled stop in the bounded failure detail. On a valid row, start `caffeinate -i -w <pid>` detached.
    - Log the `dispatch` event.
 
 **The session name** is `Baton · <project> · <milestone>`, except when the project key is `Baton`

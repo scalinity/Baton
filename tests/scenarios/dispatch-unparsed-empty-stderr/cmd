@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+# Poll all sixty readings, but do not spend thirty seconds waiting in the fixture.
+sleep() { :; }
+lock_take
+if dispatch_one Fixture M02 "$(plan_of_project Fixture)" "$(rows_read)"; then
+  echo 'unexpected dispatch success'; exit 1
+fi
+lock_release
+# The shim retains the worker even while hiding its row from listings. No live worker may remain.
+jq -e '[.[] | select(.name == "Baton · Fixture · M02")] | length > 0 and all(.[]; .pid == null)' "$SHIM/rows.json" > /dev/null
+jq -es 'all(.[]; .kind != "dispatch")' "$BATON_HOME/log.jsonl" > /dev/null
+if grep -q caffeinate "$SHIM/calls.log"; then exit 1; fi
+if [ -f "$SHIM/bg.cursor" ]; then
+  jq -es 'last.detail | contains("backgrounded")' "$BATON_HOME/log.jsonl" > /dev/null
+  if [ -f "$SHIM/bg.stderr" ]; then
+    jq -es 'last.detail | contains("fixture service warning")' "$BATON_HOME/log.jsonl" > /dev/null
+  else
+    jq -es 'last.detail | contains("exit 0 with nothing on stderr; stdout:")' "$BATON_HOME/log.jsonl" > /dev/null
+    jq -e 'any(.[]; .id == "feedbeef" and .pid == 4300)' "$SHIM/rows.json" > /dev/null
+  fi
+else
+  [ "$(cat "$SHIM/bg.hidden.pending")" = 0 ]
+fi
+jq -c 'map({id, pid})' "$SHIM/rows.json"
+echo 'failed dispatch stopped its worker; no dispatch event or caffeinate'

@@ -1,0 +1,5 @@
+baton: dispatch of Fixture M02 failed at launch: stdout: [?25lbackgrounded · 0badc0d2 · Baton · Fixture · M02
+  claude agents             list sessions
+  claude attach 0badc0d2    open in this terminal
+  claude logs 0badc0d2      show recent output
+  claude stop 0badc0d2      stop this session; stderr: fixture service warning

@@ -8,6 +8,8 @@
 # which exit code; resume.note.<session> and resume.status.<session> answer for that session alone),
 # stop.linger (how many listings after a stop still show the stopped session's pid), stop.fail
 # (how many listings after a stop fail outright), stop.status (the stop itself fails with that exit code)
+# bg.cursor (a cursor-control prefix that cli_plain does not strip), bg.hidden-reads (hide a newly
+# started worker from this many listings while keeping its live row internally, so stop can reach it)
 # and env.claude (each call also records the names of the CLAUDE* variables it carried).
 set -eu
 S=${BATON_SHIM:?}
@@ -43,7 +45,13 @@ case "${1:-}" in
       mv "$S/rows.json.tmp" "$S/rows.json"
       rm -f "$lf"
     done
-    cat "$S/rows.json"
+    n=$(cat "$S/bg.hidden.pending" 2>/dev/null || echo 0)
+    if [ "$n" -gt 0 ]; then
+      echo $((n - 1)) > "$S/bg.hidden.pending"
+      jq -c --arg id "$(cat "$S/bg.hidden.id")" 'map(select(.id != $id))' "$S/rows.json"
+    else
+      cat "$S/rows.json"
+    fi
     ;;
   --bg)
     record "$@"
@@ -111,6 +119,7 @@ case "${1:-}" in
     # the environment, redirected or not (D-050). The row and the sidecar still carry the plain id.
     shown=$id
     [ ! -f "$S/bg.color" ] || shown=$(printf '%s[36m%s%s[39m' "$(printf '\033')" "$id" "$(printf '\033')")
+    [ ! -f "$S/bg.cursor" ] || printf '\033[?25l'
     printf 'backgrounded · %s · %s\n' "$shown" "$name"
     printf '  claude agents             list sessions\n  claude attach %s    open in this terminal\n  claude logs %s      show recent output\n  claude stop %s      stop this session\n' "$id" "$id" "$id"
     if [ ! -f "$S/bg.norow" ]; then
@@ -119,6 +128,10 @@ case "${1:-}" in
                sessionId: "\($id)-0000-4000-8000-000000000000", name: $name, status: "busy", state: "working"}]' \
         "$S/rows.json" > "$S/rows.json.tmp"
       mv "$S/rows.json.tmp" "$S/rows.json"
+    fi
+    if [ -f "$S/bg.hidden-reads" ]; then
+      printf '%s\n' "$id" > "$S/bg.hidden.id"
+      cp "$S/bg.hidden-reads" "$S/bg.hidden.pending"
     fi
     if [ -f "$S/bg.settled" ]; then
       printf '[2026-09-12T00:00:00.100Z] [bg] bg settled %s (crashed): %s\n' "$id" "$(cat "$S/bg.settled")" >> "$S/daemon.log"

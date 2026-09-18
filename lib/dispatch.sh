@@ -244,6 +244,27 @@ dispatch_failed() {
   echo "baton: dispatch of $1 $2 failed at $3: $df_detail" >&2
 }
 
+# dispatch_stop_job <job>: stop a worker a failed dispatch may already have started. Use the
+# job id even when no row has appeared. A refused stop or unsettled listing is failure evidence,
+# never silently treated as cleanup; the caller includes it in dispatch_failed's bounded detail.
+dispatch_stop_job() {
+  if ! dsj_out=$("$BATON_CLAUDE" stop "$1" 2>&1); then
+    printf 'cleanup: stop %s failed: %s\n' "$1" "$dsj_out"
+    return 1
+  fi
+  dsj_i=0
+  while [ "$dsj_i" -lt 60 ]; do
+    if dsj_rows=$(rows_read) && printf '%s' "$dsj_rows" | jq -e --arg id "$1" \
+        'all(.[]; .id != $id or .pid == null)' > /dev/null 2>&1; then
+      return 0
+    fi
+    dsj_i=$((dsj_i + 1))
+    sleep 0.5
+  done
+  printf 'cleanup: stop %s did not settle within thirty seconds\n' "$1"
+  return 1
+}
+
 # dispatch_one <project> <milestone> <plan json> <rows json>: step 8 for one milestone.
 dispatch_one() {
   do_project=$1; do_id=$2; do_plan=$3; do_rows=$4
@@ -284,11 +305,50 @@ dispatch_one() {
   if [ -z "$bg_id" ]; then
     do_detail=$bg_stderr
     [ -n "$do_detail" ] || do_detail="exit $bg_status with nothing on stderr; stdout: $bg_stdout"
+    # The empty-stderr fallback already preserves stdout. Preserve it with stderr too (D-114).
+    if [ -n "$bg_stderr" ] && [ -n "$bg_stdout" ]; then
+      do_detail="stdout: $bg_stdout; stderr: $bg_stderr"
+    fi
+    # A row can lag the launch acknowledgement. Poll a successful or nonempty launch for the
+    # same bound as row_for_id; a failed launch with no stdout still gets one fresh inspection.
+    do_cleanup_limit=1
+    if [ "$bg_status" -eq 0 ] || [ -n "$bg_stdout" ]; then do_cleanup_limit=60; fi
+    do_cleanup_ids=; do_cleanup_i=0; do_cleanup_read=false
+    while [ "$do_cleanup_i" -lt "$do_cleanup_limit" ]; do
+      if do_cleanup_rows=$(rows_read); then
+        do_cleanup_read=true
+        do_cleanup_ids=$(printf '%s' "$do_cleanup_rows" | jq -r --arg n "$do_name" \
+          '.[] | select(.name == $n and .pid != null) | .id // empty')
+        [ -z "$do_cleanup_ids" ] || break
+      fi
+      do_cleanup_i=$((do_cleanup_i + 1))
+      [ "$do_cleanup_i" -ge "$do_cleanup_limit" ] || sleep 0.5
+    done
+    if [ -z "$do_cleanup_ids" ]; then
+      if [ "$do_cleanup_read" = false ]; then
+        do_detail="cleanup: could not read live rows for $do_name; $do_detail"
+      elif [ "$do_cleanup_limit" -gt 1 ]; then
+        do_detail="cleanup: no live row identified for $do_name within thirty seconds; $do_detail"
+      fi
+    fi
+    for do_cleanup_id in $do_cleanup_ids; do
+      if ! do_cleanup=$(dispatch_stop_job "$do_cleanup_id"); then
+        do_detail="$do_cleanup; $do_detail"
+      fi
+    done
     dispatch_failed "$do_project" "$do_id" "$(dispatch_failed_classify "$bg_stderr")" "$do_detail"
     return 1
   fi
 
-  do_agent=$(row_for_id "$bg_id") || { dispatch_failed "$do_project" "$do_id" "$(dispatch_failed_classify "$do_agent")" "$do_agent"; return 1; }
+  if ! do_agent=$(row_for_id "$bg_id"); then
+    do_stage=$(dispatch_failed_classify "$do_agent")
+    # The launch gave us this id: even a listing that timed out cannot make it unknowable.
+    if ! do_cleanup=$(dispatch_stop_job "$bg_id"); then
+      do_agent="$do_cleanup; $do_agent"
+    fi
+    dispatch_failed "$do_project" "$do_id" "$do_stage" "$do_agent"
+    return 1
+  fi
   do_session=$(printf '%s' "$do_agent" | jq -r .sessionId)
   do_pid=$(printf '%s' "$do_agent" | jq -r .pid)
 
