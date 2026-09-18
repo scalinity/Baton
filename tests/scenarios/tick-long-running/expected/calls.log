@@ -1,5 +1,5 @@
 [cwd @TMP@] claude agents --json
-osascript -e 'display notification "running 7 h 0 m since 2026-09-12T05:00:00+01:00, the latest dispatch, resume or takeover of this attempt" with title "Baton · Fixture/M02 · long-running"'
+osascript -e 'display notification "running 7 h 0 m since 2026-09-12T05:00:00+01:00, the latest dispatch, successful resume or takeover of this attempt" with title "Baton · Fixture/M02 · long-running"'
 caffeinate -i -w 502
 [cwd @TMP@] claude agents --json
 caffeinate -i -w 502

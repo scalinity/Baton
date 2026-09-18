@@ -778,7 +778,9 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
     after the attempt's newest reset point — **the same reset the ladder uses**, plus a `takeover`.
     An artifact the session wrote itself demonstrates it came back, so what it does next is new
     information; an `api-error` artifact is written by the hook and not by the session, so a
-    fifteen-minute wait cycle never re-arms anything.
+    fifteen-minute wait cycle never re-arms wait-ceiling keys. For `stall` and `long-running` only,
+    a delivered or forked resume also re-arms the key; a refused resume does not. The long-running
+    clock likewise measures from the latest dispatch, successful resume or takeover (D-125).
 12. **The dispatch hold**: derivation 6. No dispatch on a model with an active `rate_limit` or
     `billing_error` hold; on every model once a second model is held. A `fableReserve` hold holds
     its own model and counts toward nothing: the reserve is about one model's share of a window,

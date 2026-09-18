@@ -419,16 +419,20 @@ derive_attempt() {
 }
 
 # 11. Whether a once-only key is spent. A notification with that class and key exists at or after
-# the attempt's newest reset point — the same reset the ladder uses, plus a takeover. An artifact
+# the attempt's newest reset point — the same reset the ladder uses, plus a takeover. Stall and
+# long-running also re-arm on a delivered or forked resume, which starts another stretch of activity.
+# Refused resumes reset nothing. An artifact
 # the session wrote itself demonstrates it came back, so what it does next is new information; an
 # api-error artifact is written by the hook and not by the session, so a fifteen-minute wait cycle
-# never re-arms anything.
+# never re-arms a wait-ceiling key.
 derive_key_spent() {
   dks_log=$(log_json) || { echo "$dks_log"; return 1; }
   printf '%s' "$dks_log" | jq -c --arg p "$1" --arg m "$2" --argjson a "$3" --arg c "$4" --arg k "${5:-}" '
     [ to_entries[] | {i: .key} + .value
       | select(.project == $p and .milestone == $m and .attempt == $a) ] as $ev
     | ([ $ev[] | select(.kind == "dispatch" or .kind == "takeover"
+                        or (($c == "stall" or $c == "long-running") and .kind == "resume"
+                            and (.outcome == "delivered" or .outcome == "forked"))
                         or (.kind == "consumed" and .written_by == "session")) ] | last) as $reset
     | ([ $ev[] | select(.kind == "notification" and .class == $c and ($k == "" or .key == $k))
          | select(.i > ($reset.i // -1)) ] | last) as $spent

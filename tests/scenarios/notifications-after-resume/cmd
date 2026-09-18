@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+lock_take
+trap 'lock_release' EXIT
+for reading in 1 2; do
+  stall_check Fixture "$(cat "$SHIM/rows.json")" ''
+  long_running_check Fixture "$(cat "$SHIM/rows.json")"
+done
+jq -se '([.[] | select(.kind == "notification" and .class == "stall")] | length) == 2 and ([.[] | select(.kind == "notification" and .class == "long-running")] | length) == 2 and any(.[]; .kind == "notification" and .class == "long-running" and .since == "2026-09-12T04:00:00+01:00" and .elapsed_seconds == 28800)' "$BATON_HOME/log.jsonl" > /dev/null
+echo 'one new stall and long-running notification after resume; refused ruling does not restart the clock'

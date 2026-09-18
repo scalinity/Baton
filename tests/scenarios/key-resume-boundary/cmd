@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+. "$ROOT/tests/lib-load.sh"
+for kind in continue ruling; do
+  for outcome in delivered forked refused; do
+    jq -c --arg o "$outcome" --arg k "$kind" 'if .kind == "resume" then .outcome=$o | .resume_kind=$k else . end' "$SCENARIO/home/log.jsonl" > "$BATON_HOME/log.jsonl"
+    for class in stall long-running rate_limit; do
+      spent=false
+      [ "$class" != rate_limit ] && [ "$outcome" != refused ] || spent=true
+      result=$(derive_key_spent Fixture M02 1 "$class")
+      printf '%s' "$result" | jq -e --argjson want "$spent" '.spent == $want' > /dev/null
+      printf '%s %s %s spent=%s\n' "$kind" "$outcome" "$class" "$spent"
+    done
+  done
+done

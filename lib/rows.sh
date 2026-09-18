@@ -273,7 +273,8 @@ crash_check() {
 # stall_check <project> <rows json> <stand-off list>: REQ-STOP-08. A live, non-waiting lane with no
 # artifact whose transcripts — its own and its subagents' — have not moved for stallMinutes.
 # Notify once with the row's state and the verb; the session is untouched, and the notification is
-# resolved by the session's own artifact, which is what re-arms the key (derivation 11).
+# resolved by the session's own artifact; a delivered or forked resume also re-arms the key
+# (derivation 11).
 #
 # A Remote: yes lane is judged waiting or not, because its row is not a park detector (REQ-ESC-08):
 # the prototype's remote session read `blocked/waiting` on one question and `working/idle` on the
@@ -305,8 +306,8 @@ stall_check() {
     if [ "$(printf '%s' "$sc_spent" | jq -r .spent)" != false ]; then
       # A remote lane's stall key is spent only while the transcript has not moved since the
       # notification. For it the stall is the only way an unanswered phone prompt surfaces, and a
-      # prompt answered from the phone moves the transcript without an artifact — the one thing
-      # that re-arms the key otherwise — so the next unanswered prompt of the attempt would pass
+      # prompt answered from the phone moves the transcript without an artifact or successful resume
+      # to re-arm the key — so the next unanswered prompt of the attempt would pass
       # in silence. The second run of a tick sees its own notification at or after the mtime.
       printf '%s' "$sc_l" | jq -e '(.remote // false) == true' > /dev/null || continue
       sc_spent_at=$(iso_epoch "$(printf '%s' "$sc_spent" | jq -r .at)") || { echo "$sc_spent_at" >&2; return 1; }
@@ -328,11 +329,12 @@ stall_check() {
 }
 
 # long_running_check <project> <rows json>: REQ-STOP-09. longRunningHours since the attempt's
-# latest dispatch, resume or takeover; notify once, session untouched. A taken-over lane is still
-# counted — the takeover restarts the clock and resets the key (derivation 11), so an abandoned
+# latest dispatch, delivered/forked resume or takeover; notify once, session untouched. A taken-over
+# lane is still counted — the takeover restarts the clock and resets the key (derivation 11), so an abandoned
 # lane notifies once and is not silently forgotten.
 long_running_check() {
   lr_flight=$(derive_in_flight "$1" "$2") || { echo "$lr_flight" >&2; return 1; }
+  lr_log=$(log_json) || { echo "$lr_log" >&2; return 1; }
   lr_limit=$(( $(config_num longRunningHours 6) * 3600 ))
   lr_now=$(now_epoch)
   lr_n=$(printf '%s' "$lr_flight" | jq '.in_flight | length'); lr_i=0
@@ -342,7 +344,11 @@ long_running_check() {
     lr_milestone=$(printf '%s' "$lr_l" | jq -r .milestone)
     lr_attempt=$(printf '%s' "$lr_l" | jq -r '.attempt // ""')
     [ -n "$lr_attempt" ] || continue
-    lr_since=$(newest_event_at "$1" "$lr_milestone" "$lr_attempt" '^(dispatch|resume|takeover)$') \
+    lr_since=$(printf '%s' "$lr_log" | jq -r --arg p "$1" --arg m "$lr_milestone" --argjson a "$lr_attempt" '
+      [ .[] | select(.project == $p and .milestone == $m and .attempt == $a)
+        | select(.kind == "dispatch" or .kind == "takeover"
+                 or (.kind == "resume" and (.outcome == "delivered" or .outcome == "forked"))) ]
+      | last | .at // empty') \
       || { echo "$lr_since" >&2; return 1; }
     [ -n "$lr_since" ] || continue
     lr_at=$(iso_epoch "$lr_since") || { echo "$lr_at" >&2; return 1; }
@@ -350,7 +356,7 @@ long_running_check() {
     [ "$lr_age" -ge "$lr_limit" ] || continue
     lr_spent=$(derive_key_spent "$1" "$lr_milestone" "$lr_attempt" long-running) || { echo "$lr_spent" >&2; return 1; }
     [ "$(printf '%s' "$lr_spent" | jq -r .spent)" = false ] || continue
-    lr_detail="running $(duration "$lr_age") since $lr_since, the latest dispatch, resume or takeover of this attempt"
+    lr_detail="running $(duration "$lr_age") since $lr_since, the latest dispatch, successful resume or takeover of this attempt"
     lr_fields=$(jq -nc --argjson age "$lr_age" --arg since "$lr_since" --arg d "$lr_detail" \
       '{elapsed_seconds: $age, since: $since, detail: $d}')
     notification_write "$1" "$lr_milestone" "$lr_session" "$lr_attempt" long-running "" "$lr_fields"
