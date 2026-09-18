@@ -240,8 +240,14 @@ verb_answer() {
 allow_lane() {
   alr_log=$(log_json) || { echo "$alr_log"; return 1; }
   printf '%s' "$alr_log" | jq -c --arg m "$1" --arg p "${2:-}" '
-    [ .[] | select(.kind == "dispatch" and .milestone == $m and ($p == "" or .project == $p)) ]
-    | group_by(.project) | map(last | {project, milestone, attempt, session})
+    . as $ev
+    | [ $ev[] | select(.kind == "dispatch" and .milestone == $m and ($p == "" or .project == $p)) ]
+    | group_by(.project) | map(last)
+    | map({project, milestone, attempt, session,
+           closed: (. as $d
+                    | $ev | any(.kind == "consumed" and .project == $d.project
+                                and .milestone == $d.milestone and .attempt == $d.attempt
+                                and .outcome == "complete"))})
     | {milestone: $m, count: length, candidates: .}'
 }
 
@@ -381,6 +387,20 @@ verb_allow() {
   # parked lane is `baton answer`, which resolves the park it delivers into. Refused before
   # anything is written, so the command either does all of what it says or none of it.
   if [ "${3:-}" = --resume ]; then
+    # A completed attempt is not a lane. `allow_lane` takes the milestone's newest dispatch and asks
+    # nothing about how it ended, while every guard below reads `derive_taken_over`, whose domain is
+    # `lanes_open` — which has already dropped an attempt a consumed `complete` closed. So against a
+    # completed target the takeover check has nothing to look at and passes on an empty list, and the
+    # resume goes through: that session's process can still be alive, because a finished session is
+    # kept while it is one of the few most recently active, and it is a person's to continue by hand
+    # (D-078). Stopping and re-prompting a conversation that is no longer Baton's, with no way to
+    # have seen a person typing in it, is the one thing INV-04 exists for. The rule is still written,
+    # because widening a finished milestone's allowlist costs nothing; only the resume is refused,
+    # and before anything is written (D-132).
+    if printf '%s' "$vbl_l" | jq -e '.closed' > /dev/null; then
+      echo "baton: $vbl_pj/$vbl_m completed attempt $(printf '%s' "$vbl_l" | jq -r '.attempt // "?"'), so there is no open lane to resume and its session is a person's to continue by hand; run baton allow $vbl_pj/$vbl_m with the rule alone to widen without resuming" >&2
+      return 1
+    fi
     vbl_park=$(derive_parked "$vbl_pj") || { echo "baton: $vbl_park" >&2; return 1; }
     vbl_class=$(printf '%s' "$vbl_park" | jq -r --arg m "$vbl_m" \
       '[ .parked[] | select(.milestone == $m and .scope == "lane") ] | first | .class // empty')
@@ -416,6 +436,11 @@ verb_allow() {
   vbl_out=$(resume_session "$vbl_pj" "$vbl_m" "$vbl_a" "$vbl_s" \
     "$(job_of_session "$vbl_rows" "$vbl_s")" continue 'the allowlist was widened') \
     || { echo "$vbl_out" >&2; return 1; }
-  printf 'resumed   %s/%s · %s · %s\n' "$vbl_pj" "$vbl_m" "$vbl_s" \
-    "$(printf '%s' "$vbl_out" | jq -r .outcome)"
+  # A resume that forked and could not confirm the original stopped is not a plain success, whatever
+  # the classifier called it: the lane has moved to the copy and another worker may be running under
+  # an id nothing tracks. The park `resume_session` wrote says so durably; this says so here, where
+  # the person who typed the command is reading (D-132).
+  printf 'resumed   %s/%s · %s · %s%s\n' "$vbl_pj" "$vbl_m" "$vbl_s" \
+    "$(printf '%s' "$vbl_out" | jq -r .outcome)" \
+    "$(printf '%s' "$vbl_out" | jq -r 'if has("unresolved_original") then " · the original may still be running: " + .unresolved_original else "" end')"
 }

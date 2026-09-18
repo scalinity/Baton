@@ -1,0 +1,6 @@
+== --resume against a completed attempt whose session is still live ==
+status 1
+== the registration, the settings file and the log are untouched, and no resume was issued ==
+== the rule alone still widens, because a finished milestone's allowlist costs nothing ==
+allowed   Fixture · Bash(xcodebuild:*) · @TMP@/home/projects/Fixture/permissions.json
+allowed   M02 · Bash(xcodebuild:*) · @TMP@/home/settings/Fixture-M02.json

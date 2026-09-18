@@ -90,9 +90,14 @@ for stale in "$BATON_HOME"/bin/lib/*/; do
   [ "$stale" != "$bundle" ] && [ "$stale" != "$previous" ] || continue
   rm -rf "${BATON_HOME:?}/bin/lib/$stale"
 done
-# A stage is named with a leading dot, which the glob above does not match; one left by a killed
-# install is swept here, after this install's own has been renamed away.
-rm -rf "${BATON_HOME:?}"/bin/lib/.stage-*
+# A stage is named with a leading dot, which the glob above does not match, and it is deliberately
+# not swept. This script takes no lock and two close-outs can run it in the same minute (the cap is
+# two), so a wildcard over `.stage-*` cannot tell an orphan from the directory a live install is
+# filling — deleting one aborts that install under `set -e`, before it publishes anything, and a
+# close-out whose install failed hands its successor the previous relay with nothing saying why. A
+# run that succeeds leaves no stage: its own is removed by pid before it is created and consumed by
+# the rename. An orphan from a killed install costs a few kilobytes and is never read, which is
+# strictly better than a sweep that can kill a live install (D-131).
 [ -z "$previous" ] || rm -f "$BATON_HOME"/bin/lib/*.sh
 
 # Baton's own copy of the shell, which the launchd job runs and which the person grants Full Disk

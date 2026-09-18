@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+# B2: the resume forked, so `copy_fork` moved the lane onto the copy and every derivation follows it
+# from here. The original is then located and stopped — but the stop is refused, and finding a
+# session is not stopping it. Nothing tracks the original any more, so a `forked` outcome reported as
+# success would leave two sessions on one branch with one of them invisible. The compensating stop is
+# settled like the first one now, and what will not settle parks the lane and names the session to
+# stop by hand (D-132).
+#
+# The row carries no pid, so the caller hands `resume_session` no job and the first stop is skipped;
+# the refusal under test is the compensating one. The CLI's note is what says the original was
+# running when the copy started.
+echo "== the fork's compensating stop is refused =="
+"$BATON" allow M02 'Bash(xcodebuild:*)' --resume || echo "status $?"
+echo "== the lane is parked, naming the original and what is unresolved about it =="
+jq -es '. as $l
+  | [ $l[] | select(.kind == "escalation" and .class == "other" and .milestone == "M02") ] as $e
+  | ($e | length) == 1
+    and ($e | last | .scope) == "lane"
+    and ($e | last | .carries.original) == "f2"
+    and ($e | last | .carries.copy) == "1a2b3c4d-0000-4000-8000-000000000000"
+    and ($e | last | .carries.detail | test("may still be running"))
+    and ([ $l[] | select(.kind == "copy_fork") ] | length) == 1' "$BATON_HOME/log.jsonl" > /dev/null
+echo "== and the lane it parked is the one the copy now carries =="
+. "$ROOT/tests/lib-load.sh"
+current_session Fixture M02 1

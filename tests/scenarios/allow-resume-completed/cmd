@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+# M7: the session completed its handover and its process is still live — a finished session is kept
+# while it is one of the few most recently active, and it is a person's to continue by hand (D-078).
+# `allow_lane` still offers it, because it reads the milestone's newest dispatch and asks nothing
+# about how the attempt ended, while the takeover guard reads `derive_taken_over`, whose domain
+# `lanes_open` has already dropped this attempt from. The guard would pass on an empty list and the
+# resume would stop and re-prompt a conversation nobody could have been seen typing in. It is
+# refused instead, before anything is written (D-132).
+state() { shasum -a 256 "$BATON_HOME/log.jsonl" "$BATON_HOME/projects/Fixture/permissions.json" \
+            "$BATON_HOME/settings/Fixture-M02.json" | shasum -a 256 | awk '{ print $1 }'; }
+before=$(state)
+echo "== --resume against a completed attempt whose session is still live =="
+"$BATON" allow M02 'Bash(xcodebuild:*)' --resume || echo "status $?"
+[ "$before" = "$(state)" ]
+! grep -q -- '--resume' "$SHIM/calls.log"
+! grep -q 'claude stop' "$SHIM/calls.log"
+echo "== the registration, the settings file and the log are untouched, and no resume was issued =="
+echo "== the rule alone still widens, because a finished milestone's allowlist costs nothing =="
+"$BATON" allow M02 'Bash(xcodebuild:*)'
+jq -e '.permissions.allow | index("Bash(xcodebuild:*)") != null' "$BATON_HOME/projects/Fixture/permissions.json" > /dev/null

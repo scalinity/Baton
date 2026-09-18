@@ -256,6 +256,9 @@ resume_session() {
   rs_outcome=$(printf '%s' "$rs_cls" | jq -r .outcome)
   rs_note=$(printf '%s' "$rs_cls" | jq -r .note)
   rs_new=$(printf '%s' "$rs_cls" | jq -r '.copy // ""')
+  # Why the original may still be running, once the fork branch below has tried to stop it; empty
+  # while nothing is outstanding, which is every resume that did not fork.
+  rs_unresolved=
   if [ "$rs_outcome" = refused ]; then
     # The `resume` event records that it was refused; the table fixes its fields and the reason is
     # not one of them. So the reason goes where a dispatch failure's detail already goes, which is
@@ -301,15 +304,35 @@ resume_session() {
       'map(select(.name == $n))')
     rs_original=$(job_of_session "$rs_original" "$rs_s" any-state)
     rs_original=${rs_original:-$rs_job}
-    if [ -n "$rs_original" ]; then
-      "$BATON_CLAUDE" stop "$rs_original" > /dev/null 2>&1 || true
-    else
-      echo "baton: $rs_p/$rs_m forked but no job identifies the original session $rs_s; it could not be stopped" >&2
+    # Finding the original is not stopping it. `copy_fork` has already moved the lane to the copy, so
+    # every derivation from here on follows the copy and the original is tracked by nothing: if it
+    # outlives this, two sessions work one branch and one of them is invisible. The first stop is
+    # allowed to fail — that is the classifier's whole design, and the fork is how it finds out — but
+    # this one is the last thing standing between a reported success and an untracked worker, so it
+    # is settled exactly as the first one is, and what will not settle is escalated rather than
+    # warned about. The park is what stops Baton acting on the lane, and the message is what tells
+    # the person which session to stop; a lane never reports plain success while a worker it no
+    # longer tracks may be running (D-132).
+    if [ -z "$rs_original" ]; then
+      rs_unresolved="no job in the listing identifies it"
+    elif ! "$BATON_CLAUDE" stop "$rs_original" > /dev/null 2>&1; then
+      rs_unresolved="the stop of job $rs_original was refused"
+    elif ! stop_settle "$rs_s"; then
+      rs_unresolved="job $rs_original was stopped but its row still carried a pid"
+    fi
+    if [ -n "$rs_unresolved" ]; then
+      rs_carries=$(jq -nc --arg o "$rs_s" --arg c "${rs_new:-}" --arg w "$rs_unresolved" \
+        --arg d "the resume forked and the original session $rs_s may still be running: $rs_unresolved. $(session_name "$rs_p" "$rs_m") is now carried by ${rs_new:-a copy Baton could not name}; stop the original by hand and leave one session live" \
+        '{original: $o, why: $w, detail: $d} | if $c != "" then . + {copy: $c} else . end')
+      escalate "$rs_p" "$rs_m" "${rs_new:-$rs_s}" "$rs_a" other lane "$rs_carries" \
+        || echo "baton: $rs_p/$rs_m the park for the unstopped original $rs_s could not be written" >&2
+      echo "baton: $rs_p/$rs_m forked and the original session $rs_s was not confirmed stopped ($rs_unresolved); the lane is parked" >&2
     fi
   fi
 
-  jq -nc --arg o "$rs_outcome" --arg s "${rs_new:-$rs_s}" --arg n "$rs_note" \
-    '{outcome: $o, session: $s, note: $n}'
+  jq -nc --arg o "$rs_outcome" --arg s "${rs_new:-$rs_s}" --arg n "$rs_note" --arg u "$rs_unresolved" \
+    '{outcome: $o, session: $s, note: $n}
+     | if $u != "" then . + {unresolved_original: $u} else . end'
 }
 # ladder_position <project> <milestone> <attempt>: derivation 9, plus the two facts acting on it
 # needs — which ending was the newest, and whether a step has already been taken for it. One resume,
