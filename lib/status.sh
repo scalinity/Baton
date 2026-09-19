@@ -26,6 +26,13 @@ nth() { printf '%s' "$1" | jq -c --argjson n "$2" '.[$n]'; }
 # through --arg, so a value carrying a quote cannot reshape the program.
 field() { printf '%s' "$1" | jq -r --arg d "${3:-}" "$2 // \$d"; }
 
+# text <json object> <path>: one field with no default at all, as jq's own string interpolation
+# renders it — a null or an absent key reads "null", which is what these lines said before they
+# were fields rather than one interpolated string. `field` cannot stand in: its `//` turns a null
+# into the default, so a field the old line printed as "null" would silently disappear, and a line
+# that quietly loses a word is worse than one that says a value was missing.
+text() { printf '%s' "$1" | jq -r "$2"; }
+
 # verb_for <class> <milestone> [<carries json>] [<session>] [<project>] [<attempt>]: the baton
 # command that resolves a park of that class — REQ-ESC-03's third part, and the same text the Mac
 # message ended with.
@@ -81,9 +88,9 @@ silent_waits() {
   while [ "$sw_i" -lt "$sw_n" ]; do
     sw_b=$(nth "$sw_blocked" "$sw_i"); sw_i=$((sw_i + 1))
     render_row out action 'blocked  %s/%s · waiting on %s\n' \
-      "$(render_token out lane "$(field "$sw_b" .project)")" \
-      "$(render_token out milestone "$(field "$sw_b" .milestone)")" \
-      "$(render_token out milestone "$(field "$sw_b" .blocked_by)")"
+      "$(render_token out lane "$(text "$sw_b" .project)")" \
+      "$(render_token out milestone "$(text "$sw_b" .milestone)")" \
+      "$(render_token out milestone "$(text "$sw_b" .blocked_by)")"
   done
 
   sw_newest=$(derive_consumed "$1" | jq -r '
@@ -103,8 +110,8 @@ silent_waits() {
     sw_d=$(nth "$sw_distant" "$sw_i"); sw_i=$((sw_i + 1))
     render_row out action 'waiting for  %s/%s · waits for %s · not eligible yet\n' \
       "$(render_token out lane "$1")" \
-      "$(render_token out milestone "$(field "$sw_d" .milestone)")" \
-      "$(render_token out milestone "$(field "$sw_d" .waits_for)")"
+      "$(render_token out milestone "$(text "$sw_d" .milestone)")" \
+      "$(render_token out milestone "$(text "$sw_d" .waits_for)")"
   done
 }
 
@@ -169,8 +176,8 @@ status_render() {
     sr_n=$(printf '%s' "$sr_list" | jq length); sr_i=0
     while [ "$sr_i" -lt "$sr_n" ]; do
       sr_t=$(nth "$sr_list" "$sr_i"); sr_i=$((sr_i + 1))
-      sr_m=$(field "$sr_t" .milestone)
-      sr_lane="$(render_token out lane "$(field "$sr_t" .project)")/$(render_token out milestone "$sr_m")"
+      sr_m=$(text "$sr_t" .milestone)
+      sr_lane="$(render_token out lane "$(text "$sr_t" .project)")/$(render_token out milestone "$sr_m")"
       case "$sr_kind" in
         taken_over)
           render_row out action 'taken over  %s at %s; hand back with %s\n' "$sr_lane" \
@@ -178,10 +185,10 @@ status_render() {
             "$(render_hint out "baton answer $sr_m \"continue\"")" ;;
         orphaned)
           render_row out action 'taken over  %s · transcript orphaned at %s · not scanned\n' "$sr_lane" \
-            "$(render_token out path "$(field "$sr_t" .path)")" ;;
+            "$(render_token out path "$(text "$sr_t" .path)")" ;;
         *)
           render_row out action 'taken over  %s · transcript %s will not parse · not scanned\n' "$sr_lane" \
-            "$(render_token out path "$(field "$sr_t" .path)")" ;;
+            "$(render_token out path "$(text "$sr_t" .path)")" ;;
       esac
     done
   done
@@ -209,8 +216,8 @@ status_render() {
   while [ "$sr_i" -lt "$sr_n" ]; do
     sr_h=$(nth "$sr_list" "$sr_i"); sr_i=$((sr_i + 1))
     sr_reading=$(printf '%s' "$sr_h" | jq -r 'if .reading then " · reading \(.reading)" else "" end')
-    render_row out action 'hold  %s · %s%s\n' "$(render_token out state "$(field "$sr_h" .model)")" \
-      "$(field "$sr_h" .cause)" "$sr_reading"
+    render_row out action 'hold  %s · %s%s\n' "$(render_token out state "$(text "$sr_h" .model)")" \
+      "$(text "$sr_h" .cause)" "$sr_reading"
   done
 
   # 6. In flight: the lane, the session, the model, the attempt, the elapsed since the latest
@@ -265,7 +272,7 @@ status_render() {
   while [ "$sr_i" -lt "$sr_n" ]; do
     sr_w=$(nth "$sr_list" "$sr_i"); sr_i=$((sr_i + 1))
     render_row out action 'inbox  %s · %s · not yet consumed\n' \
-      "$(render_token out path "$(field "$sr_w" .file)")" \
+      "$(render_token out path "$(text "$sr_w" .file)")" \
       "$(field "$sr_w" .outcome unreadable)"
   done
 
@@ -280,7 +287,7 @@ status_render() {
   sr_n=$(printf '%s' "$sr_list" | jq length); sr_i=0
   while [ "$sr_i" -lt "$sr_n" ]; do
     sr_o=$(nth "$sr_list" "$sr_i"); sr_i=$((sr_i + 1))
-    sr_p=$(field "$sr_o" .project); sr_m=$(field "$sr_o" .milestone)
+    sr_p=$(text "$sr_o" .project); sr_m=$(text "$sr_o" .milestone)
     render_row out action 'offline  %s/%s · message %s, or %s\n' \
       "$(render_token out lane "$sr_p")" "$(render_token out milestone "$sr_m")" \
       "$(render_hint out 'Baton · wake')" "$(render_hint out "baton wake $sr_p/$sr_m")"
