@@ -58,6 +58,7 @@ fi
 . "$BATON_LIB/rows.sh"
 . "$BATON_LIB/status.sh"
 . "$BATON_LIB/escalate.sh"
+. "$BATON_LIB/disposition.sh"
 . "$BATON_LIB/answer.sh"
 . "$BATON_LIB/stops.sh"
 . "$BATON_LIB/declared.sh"

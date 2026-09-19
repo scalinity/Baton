@@ -1,0 +1,53 @@
+=== every class class_or_fail accepts, what it needs, and whether it reaches a person
+escalation    asking            human-required  notifies
+escalation    question          human-required  notifies
+escalation    ladder-end        human-required  notifies
+escalation    unfinished-twice  replan          notifies
+escalation    blocked           replan          notifies
+escalation    merge-failed      human-required  notifies
+escalation    other             human-required  notifies
+escalation    disagreement      human-required  notifies
+escalation    omitted           human-required  notifies
+escalation    model_not_found   human-required  notifies
+escalation    dispatch-failed   human-required  notifies
+escalation    plan-unreadable   human-required  notifies
+escalation    plan-unparseable  human-required  notifies
+escalation    main-broken       human-required  notifies
+escalation    baton-unhealthy   HOST-EXPLAINED  silent
+notification  rate_limit        human-required  notifies
+notification  billing_error     human-required  notifies
+notification  unrecoverable     human-required  notifies
+notification  transient         human-required  notifies
+notification  stall             human-required  notifies
+notification  long-running      human-required  notifies
+notification  blocked_by        human-required  notifies
+notification  distant_wait_for  human-required  notifies
+notification  prompt-lost       human-required  notifies
+notification  gap               human-required  notifies
+notification  takeover-silent   human-required  notifies
+
+=== and the other direction: no arm of disposition_of names a class class_or_fail does not.
+=== A dead arm is invisible to the listing above, and it is how a class removed from the log
+=== taxonomy would leave a disposition behind that nothing can ever ask for.
+  the two lists are the same, in both directions
+
+=== the one arm that reads the carries: a bounded choice the session enumerated
+with options:    AI-resolvable
+one option:      AI-resolvable
+a lone string, which a session may still write where the contract says a list:
+                 AI-resolvable
+=== and the shapes a session writes when it had none, which must not look bounded
+empty options:   human-required
+empty string:    human-required
+an object:       human-required
+the number nil:  human-required
+no options:      human-required
+no carries:      human-required
+carries not json:human-required
+
+=== a class neither list holds is refused, not defaulted
+exit 1
+exit 1
+
+=== a disposition is not a class, and asking the wrong question fails where it is visible
+exit 2

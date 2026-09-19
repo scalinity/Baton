@@ -361,6 +361,14 @@ prompt_from_brief() {
 # inside the fenced block has told the session and not the plan. §1 is where a person and a dispatch
 # both look for it.
 #
+# Fenced lines are skipped before the heading rule is applied, as `prompt_from_brief` skips them, and
+# that is what makes the sentence above true by construction rather than by convention. Tracking
+# headings alone was not enough: a fenced block holding a line that begins `## 1.` — which a brief
+# quoting a milestone format, or a target project's brief showing its own template, may well hold —
+# turns `inside` back on, and the next `Size:` line inside that fence is read as the declaration.
+# Measured on a brief whose real §1 declares no Size and whose fence carries `## 1. Identity` then a
+# Size line: the old rule returned `large`, this one returns nothing.
+#
 # A brief that cannot be read here yields no Size rather than a failure. `dispatch_preconditions` has
 # already established that it is on `main` with a complete fenced block, and `prompt_from_brief` reads
 # it again a moment later with three messages of its own; a second failure path for the same cause
@@ -372,7 +380,12 @@ prompt_from_brief() {
 # M12's generation check asks the looser question — is there a line in §1 holding `Size:` at all —
 # and that is right for a check whose answer is yes or no, where a false match costs a defect
 # reported that a person then reads. This one reads a value off the line and dispatches on it, so it
-# owes the stricter question. Without the anchor, a §1 sentence
+# owes the stricter question. The value is then taken off that line with the same anchored pattern
+# the guard matched — not a greedy `^.*Size:`, which on a declaration line that says `Size:` twice
+# reads past the value to the last one — and cut at the first character that is not a letter, because
+# every Size Baton recognises is a single word. That last rule is what lets a brief write
+# `Size: Small (about 2 hours)` or `Size: Small — 2h` and be read, where cutting at the first comma,
+# semicolon or stop silently gave nothing. Without the anchor, a §1 sentence
 # such as "- **Objective:** settle the Size: Large, then build." is the first match, `found` is set,
 # and the real `- **Size:** Small` line two lines down is never reached: the milestone dispatches at
 # `high` on a word from a clause about deciding something. Anchoring it costs one pattern and is the
@@ -381,10 +394,12 @@ brief_size() {
   bs_text=$(git -C "$1" show "main:docs/milestones/$2.md" 2>/dev/null) || return 0
   printf '%s\n' "$bs_text" | awk '
     function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
+    /^```/ { infence = !infence; next }
+    infence { next }
     /^## / { inside = (trim($0) ~ /^## 1\./); next }
     inside && !found && /^[-*+ \t]*Size:/ {
-      s = $0; sub(/^.*Size:/, "", s); gsub(/\*/, "", s)
-      sub(/[,;.].*$/, "", s); s = trim(s)
+      s = $0; sub(/^[-*+ \t]*Size:/, "", s); gsub(/\*/, "", s); s = trim(s)
+      sub(/[^A-Za-z].*$/, "", s)
       if (s != "") { print tolower(s); found = 1 }
     }'
 }
