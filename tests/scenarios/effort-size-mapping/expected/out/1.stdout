@@ -1,0 +1,20 @@
+== the three Sizes a brief can declare, each dispatched by hand so nothing else is in the tick. Small asks for medium effort, Medium and Large for high, and the dispatch event records the one that ran. M04 mentions Size: Large in a prose clause above its real declaration, so it also proves the Size is read off a line that declares one rather than off the first line holding the word ==
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+backgrounded · 0badc0d2 · Baton · Fixture · M03
+session   0badc0d2-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M03 (branch m03)
+settings  @TMP@/home/settings/Fixture-M03.json
+prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
+backgrounded · 0badc0d3 · Baton · Fixture · M04
+session   0badc0d3-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M04 (branch m04)
+settings  @TMP@/home/settings/Fixture-M04.json
+prompt    @TMP@/home/prompts/0badc0d3-0000-4000-8000-000000000000/1.txt
+== what actually reached the CLI ==
+--model opus --effort medium 
+--model opus --effort high 
+--model opus --effort high 

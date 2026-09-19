@@ -1,0 +1,4 @@
+echo "== one handover names both halves of an independent pair and their join: the tick admits M02 and M03 in the same pass, and M04 waits on the plan =="
+"$BATON" tick
+echo "== status: both in flight =="
+"$BATON" status

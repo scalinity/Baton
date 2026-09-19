@@ -351,6 +351,72 @@ prompt_from_brief() {
   printf '%s' "$pb_body"
 }
 
+# brief_size <checkout> <milestone>: the Size a milestone's brief declares in its `## 1.` section,
+# lowercased, or empty when it declares none. Read with `git show main:`, as the kickoff prompt is,
+# so a person mid-edit cannot change the effort a session is dispatched at any more than they can
+# change the prompt it receives.
+#
+# §1 and not the whole document, for the reason M12's generation check gives when it refuses a brief
+# that declares no Size there: the kickoff prompt states the Size too, and a brief whose only Size is
+# inside the fenced block has told the session and not the plan. §1 is where a person and a dispatch
+# both look for it.
+#
+# A brief that cannot be read here yields no Size rather than a failure. `dispatch_preconditions` has
+# already established that it is on `main` with a complete fenced block, and `prompt_from_brief` reads
+# it again a moment later with three messages of its own; a second failure path for the same cause
+# would report the effort as the problem when the brief is.
+#
+# The line has to *declare* the Size and not merely mention it: what precedes `Size:` may be list
+# markers, emphasis and whitespace and nothing else — one character class, with no `{n,m}` interval,
+# which the awk here does support but which would add nothing the class does not already allow.
+# M12's generation check asks the looser question — is there a line in §1 holding `Size:` at all —
+# and that is right for a check whose answer is yes or no, where a false match costs a defect
+# reported that a person then reads. This one reads a value off the line and dispatches on it, so it
+# owes the stricter question. Without the anchor, a §1 sentence
+# such as "- **Objective:** settle the Size: Large, then build." is the first match, `found` is set,
+# and the real `- **Size:** Small` line two lines down is never reached: the milestone dispatches at
+# `high` on a word from a clause about deciding something. Anchoring it costs one pattern and is the
+# difference between reading a declaration and grepping prose.
+brief_size() {
+  bs_text=$(git -C "$1" show "main:docs/milestones/$2.md" 2>/dev/null) || return 0
+  printf '%s\n' "$bs_text" | awk '
+    function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
+    /^## / { inside = (trim($0) ~ /^## 1\./); next }
+    inside && !found && /^[-*+ \t]*Size:/ {
+      s = $0; sub(/^.*Size:/, "", s); gsub(/\*/, "", s)
+      sub(/[,;.].*$/, "", s); s = trim(s)
+      if (s != "") { print tolower(s); found = 1 }
+    }'
+}
+
+# size_effort <size>: the reasoning effort a declared Size asks for, or empty for a Size Baton does
+# not recognise. The mapping, settled once here so that later pacing consumes this seam rather than
+# inventing a second one (M13 §10, D-176):
+#
+#     small → medium      medium → high      large → high
+#
+# It is read off this repository's own briefs rather than chosen. Every brief whose §1 line declares
+# both a Size and an effort agrees with it: M09, M10 and M10-b are Small at medium effort; M11, M12
+# and M17-b are Large at high; M13, M15, M15-b, M15-c and M17 are Medium at high. The one brief that
+# reads otherwise — M14, Medium at medium effort — carries `medium` in its plan row's Effort cell,
+# which wins, so the column and the mapping together reproduce every effort the plan states and
+# neither has to guess. Medium and Large share `high` because nothing in the record asks for more:
+# `xhigh` for Large would spend a setting no brief here has ever called for.
+#
+# Anything else is empty — no Size line, a Size that is not one of the three, M16's "Live trial" —
+# which is the effort every dispatch has carried for a blank Effort cell all along: `claude_bg`
+# leaves the flag off and the CLI's own default stands. Baton does not guess an effort out of prose
+# it cannot read. And a Size is not a plan cell, so an unreadable one never parks the project the
+# way `parse_effort` refusing a cell does: it is a description the brief owes its reader, which M12's
+# generation check already asks for by name.
+size_effort() {
+  case "$1" in
+    small) printf '%s\n' medium ;;
+    medium|large) printf '%s\n' high ;;
+    *) : ;;
+  esac
+}
+
 # slot_line <prompt> <paragraph>: replaces the one paragraph beginning WHAT ELSE IS IN FLIGHT.
 # with <paragraph> and prints the result; fails if the prompt has no such paragraph.
 slot_line() {
@@ -557,6 +623,18 @@ dispatch_one() {
     do_row=$(printf '%s' "$do_plan" | plan_row "$do_id")
     do_model=$(printf '%s' "$do_row" | jq -r .model)
     do_effort=$(printf '%s' "$do_row" | jq -r .effort)
+    # The brief's declared Size, and only where the plan's Effort cell is blank. The cell wins
+    # because the two are not the same kind of statement: a cell is an instruction a person wrote
+    # into the plan about how this milestone is to be dispatched, and a Size is the brief describing
+    # how big the work is. An instruction outranks a description, and the alternative would make a
+    # person's edit to the column do nothing on any milestone whose brief happened to declare a Size.
+    #
+    # It sits inside this branch rather than beside it because the branch is already the place where
+    # an effort that does not come from a plan row is decided: the lane above takes model and effort
+    # from config.json for the one milestone that has no row at all. A Size-derived effort is that
+    # same decision made from a third source, and the `dispatch` event below records whichever of the
+    # three actually ran.
+    [ -n "$do_effort" ] || do_effort=$(size_effort "$(brief_size "$do_path" "$do_id")")
     do_remote=$(printf '%s' "$do_row" | jq -r .remote)
   fi
   do_attempt=$(attempt_of "$do_project" "$do_id") || { render_failure err "baton: $do_attempt"; return 1; }
@@ -600,10 +678,15 @@ dispatch_one() {
   fi
   do_inflight=$(derive_in_flight "$do_project" "$do_rows") || { render_failure err "baton: $do_inflight"; return 1; }
   do_inflight=$(printf '%s' "$do_inflight" | jq -c .in_flight)
+  # The peer's whole worktree path, not its basename. The basename was the name under the legacy
+  # sibling convention — `../Fixture-M02`, where it said which project and which milestone — and M09
+  # moved new worktrees to `<managed root>/<project>/<milestone>`, where it says only "M02" beside a
+  # milestone already called M02. What this sentence is for is telling a session where another
+  # session is working so it stays out of it, and a path is that; a name that repeats the id is not (D-178).
   do_also=$(printf '%s' "$do_inflight" | jq -r --arg me "$do_id" --argjson plan "$do_plan" '
     ($plan.milestones | map(select(.status == "done") | .id)) as $done
     | map(select(.milestone as $m | $m != $me and (($done | index($m)) == null)))
-    | map("\(.milestone) (worktree \(.worktree | split("/") | last), brief docs/milestones/\(.milestone).md)")
+    | map("\(.milestone) (worktree \(.worktree), brief docs/milestones/\(.milestone).md)")
     | join(", ")')
   do_slot=$(slot_line_text "$do_wt_path" "$do_branch" "$do_path" "$do_also" "$do_attempt" "$do_commit")
   do_body=$(slot_line "$do_prompt" "$do_slot") || { dispatch_failed "$do_project" "$do_id" prompt "$do_body"; return 1; }

@@ -7,7 +7,9 @@
 # resume.note, resume.stream and resume.status (what --bg --resume prints, on which stream, with
 # which exit code; resume.note.<session> and resume.status.<session> answer for that session alone),
 # stop.linger (how many listings after a stop still show the stopped session's pid), stop.fail
-# (how many listings after a stop fail outright), stop.status (the stop itself fails with that exit code)
+# (how many listings after a stop fail outright), agents.fail-at (the one agents --json call of this
+# scenario, counted from one, that fails; every other succeeds), stop.status (the stop itself fails
+# with that exit code)
 # bg.cursor (a cursor-control prefix that cli_plain does not strip), bg.hidden-reads (hide a newly
 # started worker from this many listings while keeping its live row internally, so stop can reach it)
 # and env.claude (each call also records the names of the CLAUDE* variables it carried).
@@ -34,6 +36,14 @@ record() {
 case "${1:-}" in
   agents)
     record "$@"
+    # agents.fail-at: the listing fails on exactly that call of this scenario, counted from one, and
+    # succeeds on every other. `fail.pending` below fails the *next* n reads from wherever a stop left
+    # it, which cannot reach a read in the middle of a pass without failing the ones before it — and a
+    # tick whose opening `rows_read` failed never gets as far as the read under test.
+    c=$(cat "$S/agents.count" 2>/dev/null || echo 0); c=$((c + 1)); echo "$c" > "$S/agents.count"
+    if [ "$c" = "$(cat "$S/agents.fail-at" 2>/dev/null || echo)" ]; then
+      echo "claude: the background service is not answering" >&2; exit 1
+    fi
     # A stop is not synchronous: for the reads a scenario names the listing fails, then still shows
     # the stopped session's pid, and only then does the pid come off the row.
     n=$(cat "$S/fail.pending" 2>/dev/null || echo 0)
