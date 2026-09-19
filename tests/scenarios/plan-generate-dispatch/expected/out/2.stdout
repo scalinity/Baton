@@ -1,0 +1,17 @@
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+--- the dispatch event ---
+{"kind":"dispatch","project":"Fixture","milestone":"M00-plan","attempt":1,"role":"planning","model":"opus","effort":"high","branch":"m00-plan","name":"Baton · Fixture · M00-plan"}
+--- the prompt Baton composed ---
+You are writing the milestone plan for Fixture, the Git repository at @TMP@/Fixture, and you are implementing none of it.
+
+WHAT ELSE IS IN FLIGHT. You are working in @TMP@/home/worktrees/Fixture/M00-plan on branch m00-plan; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Nothing else is in flight. Stage only your own paths; never git add -A. Do not start the milestone after this one.
+
+WHO IS ASKING. Baton is a relay on one Mac: every sixty seconds it reads a project's plan file, its
+own dispatch log and a mailbox, and starts one Claude Code session per milestone with the kickoff
+prompt that milestone's brief carries. It embeds no model call and makes no judgement of its own.
+This project is registered with Baton and has no plan Baton can read, so nothing of it can be
+--- the slot paragraph it was dispatched with ---
+3:WHAT ELSE IS IN FLIGHT. You are working in @TMP@/home/worktrees/Fixture/M00-plan on branch m00-plan; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Nothing else is in flight. Stage only your own paths; never git add -A. Do not start the milestone after this one.
+--- the registration is untouched ---
+{"plan_format":"generated","plan_owed":{"reason":"no readable milestone table was found in the repository","owner":"M12"},"has_start":false}
+--- the repository is untouched ---

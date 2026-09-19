@@ -1,0 +1,12 @@
+set -eu
+# The planning session has merged the plan and its briefs into the target. This tick measures them,
+# adopts the plan through onboarding's own seeding path, and the self-check on the next line then
+# reads the plan and closes the park generation was working against — all in the one tick. The
+# starting handover is what makes the first milestone a candidate, and the cap admits it.
+"$BATON" tick || true
+printf '%s\n' '--- the registration after adoption ---'
+jq -c '{plan, plan_format, plan_owed: (.plan_owed // "cleared"), start: .start.eligible}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.kind == "plan_generation" or .kind == "onboarded" or (.kind == "dispatch") or .kind == "resolution") | {kind, milestone, outcome, plan, milestones, start, how}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

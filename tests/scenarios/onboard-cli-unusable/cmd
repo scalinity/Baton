@@ -1,0 +1,9 @@
+set -eu
+# The CLI will not answer `--version`. The judgment role's one shape check is the one question it
+# depends on, so the verb refuses rather than making a request against a binary it could not
+# interrogate — and nothing is written, because nothing was confirmed. Its stdin carries a yes that is
+# never read.
+status=0
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture" || status=$?
+printf 'exit %s\n' "$status"
+printf 'registrations: %snone\n' "$(ls "$BATON_HOME/projects" 2>/dev/null | tr '\n' ' ')"

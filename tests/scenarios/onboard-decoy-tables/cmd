@@ -1,0 +1,9 @@
+set -eu
+# A plan document that also holds a ticket table with an `ID` column and a glossary table with a
+# `Gate` column, both before the real ones. The table is located by its header cell *and* the one
+# column that table cannot be without — `Depends on` for the milestones, `Holds` for the gates — so
+# neither decoy is chosen. Without the companion column the ticket table is picked, fails on the
+# missing `Depends on`, and parks a project whose plan had been read for months.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- the right tables, and not the decoys ---'
+"$BATON" plan Fixture || true

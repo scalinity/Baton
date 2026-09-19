@@ -1,0 +1,9 @@
+set -eu
+# A `Status` cell holding prose. Baton maps a vocabulary it recognises and refuses one it does not,
+# naming the words: a status guessed at is how tolerance erases intent, and the cost of guessing
+# here is a milestone that runs when a person had said it was not ready. Nothing is written, and the
+# repair is a person's edit in their own plan.
+status=0
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture" || status=$?
+printf 'exit %s\n' "$status"
+printf 'registrations: %snone\n' "$(ls "$BATON_HOME/projects" 2>/dev/null | tr '\n' ' ')"

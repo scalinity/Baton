@@ -147,26 +147,17 @@ fi
 # named path — everything under BATON_HOME except inbox/. The // form is an absolute path for the
 # tools that take one; the Bash fragments catch a shell command that names the path, and can
 # never be complete (D-026).
-jq -n --arg h "/$BATON_HOME" '
-  { permissions: {
-      allow: ["Bash(sh tests/run.sh:*)", "Bash(jq:*)"],
-      deny: (
-        ["Bash(sudo:*)", "Bash(su:*)", "Bash(doas:*)", "Bash(osascript * administrator privileges*)"]
-        + ["Read(\($h)/log.jsonl)", "Edit(\($h)/log.jsonl)", "Write(\($h)/log.jsonl)"]
-        + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock", "notify", "checks" ]
-           | map("Edit(\($h)/\(.)/**)", "Write(\($h)/\(.)/**)"))
-        + ["Edit(\($h)/config.json)", "Write(\($h)/config.json)", "Edit(\($h)/last-tick)", "Write(\($h)/last-tick)"]
-        # Sessions run bin/baton, but never the sourced bin/lib files (D-112).
-        + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick", "notify", "checks" ]
-           | map("Bash(*.baton/\(.)*)"))
-        + ["Bash(*.baton/bin/lib*)"]
-        # The launchd agent joins the named paths from M03. It sits outside ~/.baton but is
-        # Baton state by every other measure, and what it names is executed every sixty
-        # seconds by a shell with Full Disk Access (D-048).
-        + ["Edit(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
-           "Write(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
-           "Bash(*com.baton.tick*)"]
-      ) } }' > "$BATON_HOME/projects/$project/permissions.json.tmp"
+#
+# The rules themselves live in `lib/permissions.sh` as `permissions_deny_rules`, sourced here for that
+# function. The rail is the same rail for every target — a Reclaim session must no more edit
+# `log.jsonl` or the launchd agent than a Baton session may — and `baton onboard` writes it for an
+# arbitrary repository, so a second copy of the recipe here would be two recipes that a test could
+# only compare rather than one that cannot disagree with itself. Nothing else from that library is
+# called: sourcing it defines its functions and runs none of them.
+. "$here/lib/permissions.sh"
+jq -n --argjson deny "$(permissions_deny_rules)" '
+  { permissions: { allow: ["Bash(sh tests/run.sh:*)", "Bash(jq:*)"], deny: $deny } }' \
+  > "$BATON_HOME/projects/$project/permissions.json.tmp"
 # An existing registration needs new rules too; preserve the file when it already matches.
 if cmp -s "$BATON_HOME/projects/$project/permissions.json.tmp" "$BATON_HOME/projects/$project/permissions.json"; then
   rm -f "$BATON_HOME/projects/$project/permissions.json.tmp"

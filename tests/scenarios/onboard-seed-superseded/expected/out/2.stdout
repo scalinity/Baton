@@ -1,0 +1,3 @@
+{"has_handover":true,"in_force":[{"milestone":"M02","disposition":"run","rank":0,"from":"M01-s1-2026-09-19T07-30-00.json"},{"milestone":"M03","disposition":"wait","rank":0,"from":"M01-s1-2026-09-19T07-30-00.json"}]}
+--- and the tick dispatches what the handover says, not what the seed says ---
+dispatched Fixture/M02

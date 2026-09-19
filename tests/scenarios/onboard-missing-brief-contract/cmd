@@ -1,0 +1,11 @@
+set -eu
+# The import case where a project has a usable plan and briefs that were never written for Baton:
+# M02's brief carries no fenced kickoff prompt and M03 has no brief at all. Baton can read a plan it
+# did not author; it cannot write a milestone's brief, because a brief is the milestone's content and
+# inventing one would be generating a plan (M12's). So the contract material that is missing is
+# named, per milestone, with the repair — at the moment of onboarding rather than one refused
+# dispatch at a time — and the project is registered all the same.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- registered, with the plan read and the missing contract material named ---'
+jq -c '{plan, plan_format, start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf 'working tree clean: %s\n' "$([ -z "$(git -C Fixture status --short)" ] && echo yes || echo no)"

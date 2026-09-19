@@ -1,0 +1,9 @@
+set -eu
+# A no. The statement is printed, the answer is read, and nothing at all is written: no
+# registration, no permissions, no event. Correction is about intent, so the repair is to run the
+# verb again rather than to approve a plan.
+status=0
+printf 'no\n' | "$BATON" onboard "$PWD/Fixture" || status=$?
+printf 'exit %s\n' "$status"
+printf 'registrations: %snone\n' "$(ls "$BATON_HOME/projects" 2>/dev/null | tr '\n' ' ')"
+printf 'log written: %s\n' "$([ -f "$BATON_HOME/log.jsonl" ] && echo yes || echo no)"

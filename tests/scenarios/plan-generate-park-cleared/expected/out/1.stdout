@@ -1,0 +1,13 @@
+generated Fixture · docs/MILESTONES.md · 2 milestones · the plan owed since onboarding is settled
+starting  Fixture · M01, M02
+resolved  Fixture · the plan file reads again · the park raised at 2026-09-19T07:20:00+01:00 is closed
+backgrounded · 0badc0d1 · Baton · Fixture · M01
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M01 (branch m01)
+settings  @TMP@/home/settings/Fixture-M01.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+--- the park is closed and the registration is settled ---
+{"plan":"docs/MILESTONES.md","plan_format":"native","plan_owed":"cleared","start":[{"milestone":"M01","disposition":"run"},{"milestone":"M02","disposition":"wait"}]}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M01 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s

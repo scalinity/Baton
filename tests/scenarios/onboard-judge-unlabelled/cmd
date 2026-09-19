@@ -1,0 +1,9 @@
+set -eu
+# The judgment request answered, and answered prose rather than the four labelled lines. There is then
+# no statement to put to a person, so no question is put and nothing is written: §7 item 4's "do not
+# silently confirm a guessed goal" is the whole of this case, and a guess is what reading that reply
+# as a goal would be.
+status=0
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture" || status=$?
+printf 'exit %s\n' "$status"
+printf 'registrations: %snone\n' "$(ls "$BATON_HOME/projects" 2>/dev/null | tr '\n' ' ')"

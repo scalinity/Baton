@@ -47,6 +47,16 @@ project_held() {
 # however late it arrives, it cannot stand in front of a handover written after it (D-095). A handover
 # whose every archived copy has been moved away is no longer recognised, and a delivery of it after that
 # is consumed and ranked like a new one. `cap_order` reads the rank this prints.
+#
+# **The starting handover is the last source consulted.** A project onboarding has just registered
+# has handed nothing over, and `intersect_verdicts` reads that state as silence: with no handover in
+# force, an eligible milestone yields no candidate *and* no `omitted` park, which is L1's
+# "registration without a seed otherwise dispatches and escalates nothing". So `onboard` records what
+# the plan already made eligible, in a `complete` handover's own `eligible[]` shape, at
+# `projects/<key>/project.json`'s `.start` — and it is read here, ranked after every archived
+# handover, so the first real one supersedes it entry by entry and nothing has to remove it. It is
+# not a completion claim and is not checked as one: it names no merge, and the thing that makes it
+# legitimate is the person's confirmed intent, which is the same act that wrote it.
 dispositions_in_force() {
   dif_doc=$(derive_consumed "$1") || { echo "$dif_doc"; return 1; }
   dif_files=$(printf '%s' "$dif_doc" | jq -c \
@@ -71,8 +81,31 @@ dispositions_in_force() {
     dif_read=$((dif_read + 1))
     dif_all=$(jq -nc --argjson a "$dif_all" --argjson b "$dif_entries" '$a + $b')
   done
-  jq -nc --argjson all "$dif_all" --argjson n "$dif_read" '
-    {has_handover: ($n > 0),
+  # The starting handover, ranked at `dif_n` — one past the highest rank any archived handover can
+  # hold — so every word a session wrote outranks it and the seed decides only what nothing has
+  # decided since. `dif_n` and not `dif_read`: a rank is a file's index in the list, assigned before
+  # the file is opened, while `dif_read` counts only the files that were there. An archive file that
+  # has been moved away is skipped without its rank being reused, so with one such file `dif_read`
+  # equals a rank a real handover already holds, `min_by([.rank, .index])` would fall through to the
+  # index, and a seed entry at index 0 would beat a session's word at index 1.
+  # Read with the same filter as an archive's `eligible[]`, so a malformed entry is dropped here
+  # exactly as it would be dropped there rather than reaching the intersection as a guess.
+  dif_seed=0
+  dif_pj=$BATON_HOME/projects/$1/project.json
+  if [ -f "$dif_pj" ]; then
+    dif_entries=$(jq -c --arg a "$dif_pj" --argjson r "$dif_n" '
+      [ (.start.eligible // []) | to_entries[] | .key as $k | .value
+        | select(type == "object" and (.milestone | type) == "string")
+        | select(.disposition == "run" or .disposition == "wait" or .disposition == "held")
+        | {milestone, disposition,
+           wait_for: (if (.wait_for | type) == "array" then .wait_for else [] end),
+           held_by: (if (.held_by | type) == "string" then .held_by else null end),
+           archive: $a, rank: $r, index: $k, source: "start"} ]' "$dif_pj" 2>/dev/null) || dif_entries='[]'
+    dif_seed=$(printf '%s' "$dif_entries" | jq length)
+    dif_all=$(jq -nc --argjson a "$dif_all" --argjson b "$dif_entries" '$a + $b')
+  fi
+  jq -nc --argjson all "$dif_all" --argjson n "$dif_read" --argjson s "$dif_seed" '
+    {has_handover: (($n > 0) or ($s > 0)),
      in_force: ($all | group_by(.milestone) | map(min_by([.rank, .index])))}'
 }
 
@@ -134,7 +167,12 @@ intersect_verdicts() {
               ($row.depends // [] | map(select(. as $x | $done | index($x) == null))) as $undone
               | {kind: "condition", class: "disagreement", milestone: $m, disposition: "run",
                  handover: $d.archive, waiting_on: $undone,
-                 detail: ("the handover \($d.archive | sub("^.*/"; "")) says run \($m), and the plan makes it ineligible: "
+                 # "the starting handover" where the word came from the registration rather than from a
+                 # session: a park reading "the handover project.json says run M03" would send a person
+                 # looking for a handover nobody wrote.
+                 detail: ((if $d.source == "start" then "the starting handover"
+                           else "the handover \($d.archive | sub("^.*/"; ""))" end)
+                          + " says run \($m), and the plan makes it ineligible: "
                           + (if $row == null then "the plan has no row for \($m)"
                              else "\($undone | join(", ")) \(if ($undone | length) == 1 then "is" else "are" end) not done" end))}
             end

@@ -1,0 +1,20 @@
+Fixture is already onboarded · the confirmed goal stands, nothing was asked again and nothing was seeded twice
+registered Fixture
+  checkout    @TMP@/Fixture
+  plan        docs/plan/roadmap.md (native)
+  check       none detected
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  starting    M02 · run · docs/milestones/M02.md
+preconditions: 1 eligible, 0 with unmet preconditions
+  M02  ready
+--- the plan pointer, and where the brief pointers go from it ---
+{"plan":"docs/plan/roadmap.md","start":[{"milestone":"M02","brief":"docs/milestones/M02.md"}]}
+plan Fixture: @TMP@/Fixture/docs/plan/roadmap.md
+M01  done  model opus  effort -  remote no
+M02  eligible  model opus  effort -  remote no
+widenings: none
+preconditions: 1 eligible, 0 with unmet preconditions
+  M02  ready

@@ -1,0 +1,12 @@
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+--- the second tick says nothing more ---
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+--- what was recorded ---
+{"kind":"dispatch","milestone":"M00-plan","attempt":1,"outcome":null,"attempts":null,"max":null}
+{"kind":"dispatch","milestone":"M00-plan","attempt":2,"outcome":null,"attempts":null,"max":null}
+{"kind":"dispatch","milestone":"M00-plan","attempt":3,"outcome":null,"attempts":null,"max":null}
+{"kind":"plan_generation","milestone":"M00-plan","attempt":null,"outcome":"refused","attempts":3,"max":null}
+{"kind":"plan_generation","milestone":"M00-plan","attempt":null,"outcome":"exhausted","attempts":3,"max":3}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+project park  Fixture · plan-unreadable · the registration names no path and plan · fix the plan file; the next tick re-reads it

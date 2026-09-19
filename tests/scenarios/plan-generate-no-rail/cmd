@@ -1,0 +1,12 @@
+set -eu
+# The planning lane runs behind the same rail as every other dispatched session, and a project whose
+# permission rules carry no deny class is not dispatched into. The refusal comes from the lane's own
+# preconditions, before a branch, a worktree, a settings file, a sidecar or a session exists, and it
+# names the file and the repair.
+"$BATON" tick || true
+printf '%s\n' '--- nothing was created ---'
+test ! -d "$BATON_HOME/prompts"
+test ! -f "$BATON_HOME/settings/Fixture-M00-plan.json"
+git -C "$PWD/Fixture" show-ref --verify --quiet refs/heads/m00-plan && echo 'a branch was created' || echo 'no branch, no worktree, no settings file, no sidecar'
+printf '%s\n' '--- what the log holds ---'
+jq -c 'select(.kind == "dispatch" or .kind == "dispatch_failed") | {kind, milestone, stage, detail}' "$BATON_HOME/log.jsonl"

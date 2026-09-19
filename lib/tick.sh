@@ -154,7 +154,10 @@ self_check() {
     self_check_failed_once "$1" read "$sck_file" "the plan file cannot be read: $sck_body"
     echo "the plan file $sck_file cannot be read: $sck_body"; return 1
   fi
-  if ! sck_tables=$(plan_tables "$sck_file"); then
+  # The project key, so that a project onboarding registered an adaptation for is read with it. A
+  # project without one — Baton's own, and any registered before onboarding existed — is read
+  # exactly as strictly as before, because `plan_adaptation` answers `{}` for it.
+  if ! sck_tables=$(plan_tables "$sck_file" "$1"); then
     sck_detail=$(printf '%s' "$sck_tables" | jq -r '"the \(.table) table, row \(.row), cell \(.cell): \(.detail)"')
     self_check_failed_once "$1" parse "$sck_file" "$sck_detail" \
       "$(printf '%s' "$sck_tables" | jq -c '{table, row, cell}')"
@@ -356,10 +359,33 @@ tick_run() {
 
   # 1. Self-check, per registered project, in directory order. A project that fails is skipped for
   #    the rest of the tick; the others carry on.
+  #
+  #    The generation pass runs *before* each project's self-check and not after it, because a
+  #    project that owes a plan is exactly a project the self-check fails: it reads the registration,
+  #    finds no plan it can parse, parks the project `plan-unreadable` and skips it for the rest of
+  #    the tick, so nothing downstream would ever reach it. The pass adopts a plan that has arrived
+  #    and holds — after which the self-check on the next line reads it and `park_resolve` closes the
+  #    park in the same tick — and otherwise produces the one candidate that asks for a plan to be
+  #    written. The candidate joins `tr_cands`, so the holds, `cap_order` and the cap admit it like
+  #    any other and nothing waits on its result (D-164).
   tr_plans='{}'
+  tr_cands='[]'
   for tr_pj in "$BATON_HOME"/projects/*/project.json; do
     [ -f "$tr_pj" ] || continue
     tr_key=$(basename "$(dirname "$tr_pj")")
+    #    Only on a tick that could see the rows, for the reason the guard below the loop gives: the
+    #    pass asks whether the planning lane has a live session, and a listing the service failed to
+    #    produce would answer no for every lane alike. A plan waiting one more minute costs nothing.
+    if [ "$tr_rows_ok" = yes ]; then
+      if tr_planning=$(planning_pass "$tr_key" "$tr_rows"); then
+        render_lines "$(printf '%s' "$tr_planning" | jq -c .lines)" action
+        tr_cands=$(printf '%s' "$tr_cands" | jq -c \
+          --argjson a "$(printf '%s' "$tr_planning" | jq -c .candidates)" '. + $a')
+      else
+        render_row out action 'generate    %s · the plan generation pass failed this tick\n' "$(render_token out lane "$tr_key")"
+        tr_status=3
+      fi
+    fi
     if tr_plan=$(self_check "$tr_key"); then
       tr_plans=$(printf '%s' "$tr_plans" | jq -c --arg k "$tr_key" --argjson p "$tr_plan" '. + {($k): $p}')
       park_resolve "$tr_key" '^plan-(unreadable|unparseable)$' 'the plan file reads again' || tr_status=3
@@ -375,7 +401,7 @@ tick_run() {
   # sight every lane, and a dispatch would be a dispatch over something already running. A handover
   # waiting one more minute costs nothing; `status` line 9 shows it waiting. The status says the
   # tick did not complete, so the marker is not written and the gap report is what tells the person.
-  # This reading stays on `now` where the one after the lanes passes `tr_now` (D-155): it returns
+  # This reading stays on `now` where the one after the lanes passes `tr_now` (D-174): it returns
   # before step 2, the only pass that can spend minutes, so the two instants are the same second and
   # `now` is the one that stays honest if anything is ever added above it.
   [ "$tr_rows_ok" = yes ] || { gap_check "$tr_rows"; return 3; }
@@ -416,7 +442,6 @@ tick_run() {
   # not cost every other project its tick, every minute, until someone reads a log. The loop reads the
   # keys by index rather than through a pipe, so the candidates it collects outlive it.
   tr_keys=$(printf '%s' "$tr_plans" | jq -c 'keys_unsorted')
-  tr_cands='[]'
   tr_n=$(printf '%s' "$tr_keys" | jq length); tr_i=0
   while [ "$tr_i" -lt "$tr_n" ]; do
     tr_key=$(printf '%s' "$tr_keys" | jq -r ".[$tr_i]"); tr_i=$((tr_i + 1))
@@ -448,11 +473,26 @@ tick_run() {
   # A project whose migration fails stops neither the others nor the dispatch. Nothing downstream
   # reads a worktree's location except through `worktree_of`, which asks git every time, so a
   # worktree that stayed where it was is a worktree that still works.
-  tr_n=$(printf '%s' "$tr_keys" | jq length); tr_i=0
-  while [ "$tr_i" -lt "$tr_n" ]; do
-    tr_key=$(printf '%s' "$tr_keys" | jq -r ".[$tr_i]"); tr_i=$((tr_i + 1))
-    worktree_migrate "$tr_key" "$tr_rows" || tr_status=3
-  done
+  #
+  # **The listing is re-read here and never carried down from the top of the tick**, for the reason
+  # `dispatch_run` already gives about the cap (D-130), and it is worse here than there. The loop
+  # above can put a session *into* a legacy worktree: the ladder's redispatch rung reaches
+  # `worktree_ensure`, which now resolves the registration and so reuses the sibling where it
+  # stands, and its resume rung and a wait retry each wake a session whose row was `pid`-less when
+  # `tr_rows` was taken. Against that listing the guard sees nothing there, moves the directory, and
+  # strands the session Baton itself had just started — the `working directory no longer exists`
+  # ending D-153 is written to prevent. A listing that cannot be re-read refuses the whole pass,
+  # because a guard that cannot be answered refuses (D-155).
+  if tr_mrows=$(rows_read); then
+    tr_n=$(printf '%s' "$tr_keys" | jq length); tr_i=0
+    while [ "$tr_i" -lt "$tr_n" ]; do
+      tr_key=$(printf '%s' "$tr_keys" | jq -r ".[$tr_i]"); tr_i=$((tr_i + 1))
+      worktree_migrate "$tr_key" "$tr_mrows" || tr_status=3
+    done
+  else
+    render_failure err "baton: claude agents --json could not be re-read after the per-project passes; no worktree was migrated this tick"
+    tr_status=3
+  fi
 
   # A finished session's process, once across every project: its ranking bounds memory, which is the
   # Mac's, as the cap is. Before the dispatch, so a process taken offline is gone before a new one

@@ -43,6 +43,7 @@ else
   BATON_LIB=$here/../lib
 fi
 . "$BATON_LIB/render.sh"
+. "$BATON_LIB/permissions.sh"
 . "$BATON_LIB/lock.sh"
 . "$BATON_LIB/log.sh"
 . "$BATON_LIB/plan.sh"
@@ -63,6 +64,8 @@ fi
 . "$BATON_LIB/waits.sh"
 . "$BATON_LIB/tick.sh"
 . "$BATON_LIB/lifecycle.sh"
+. "$BATON_LIB/onboard.sh"
+. "$BATON_LIB/planning.sh"
 
 # Before any verb: nothing Baton starts inherits the Claude Code session this may be running inside.
 claude_env_clean
@@ -72,7 +75,7 @@ claude_env_clean
 # verb is about to write to. Every library reads what this captures; nothing asks again.
 render_init
 
-# usage <out|err>: the seven verbs. The stream is an argument because the same seven rows are the
+# usage <out|err>: the eight verbs. The stream is an argument because the same eight rows are the
 # answer to `baton help` on stdout and the refusal that follows a wrong argument on stderr, and
 # only the caller knows which of the two this is. The verb column is padded before it is styled,
 # because a width counts the escape bytes of a string that was styled first.
@@ -86,6 +89,7 @@ usage() {
   usage_row "$us_stream" 'dispatch <project> <milestone>' 'step 8 by hand: worktree, settings, prompt, claude --bg, one event'
   usage_row "$us_stream" 'allow <milestone> '"'"'<rule>'"'" 'write the rule into the project'"'"'s allowlist and the live settings'
   usage_row "$us_stream" 'wake [<milestone> [<text>]]' 'bring a finished session back, carrying the text; with none, list them'
+  usage_row "$us_stream" 'onboard <path>' 'register a Git repository, derive its rail and check, read its plan, confirm once'
 }
 
 usage_row() {
@@ -149,6 +153,15 @@ case "$verb" in
     lock_stale_report
     lock_take
     verb_wake "${2:-}" "${3:-}"
+    ;;
+  onboard)
+    # Under the lock like every verb, and for this one the lock is load-bearing in a second way: the
+    # judgment request runs inside it, so a request that hangs would hold the relay. Its own deadline
+    # is what bounds that, and `lock_stale_break` is what recovers from the case the deadline misses.
+    [ $# -eq 2 ] || { usage err; exit 2; }
+    lock_stale_report
+    lock_take
+    verb_onboard "$2"
     ;;
   ''|help|-h|--help)
     usage out

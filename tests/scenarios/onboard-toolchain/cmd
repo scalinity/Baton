@@ -1,0 +1,12 @@
+set -eu
+# The standing check and the permission rail derived from the same evidence, which is why they are
+# one step: a project registered without a `.check.command` has a completion Baton cannot prove
+# (D-147). Cargo names the check; the Makefile is a driver the session may need and is allowed
+# without supplying the check, because the more specific evidence already did.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- what was derived ---'
+jq -c '.check' "$BATON_HOME/projects/Fixture/project.json"
+jq -c '.permissions.allow' "$BATON_HOME/projects/Fixture/permissions.json"
+printf '%s\n' '--- and the two deny classes are the same rail install.sh writes ---'
+jq -r '.permissions.deny | length' "$BATON_HOME/projects/Fixture/permissions.json"
+jq -r '.permissions.deny[] | select(test("projects"))' "$BATON_HOME/projects/Fixture/permissions.json"
