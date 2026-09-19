@@ -1,0 +1,8 @@
+=== 08:00:10, the first tick after the wake: explained, so recorded and not delivered
+  events: [{"disposition":"HOST-EXPLAINED","channel":["record"],"assessed":"explained","endpoint":"2026-09-12T08:00:10+01:00"},{"disposition":"human-required","channel":null,"assessed":"unexplained","endpoint":"2026-09-12T08:03:10+01:00"}]
+
+=== 08:03:10, the listing still failing: the window now holds 3 m 30 s awake, so a person is told
+  events: [{"disposition":"HOST-EXPLAINED","channel":["record"],"assessed":"explained","endpoint":"2026-09-12T08:00:10+01:00"},{"disposition":"human-required","channel":null,"assessed":"unexplained","endpoint":"2026-09-12T08:03:10+01:00"}]
+
+=== 08:06:10, still failing: the delivered event spends the key for good and nothing more is said
+  events: [{"disposition":"HOST-EXPLAINED","channel":["record"],"assessed":"explained","endpoint":"2026-09-12T08:00:10+01:00"},{"disposition":"human-required","channel":null,"assessed":"unexplained","endpoint":"2026-09-12T08:03:10+01:00"}]

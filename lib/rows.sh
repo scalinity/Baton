@@ -480,15 +480,36 @@ gap_check() {
   gc_gap=$(derive_gap "$1" "${2:-}") || { render_failure err "$gc_gap"; return 1; }
   [ "$(printf '%s' "$gc_gap" | jq -r .report)" = true ] || return 0
   gc_marker=$(printf '%s' "$gc_gap" | jq -r .marker)
-  gc_log=$(log_json) || { render_failure err "$gc_log"; return 1; }
-  # The key is spent by a recorded gap as much as by a delivered one: `record_notification` writes
-  # the same `notification` event with the same class and key, so the second reading of one marker
-  # writes nothing and raises nothing whichever channel the first went out on.
-  if printf '%s' "$gc_log" | jq -e --arg k "$gc_marker" \
-       'any(.[]; .kind == "notification" and .class == "gap" and .key == $k)' > /dev/null; then
-    return 0
-  fi
   gc_seconds=$(printf '%s' "$gc_gap" | jq -r .gap_seconds)
+  gc_log=$(log_json) || { render_failure err "$gc_log"; return 1; }
+  # A *delivered* gap spends the key for good: the person has been told about this marker, and a
+  # second message would only repeat it. A *recorded* one spends it only while the window it
+  # assessed is still current, which is the one thing the silent record had to change. The marker
+  # cannot move while step 1 keeps failing — `lib/tick.sh` calls this on exactly that path, saying
+  # "the gap report is what tells the person" — so a gap the host explains at the first tick after
+  # a wake would otherwise be the only thing ever said about an outage that is still going on, and
+  # the channel named for a persistent step-1 failure would be closed by the sleep that preceded it.
+  #
+  # Two intervals is the same threshold the explanation itself uses, and the re-assessment is
+  # bounded by it: the tick runs only while the Mac is awake, so by the time a silent record is two
+  # intervals old the awake stretch at the end of the window is itself two intervals long, which no
+  # history can call `explained`. One further host read per outage buys a message that would
+  # otherwise never be sent. The instant compared is the gap's own endpoint and never the wall
+  # clock, so a frozen-clock scenario re-derives the same age and its second run still says nothing.
+  gc_seen=$(printf '%s' "$gc_log" | jq -c --arg k "$gc_marker" \
+    '[ .[] | select(.kind == "notification" and .class == "gap" and .key == $k) ] | last // empty')
+  if [ -n "$gc_seen" ]; then
+    if ! printf '%s' "$gc_seen" | jq -e '(.channel // []) | index("record")' > /dev/null 2>&1; then
+      return 0
+    fi
+    # An event with no endpoint is one this rule cannot date — every silent record written since
+    # M15-b carries one, and anything older keeps the behaviour the key always had.
+    gc_end=$(printf '%s' "$gc_seen" | jq -r '.host.endpoint // empty')
+    [ -n "$gc_end" ] || return 0
+    gc_from=$(iso_epoch "$gc_marker") || { render_failure err "$gc_from"; return 1; }
+    gc_was=$(iso_epoch "$gc_end") || { render_failure err "$gc_was"; return 1; }
+    [ "$(( gc_from + gc_seconds - gc_was ))" -ge "$(( 2 * BATON_TICK_SECONDS ))" ] || return 0
+  fi
   # The window the gap measured, and never the instant this runs: `host_gap_evidence` derives the
   # endpoint from the marker and the duration, because an event written minutes after the gap ended
   # would otherwise ask the host to account for minutes the gap never covered.
