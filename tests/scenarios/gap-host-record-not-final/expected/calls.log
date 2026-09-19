@@ -1,0 +1,2 @@
+pmset -g log
+osascript -e 'display notification "no tick for 10 h 3 m; the last one completed at 2026-09-11T22:00:00+01:00, and a lane was open through it; the host was asleep for only 9 h 59 m of it and awake 3 m at a stretch, so sleep does not explain it" with title "Baton · gap"'
