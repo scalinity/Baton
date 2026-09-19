@@ -1,0 +1,8 @@
+set -e
+echo "== one session start, three resumes, a wait retry and a copy fork inside the same window: pacing charges the start and none of the rest =="
+"$BATON" tick
+echo "-- one charged for the earlier lane, so the one start this tick had room for meets the budgetSessions of 2 and the second candidate waits --"
+jq -c . "$BATON_HOME/projects/Fixture/budget.json"
+"$BATON" status
+echo "-- the copy fork is the same session start continued, and is charged once --"
+[ "$(jq -s '[ .[] | select(.kind == "resume" or .kind == "copy_fork" or .kind == "wait_retry") ] | length' "$BATON_HOME/log.jsonl")" -ge 5 ]

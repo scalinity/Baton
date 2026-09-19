@@ -124,7 +124,8 @@ neither re-signed nor replaced by the publish (D-038), and the launchd agent's f
 ├── config.json              Baton's numbers (below)
 ├── projects/<project>/
 │   ├── project.json         {"path": "…/Reclaim", "plan": "docs/MILESTONES.md", "check": {"command": "sh tests/run.sh", "deadline_seconds": 1800}} plus what onboarding adds (below)
-│   └── permissions.json     {"permissions": {"allow": [...], "deny": [...]}}
+│   ├── permissions.json     {"permissions": {"allow": [...], "deny": [...]}}
+│   └── budget.json          {"window_start": "…", "sessions_used": 2, "tier": "max20"} — pacing's record, written last in the tick and read back by nothing (M14)
 ├── checks/<project>/<milestone>-<attempt>/
 │   ├── tree/                the detached checkout of the claimed merge commit, while the standing check runs there; removed when it ends
 │   ├── output.txt           that run's combined output, which the consumed event points at
@@ -149,8 +150,16 @@ neither re-signed nor replaced by the publish (D-038), and the launchd agent's f
 ```json
 { "cap": 2, "fableReserve": 80, "stallMinutes": 30, "longRunningHours": 6,
   "retryMinutes": 15, "caffeinateMaxHours": 6,
+  "budgetCeiling": 90, "budgetSessions": 0, "budgetWindowHours": 5, "budgetTier": "unset",
   "models": { "fable": "fable", "opus": "opus", "sonnet": "sonnet", "haiku": "haiku" } }
 ```
+
+The four `budget*` values are M14's, and an install writes none of them either. `budgetCeiling` is
+the five-hour `used_percentage` at or above which no new session is started, and 100 is off;
+`budgetWindowHours` is the window's length; `budgetSessions` is how many session starts one window
+may hold and **0 is off**, because no number of sessions is a guarantee any provider gives and
+Baton derives none; `budgetTier` is the person's word for the plan, carried on the record and the
+pause and read by nothing (D-179).
 
 Three more numbers default in code and are left out of the file an install writes: `keepFinished` 3,
 `idleStopMinutes` 60 and `wakeModel` `haiku` (REQ-LIFE-02, REQ-LIFE-04). Three more again for the
@@ -385,13 +394,23 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    limited). Drop Fable candidates while the `fableReserve` hold stands: `reserve_check` reads the
    newest status file by modification time that carries `seven_day.used_percentage` as a number,
    ignores it when its own `seven_day.resets_at` has passed, and writes `hold` at or above the
-   reserve and `hold_lifted` below it (D-073). Count in flight: derivation 1 across every project,
+   reserve and `hold_lifted` below it (D-073). Drop every candidate, on every model, while the
+   `budget` pause stands: `budget_check` reads the newest status file carrying
+   `five_hour.used_percentage` by that same rule, and the count of session starts in the window,
+   and writes `hold` with the resume time once either the reading reaches `budgetCeiling` or the
+   count reaches `budgetSessions` — a fact about the account, so it holds every project and every
+   model alike, and derivation 12 is where it bites so that `hold_bites` and its callers are
+   unchanged (REQ-BUDGET, D-180). Count in flight: derivation 1 across every project,
    which counts each open lane whose current session has a live row — a question park included, a
    stopped `asking` session not. The listing it joins against is read here and not carried down from
    the top of the tick: steps 3 and 4 create executions, and a lane a redispatch or a copy fork has
    just moved onto a new session matches no row in the older listing, counts as nothing, and lets the
    cap admit over a worker that is running (D-130). A listing that cannot be read fails the pass
-   rather than reading as empty. Dispatch while the count is below `cap`, in `cap_order`'s order:
+   rather than reading as empty. Dispatch while the count is below `cap` and, where `budgetSessions`
+   is set, while the window's remaining starts (`budget_room`) are unspent — read inside this loop
+   and not only before the pass, because every session the pass starts is one no status feed reports
+   yet, so a guard consulted once would let a whole cap's worth through past the allowance (D-181) —
+   in `cap_order`'s order:
    within a project, the handover's `eligible[]` order; each slot to the project with fewer in
    flight, counting the dispatches already ordered; then plan row order; then the project key
    (D-072). A dispatch that writes no `dispatch` event takes no slot, unless it could not be proved
@@ -459,6 +478,14 @@ events, because a stopped session drops out of `claude agents --json` and a sear
 a new one after every stop. The two passes read the whole log once each beside the tick's other reads
 and scan it for each consumed handover; at today's size that is milliseconds, and it is counted
 against REQ-LOG-01's rule that the log is split only once a tick's scan is measurably slow.
+
+**Each project's budget record**, after the dispatch. `budget_record_all` writes
+`projects/<key>/budget.json` — `window_start`, `sessions_used`, `tier` — for every registered
+project, `.tmp` then renamed and only when it would change. After, because a record written beside
+the pause would describe the tick from before its own dispatches, and a person reading
+`sessions_used` a second after a tick started two sessions would be told about neither. It is
+derived from the log, the feed and the clock and read back by nothing, so a deleted one loses
+nothing and a project registered before M14 needs no migration (D-181).
 
 Then the marker, after the lock is released, only when every top-level pass completed. A failed
 pass is retained as status 3 through the remaining work; it withholds the marker so the next gap
@@ -696,7 +723,9 @@ The two bits per class: retry, and notify now. ("What stops a session" §1, amen
 3. parked lanes — `<project>/<milestone> · <class> · <the one line the person read> · <the verb>`;
 4. taken-over lanes — `taken over at <time>; hand back with baton answer <M> "continue"`;
 5. waits and holds — the `error`, the elapsed time from `since`, the next retry, each hold with its
-   model and cause;
+   model and cause, its `reading` where it carries one, the reason it states where it states one,
+   and the time it expects to lift where it names one. A budget pause names one, and that is the
+   whole of M14's visible result: without it a paused night reads exactly like a working one;
 6. in flight — `<project>/<milestone>`, session, model, attempt, elapsed since the latest
    dispatch-or-resume event, any live notification the tick has written for the attempt (`stalled`,
    `long-running`) and the row's own `waitingFor`. Only lanes with a live row are printed:
@@ -798,7 +827,7 @@ Twenty-three kinds. Fields listed are those beyond the envelope.
 | `resolution` | `how` (`ruling`\|`answered in place`\|`edit`), `escalation_at` | the unpark | — |
 | `reread_baseline` | `escalation_at`, `version`, `policy`, `hashes` | `edit_reread_check`, for a park whose receipt predates the policy its class now uses: the readings the old receipt never held, taken once so later ticks compare against them rather than rebaselining every minute. It resolves nothing — the park stands the tick it is written (D-134) | per park |
 | `notification` | `class`, `key`, and the class's own fields | the once-only rule | per `(project, milestone, attempt, class)`, with the class's extra term where it has one |
-| `hold` | `model` (or `all`), `cause` (`rate_limit`\|`billing_error`\|`fableReserve`), `reading`, `status_file` | the dispatch hold; the `fableReserve` guard | per `model` and `cause` |
+| `hold` | `model` (or `all`), `cause` (`rate_limit`\|`billing_error`\|`fableReserve`\|`budget`), `reading`, `status_file`; for `budget` also `resumes_at`, `reason`, `window_start`, `sessions_used`, `tier` | the dispatch hold; the `fableReserve` guard; the budget pause, which `status` prints with the time it expects to lift | per `model` and `cause` |
 | `hold_lifted` | `model`, `cause` | closes the hold | — |
 | `widening` | `rule`, `permissions_file` | `baton plan`'s provenance of allow rules | — |
 | `plan_override` | `direction` (`dispatched_over_held`\|`withheld_over_run`), `gate`, `cleared_by` | `status` showing the plan doing its job; never an escalation | — |
@@ -972,7 +1001,9 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
 6. **Each hold.** Every `hold` with no later `hold_lifted` for the same `model` and `cause`. A
    `rate_limit` or `billing_error` hold lifts when its wait clears; a `fableReserve` hold lifts when
    the freshest reading's `seven_day.used_percentage` falls below the reserve, or when no reading
-   stands because the freshest one's window has reset (D-073).
+   stands because the freshest one's window has reset (D-073); a `budget` hold lifts when neither
+   pacing guard bites, and carries its `resumes_at` and `reason` through so a reader has the line
+   without going back to the log.
 7. **Each caffeinate holder to re-arm.** For each in-flight lane, `caffeinate -i -w <pid>` against
    the pid in the **current row** — the log stores no pid, because a supervisor restart gives the
    session a new one. For each active wait, `caffeinate -i -t` for the remainder of
@@ -1005,7 +1036,9 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
 12. **The dispatch hold**: derivation 6. No dispatch on a model with an active `rate_limit` or
     `billing_error` hold; on every model once a second model is held. A `fableReserve` hold holds
     its own model and counts toward nothing: the reserve is about one model's share of a window,
-    not about the account being unable to answer.
+    not about the account being unable to answer. A `budget` hold holds every model, because the
+    allowance it paces against is the account's and not any one model's — and saying so here is
+    what lets `hold_bites` and every caller of it be paced without knowing pacing exists (D-180).
 13. **`baton answer <milestone>`**: derivation 2, filtered by milestone across every project. Exactly
     one match acts; more than one refuses and prints `<project>/<milestone>`; none refuses with
     "nothing is waiting on `<milestone>`".
@@ -1192,3 +1225,5 @@ edit, or by typing into a session, and `status` is the view.
 | M11 | `lib/permissions.sh`, the two deny classes of REQ-PERM-04 once for every caller: `permissions_deny_rules` (the rules for this home, as a JSON array). It is a file of its own because `install.sh` sources it, so the dependency reads installer → rail and verb → rail rather than installer → onboarding verb. `lib/onboard.sh`, the verb that makes an unfamiliar Git repository a registered target project: `onboard_repo <path>` (`{checkout, key}` from git's first worktree, or the detail with status 1); `onboard_toolchain <checkout>` (`{toolchain, check: {command, deadline_seconds}, allow}` from the files present, a project-specific runner naming the check over a language's canonical command, the allow list in `install.sh`'s own order); `onboard_plan_find <checkout> [<registered plan>]` (the repository-relative path of a file holding a milestone table: the registered one first, then the conventional names, then a pruned search under `docs/` and then the rest to depth three, a header with both cells before one with only `ID`); `onboard_status_native <token>`; `onboard_status_propose <token>` (`{status, why}`, retirement borrowing `held`, status 1 for a word it will not guess at); `onboard_adaptation <file>` (`{defaults, status_map, gates, unmapped}`); `onboard_cells <file> <column> [<companion>] [<locator>]` (that column's body cells, or the header joined on a tab for the column name `--header`, locating the table as `plan_extract` does); `onboard_header <file> [<companion>]`; `onboard_has_table <file> [<companion>]`; `onboard_has_column <header> <name>`; `onboard_cli_shape` (`{version, ok, detail}` — M4's check on what the judgment role consumes); `onboard_evidence <checkout> <plan>`; `onboard_judge <checkout> <plan> <toolchain>` (the judgment request: `claude -p` in the foreground under the verb's lock, with the project's deny rules in a settings file of its own, the target as its working directory and `/dev/null` as its stdin, bounded by `ONBOARD_JUDGE_DEADLINE`, printing `{goal, done, constraints, non_goals}` or the detail with status 1; §4.5); `onboard_classify <checkout> <plan>` (`{plan_format, adaptation, tables}`, or `plan_format: "unmapped"` with the words it will not guess at); `onboard_start <key> <plan> <tables>` (the starting handover's `eligible[]`, with the contract's brief path); `onboard_confirm <lines>`; `onboard_intent_lines`; `onboard_permissions_write <key> <allow>` (the derived rules plus the ones already there, so `baton allow`'s survive); `onboard_registration_write`; `onboard_commit <key> <checkout> <plan> <toolchain> <intent> <classification> <cli> <seed>` (the rail, then the registration, then the event, in that order, once for every path); `onboard_report <key> <doc> [<heading>]` (ending in `plan_preconditions_report`, so contract material Baton cannot author is named with its repair); `verb_onboard <path>`. `lib/plan.sh`: `plan_adaptation <project>` (the registered adaptation, `{}` for a project without one); `plan_default <defaults> <column> <cell>`; `plan_tables` gains `[<project>] [<adaptation json>]` and `plan_extract` an optional-columns argument; both tables are now located by a header carrying their locating cell **and** their companion column (`has_cell`, `locates`), which is also what stops a plan document's other tables being chosen; `parse_status` gains the status map and fails a mapped value of `null`. `lib/candidates.sh`: `dispositions_in_force` reads the registration's `start.eligible` after every archived handover, ranked at the list's length, marked `source: "start"` so a park names it as the starting handover. `lib/tick.sh`: `self_check` passes the project key to `plan_tables`. New event kind `onboarded`; `project.json` gains the confirmed intent record, `plan_format`, `onboarded_at`, `cli`, `adaptation`, `start` and `plan_owed` (§3); `checks/judge/` is new. `docs/SPEC.md` REQ-ONBOARD-01 to 10, REQ-PLAN-09, REQ-PLAN-10, REQ-VERB-10. No new escalation class. | M09, M10 |
 | M12 | `lib/planning.sh`, the generation path for a project that owes a plan. Constants: `PLANNING_ID` (`M00-plan`, the reserved lane id — one `parse_id` accepts, because `artifact_ids` recovers a handover's identity from its filename through it), `PLANNING_PLAN` (`docs/MILESTONES.md`) and `PLANNING_BRIEFS` (`docs/milestones`), which together are the role's declared scope. `planning_owed <key>` (the registration's `plan_owed`, or status 1); `planning_attempts <key>` and `planning_attempts_max`; `planning_scope_patterns` (the two paths, in `completion_scope_patterns`' one-per-line shape); `planning_model` and `planning_effort` (from `config.json`, the model resolved through `parse_model`); `planning_prompt <key> <checkout> <registration json> <defects json> <attempt>` (the whole text the session receives, with the slot paragraph at column 0 once); `planning_preconditions <key>` (the checkout and the rail, in `dispatch_preconditions`' `{failures: [...]}` shape); `planning_validate <key> <checkout>` (`{plan, plan_format, tables, defects: [{what, repair}]}`, every defect in one pass); `planning_brief_defects <checkout> <id> <successors>` (the four questions only a generated brief is asked, as `<what>\t<repair>` lines); `planning_adopt <key>` (`{adopted, lines}`, adopting through `onboard_commit` with the seed); `planning_record` and `planning_recorded_since <key> <outcome>` (the `plan_generation` event and its once-per-attempt key); `planning_pass <key> <rows json>` (`{candidates, lines}`, step 1's companion). `lib/dispatch.sh`: `dispatch_one` takes the planning lane through the same worktree, settings, launch, cleanup and event, branching only on model/effort, preconditions and prompt; the `dispatch` event gains `role`. `lib/completion.sh`: `completion_scope_patterns` answers `planning_scope_patterns` for that lane, and the standing check's deadline sweeps the half-written `output.txt.exit.tmp` its kill interrupted (D-172). `lib/tick.sh`: `tick_run` calls `planning_pass` before each project's self-check and collects its candidates. `planning_preconditions` filters `dispatch_preconditions`' own result to the `checkout` and `permissions` checks rather than writing a second copy of those two rules (D-170), and `planning_pass` withholds its candidate while a lane park stands on the lane and releases a `dispatch-failed` one when the preconditions hold again (D-169). `config.json`: `planningAttempts`, `planningModel`, `planningEffort`. Event `plan_generation`. The adopted-plan boundary for M15-c is `planning_adopt`, marked in the source at the line where the guard goes. Scenarios `plan-generate-*` and `planning-completion*`; `tests/completion-fixture.sh` gains the `planning` and `planning-out-of-scope` shapes and a per-shape branch | REQ-GENERATE-01 to 10 |
 | M13 | `lib/dispatch.sh`: `brief_size <checkout> <milestone>` (the Size the brief declares in its `## 1.` section on `main`, lowercased and cut at the first comma, semicolon or full stop, empty when it declares none or when the brief cannot be read — the prompt's own copy of the Size is out of range by construction) and `size_effort <size>` (`small` → `medium`, `medium` or `large` → `high`, empty for anything else; the one place the mapping is written, for M14 to consume). **Changes** `dispatch_one` to fall back from a blank `Effort` cell to the Size, inside the branch that already decides the planning lane's model and effort from `config.json`, so the third source of an effort sits where the second one does; and its `do_also` list to name a peer's whole worktree path instead of the basename, which under M09's managed root is the milestone's own id (D-178). `lib/tick.sh`: `dispatch_run` re-reads `rows_read` before every dispatch after the first — tracked by `drn_started`, so a pass that has started nothing asks the CLI nothing extra — and refuses the rest of the pass when that listing cannot be read, which is what lets the second of a co-dispatched pair name the first (D-177, closing `docs/v2/01-findings.md` finding 24). No new event, no new field, no new config key: the `dispatch` event's existing `effort` records whichever of the three sources won. Seven scenarios: `autonomous-pair-join`, `autonomous-join`, `autonomous-cap-one`, `autonomous-omitted-successor`, `autonomous-listing-refused`, `effort-size-mapping`, `effort-size-precedence`, the first five over a fixture project whose graph is an independent pair and a join rather than a lane. `tests/shim/claude` gains `agents.fail-at`, the one listing call of a scenario that fails, because `fail.pending` fails the next n reads from wherever a stop left it and so cannot reach a read mid-pass without failing the ones before it | REQ-DISPATCH-01, -02, -05, -13 |
+| M14 | `lib/budget.sh`, pacing against the subscription's five-hour window: `budget_span` and `budget_tier` (the two config readings); `budget_reading` (prints `{reading, resets_at?, status_file}` for the freshest status file carrying `rate_limits.five_hour.used_percentage` as a number, or `{}` when the freshest one's own `resets_at` has passed — `reserve_reading`'s rule for the other window); `budget_starts <cutoff epoch>` (the session starts at or after the cutoff, oldest first, as `[{project, at, epoch}]`: every `dispatch`, and every `dispatch_failed` at stage `launch` or `service`, walked backwards from the newest and stopped at the first outside); `budget_state` (the whole picture — `window_start`, `ends`, `source` (`feed`\|`starts`\|`empty`), `tier`, `paused`, `why[]`, `sessions_used`, `per_project{}` and the reading where there is one); `budget_room` (the starts the window can still afford, empty when `budgetSessions` is 0); `budget_record <project> <state>` and `budget_record_all` (`projects/<key>/budget.json`, the three fields SCOPE §5 names, `.tmp` then renamed and only on a change); `budget_check` (the pass: one `hold` with `cause: "budget"`, `model: "all"` and `resumes_at`, one `hold_lifted`). **Changes** `lib/derive.sh`: `epoch_iso <epoch>` beside `iso_epoch`, its inverse, in `awk` and carrying the offset `baton_now` reports, because a boundary Baton computed has to be written down and read; derivation 6 passes a `budget` hold's `resumes_at` and `reason` through; derivation 12 reads a `budget` hold as `all`, which is the whole of the integration — `hold_bites` is untouched, so step 7's filter loop and the ladder's `redispatch` are both paced. `lib/tick.sh`: `budget_check` beside `reserve_check`, `budget_room` counted down inside `dispatch_run`'s own loop beside the cap, and `budget_record_all` after the dispatch. `lib/status.sh`: the hold line carries the reason it states and the time it expects to lift. `lib/stops.sh`: a redispatch held now says the hold has to lift rather than naming a wait that need not exist. Four `config.json` keys, all defaulting in code: `budgetCeiling` 90, `budgetSessions` 0 (off), `budgetWindowHours` 5, `budgetTier` `unset` — no tier maps to a number of sessions anywhere, because nothing exposes one. Ten scenarios: `budget-available`, `budget-exhausted`, `budget-near-limit`, `budget-paused-repeats`, `budget-failed-start`, `budget-resume-not-charged`, `budget-redispatch-paced`, `budget-rollover`, `budget-rollover-cap`, `budget-shared-account`, the last three advancing `$SHIM/now` mid-`cmd` for the simulated clock §8 asks for | REQ-BUDGET-01 to -04; REQ-DISPATCH-02 |
+

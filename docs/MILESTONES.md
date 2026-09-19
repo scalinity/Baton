@@ -82,6 +82,7 @@ which gives its acceptance to M16; there is nothing for a person to clear.
 | REQ-LIFE | 01–04 | **M07-b** (01–04) |
 | REQ-ONBOARD | 01–10 | **M11** (01–10), M12 (02 amended: generation authors the target's own plan and briefs) |
 | REQ-GENERATE | 01–12 | **M12** (01–12) |
+| REQ-BUDGET | 01–04 | **M14** (01–04) |
 
 Every requirement in `docs/SPEC.md` §2 appears above; every milestone owns at least one in bold
 except M07 and M08, which are acceptance and onboarding.

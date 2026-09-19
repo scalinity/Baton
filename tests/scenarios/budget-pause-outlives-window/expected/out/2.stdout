@@ -1,0 +1,9 @@
+== the window reads 95 and the pause names the boundary the feed gave it ==
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+hold  all · budget · the five-hour window reads 93%, at or above the ceiling of 90% · resumes at 2026-09-12T21:00:00+01:00 (in 9 h 0 m)
+
+== past that boundary, with a session a person ran having put the next window over the line too: the hold that named a time now gone is closed and one naming the window actually holding is opened, so status never reads 'resume due' under a pause that is not lifting ==
+last tick 2026-09-12T16:30:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+hold  all · budget · the five-hour window reads 93%, at or above the ceiling of 90% · resumes at 2026-09-12T21:00:00+01:00 (in 4 h 30 m)
+-- two holds and one lift, each naming a window that was really holding --
+-- and nothing was started across either window --

@@ -1,0 +1,9 @@
+set -e
+echo "== five failed starts, and pacing charges the two that reached the CLI: launch and service, never worktree, settings or prompt =="
+echo "-- no feed reading at all, so the count is the only guard --"
+"$BATON" tick
+echo "-- two charged, so the third start of the window is this tick's own dispatch and the budgetSessions of 3 is met --"
+jq -c . "$BATON_HOME/projects/Fixture/budget.json"
+"$BATON" status
+echo "-- no attempt moved on any of the five, which is M13's rule left where it was --"
+! grep -q '"kind":"dispatch","project":"Fixture","milestone":"M03"' "$BATON_HOME/log.jsonl"

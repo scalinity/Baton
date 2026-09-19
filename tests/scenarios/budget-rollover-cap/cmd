@@ -1,0 +1,13 @@
+set -e
+cp "$SCENARIO/now" "$SHIM/now"
+echo "== one start already charged against the one budgetSessions allows: the tick pauses, and the seven-day reserve holds Fable beside it =="
+"$BATON" tick
+"$BATON" status
+echo
+echo "== the window rolls at the boundary the feed named, and the work that was waiting is admitted through everything else that still stands: the cap of 1 takes one of the two eligible milestones, and the fableReserve hold is untouched =="
+printf '2026-09-12T16:30:00+01:00\n' > "$SHIM/now"
+"$BATON" tick
+"$BATON" status
+jq -c . "$BATON_HOME/projects/Fixture/budget.json"
+echo "-- one session started, not two: the cap bound after the budget lifted --"
+[ "$(grep -c -- '--bg' "$SHIM/calls.log")" = 1 ]

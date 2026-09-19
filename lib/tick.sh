@@ -312,9 +312,18 @@ dispatch_run() {
     drn_kept=$(printf '%s' "$drn_kept" | jq -c --argjson c "$drn_c" '. + [$c]')
   done
   drn_order=$(cap_order "$drn_kept" "$drn_counts") || { render_failure err "the cap order could not be computed"; return 1; }
+  # The budget's remaining starts, beside the cap, because the two bound different things and
+  # either may bind first: the cap is how many sessions this Mac runs at once, the room is how many
+  # more this window can afford to start. Empty when `budgetSessions` is off, which is the default,
+  # and the loop is then bounded by the cap alone exactly as it was. It is counted here rather than
+  # left to the hold above because a hold is a fact from before this pass: every session this loop
+  # starts is one the feed has not reported yet, so a guard that only ran between ticks would let a
+  # full cap's worth through past the allowance, which is the one gap the count exists to close.
+  drn_room=$(budget_room) || { render_failure err "$drn_room"; return 1; }
   drn_started=0
   drn_n=$(printf '%s' "$drn_order" | jq length); drn_i=0
-  while [ "$drn_i" -lt "$drn_n" ] && [ "$((drn_total + do_unresolved))" -lt "$drn_cap" ]; do
+  while [ "$drn_i" -lt "$drn_n" ] && [ "$((drn_total + do_unresolved))" -lt "$drn_cap" ] \
+        && { [ -z "$drn_room" ] || [ "$drn_room" -gt 0 ]; }; do
     # The listing again, once this pass has started a session of its own. `dispatch_one` reads it for
     # one thing — the "also in flight" list its slot line carries — and against the listing taken
     # above, a sibling admitted a moment ago in this same loop is not in it. Both halves of an
@@ -339,9 +348,21 @@ dispatch_run() {
     drn_before=$(attempt_of "$drn_p" "$drn_m") || { render_failure err "$drn_before"; return 1; }
     dispatch_try "$drn_p" "$drn_m" "$drn_plan" "$drn_rows"
     drn_after=$(attempt_of "$drn_p" "$drn_m") || { render_failure err "$drn_after"; return 1; }
-    [ "$drn_after" -gt "$drn_before" ] || continue
+    if [ "$drn_after" -le "$drn_before" ]; then
+      # The dispatch produced no session, so it takes no slot — but it may still have reached the
+      # CLI, and a `dispatch_failed` at stage `launch` or `service` is a charged start. Re-read the
+      # room rather than assuming it did not move: the event has just been written, so the log says
+      # which stage it failed at and `budget_room` answers from that. Without it a launch that
+      # failed would leave the room untouched and the next candidate would spend a start the window
+      # had already been charged for.
+      [ -z "$drn_room" ] || { drn_room=$(budget_room) || { render_failure err "$drn_room"; return 1; }; }
+      continue
+    fi
     drn_total=$((drn_total + 1))
     drn_started=$((drn_started + 1))
+    # Charged on the same test the slot is: `attempt_of` moved, so a `dispatch` event was written,
+    # which is exactly what `budget_starts` counts on the next tick.
+    [ -z "$drn_room" ] || drn_room=$((drn_room - 1))
     # The override follows the dispatch it records, so a dispatch that failed leaves no record of the
     # plan having overruled a `held` into a session that never started.
     if printf '%s' "$drn_c" | jq -e 'has("override")' > /dev/null; then
@@ -453,6 +474,20 @@ tick_run() {
     render_failure err "holds       the reserve pass failed; a Fable dispatch may not be withheld this tick"
     tr_status=3
   }
+  # Budget pacing beside both, for the third time the same reason holds: the five-hour window is
+  # the account's, so it is read once and paces every project alike. It is after the reserve rather
+  # than before it because it is the wider hold of the two — the reserve withholds Fable, this
+  # withholds every model — and the log then reads in the order the pressure arrived.
+  #
+  # Guarded like the two above it, and for the reason `holds_apply`'s comment gives at length:
+  # `tick_run` is called as `tick_run … || vt_status=$?`, so `set -e` is suppressed through its
+  # whole body and a bare call that failed would be stepped over in silence. A pacing pass that
+  # failed writes no `hold`, and step 7 reads the log rather than this function, so the next
+  # dispatch would start a session into a window this pass had just found nearly spent.
+  budget_check || {
+    render_failure err "holds       the budget pass failed; a dispatch may not be paced this tick"
+    tr_status=3
+  }
 
   # 3 to 6, per project; then 7 and 8 once, across all of them.
   #
@@ -526,6 +561,12 @@ tick_run() {
   }
   dispatch_run "$tr_cands" "$tr_plans" || {
     render_row out action 'dispatch    the dispatch pass failed; nothing more is dispatched this tick\n'
+    tr_status=3
+  }
+  # Each project's budget record, after the dispatch that changes what it says, so the file a
+  # person reads is the tick's own answer and not the one from before its work (M14).
+  budget_record_all || {
+    render_row out action 'budget      the budget records could not be written this tick\n'
     tr_status=3
   }
 
