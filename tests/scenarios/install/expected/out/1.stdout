@@ -23,6 +23,7 @@ derive.sh
 dispatch.sh
 disposition.sh
 escalate.sh
+host.sh
 inbox.sh
 lifecycle.sh
 lock.sh

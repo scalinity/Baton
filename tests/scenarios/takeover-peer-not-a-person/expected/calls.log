@@ -1,4 +1,5 @@
 [cwd @TMP@] claude agents --json
+pmset -g log
 osascript -e 'display notification "no transcript change for 1 h 0 m; the row reads working · read it in Claude.app before touching it" with title "Baton · Fixture/M03 · stall"'
 caffeinate -i -w 503
 [cwd @TMP@] claude agents --json

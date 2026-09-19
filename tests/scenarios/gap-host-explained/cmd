@@ -1,0 +1,12 @@
+set -eu
+# A two-hour gap the host accounts for: the Mac was asleep for all but fifty seconds of it at a
+# stretch, which is under the two intervals a tick needs, so there was no tick to run. The event is
+# written with `channel: ["record"]` and **no Mac message is raised** — `calls.log` carries no
+# osascript line and no applet launch, which is the whole acceptance.
+#
+# The status below it is the second half: the tick has just written a new marker, so the live gap
+# line is gone, and the record is the only place this outage is ever seen. A gap nobody was told
+# about that also disappeared from the view would be worse than the message it replaced.
+"$BATON" tick
+echo
+"$BATON" status

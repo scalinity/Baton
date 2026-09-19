@@ -53,6 +53,27 @@ echo "no carries:      $(disposition_of escalation asking)"
 echo "carries not json:$(disposition_of escalation asking 'not json')"
 
 echo
+echo '=== the second arm that reads the carries, and the only disposition that is not a constant.'
+echo '=== The listing above asked about the class with no evidence at all and got human-required,'
+echo '=== which is what a gap nothing accounts for really needs. What moves it is one field, written'
+echo '=== by the parser in lib/host.sh and by nothing else.'
+echo "host explained it:   $(disposition_of notification gap '{"gap_seconds":7200,"host":{"assessed":"explained","sleep_seconds":7100,"longest_awake_seconds":50}}')"
+echo '=== and every other reading of the same field, each of which reaches a person'
+echo "complete, no sleep:  $(disposition_of notification gap '{"gap_seconds":7200,"host":{"assessed":"unexplained","sleep_seconds":0}}')"
+echo "not enough sleep:    $(disposition_of notification gap '{"gap_seconds":7200,"host":{"assessed":"unexplained","sleep_seconds":6000,"longest_awake_seconds":1200}}')"
+echo "the read failed:     $(disposition_of notification gap '{"gap_seconds":7200,"host":{"assessed":"unknown","reason":"history-unreadable"}}')"
+echo "a doubt inside:      $(disposition_of notification gap '{"gap_seconds":7200,"host":{"assessed":"unknown","reason":"missing-wake"}}')"
+echo '=== and the shapes that must not be read as an explanation, because unknown is not asleep'
+echo "no host object:      $(disposition_of notification gap '{"gap_seconds":7200}')"
+echo "host is null:        $(disposition_of notification gap '{"gap_seconds":7200,"host":null}')"
+echo "assessed is empty:   $(disposition_of notification gap '{"gap_seconds":7200,"host":{"assessed":""}}')"
+echo "assessed is a list:  $(disposition_of notification gap '{"gap_seconds":7200,"host":{"assessed":["explained"]}}')"
+echo "no carries:          $(disposition_of notification gap)"
+echo "carries not json:    $(disposition_of notification gap 'not json')"
+echo '=== the answer this function wrote last time is not evidence, and cannot talk it into itself'
+echo "disposition only:    $(disposition_of notification gap '{"disposition":"HOST-EXPLAINED"}')"
+
+echo
 echo '=== a class neither list holds is refused, not defaulted'
 status=0
 disposition_of escalation permission || status=$?

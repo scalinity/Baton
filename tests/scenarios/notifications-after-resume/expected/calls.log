@@ -1,2 +1,3 @@
+pmset -g log
 osascript -e 'display notification "no transcript change for 40 m; the row reads working · read it in Claude.app before touching it" with title "Baton · Fixture/M02 · stall"'
 osascript -e 'display notification "running 8 h 0 m since 2026-09-12T04:00:00+01:00, the latest dispatch, successful resume or takeover of this attempt" with title "Baton · Fixture/M02 · long-running"'

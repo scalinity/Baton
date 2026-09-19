@@ -1,0 +1,11 @@
+set -eu
+# The tick after that one. The pre-sleep sighting from 22:00 is still in the log and still expired;
+# what confirms the crash is the pair made **since** the wake — 07:59 and now — which is the
+# two-consecutive-ticks rule exactly as `crash-two-ticks` measures it on an ordinary afternoon.
+#
+# The recovery is the existing ladder and nothing else: the transcript is there, so `transcript_of`
+# selects a flagless resume under the same id rather than a redispatch, and one resume is what the
+# lane gets. A death confirmed after a sleep is recovered the same way as a death confirmed at noon,
+# which is the point — M15-b adds evidence to the gap and subtracts sleep from an age, and it adds
+# no route out of a crash that did not already exist.
+"$BATON" tick

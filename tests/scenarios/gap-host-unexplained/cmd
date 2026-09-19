@@ -1,0 +1,12 @@
+set -eu
+# The same two-hour gap against a host that was awake through all of it. The history is complete —
+# it reaches back past the marker and its trailing state is established — and it holds no sleep in
+# the window at all, so nothing explains the outage and the message goes out exactly as it did
+# before this milestone existed. Unloaded launchd, a stuck lock and a crashing tick are what this
+# can also mean; none of them is diagnosed here, and the person is the one who looks.
+#
+# The Wake Requests line inside the window is the trap: it is a *scheduled* request and not a wake,
+# and reading it as one would put a transition in the window that never happened.
+"$BATON" tick
+echo
+"$BATON" status
