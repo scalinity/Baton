@@ -1,4 +1,4 @@
 [cwd @TMP@] claude --version
-[cwd @TMP@] claude -p <prompt>
+[cwd @TMP@/Fixture] claude -p --settings @TMP@/home/checks/judge/settings.json <prompt>
 [cwd @TMP@] claude --version
-[cwd @TMP@] claude -p <prompt>
+[cwd @TMP@/Fixture] claude -p --settings @TMP@/home/checks/judge/settings.json <prompt>

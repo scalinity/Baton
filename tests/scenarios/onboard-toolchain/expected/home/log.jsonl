@@ -1,1 +1,1 @@
-{"at":"2026-09-19T08:00:00+01:00","kind":"onboarded","project":"Fixture","checkout":"@TMP@/Fixture","plan":"docs/MILESTONES.md","plan_format":"native","toolchain":["rust","make"],"cli_version":"2.1.278 (Claude Code)","start":[{"milestone":"M01","disposition":"run"}],"check":"cargo test"}
+{"at":"2026-09-19T08:00:00+01:00","kind":"onboarded","project":"Fixture","checkout":"@TMP@/Fixture","plan_format":"native","toolchain":["rust","make"],"start":["M01"],"plan":"docs/MILESTONES.md","check":"cargo test","cli_version":"2.1.278 (Claude Code)"}

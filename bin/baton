@@ -43,6 +43,7 @@ else
   BATON_LIB=$here/../lib
 fi
 . "$BATON_LIB/render.sh"
+. "$BATON_LIB/permissions.sh"
 . "$BATON_LIB/lock.sh"
 . "$BATON_LIB/log.sh"
 . "$BATON_LIB/plan.sh"

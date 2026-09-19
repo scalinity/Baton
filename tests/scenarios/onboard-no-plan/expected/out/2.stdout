@@ -1,7 +1,7 @@
 Fixture is already onboarded · the confirmed goal stands, nothing was asked again and nothing was seeded twice
 registered Fixture
   checkout    @TMP@/Fixture
-  plan        docs/MILESTONES.md (generated)
+  plan        null (generated)
   check       none detected
   goal        a fixture project.
   constraints POSIX shell only.
@@ -11,6 +11,6 @@ registered Fixture
 --- the registration ---
 {"plan_format":"generated","plan_owed":{"reason":"no readable milestone table was found in the repository","owner":"M12"},"has_start":false}
 --- the tick that follows ---
-self-check  Fixture · the plan file @TMP@/Fixture/docs/MILESTONES.md cannot be read: cat: @TMP@/Fixture/docs/MILESTONES.md: No such file or directory
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
 last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
-project park  Fixture · plan-unreadable · the plan file cannot be read: cat: @TMP@/Fixture/docs/MILESTONES.md: No such file or directory · fix the plan file; the next tick re-reads it
+project park  Fixture · plan-unreadable · the registration names no path and plan · fix the plan file; the next tick re-reads it

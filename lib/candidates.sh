@@ -81,21 +81,26 @@ dispositions_in_force() {
     dif_read=$((dif_read + 1))
     dif_all=$(jq -nc --argjson a "$dif_all" --argjson b "$dif_entries" '$a + $b')
   done
-  # The starting handover, ranked at `dif_read` — one past the last archived handover — so every
-  # word a session wrote outranks it and the seed decides only what nothing has decided since. Read
-  # with the same filter as an archive's `eligible[]`, so a malformed entry is dropped here exactly
-  # as it would be dropped there rather than reaching the intersection as a guess.
+  # The starting handover, ranked at `dif_n` — one past the highest rank any archived handover can
+  # hold — so every word a session wrote outranks it and the seed decides only what nothing has
+  # decided since. `dif_n` and not `dif_read`: a rank is a file's index in the list, assigned before
+  # the file is opened, while `dif_read` counts only the files that were there. An archive file that
+  # has been moved away is skipped without its rank being reused, so with one such file `dif_read`
+  # equals a rank a real handover already holds, `min_by([.rank, .index])` would fall through to the
+  # index, and a seed entry at index 0 would beat a session's word at index 1.
+  # Read with the same filter as an archive's `eligible[]`, so a malformed entry is dropped here
+  # exactly as it would be dropped there rather than reaching the intersection as a guess.
   dif_seed=0
   dif_pj=$BATON_HOME/projects/$1/project.json
   if [ -f "$dif_pj" ]; then
-    dif_entries=$(jq -c --arg a "$dif_pj" --argjson r "$dif_read" '
+    dif_entries=$(jq -c --arg a "$dif_pj" --argjson r "$dif_n" '
       [ (.start.eligible // []) | to_entries[] | .key as $k | .value
         | select(type == "object" and (.milestone | type) == "string")
         | select(.disposition == "run" or .disposition == "wait" or .disposition == "held")
         | {milestone, disposition,
            wait_for: (if (.wait_for | type) == "array" then .wait_for else [] end),
            held_by: (if (.held_by | type) == "string" then .held_by else null end),
-           archive: $a, rank: $r, index: $k} ]' "$dif_pj" 2>/dev/null) || dif_entries='[]'
+           archive: $a, rank: $r, index: $k, source: "start"} ]' "$dif_pj" 2>/dev/null) || dif_entries='[]'
     dif_seed=$(printf '%s' "$dif_entries" | jq length)
     dif_all=$(jq -nc --argjson a "$dif_all" --argjson b "$dif_entries" '$a + $b')
   fi
@@ -162,7 +167,12 @@ intersect_verdicts() {
               ($row.depends // [] | map(select(. as $x | $done | index($x) == null))) as $undone
               | {kind: "condition", class: "disagreement", milestone: $m, disposition: "run",
                  handover: $d.archive, waiting_on: $undone,
-                 detail: ("the handover \($d.archive | sub("^.*/"; "")) says run \($m), and the plan makes it ineligible: "
+                 # "the starting handover" where the word came from the registration rather than from a
+                 # session: a park reading "the handover project.json says run M03" would send a person
+                 # looking for a handover nobody wrote.
+                 detail: ((if $d.source == "start" then "the starting handover"
+                           else "the handover \($d.archive | sub("^.*/"; ""))" end)
+                          + " says run \($m), and the plan makes it ineligible: "
                           + (if $row == null then "the plan has no row for \($m)"
                              else "\($undone | join(", ")) \(if ($undone | length) == 1 then "is" else "are" end) not done" end))}
             end

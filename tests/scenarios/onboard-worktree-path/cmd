@@ -1,0 +1,9 @@
+set -eu
+# Onboarding a linked worktree registers the checkout it belongs to. The project key is the canonical
+# checkout's basename and never a session's `cwd`, so a worktree path must not become a second project
+# under a second key with its own state (REQ-ONBOARD-01).
+git -C Fixture worktree add -q "$PWD/Fixture-side" -b side
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture-side"
+printf '%s\n' '--- registered under the canonical checkout, not the worktree ---'
+printf 'keys: %s\n' "$(ls "$BATON_HOME/projects" | tr '\n' ' ')"
+jq -r .path "$BATON_HOME/projects/Fixture/project.json"

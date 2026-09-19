@@ -19,6 +19,7 @@ export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_OSASCRIPT BATON_HOME BATON
   BATON_TRANSCRIPTS
 
 . "$root/lib/render.sh"
+. "$root/lib/permissions.sh"
 . "$root/lib/lock.sh"
 . "$root/lib/log.sh"
 . "$root/lib/plan.sh"

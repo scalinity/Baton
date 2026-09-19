@@ -8,6 +8,8 @@ registered Fixture
   non-goals   a rewrite in another language.
   onboarded   2026-09-19T08:00:00+01:00
   starting    M02 · run · docs/milestones/M02.md
+preconditions: 1 eligible, 0 with unmet preconditions
+  M02  ready
 --- the plan the tick now sees ---
 plan Fixture: @TMP@/Fixture/docs/MILESTONES.md
 M01  done  model opus  effort -  remote no

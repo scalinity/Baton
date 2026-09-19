@@ -15,6 +15,22 @@
     "version": "2.1.278 (Claude Code)",
     "checked_at": "2026-09-19T08:00:00+01:00"
   },
+  "adaptation": {
+    "defaults": {},
+    "status_map": {
+      "complete": {
+        "status": "done"
+      },
+      "in progress": {
+        "status": ""
+      },
+      "retired": {
+        "status": "held",
+        "why": "\"retired\" is retirement, which the native vocabulary cannot say: it reads held, so it never runs and never satisfies a dependency, and no gate waits to clear it"
+      }
+    },
+    "gates": "absent"
+  },
   "start": {
     "at": "2026-09-19T08:00:00+01:00",
     "eligible": [
@@ -46,21 +62,5 @@
         "disposition": "run"
       }
     ]
-  },
-  "adaptation": {
-    "defaults": {},
-    "status_map": {
-      "complete": {
-        "status": "done"
-      },
-      "in progress": {
-        "status": ""
-      },
-      "retired": {
-        "status": "held",
-        "why": "\"retired\" is retirement, which the native vocabulary cannot say: it reads held, so it never runs and never satisfies a dependency, and no gate waits to clear it"
-      }
-    },
-    "gates": "absent"
   }
 }

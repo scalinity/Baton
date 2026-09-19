@@ -148,14 +148,14 @@ fi
 # tools that take one; the Bash fragments catch a shell command that names the path, and can
 # never be complete (D-026).
 #
-# The rules themselves live in `lib/onboard.sh` as `onboard_deny_rules`, sourced here for that one
+# The rules themselves live in `lib/permissions.sh` as `permissions_deny_rules`, sourced here for that
 # function. The rail is the same rail for every target — a Reclaim session must no more edit
 # `log.jsonl` or the launchd agent than a Baton session may — and `baton onboard` writes it for an
 # arbitrary repository, so a second copy of the recipe here would be two recipes that a test could
 # only compare rather than one that cannot disagree with itself. Nothing else from that library is
 # called: sourcing it defines its functions and runs none of them.
-. "$here/lib/onboard.sh"
-jq -n --argjson deny "$(onboard_deny_rules)" '
+. "$here/lib/permissions.sh"
+jq -n --argjson deny "$(permissions_deny_rules)" '
   { permissions: { allow: ["Bash(sh tests/run.sh:*)", "Bash(jq:*)"], deny: $deny } }' \
   > "$BATON_HOME/projects/$project/permissions.json.tmp"
 # An existing registration needs new rules too; preserve the file when it already matches.

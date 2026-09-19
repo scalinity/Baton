@@ -153,7 +153,10 @@ case "${1:-}" in
     # judge.answer holds. judge.status makes it exit non-zero and judge.hang makes it never answer,
     # which are the two terminal outcomes besides an answer that the role has to have.
     record "$@"
-    if [ -f "$S/judge.hang" ]; then sleep 600; exit 0; fi
+    # `exec`, so the deadline's `pkill -P` reaches this sleep: a shell that forks it stays as the
+    # child and the sleeper is a grandchild the kill does not name, and two ten-minute sleepers per
+    # run of the deadline scenario would outlive the suite.
+    if [ -f "$S/judge.hang" ]; then exec sleep 600; fi
     if [ -f "$S/judge.status" ]; then
       if [ -f "$S/judge.stderr" ]; then cat "$S/judge.stderr" >&2; else echo 'claude: the request failed' >&2; fi
       exit "$(cat "$S/judge.status")"

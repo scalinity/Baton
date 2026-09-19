@@ -1,0 +1,9 @@
+set -eu
+# Three toolchain arms at once — node, python and swift — with node naming the check because its
+# evidence comes first and `package.json` really has a test script. Every detected driver is allowed;
+# the check's own rule is not added, because `Bash(npm:*)` already covers `npm test`.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- what was derived ---'
+jq -c '.check' "$BATON_HOME/projects/Fixture/project.json"
+jq -c '.permissions.allow' "$BATON_HOME/projects/Fixture/permissions.json"
+jq -c 'select(.kind == "onboarded") | .toolchain' "$BATON_HOME/log.jsonl"

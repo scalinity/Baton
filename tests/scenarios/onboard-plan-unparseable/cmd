@@ -1,0 +1,9 @@
+set -eu
+# A plan that is there and will not parse even with defaults, which is a different thing from no plan
+# at all: the cell that refused it is named, and `plan_owed.reason` carries that sentence rather than
+# "no readable milestone table was found" — which would send M12 looking for a file that is right
+# there. A `Model` cell holding a name that is neither an alias in config.json nor a model id is not
+# something tolerance may default, because the row would then run on a model nobody chose.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- what M12 is told ---'
+jq -c '{plan, plan_format, plan_owed}' "$BATON_HOME/projects/Fixture/project.json"

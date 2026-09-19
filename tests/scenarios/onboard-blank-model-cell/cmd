@@ -1,0 +1,9 @@
+set -eu
+# L1's second shape: the `Model` column is there and one cell is blank. A blank model is not a token
+# the column has — `parse_model ""` fails — so the plan would not parse, and the same default that
+# covers an absent column covers an absent cell. One rule, both shapes. The rows that do name a model
+# keep it, and `Effort` stays the blank the person wrote because its column is present.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- M02 takes the default model and keeps its own effort ---'
+"$BATON" plan Fixture || true
+jq -c '.adaptation.defaults' "$BATON_HOME/projects/Fixture/project.json"
