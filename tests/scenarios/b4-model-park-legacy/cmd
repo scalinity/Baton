@@ -1,0 +1,37 @@
+set -eu
+. "$ROOT/tests/lib-load.sh"
+echo "== the refused model parks the lane =="
+"$BATON" tick
+
+# The receipt is downgraded to the shape a relay before D-134 wrote: the whole-row plan digest and
+# the brief digest, over the same inputs, by the same rule — computed here from the plan and the
+# brief as they stand, never a sentinel. That is the receipt the migration has to cope with.
+if ! jq -se 'any(.kind == "reread_baseline")' "$BATON_HOME/log.jsonl" > /dev/null; then
+  rows=$(printf '%s' "$(plan_of_project Fixture)" | jq -c --arg m M02 \
+           '[ .milestones[] | select(.id == $m or ((.depends // []) | index($m)) != null) | del(.row) ]' \
+         | shasum -a 256 | awk '{ print $1 }')
+  brief=$(printf '%s' "$(prompt_from_brief "$(project_path Fixture)" docs/milestones/M02.md 'Copy-ready session prompt')" \
+          | shasum -a 256 | awk '{ print $1 }')
+  jq -c --arg r "$rows" --arg b "$brief" \
+    'if .kind == "escalation" then .carries.reread = {plan_rows_sha256: $r, brief_sha256: $b} else . end' \
+    "$BATON_HOME/log.jsonl" > "$BATON_HOME/log.jsonl.tmp"
+  mv "$BATON_HOME/log.jsonl.tmp" "$BATON_HOME/log.jsonl"
+fi
+
+echo "== the first tick over a v1 receipt takes its plan evidence afresh and releases nothing =="
+"$BATON" tick
+
+echo "== a peer corrects a downstream row; the migrated park still stands =="
+sed -i '' '/^| M03 |/s/| M02 | claude-opus-5 |/| M01, M02 | sonnet |/' Fixture/docs/MILESTONES.md
+"$BATON" tick
+
+echo "== this milestone's own Model cell is the answer: one release, one redispatch =="
+sed -i '' '/^| M02 |/s/| M01 | opus |/| M01 | sonnet |/' Fixture/docs/MILESTONES.md
+"$BATON" tick
+
+jq -se '[.[] | select(.kind == "reread_baseline")] | length == 1' "$BATON_HOME/log.jsonl" > /dev/null
+jq -se 'first(.[] | select(.kind == "reread_baseline")) | (.hashes | has("brief_sha256") | not) and .policy == "effective-model"' \
+  "$BATON_HOME/log.jsonl" > /dev/null
+jq -se '[.[] | select(.kind == "resolution" and .how == "edit")] | length == 1' "$BATON_HOME/log.jsonl" > /dev/null
+jq -se '[.[] | select(.kind == "dispatch")] | length == 2' "$BATON_HOME/log.jsonl" > /dev/null
+jq -se 'last(.[] | select(.kind == "dispatch")) | .model == "sonnet"' "$BATON_HOME/log.jsonl" > /dev/null

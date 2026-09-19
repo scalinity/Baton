@@ -1,0 +1,13 @@
+== the refused model parks the lane ==
+model     Fixture/M02 · opus was refused · the lane is parked until the cell is edited
+== the first tick over a v1 receipt takes its plan evidence afresh and releases nothing ==
+rebased   Fixture/M02 · the model_not_found park predates the effective-model policy, so its plan evidence is taken afresh · the park stands and an edit made before now cannot be proved
+== a peer corrects a downstream row; the migrated park still stands ==
+== this milestone's own Model cell is the answer: one release, one redispatch ==
+unparked  Fixture/M02 · the effective model changed since the model_not_found park · Baton acts on the lane again
+redispatch Fixture/M02 · the effective model changed since the model was refused, so attempt 2 runs on it
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/Fixture-M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

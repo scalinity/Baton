@@ -1,0 +1,9 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "3 failure endings in a row on this attempt, the last a turn that ended with no handover: the turn ended while the review agents were still running · edit the brief or the plan, or baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · ladder-end"'
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json

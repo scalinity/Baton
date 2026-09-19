@@ -1,0 +1,34 @@
+set -eu
+. "$ROOT/tests/lib-load.sh"
+echo "== three failure endings end the ladder and park the lane =="
+"$BATON" tick
+
+# The receipt as a relay before D-134 wrote it: the whole-row plan digest and the brief digest, over
+# the same inputs, by the same rule — computed here, never a sentinel.
+if ! jq -se 'any(.kind == "reread_baseline")' "$BATON_HOME/log.jsonl" > /dev/null; then
+  rows=$(printf '%s' "$(plan_of_project Fixture)" | jq -c --arg m M02 \
+           '[ .milestones[] | select(.id == $m or ((.depends // []) | index($m)) != null) | del(.row) ]' \
+         | shasum -a 256 | awk '{ print $1 }')
+  brief=$(printf '%s' "$(prompt_from_brief "$(project_path Fixture)" docs/milestones/M02.md 'Copy-ready session prompt')" \
+          | shasum -a 256 | awk '{ print $1 }')
+  jq -c --arg r "$rows" --arg b "$brief" \
+    'if .kind == "escalation" then .carries.reread = {plan_rows_sha256: $r, brief_sha256: $b} else . end' \
+    "$BATON_HOME/log.jsonl" > "$BATON_HOME/log.jsonl.tmp"
+  mv "$BATON_HOME/log.jsonl.tmp" "$BATON_HOME/log.jsonl"
+fi
+
+echo "== a peer corrects a downstream Model cell; the v1 receipt is taken afresh and nothing releases =="
+sed -i '' '/^| M03 |/s/| M02 | claude-opus-5 |/| M02 | sonnet |/' Fixture/docs/MILESTONES.md
+"$BATON" tick
+
+echo "== the brief is edited and committed: the digest the v1 receipt kept is what releases it =="
+sed -i '' 's/^STARTUP ORDER\. Read CLAUDE\.md, then the brief\.$/STARTUP ORDER. Read CLAUDE.md, then the brief, then the note on the last attempt./' Fixture/docs/milestones/M02.md
+GIT_AUTHOR_DATE=2026-09-12T11:30:00+0100 GIT_COMMITTER_DATE=2026-09-12T11:30:00+0100 \
+  git -C Fixture -c user.name=fixture -c user.email=fixture@example commit -q -am "a person's edit to the brief" > /dev/null 2>&1 || true
+"$BATON" tick
+
+jq -se '[.[] | select(.kind == "reread_baseline")] | length == 1' "$BATON_HOME/log.jsonl" > /dev/null
+jq -se 'first(.[] | select(.kind == "reread_baseline")) | (.hashes | has("brief_sha256") | not) and .policy == "instructions"' \
+  "$BATON_HOME/log.jsonl" > /dev/null
+jq -se '[.[] | select(.kind == "resolution" and .how == "edit")] | length == 1' "$BATON_HOME/log.jsonl" > /dev/null
+jq -se '[.[] | select(.kind == "dispatch")] | length == 2' "$BATON_HOME/log.jsonl" > /dev/null

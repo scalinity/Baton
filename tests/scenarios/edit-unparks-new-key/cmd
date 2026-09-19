@@ -1,15 +1,16 @@
 set -eu
 . "$ROOT/tests/lib-load.sh"
-# Seed the park's unchanged plan reading; the old brief key is deliberately absent.
-# The fixture's committed M02 brief is the newly readable input on the first tick.
+# Seed the park's unchanged work-plan reading; the brief key is deliberately absent, which is what a
+# park recorded while the brief could not be read on main carries. The fixture's committed M02 brief
+# is the newly readable input on the first tick (S6).
 if ! jq -se 'any(.kind == "resolution")' "$BATON_HOME/log.jsonl" > /dev/null; then
-  reading=$(reread_hashes Fixture M02 '{}')
-  printf '%s' "$reading" | jq -e 'has("brief_sha256")' > /dev/null
-  jq --argjson reading "$reading" -c '.carries.reread = ($reading | del(.brief_sha256))' \
+  reading=$(reread_hashes Fixture M02 dispatch-failed '{}')
+  printf '%s' "$reading" | jq -e '.hashes | has("brief_sha256")' > /dev/null
+  jq --argjson reading "$reading" -c '.carries.reread = ($reading | .hashes |= del(.brief_sha256))' \
     "$BATON_HOME/log.jsonl" > "$BATON_HOME/log.jsonl.tmp"
   mv "$BATON_HOME/log.jsonl.tmp" "$BATON_HOME/log.jsonl"
 fi
-printf '%s\n' '== the formerly absent brief key is present; unchanged plan rows cannot release this park =='
+printf '%s\n' '== the formerly absent brief key is present; an unchanged work plan cannot release this park =='
 "$BATON" tick
 jq -se '[.[] | select(.kind == "resolution" and .how == "edit")] | length == 1' \
   "$BATON_HOME/log.jsonl" > /dev/null

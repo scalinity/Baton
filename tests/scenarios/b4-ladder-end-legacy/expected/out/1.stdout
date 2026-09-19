@@ -1,0 +1,12 @@
+== three failure endings end the ladder and park the lane ==
+ladder    Fixture/M02 · 3 failures in a row · the lane is parked
+== a peer corrects a downstream Model cell; the v1 receipt is taken afresh and nothing releases ==
+rebased   Fixture/M02 · the ladder-end park predates the instructions policy, so its plan evidence is taken afresh · the park stands and an edit made before now cannot be proved
+== the brief is edited and committed: the digest the v1 receipt kept is what releases it ==
+unparked  Fixture/M02 · the brief changed since the ladder-end park · Baton acts on the lane again
+redispatch Fixture/M02 · the brief or the work plan changed after the ladder ended, so attempt 2 starts from it
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/Fixture-M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

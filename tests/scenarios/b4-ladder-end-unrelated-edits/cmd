@@ -1,0 +1,29 @@
+set -eu
+echo "== three failure endings end the ladder and park the lane =="
+"$BATON" tick
+
+echo "== the brief is rewritten with identical bytes: git has nothing to record =="
+cat Fixture/docs/milestones/M02.md > Fixture/docs/milestones/M02.md.same
+mv Fixture/docs/milestones/M02.md.same Fixture/docs/milestones/M02.md
+GIT_AUTHOR_DATE=2026-09-12T11:31:00+0100 GIT_COMMITTER_DATE=2026-09-12T11:31:00+0100 \
+  git -C Fixture -c user.name=fixture -c user.email=fixture@example commit -q -am "identical bytes" > /dev/null 2>&1 || true
+"$BATON" tick
+
+echo "== the brief is edited, committed, reverted and committed again: no decision survives it =="
+sed -i '' 's/^STARTUP ORDER\. Read CLAUDE\.md, then the brief\.$/STARTUP ORDER. Read CLAUDE.md, then the brief, twice./' Fixture/docs/milestones/M02.md
+GIT_AUTHOR_DATE=2026-09-12T11:32:00+0100 GIT_COMMITTER_DATE=2026-09-12T11:32:00+0100 \
+  git -C Fixture -c user.name=fixture -c user.email=fixture@example commit -q -am "an edit" > /dev/null 2>&1 || true
+sed -i '' 's/^STARTUP ORDER\. Read CLAUDE\.md, then the brief, twice\.$/STARTUP ORDER. Read CLAUDE.md, then the brief./' Fixture/docs/milestones/M02.md
+GIT_AUTHOR_DATE=2026-09-12T11:33:00+0100 GIT_COMMITTER_DATE=2026-09-12T11:33:00+0100 \
+  git -C Fixture -c user.name=fixture -c user.email=fixture@example commit -q -am "and its revert" > /dev/null 2>&1 || true
+"$BATON" tick
+
+echo "== a peer's close-out writes done in its own row and corrects a downstream Model cell =="
+# M07 is nothing to do with M02; M03 is downstream of it. Neither row says anything about the work
+# M02 was told to do, so neither may restart a lane three failure endings stopped.
+sed -i '' '/^| M07 |/s/| opus | | | |/| opus | | | done |/' Fixture/docs/MILESTONES.md
+sed -i '' '/^| M03 |/s/| M02 | claude-opus-5 |/| M02 | sonnet |/' Fixture/docs/MILESTONES.md
+"$BATON" tick
+
+jq -se '[.[] | select(.kind == "resolution")] | length == 0' "$BATON_HOME/log.jsonl" > /dev/null
+jq -se '[.[] | select(.kind == "dispatch")] | length == 1' "$BATON_HOME/log.jsonl" > /dev/null

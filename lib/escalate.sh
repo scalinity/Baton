@@ -55,45 +55,135 @@ class_ends_on_done() {
   esac
 }
 
-# reread_hashes <project> <milestone> <carries json> [<plan json>]: the two readings an edit changes
-# — the plan rows that answer this park, and the brief's kickoff prompt — hashed as they stand now.
-# The plan is the tick's own parsed document when the caller holds one, and read afresh when not.
+# class_reread_policy <class>: which readings a person's decision about this park would change, and
+# therefore the only ones whose change may end it.
 #
-# **The rows that answer the park, and no others.** An unpark now leads somewhere — a redispatch —
-# so an unpark on a change nobody meant for this lane would restart a lane whose ladder ended
-# because another lane's close-out wrote `done` in its own `Status` cell. The rows are the
-# milestone's own (its `Model` cell answers a refused model), every row whose `Depends on` names it
-# (a split adds one), and the row the carries names as the blocker (its `Status` releases a
-# `blocked` lane). Each is the parsed row with its row number taken out, so a row added above it or
-# pipes re-aligned around it is not a decision, and prose outside the table never is.
+# The park's class is the question the person was asked, so it is also the answer's shape. A refused
+# model is answered by a model and by nothing else; an ended ladder is answered by new instructions,
+# which are the brief or the work plan the lane runs from; a blocked lane is answered by its
+# blocker's row as well; a close-out that could not finish is answered by the `done` a person writes
+# when they finish it by hand. Hashing everything a park could conceivably read made any of those
+# answers look like all of them: a peer session correcting an unrelated downstream row released a
+# `model_not_found` park and redispatched the same refused model under a message claiming the Model
+# cell had been edited (D-134, measured).
+class_reread_policy() {
+  case "$1" in
+    model_not_found)          echo effective-model ;;
+    blocked)                  echo blocker-and-instructions ;;
+    merge-failed|main-broken) echo close-out-status ;;
+    *)                        echo instructions ;;
+  esac
+}
+
+# policy_fields <policy>: the hash fields that policy designates, as a JSON array. These and no
+# others are compared; the receipt's own wrapper is interpretation and never evidence, and a field
+# that appears in a receipt without being designated is read by nothing.
+policy_fields() {
+  case "$1" in
+    effective-model)          echo '["model_sha256"]' ;;
+    blocker-and-instructions) echo '["brief_sha256","work_plan_sha256","blocker_sha256"]' ;;
+    close-out-status)         echo '["status_sha256"]' ;;
+    *)                        echo '["brief_sha256","work_plan_sha256"]' ;;
+  esac
+}
+
+# reread_project <plan json> <milestone> <blocker> <what>: one projection of the parsed plan, as
+# canonical JSON, or nothing when the plan does not hold it.
+#
+# `model` and `status` are the milestone's own cells as the parse resolved them — `model` is the
+# effective model, an alias already expanded through `config.json`, so renaming an alias to a
+# different model is the decision it really is. `blocker` is the row the carries names, and its
+# `Status` is what releases a `blocked` lane.
+#
+# `work_plan` is the lane's own execution fields and dependencies, plus the ids and dependency edges
+# of every milestone downstream of it — enough to recognise a split, which adds a row that names
+# this one. It excludes row position and it excludes `Status`: a row moving and a sibling's
+# bookkeeping are not decisions about this lane, and the downstream rows contribute their edges
+# alone, never their own `Model` or `Effort`, because a peer's model is the peer's business. The
+# downstream list is sorted by id for the same reason the row number is dropped — where a row sits
+# is not what it says.
+reread_project() {
+  printf '%s' "$1" | jq -c --arg m "$2" --arg b "$3" --arg w "$4" '
+    (.milestones // []) as $ms
+    | ($ms | map(select(.id == $m)) | first) as $self
+    | if $w == "model"  then (if $self == null then empty else $self.model end)
+      elif $w == "status" then (if $self == null then empty else $self.status end)
+      elif $w == "blocker" then
+        (if $b == "" then empty
+         else ($ms | map(select(.id == $b)) | first) as $r
+              | (if $r == null then empty else {id: $r.id, status: $r.status} end)
+         end)
+      else
+        (if $self == null then empty
+         else {self: {id: $self.id, depends: $self.depends, model: $self.model,
+                      effort: $self.effort, remote: $self.remote},
+               downstream: ([ $ms[] | select(.id != $m and ((.depends // []) | index($m)) != null)
+                              | {id: .id, depends: .depends} ] | sort_by(.id))}
+         end)
+      end' 2>/dev/null
+}
+
+# reread_hashes <project> <milestone> <class> <carries json> [<plan json>]: the readings a decision
+# about this park would change, hashed as they stand now, as an explicitly versioned receipt:
+#
+#     {"version": 2, "policy": "effective-model", "hashes": {"model_sha256": "…"}}
+#
+# The plan is the tick's own parsed document when the caller holds one, and read afresh when not.
+# The version and the policy say how to read the hashes and are never themselves evidence: a
+# comparison over the wrapper would make an upgrade look like a person, which is the whole defect
+# this shape exists to close.
 #
 # **The brief through `git show main:`**, which is how a dispatch reads it (`prompt_from_brief`).
 # An uncommitted edit is not one a session would ever receive, so it is not one that should unpark
 # a lane: the person's edit becomes real when it is committed, and that is the same moment for both
-# halves of Baton.
+# halves of Baton. It is read only for a policy that designates it.
 #
 # A reading that fails is absent rather than empty, the envelope's rule: a plan file that cannot be
 # read parks the project on its own account. Absence is a distinct state: a brief first becoming
-# readable on main is an edit, while a reading becoming unavailable does not release a park.
+# readable on main is an edit, while a reading becoming unavailable does not release a park. A
+# receipt with no reading at all is `{}`, and `escalate` then attaches none.
 reread_hashes() {
-  rrh_plan=''; rrh_brief=''
+  rrh_h='{}'
   [ -n "$2" ] || { echo '{}'; return 0; }
-  rrh_doc=${4:-}
+  rrh_policy=$(class_reread_policy "$3")
+  rrh_want=$(policy_fields "$rrh_policy")
+  rrh_doc=${5:-}
   [ -n "$rrh_doc" ] || rrh_doc=$(plan_of_project "$1" 2>/dev/null) || rrh_doc=''
+  rrh_b=$(printf '%s' "${4:-"{}"}" | jq -r '.blocked_by // ""' 2>/dev/null || true)
   if [ -n "$rrh_doc" ]; then
-    rrh_plan=$(printf '%s' "$rrh_doc" | jq -c --arg m "$2" \
-        --arg b "$(printf '%s' "${3:-"{}"}" | jq -r '.blocked_by // ""' 2>/dev/null || true)" '
-        [ .milestones[]
-          | select(.id == $m or ((.depends // []) | index($m)) != null or ($b != "" and .id == $b))
-          | del(.row) ]' 2>/dev/null | shasum -a 256 | awk '{ print $1 }') || rrh_plan=''
+    for rrh_f in $(printf '%s' "$rrh_want" | jq -r '.[] | select(. != "brief_sha256")'); do
+      case "$rrh_f" in
+        model_sha256)     rrh_v=$(reread_project "$rrh_doc" "$2" "$rrh_b" model) ;;
+        status_sha256)    rrh_v=$(reread_project "$rrh_doc" "$2" "$rrh_b" status) ;;
+        blocker_sha256)   rrh_v=$(reread_project "$rrh_doc" "$2" "$rrh_b" blocker) ;;
+        *)                rrh_v=$(reread_project "$rrh_doc" "$2" "$rrh_b" work_plan) ;;
+      esac
+      [ -n "$rrh_v" ] || continue
+      rrh_h=$(printf '%s' "$rrh_h" | jq -c --arg k "$rrh_f" \
+        --arg v "$(printf '%s' "$rrh_v" | shasum -a 256 | awk '{ print $1 }')" '. + {($k): $v}')
+    done
   fi
-  if rrh_path=$(project_path "$1" 2>/dev/null); then
-    if rrh_text=$(prompt_from_brief "$rrh_path" "docs/milestones/$2.md" "Copy-ready session prompt" 2>/dev/null); then
-      rrh_brief=$(printf '%s' "$rrh_text" | shasum -a 256 | awk '{ print $1 }')
-    fi
+  if printf '%s' "$rrh_want" | jq -e 'index("brief_sha256") != null' > /dev/null \
+     && rrh_path=$(project_path "$1" 2>/dev/null) \
+     && rrh_text=$(prompt_from_brief "$rrh_path" "docs/milestones/$2.md" "Copy-ready session prompt" 2>/dev/null); then
+    rrh_h=$(printf '%s' "$rrh_h" | jq -c \
+      --arg v "$(printf '%s' "$rrh_text" | shasum -a 256 | awk '{ print $1 }')" '. + {brief_sha256: $v}')
   fi
-  jq -nc --arg p "$rrh_plan" --arg b "$rrh_brief" \
-    '{plan_rows_sha256: $p, brief_sha256: $b} | with_entries(select(.value != ""))'
+  [ "$(printf '%s' "$rrh_h" | jq length)" -gt 0 ] || { echo '{}'; return 0; }
+  jq -nc --arg p "$rrh_policy" --argjson h "$rrh_h" '{version: 2, policy: $p, hashes: $h}'
+}
+
+# reread_changed <was json> <now json> <fields json>: the designated readings that have changed —
+# newly present, or present in both and different.
+#
+# Newly present counts, and that half is load-bearing: a brief that was unreadable when the lane
+# parked and reads now is the person's edit arriving, not a missing key. Absent now cannot count,
+# for the mirror reason: a plan file that has become unreadable parks the project on its own account
+# and must not also unpark every lane waiting on it. Only the designated fields are looked at, so a
+# key the receipt happens to carry from an older policy is neither compared nor missed.
+reread_changed() {
+  jq -nc --argjson was "$1" --argjson now "$2" --argjson want "$3" \
+    '[ $want[] as $k | select(($now | has($k)) and (($was | has($k) | not) or $now[$k] != $was[$k])) | $k ]'
 }
 
 # person_acted <project> <milestone> <class>: how a person answered the park this lane's newest
@@ -168,11 +258,18 @@ escalate() {
   if { [ "$esc_scope" = lane ] && [ -n "$1" ] \
        && { class_unparks_by_edit "$esc_class" || [ -z "$(ruling_target "$1" "$3" "$4")" ]; }; } \
      || { [ -n "$1" ] && [ -n "$2" ] && class_ends_on_done "$esc_class"; }; then
-    esc_reread=$(reread_hashes "$1" "$2" "$esc_carries")
+    # The class is what the person was asked, so it is what decides which readings can answer. It is
+    # passed rather than inferred from the carries: it is an argument here and a top-level field on
+    # the event, and a reader that guessed it from the carries would be a second taxonomy (D-119).
+    esc_reread=$(reread_hashes "$1" "$2" "$esc_class" "$esc_carries") || esc_reread='{}'
     # For the two classes a `done` written by hand ends, the cell as it reads now is part of the
     # record, because "written after the park" is the whole of that rule and a hash cannot say which
-    # cell changed. Absent when the plan cannot be read, and the resolution then refuses.
-    if class_ends_on_done "$esc_class" && esc_plan=$(plan_of_project "$1" 2>/dev/null) \
+    # cell changed. It sits beside the hashes rather than among them: it is the literal the rule
+    # tests, not a reading whose change releases anything. Absent when the plan cannot be read, and
+    # the resolution then refuses.
+    if class_ends_on_done "$esc_class" \
+       && printf '%s' "$esc_reread" | jq -e 'has("version")' > /dev/null 2>&1 \
+       && esc_plan=$(plan_of_project "$1" 2>/dev/null) \
        && esc_row=$(printf '%s' "$esc_plan" | plan_row "$2" 2>/dev/null); then
       esc_reread=$(printf '%s' "$esc_reread" | jq -c --argjson row "$esc_row" '. + {status_at_park: $row.status}')
     fi
@@ -416,16 +513,40 @@ ending_escalate() {
     "$(jq -nc --arg a "$7" '{detail: "the session stopped with words Baton could not carry whole; they are in the archived artifact", archive: $a}')"
 }
 
+# reread_baseline_of <project> <milestone> <escalation at>: the baseline already appended for that
+# park — `{found: <how many>, hashes: {…}}`. The count is printed rather than swallowed because two
+# baselines for one park are a state nothing can read, and guessing between them would be the same
+# mistake as guessing a person's intent from a hash.
+reread_baseline_of() {
+  rbo_log=$(log_json) || { echo "$rbo_log"; return 1; }
+  printf '%s' "$rbo_log" | jq -c --arg p "$1" --arg m "$2" --arg at "$3" '
+    [ .[] | select(.kind == "reread_baseline" and .project == $p and .milestone == $m
+                   and .escalation_at == $at) ] as $b
+    | {found: ($b | length), hashes: ($b | last | .hashes // {})}'
+}
+
 # edit_reread_check <project> <plan json> [<rows json>]: REQ-ESC-05's third route, and the one only the tick can
-# see, because only the tick re-reads. For every parked lane carrying the hashes, the rows that answer
-# it — from the plan the tick has already parsed — and the brief are read again and compared against
-# the hashes the escalation carried; a difference is the person's decision arriving, and the lane
-# unparks without a second command.
+# see, because only the tick re-reads. For every parked lane carrying a receipt, the readings its own
+# class designates — from the plan the tick has already parsed, and the brief on `main` — are read
+# again and compared against the receipt; a difference is the person's decision arriving, and the
+# lane unparks without a second command.
 #
-# Compare present readings with both the old key's presence and its value. A newly readable key
-# ends the park just as a changed value does. A reading that fails now cannot release it: a plan
-# file that has become unreadable parks the project on its own account and must not also unpark
-# every lane that was waiting on it.
+# **Only the designated readings.** The receipt names a policy and the policy names its fields, and
+# nothing outside them is compared — not the wrapper, and not a key some earlier policy left behind.
+# That is the whole of D-134: a park is released by an answer to the question it asked, so a peer's
+# close-out writing `done` in its own cell, or correcting a downstream row, is no longer a decision
+# about this lane.
+#
+# **A v1 receipt cannot be converted, so it is rebaselined.** Its `plan_rows_sha256` is a digest of
+# rows that no longer exist as a unit, and the old underlying values are gone; `carries.model` is the
+# model the attempt asked for, not the one the cell held, so substituting it would invent evidence.
+# What a v1 receipt does still say is kept — its exact brief digest, and `status_at_park` — and those
+# are compared first, so the brief-only release and a brief that first became readable both still
+# work without waiting for anything. Only when they say nothing is one `reread_baseline` event
+# appended, carrying today's readings for the fields v1 never held, and the park stands that tick.
+# The cost is said out loud on the line: an edit made before the upgrade may no longer be provable.
+# An unknown version, two baselines for one park, a reading that will not come, or an append that
+# fails all leave the park exactly as it was — the upgrade itself must never be what frees a lane.
 #
 # The unpark is written before step 4 runs, so the rule that parked the lane gets the same tick to
 # act on the edit: a `blocked` lane whose blocker now reads `done` is redispatched a second later
@@ -438,16 +559,67 @@ edit_reread_check() {
   while [ "$err_i" -lt "$err_n" ]; do
     err_e=$(printf '%s' "$err_list" | jq -c ".[$err_i]"); err_i=$((err_i + 1))
     err_m=$(printf '%s' "$err_e" | jq -r '.milestone // ""')
-    err_was=$(printf '%s' "$err_e" | jq -c .carries.reread)
-    err_now=$(reread_hashes "$1" "$err_m" "$(printf '%s' "$err_e" | jq -c .carries)" "${2:-}")
-    err_changed=$(jq -nc --argjson was "$err_was" --argjson now "$err_now" '
-      [ $now | keys[] as $key
-        | select(($was | has($key) | not) or $now[$key] != $was[$key]) | $key ]')
+    err_class=$(printf '%s' "$err_e" | jq -r '.class // ""')
+    err_at=$(printf '%s' "$err_e" | jq -r .at)
+    err_receipt=$(printf '%s' "$err_e" | jq -c .carries.reread)
+    err_v=$(printf '%s' "$err_receipt" | jq -r '.version // 1')
+    case "$err_v" in
+      1|2) ;;
+      *) echo "baton: $1/$err_m the park raised at $err_at carries a re-read receipt of version $err_v, which this relay cannot read; the park stands" >&2
+         continue ;;
+    esac
+    err_want=$(policy_fields "$(class_reread_policy "$err_class")")
+    err_now=$(reread_hashes "$1" "$err_m" "$err_class" "$(printf '%s' "$err_e" | jq -c .carries)" "${2:-}")
+    err_now=$(printf '%s' "$err_now" | jq -c '.hashes // {}')
+    if [ "$err_v" = 2 ]; then
+      err_changed=$(reread_changed "$(printf '%s' "$err_receipt" | jq -c '.hashes // {}')" "$err_now" "$err_want")
+    else
+      # What a v1 receipt still speaks for: the brief digest it wrote under the same rule, and the
+      # Status cell it recorded as a literal. Its absence is evidence too — v1 wrote the brief digest
+      # whenever the brief read — so a newly readable brief still releases the park.
+      err_was=$(printf '%s' "$err_receipt" | jq -c \
+        'if has("brief_sha256") then {brief_sha256: .brief_sha256} else {} end')
+      if printf '%s' "$err_receipt" | jq -e 'has("status_at_park")' > /dev/null 2>&1; then
+        # Hashed the way `reread_project` hashes it — the JSON value, not the bare text — so the two
+        # readings are comparable at all.
+        err_was=$(printf '%s' "$err_was" | jq -c --arg v "$(printf '%s' \
+          "$(printf '%s' "$err_receipt" | jq -c .status_at_park)" | shasum -a 256 | awk '{ print $1 }')" \
+          '. + {status_sha256: $v}')
+      fi
+      err_changed=$(reread_changed "$err_was" "$err_now" \
+        "$(printf '%s' "$err_want" | jq -c '[ .[] | select(. == "brief_sha256" or . == "status_sha256") ]')")
+      err_rest=$(printf '%s' "$err_want" | jq -c '[ .[] | select(. != "brief_sha256" and . != "status_sha256") ]')
+      if [ "$(printf '%s' "$err_changed" | jq length)" -eq 0 ] \
+         && [ "$(printf '%s' "$err_rest" | jq length)" -gt 0 ]; then
+        err_base=$(reread_baseline_of "$1" "$err_m" "$err_at") || { echo "$err_base" >&2; return 1; }
+        if [ "$(printf '%s' "$err_base" | jq -r .found)" -gt 1 ]; then
+          echo "baton: $1/$err_m more than one re-read baseline names the park raised at $err_at; the park stands" >&2
+          continue
+        elif [ "$(printf '%s' "$err_base" | jq -r .found)" -eq 0 ]; then
+          err_new=$(printf '%s' "$err_now" | jq -c --argjson want "$err_rest" \
+            '. as $n | reduce $want[] as $k ({}; if $n | has($k) then . + {($k): $n[$k]} else . end)')
+          if [ "$(printf '%s' "$err_new" | jq length)" -ne "$(printf '%s' "$err_rest" | jq length)" ]; then
+            echo "baton: $1/$err_m the re-read baseline for the park raised at $err_at needs a reading the plan does not give; the park stands" >&2
+            continue
+          fi
+          log_event reread_baseline "$1" "$err_m" "$(printf '%s' "$err_e" | jq -r '.session // ""')" \
+            "$(printf '%s' "$err_e" | jq -r '.attempt // ""')" \
+            "$(jq -nc --arg a "$err_at" --arg p "$(class_reread_policy "$err_class")" --argjson h "$err_new" \
+               '{escalation_at: $a, version: 2, policy: $p, hashes: $h}')" \
+            || { echo "baton: $1/$err_m the re-read baseline for the park raised at $err_at could not be written; the park stands" >&2; continue; }
+          printf 'rebased   %s/%s · the %s park predates the %s policy, so its plan evidence is taken afresh · the park stands and an edit made before now cannot be proved\n' \
+            "$1" "$err_m" "$err_class" "$(class_reread_policy "$err_class")"
+          continue
+        fi
+        err_changed=$(reread_changed "$(jq -nc --argjson a "$err_was" \
+          --argjson b "$(printf '%s' "$err_base" | jq -c .hashes)" '$a + $b')" "$err_now" "$err_want")
+      fi
+    fi
     [ "$(printf '%s' "$err_changed" | jq length)" -gt 0 ] || continue
-    # A park whose way out is the close-out done by hand ends on a change to the rows that leaves the
-    # milestone reading `done`, and on nothing else (`class_ends_on_done`).
-    if class_ends_on_done "$(printf '%s' "$err_e" | jq -r '.class // ""')"; then
-      printf '%s' "$err_changed" | jq -e 'index("plan_rows_sha256") != null' > /dev/null || continue
+    # A park whose way out is the close-out done by hand ends on the milestone's own `Status` cell
+    # reading `done`, and on nothing else (`class_ends_on_done`).
+    if class_ends_on_done "$err_class"; then
+      printf '%s' "$err_changed" | jq -e 'index("status_sha256") != null' > /dev/null || continue
       # `done` already there at the park is a close-out that wrote it a step early, not one finished
       # by hand; a park recorded without the cell cannot tell, so it waits for its ruling.
       printf '%s' "$err_e" | jq -e '(.carries.reread | has("status_at_park")) and .carries.reread.status_at_park != "done"' \
@@ -455,20 +627,25 @@ edit_reread_check() {
       err_plan=${2:-}
       [ -n "$err_plan" ] || err_plan=$(plan_of_project "$1" 2>/dev/null) || continue
       [ "$(printf '%s' "$err_plan" | plan_row "$err_m" 2>/dev/null | jq -r '.status // ""')" = done ] || continue
-      err_changed='["plan_rows_sha256"]'
     fi
+    # What changed, named as what it is. A hash says a reading differs and never who made it differ,
+    # so the line reports the reading and leaves authorship to the person who knows.
     err_what=$(printf '%s' "$err_changed" | jq -r \
-      'map(if . == "plan_rows_sha256" then "the plan rows it answers to" else "the brief" end) | join(" and ")')
+      'map(if . == "model_sha256" then "the effective model"
+           elif . == "work_plan_sha256" then "the work plan it answers to"
+           elif . == "blocker_sha256" then "the row of the blocker it names"
+           elif . == "status_sha256" then "its Status cell"
+           else "the brief" end) | join(" and ")')
     resolve "$1" "$err_m" "$(printf '%s' "$err_e" | jq -r '.session // ""')" \
-      "$(printf '%s' "$err_e" | jq -r '.attempt // ""')" \
-      "$(printf '%s' "$err_e" | jq -r .at)" edit
+      "$(printf '%s' "$err_e" | jq -r '.attempt // ""')" "$err_at" edit \
+      || { echo "baton: $1/$err_m the unpark of the park raised at $err_at could not be written" >&2; continue; }
     printf 'unparked  %s/%s · %s changed since the %s park · Baton acts on the lane again\n' \
-      "$1" "$err_m" "$err_what" "$(printf '%s' "$err_e" | jq -r '.class // "?"')"
+      "$1" "$err_m" "$err_what" "$err_class"
     # A close-out done by hand leaves the session that stopped before it idle and still live: nothing
     # Baton does ends that process — only an `asking` consume stops a session — and while its row has a
     # pid its lane counts against the cap. The person who just finished its work is told which job it
     # is, once, on the line they read.
-    if class_ends_on_done "$(printf '%s' "$err_e" | jq -r '.class // ""')" && [ -n "${3:-}" ]; then
+    if class_ends_on_done "$err_class" && [ -n "${3:-}" ]; then
       err_job=$(job_of_session "$3" "$(printf '%s' "$err_e" | jq -r '.session // ""')")
       [ -z "$err_job" ] || printf 'idle      %s/%s · its session is still live as job %s and counts against the cap until it ends: claude stop %s\n' \
         "$1" "$err_m" "$err_job" "$err_job"

@@ -1,0 +1,22 @@
+set -eu
+echo "== the refused model parks the lane =="
+"$BATON" tick
+
+echo "== a peer's close-out corrects a downstream row and refreshes this brief on main =="
+# M03 depends on M02, so its row is downstream of the park. Its dependency cell gains M01 and its
+# Model cell changes; neither is a decision about M02, whose own Model cell and effort are untouched.
+sed -i '' '/^| M03 |/s/| M02 | claude-opus-5 |/| M01, M02 | sonnet |/' Fixture/docs/MILESTONES.md
+sed -i '' 's/^STARTUP ORDER\. Read CLAUDE\.md, then the brief\.$/STARTUP ORDER. Read CLAUDE.md, then the brief, then the interface a peer added./' Fixture/docs/milestones/M02.md
+GIT_AUTHOR_DATE=2026-09-12T11:45:00+0100 GIT_COMMITTER_DATE=2026-09-12T11:45:00+0100 \
+  git -C Fixture -c user.name=fixture -c user.email=fixture@example commit -q -am "a peer's close-out" > /dev/null 2>&1 || true
+"$BATON" tick
+
+echo "== this milestone's own Model cell is the answer: one release, one redispatch =="
+sed -i '' '/^| M02 |/s/| M01 | opus |/| M01 | sonnet |/' Fixture/docs/MILESTONES.md
+"$BATON" tick
+
+# Asserted at the end, because the harness runs cmd twice against the state the first run left and
+# only the final state is the same on both. The refused model must never be the one redispatched.
+jq -se '[.[] | select(.kind == "resolution" and .how == "edit")] | length == 1' "$BATON_HOME/log.jsonl" > /dev/null
+jq -se '[.[] | select(.kind == "dispatch")] | length == 2' "$BATON_HOME/log.jsonl" > /dev/null
+jq -se 'last(.[] | select(.kind == "dispatch")) | .model == "sonnet"' "$BATON_HOME/log.jsonl" > /dev/null

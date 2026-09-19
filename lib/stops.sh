@@ -458,7 +458,7 @@ ladder_step() {
       # is what the next attempt starts from, and a ruling is already in the session's hands.
       case "$(person_acted "$1" "$2" ladder-end)" in
         edit)
-          redispatch "$1" "$2" "$4" "$5" "the brief or the plan was edited after the ladder ended, so attempt $(( $3 + 1 )) starts from it"
+          redispatch "$1" "$2" "$4" "$5" "the brief or the work plan changed after the ladder ended, so attempt $(( $3 + 1 )) starts from it"
           return 0 ;;
         ruling) return 0 ;;
       esac
@@ -554,7 +554,7 @@ stops_run() {
         if [ "$(printf '%s' "$srn_run" | jq -r .count)" -ge 2 ]; then
           case "$(person_acted "$1" "$srn_m" ladder-end)" in
             edit)
-              redispatch "$1" "$srn_m" "$2" "$3" "the brief or the plan was edited after the context overflowed twice, so attempt $((srn_a + 1)) starts from it"
+              redispatch "$1" "$srn_m" "$2" "$3" "the brief or the work plan changed after the context overflowed twice, so attempt $((srn_a + 1)) starts from it"
               continue ;;
             ruling) continue ;;
           esac
@@ -571,9 +571,14 @@ stops_run() {
         # redispatches with the model the cell then names — so once the person has edited, the step
         # is the redispatch and not a second park, and a ruling stands this down until the resumed
         # session ends again.
+        #
+        # The line says the model changed and not that a person edited the cell. What released the
+        # park is a digest of the effective model differing from the one the park recorded, and a
+        # content hash establishes a difference and never an author: the cell may have been edited,
+        # or the alias it names may now resolve elsewhere in `config.json` (D-134).
         case "$(person_acted "$1" "$srn_m" model_not_found)" in
           edit)
-            redispatch "$1" "$srn_m" "$2" "$3" "the Model cell was edited after the model was refused, so attempt $((srn_a + 1)) runs on it"
+            redispatch "$1" "$srn_m" "$2" "$3" "the effective model changed since the model was refused, so attempt $((srn_a + 1)) runs on it"
             continue ;;
           ruling) continue ;;
         esac

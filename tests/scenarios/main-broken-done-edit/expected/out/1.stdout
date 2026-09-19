@@ -2,7 +2,7 @@
 consumed  M02-b2.json → @TMP@/home/archive/M02-b2-2026-09-12T12:00:00+01:00.json (stopped, main-broken → park-project)
 == an edit to M02's Model cell is not the close-out done by hand, so the park stands ==
 == a person fixes main, finishes the close-out by hand and writes done in M02's Status cell: the park ends and M03 dispatches ==
-unparked  Fixture/M02 · the plan rows it answers to changed since the main-broken park · Baton acts on the lane again
+unparked  Fixture/M02 · its Status cell changed since the main-broken park · Baton acts on the lane again
 idle      Fixture/M02 · its session is still live as job 0badb2 and counts against the cap until it ends: claude stop 0badb2
 backgrounded · 0badc0d1 · Baton · Fixture · M03
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)

@@ -1,2 +1,16 @@
+set -eu
+. "$ROOT/tests/lib-load.sh"
+# The park's own readings, taken through the real reader with the blocker still held — the state the
+# lane parked in. Seeding a sentinel digest instead would release the park on any reading at all,
+# which is the join this scenario exists to check.
+if ! jq -se 'any(.kind == "resolution")' "$BATON_HOME/log.jsonl" > /dev/null; then
+  sed -i '' '/^| M05 |/s/| sonnet | | | done |/| sonnet | | | held |/' Fixture/docs/MILESTONES.md
+  reading=$(reread_hashes Fixture M07 blocked '{"blocked_by":"M05"}')
+  sed -i '' '/^| M05 |/s/| sonnet | | | held |/| sonnet | | | done |/' Fixture/docs/MILESTONES.md
+  jq --argjson reading "$reading" -c \
+    'if .kind == "escalation" then .carries.reread = $reading else . end' \
+    "$BATON_HOME/log.jsonl" > "$BATON_HOME/log.jsonl.tmp"
+  mv "$BATON_HOME/log.jsonl.tmp" "$BATON_HOME/log.jsonl"
+fi
 echo "== the plan was edited: M05 now reads done, so the park it was measured against is over =="
 "$BATON" tick
