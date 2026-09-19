@@ -1,3 +1,4 @@
+record_only: "gap" is not one of the escalation classes
 record_only: asking is human-required, which reaches a person; it cannot be recorded silently
 record_only: "sideways" is not a scope; it is lane or project
 record_only: "permission" is not one of the escalation classes

@@ -1,33 +1,56 @@
 set -eu
-# The mapping, proved exhaustive rather than asserted exhaustive. The class list is read out of
-# `class_or_fail` in lib/notify.sh — the taxonomy the log enforces — and not written here, so a class
-# added there without an arm in `disposition_of` shows up in this expectation as a refusal rather
-# than passing unnoticed. That is the whole reason the list is extracted instead of typed: two lists
-# of classes is the drift this file exists to make impossible.
+# The mapping, proved exhaustive rather than asserted exhaustive, and in both directions. The class
+# list is read out of `class_or_fail` in lib/notify.sh — the taxonomy the log enforces — and the arm
+# list out of `disposition_of` itself, so neither can quietly disagree with the other. That is the
+# whole reason both are extracted instead of typed: two lists of classes is the drift this pair of
+# functions exists to make impossible.
 . "$ROOT/tests/lib-load.sh"
 
+classes() {
+  awk '/^class_or_fail\(\) \{/, /^\}/' "$ROOT/lib/notify.sh" \
+    | awk -F')' '/^ *(escalation|notification):/ { print $1 }' \
+    | tr '|' '\n' | sed 's/^ *//; s/ *$//' | grep .
+}
+
 echo '=== every class class_or_fail accepts, what it needs, and whether it reaches a person'
-awk '/^class_or_fail\(\) \{/, /^\}/' "$ROOT/lib/notify.sh" \
-  | awk -F')' '/^ *(escalation|notification):/ { print $1 }' \
-  | tr '|' '\n' \
-  | sed 's/^ *//; s/ *$//' \
-  | while IFS=: read -r kind class; do
-      [ -n "$class" ] || continue
-      d=$(disposition_of "$kind" "$class" 2>/dev/null) || d=REFUSED
-      reaches=notifies
-      disposition_notifies "$d" || reaches=silent
-      printf '%-12s  %-16s  %-14s  %s\n' "$kind" "$class" "$d" "$reaches"
-    done
+classes | while IFS=: read -r kind class; do
+  d=$(disposition_of "$kind" "$class" 2>/dev/null) || d=REFUSED
+  status=0
+  disposition_notifies "$d" > /dev/null 2>&1 || status=$?
+  case "$status" in
+    0) reaches=notifies ;;
+    1) reaches=silent ;;
+    *) reaches=NOT-A-DISPOSITION ;;
+  esac
+  printf '%-12s  %-16s  %-14s  %s\n' "$kind" "$class" "$d" "$reaches"
+done
+
+echo
+echo '=== and the other direction: no arm of disposition_of names a class class_or_fail does not.'
+echo '=== A dead arm is invisible to the listing above, and it is how a class removed from the log'
+echo '=== taxonomy would leave a disposition behind that nothing can ever ask for.'
+arms=$(awk '/^disposition_of\(\) \{/, /^\}/' "$ROOT/lib/disposition.sh" \
+       | awk -F')' '/^ *(escalation|notification):/ { print $1 }' \
+       | tr '|' '\n' | sed 's/^ *//; s/ *$//' | grep . | sort -u)
+# A set difference without process substitution, which is a bashism the harness's /bin/sh has not
+# got: both sides are unique, so a line appearing exactly once in their concatenation is in one.
+only=$(printf '%s\n%s\n' "$(classes | sort -u)" "$arms" | sort | uniq -u)
+if [ -z "$only" ]; then echo '  the two lists are the same, in both directions'; else printf '%s\n' "$only"; fi
 
 echo
 echo '=== the one arm that reads the carries: a bounded choice the session enumerated'
 echo "with options:    $(disposition_of escalation asking '{"question":"which reading?","options":["a","b"]}')"
 echo "one option:      $(disposition_of escalation asking '{"question":"which reading?","options":["a"]}')"
-echo "options a string, which a session may still write:"
+echo "a lone string, which a session may still write where the contract says a list:"
 echo "                 $(disposition_of escalation asking '{"question":"which?","options":"a"}')"
+echo '=== and the shapes a session writes when it had none, which must not look bounded'
 echo "empty options:   $(disposition_of escalation asking '{"question":"what is the key?","options":[]}')"
+echo "empty string:    $(disposition_of escalation asking '{"question":"what is the key?","options":""}')"
+echo "an object:       $(disposition_of escalation asking '{"question":"what is the key?","options":{}}')"
+echo "the number nil:  $(disposition_of escalation asking '{"question":"what is the key?","options":0}')"
 echo "no options:      $(disposition_of escalation asking '{"question":"what is the key?"}')"
 echo "no carries:      $(disposition_of escalation asking)"
+echo "carries not json:$(disposition_of escalation asking 'not json')"
 
 echo
 echo '=== a class neither list holds is refused, not defaulted'

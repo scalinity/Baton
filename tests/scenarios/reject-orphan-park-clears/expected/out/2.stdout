@@ -1,11 +1,22 @@
 == limitation 33's second half. A handover Baton could not parse, and whose session it could
 == not place in any lane, leaves a park with no project: no ruling target, no re-read receipt,
-== and no per-project pass that will ever visit it. Two such parks, and two ways one ends.
-== M05's session, started by hand, went on to write an artifact Baton could read and consume,
-== so the first tick closes that park without anybody doing anything. M04's file is still
-== sitting in rejected/, so nothing has been corrected and its park is right to stand.
+== and no per-project pass that will ever visit it. Four such parks, and only one of them may
+== close on this tick:
+==   M05 - its session, started by hand, went on to write an artifact Baton could read and
+==         consume for the same milestone. Nothing was typed at Baton; the park closes.
+==   M04 - its file is still sitting in rejected/ and nothing has been corrected. Stands.
+==   M06 - its session had a handover consumed since, but for M01, a different milestone. The
+==         M06 file is untouched, so nothing about M06 has been corrected. Stands.
+==   M07 - its session's consumed handover is EARLIER in the log, and only its at string
+==         sorts later, because that event carries a -05:00 offset and the park carries +01:00.
+==         Log order is what decides (CONTRACT clause 3(c)), so it stands. Reading the at as
+==         text instead would close it, which is what this row exists to catch.
 last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  ?/M07 · other · the file is not a JSON object · fix what it names; the next tick re-reads the plan and the brief
+parked  ?/M06 · other · the file is not a JSON object · fix what it names; the next tick re-reads the plan and the brief
 
 == the person deals with M04's file. They type nothing at Baton, because there is nothing they
 == could have typed: the park names no lane to answer. The next tick reads the condition itself.
 last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  ?/M07 · other · the file is not a JSON object · fix what it names; the next tick re-reads the plan and the brief
+parked  ?/M06 · other · the file is not a JSON object · fix what it names; the next tick re-reads the plan and the brief

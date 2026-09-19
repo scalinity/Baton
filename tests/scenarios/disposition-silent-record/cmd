@@ -18,12 +18,15 @@ for c in asking question merge-failed dispatch-failed main-broken unfinished-twi
 done
 
 echo
-echo '=== gap is the class the fourth disposition was named for, and it is refused here too: a gap is'
-echo '=== over when it is reported, but nothing yet explains it. There is no notification arm at all'
-echo '=== until docs/milestones/M15-b.md can say which gaps the host accounts for.'
+echo '=== gap is the class the fourth disposition was named for, and it is refused here too — but on'
+echo '=== the first guard and not the disposition, which is the honest reason and is shown rather than'
+echo '=== swallowed: there is no notification arm at all until docs/milestones/M15-b.md can say which'
+echo '=== gaps the host accounts for, so gap is not a class this writer takes in any disposition.'
 status=0
-record_only "" "" "" "" gap project '{"detail":"Baton was not running for 12 m"}' 2>/dev/null || status=$?
+record_only "" "" "" "" gap project '{"detail":"Baton was not running for 12 m"}' || status=$?
 echo "  gap -> exit $status"
+echo '=== and the table is what says gap still reaches a person, which is the claim that matters:'
+echo "  gap is $(disposition_of notification gap)"
 
 echo
 echo '=== the refusals a person reads, on the stream they belong to'

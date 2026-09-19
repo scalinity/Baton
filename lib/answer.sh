@@ -246,8 +246,15 @@ verb_answer() {
     if [ "$(printf '%s' "$vba_all" | jq -r .count)" -gt 0 ]; then
       render_failure err "baton: no park of $vba_t was raised at $vba_at; the open ones are:"
       answer_candidates_print "$(printf '%s' "$vba_all" | jq -c .candidates)" err at
-      return 1
+    else
+      # And a refusal here even when the lane has no park at all, rather than falling through. Below
+      # is the hand-back, which resumes a lane a person took over when the ruling is exactly
+      # `continue` — and a park id names a park, never a lane. Falling through would let
+      # `baton answer <project>/<milestone>@<at>` on an already-answered park flaglessly resume a
+      # session because the lane happened to be taken over, which is a resume nobody asked for.
+      render_failure err "baton: nothing is waiting on $1"
     fi
+    return 1
   fi
 
   if [ "$vba_n" -gt 1 ]; then
