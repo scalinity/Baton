@@ -22,7 +22,9 @@ completion.sh
 declared.sh
 derive.sh
 dispatch.sh
+disposition.sh
 escalate.sh
+host.sh
 inbox.sh
 lifecycle.sh
 lock.sh
@@ -49,7 +51,7 @@ pinned: @BUNDLE@
   "plan": "docs/MILESTONES.md",
   "check": {
     "command": "sh tests/run.sh",
-    "deadline_seconds": 1800
+    "deadline_seconds": 21600
   }
 }
 --- LaunchAgents ---

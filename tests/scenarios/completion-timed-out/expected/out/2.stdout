@@ -1,1 +1,3 @@
 == the standing check outlasts its deadline: it is killed and recorded timed-out, which is not a pass, so the project is parked rather than the chain advancing on a check that never finished ==
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:02+01:00.json (complete, merged_as @MERGE@, 1 path changed, check timed-out)
+check     M02 · the standing check timed-out at @MERGE@

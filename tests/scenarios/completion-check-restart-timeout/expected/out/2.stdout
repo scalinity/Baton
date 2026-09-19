@@ -1,0 +1,1 @@
+== a check whose process died with no marker, past its deadline, is timed-out on the next observation: the deadline is observed, never waited out ==

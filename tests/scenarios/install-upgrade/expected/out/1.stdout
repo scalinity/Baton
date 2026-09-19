@@ -1,5 +1,5 @@
 {"count":47,"library":true,"plist":true,"notify":true}
-{"path":"/somewhere/else/Baton","check":{"command":"sh tests/run.sh","deadline_seconds":1800}}
+{"path":"/somewhere/else/Baton","check":{"command":"sh tests/run.sh","deadline_seconds":21600}}
 {"count":47,"library":true}
 51
 unchanged permissions and wake settings retained; no temporary files

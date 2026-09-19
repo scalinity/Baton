@@ -1,0 +1,10 @@
+set -eu
+# The other half, and the one that matters more: sleep does not suppress a stall, it is subtracted
+# from one. The transcript is forty minutes old and the host slept for ten of them, so thirty
+# minutes of awake inactivity remain — exactly the threshold — and the notification goes out as it
+# always did.
+#
+# The event keeps `transcript_age_seconds` at the wall age, because that is what was observed, and
+# carries `awake_age_seconds` beside it. A line that said "no transcript change for 30 m" about a
+# transcript last touched forty minutes ago would have traded one wrong number for another.
+"$BATON" tick

@@ -1,0 +1,11 @@
+set -eu
+# Overlap is not coverage. The host slept for all but two minutes of this two-hour gap, and the two
+# minutes are one continuous awake stretch of exactly two intervals — the same threshold the gap is
+# reported at — so it is not explained and the message goes out. One notifier call, not zero.
+#
+# Two intervals exactly is the boundary and it is deliberately on this side of it: a stretch that
+# long is a stretch a tick could have run in, and 118 minutes of sleep around it does not make the
+# missing tick less missing. `host-window` measures the other side, one second under.
+"$BATON" tick
+echo
+"$BATON" status

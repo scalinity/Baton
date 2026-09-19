@@ -1,0 +1,4 @@
+2026-09-12 07:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep':TCPKeepAlive=active Using Batt (Charge:91%) 5400 secs
+2026-09-12 08:30:00 +0100 Wake                	Wake from Deep Idle [CDNP] : due to HID Activity Using AC (Charge:91%)
+2026-09-12 09:15:00 +0100 Assertions          	PID 7017(WindowServer) Created UserIsActive "com.apple.iohideventsystem.queue.tickle" 00:00:00  id:0x0x100008cff
+2026-09-12 11:30:00 +0100 Wake Requests       	[process=mDNSResponder request=Maintenance deltaSecs=7200 wakeAt=2026-09-12 13:30:00 info="upkeep wake"]

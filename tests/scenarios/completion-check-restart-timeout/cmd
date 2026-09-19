@@ -1,0 +1,11 @@
+echo "== a check whose process died with no marker, past its deadline, is timed-out on the next observation: the deadline is observed, never waited out =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+dir=$BATON_HOME/checks/Fixture/M02-1
+mkdir -p "$dir"
+merge=$(awk '$1 == "MERGE" { print $2 }' "$PWD/subs")
+# A previous tick created the directory and recorded the start, then the process
+# died with the service. No pid, no done-marker, started an hour before now.
+printf '%s\n' "2026-09-11T23:00:00+01:00" > "$dir/started_at"
+printf '%s\n' "$merge" > "$dir/revision"
+printf '%s\n' "60" > "$dir/deadline"
+sh "$ROOT/tests/consume-once.sh"

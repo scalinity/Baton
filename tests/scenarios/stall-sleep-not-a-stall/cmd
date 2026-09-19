@@ -1,0 +1,12 @@
+set -eu
+# The same lane as `stall`, with the same forty-minute-old transcript and the same live row, against
+# a host that was asleep for thirty-two of those forty minutes. Nothing here is a stall: the session
+# has not stopped working, it has not been running, and D-008's thirty minutes were written about
+# unchanged transcripts on a machine that was there to change them.
+#
+# What the scenario asserts is an absence — no `stall` line and no Mac message — so the two things
+# that could make it pass for the wrong reason are worth naming. The row carries a pid, so the lane
+# is in flight rather than rowless and the crash rule never sees it; and the marker is a minute old,
+# so no gap is reported and the only `pmset` read in `calls.log` is the stall rule making this
+# judgement.
+"$BATON" tick

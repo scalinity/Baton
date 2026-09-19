@@ -1,0 +1,5 @@
+== a standing check that has not finished is pending: the artifact stays in the inbox, the consume is not a failure, and nothing is restarted ==
+check     M02 · standing check pending
+artifact unconsumed
+no done-marker
+check not running

@@ -46,9 +46,10 @@ Rules for every session (also in `CLAUDE.md`):
 | M12 | Plan generation from a repository | M11 | opus | high | | done | A repository without a usable plan generates conforming briefs and its first milestone dispatches and completes | No |
 | M13 | Autonomous handoff, and more than one at a time | M12 | opus | high | | done | Newly eligible work runs up to the cap, an independent pair overlaps, and effort follows declared Size; co-dispatched sessions name each other in their slot lines, which closes the open half of docs/v2/01-findings.md finding 24 | No |
 | M14 | Budget-aware pacing | M13 | opus | medium | | | Budget exhaustion produces a visible pause and resume time; work resumes automatically when the window rolls | No |
-| M15 | The escalation taxonomy | M12 | opus | high | | | Four dispositions, including HOST-EXPLAINED; solvable parks resolve without notification; replan preserves the goal; the taxonomy owns whether a re-read rebaseline earns a notification class of its own (D-136) | No |
+| M15 | The escalation taxonomy | M12 | opus | high | | done | Four dispositions, including HOST-EXPLAINED; solvable parks resolve without notification; replan preserves the goal; the taxonomy owns whether a re-read rebaseline earns a notification class of its own (D-136) | No |
 | M15-b | Host-explained gaps and wake reconciliation | M15 | opus | high | | | Sleep-explained gaps stay recorded and visible without notifications; unexplained gaps notify; confirmed dead sessions use existing recovery | No |
 | M15-c | The independent scope guard | M15-b | opus | high | | | Goal-only checks at plan adoption and close-out; drift always reaches a person | No |
+| M15-d | Replan: when the plan is what is wrong | M15 | opus | high | | | A milestone that comes back unfinished twice, or blocked on a dependency nothing will deliver, is replanned from the confirmed goal instead of asking; every milestone Baton proved complete stays done | No |
 | M16 | Cold live trial on Reclaim | M14, M15-c | opus | medium | | | Unregistered Reclaim completes at least three cold milestones with one intent confirmation and a live budget pause/resume | No |
 | M17 | Dispatch preconditions before worktree creation | – | opus | high | | done | Plan reports every eligible milestone's unmet dispatch preconditions in one pass; dispatch refuses them before creating a branch, worktree or settings, retaining the existing retry bound | No |
 | M17-b | One rendering layer for Baton's output | M17 | opus | high | | done | Every verb and Mac message uses lib/render.sh; terminal output is consistent, plain and matchable when piped and under NO_COLOR; behaviour and event-log format stay unchanged; lib/declared.sh:98 stops claiming a person edited the plan (D-136) | No |
@@ -71,8 +72,8 @@ which gives its acceptance to M16; there is nothing for a person to clear.
 | REQ-CONTRACT | 01–06 | **M01** (03, 06: the slot line, Baton's own CLAUDE.md), **M02** (04), M06 (05), M08 (01, 02 for Reclaim) |
 | REQ-ARTIFACT | 01–11 | **M01** (09: the gate; 04: the api-error hook), **M02** (01–08), **M10** (10, 11: the completion chain and Baton's own fields; 06 amended) |
 | REQ-TICK | 01–09 | M01 (08: the seams; 09: the installed relay), **M03** (01–07) |
-| REQ-STOP | 01–14 | M03 (08, 09, 10, 14), **M04** (01–07, 13), **M05** (11, 14 hand-back), M06 (12), M07-b (14: Remote Control messages) |
-| REQ-ESC | 01–11 | M02 (11: `status`), M03 (02: the Mac message; 10: the gap), **M05** (01, 03–07, 09), M06 (04 project scope), M07 (08) |
+| REQ-STOP | 01–14 | M03 (08, 09, 10, 14), **M04** (01–07, 13), **M05** (11, 14 hand-back), M06 (12), M07-b (14: Remote Control messages), M15-b (08 amended: proven sleep comes off a transcript's age) |
+| REQ-ESC | 01–14 | M02 (11: `status`), M03 (02: the Mac message; 10: the gap), **M05** (01, 03–07, 09), M06 (04 project scope), M07 (08), **M15** (12, 13: the disposition table and the silent record; 05, 06 amended), **M15-b** (14: the host's account of a gap; 10–13 amended) |
 | REQ-PLAN | 01–10 | **M01** (01–05, 06 for Baton, 07, 08), M08 (06 for Reclaim, superseded), M17 (08: the precondition report), **M11** (06 extended, 09, 10: the registered adaptation and the table's location) |
 | REQ-DISPATCH | 01–11 | **M01** (03–06, 08, 10), M03 (03 prune reserved), **M06** (01, 02, 09), **M07** (03 worktrees kept, 07), **M17** (11), M10 (09 amended: the one read of a target's tree) |
 | REQ-PERM | 01–05 | **M01** (01–04), M05 (02: `allow` as writer), M06 (05), M11 (02, 04: the rail derived for an arbitrary project from one recipe) |
@@ -121,6 +122,34 @@ host-explained gaps and wake reconciliation move to M15-b, and the original natu
 (independent scope guard) moves to M15-c. M16 waits for M15-c and M14. No part is marked done;
 this planning-only split produces no runtime handover or stopped artifact. Recheck the file-count
 rule in each part against the actual interfaces before implementation and split further if needed.
+
+M15 was split **again** on 2026-09-19, by its own implementation session and before it wrote any
+code, because that recheck did not hold. Both of M15's routing dispositions need libraries beyond
+its budget of two, and the count was measured rather than estimated. Replan cannot preserve
+completed work through M12's generation path: `planning_validate` raises a defect for every row
+whose `Status` is not blank, and `planning_prompt` tells the generating session to blank them, so a
+replan of a project with history is refused row by row and instructed to erase it — repairing that
+is `lib/planning.sh`, a third counted file against `lib/answer.sh` and `lib/tick.sh`. AI resolution
+needs a second judgment role, which M12 already measured the cost of: `lib/dispatch.sh`,
+`lib/completion.sh` and `lib/inbox.sh`, three more. Replan becomes **M15-d**, with a row above and a
+brief on `main`. The AI route is **recorded and not scheduled** (D-183): a row would put work nobody
+has decided to do into the dispatch queue by default, and measuring its cost was meant to make
+starting it a decision. M15's own acceptance holds in full for what it kept, so it is `done` and no
+`stopped` artifact is written, as with M10-b and M12 (D-152).
+
+M15-b **crossed the count at three and was not split** (D-191), measured before any code was
+written. `lib/host.sh` is introduced and uncounted; the three counted are `lib/disposition.sh`
+(the `gap` arm becomes a reading of the event's own evidence, plus `record_notification`),
+`lib/rows.sh` (`gap_check` routes on the disposition, `stall_check` subtracts proven sleep) and
+`lib/status.sh` (one line, a delegated call). The brief's own §5 named the split point — "for
+example separate status/progress integration" — and it was measured against and declined for the
+reason M12 recorded: the three are one seam, and splitting them produces a half-wired feature.
+Evidence is useless unless the table can read it, the writer can route on it and the person can see
+the record it made instead of a message, and that last part is this milestone's own acceptance —
+§4 and §8 both require `baton status` to show the recorded gap after the marker has advanced, and
+`status_render` re-derives only the *active* gap, so preserving the log alone does not satisfy it.
+The third file is held to five lines — read the newest recorded gap, print it unless the live line already names that marker — with the rendering and the reading both in the introduced file. M15-b's
+acceptance holds in full, so it is `done` and no `stopped` artifact is written (D-152).
 
 A milestone is split before implementation if its checklist has more than about 15 items or
 touches more than two counted `lib/` files beyond the ones it introduces. By the owner's amendment
