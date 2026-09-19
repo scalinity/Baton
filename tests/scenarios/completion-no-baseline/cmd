@@ -1,0 +1,3 @@
+echo "== the attempt was dispatched before Baton recorded a baseline, which is every attempt in flight when this landed: there is no commit to bind the claim to and no honest way to recover one after the merge, so the completion is consumed and recorded unproved rather than refused =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+sh "$ROOT/tests/consume-once.sh"

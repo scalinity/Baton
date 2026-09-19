@@ -51,7 +51,7 @@ row_for_id() {
 # worktree_entries <path>: this repository's registered worktrees, one "<path>\t<branch ref>" line
 # each, detached and bare entries left out. Read from `git worktree list --porcelain`, which is
 # git's own record and which `git worktree move` keeps correct — the only reading of a worktree's
-# location that survives one (D-145). Empty, with status 0, when the path is not a repository at
+# location that survives one (D-153). Empty, with status 0, when the path is not a repository at
 # all: `dispatch_preconditions` asks for the names before it has established the checkout is
 # usable, and a missing repository is that check's answer to give, not this one's.
 worktree_entries() {
@@ -86,7 +86,7 @@ worktree_managed() {
 # instead, and git refuses the branch it is already holding elsewhere — `fatal: '<branch>' is
 # already used by worktree at '<new path>'`, exit 128, measured on git 2.54 — which reaches
 # `dispatch_failed … worktree` and parks the lane on the second try. Resolution is therefore not a
-# convenience beside the managed root but the thing that makes moving one safe at all (D-145).
+# convenience beside the managed root but the thing that makes moving one safe at all (D-153).
 worktree_of() {
   wo_branch=$(printf '%s' "$2" | tr 'A-Z' 'a-z')
   wo_wt=$(worktree_registered "$1" "$wo_branch")
@@ -621,7 +621,11 @@ dispatch_one() {
     {name: $name, model: $model}
     | if $effort != "" then . + {effort: $effort} else . end
     | . + {remote: $remote, worktree: $wt, branch: $branch, worktree_reused: $reused}
-    | if $reused then . + {worktree_commit: $commit} else . end
+    # The baseline, on every dispatch and not only on a reused worktree. It was `worktree_commit`
+    # and said only where a reused worktree happened to stand; it is now the commit a completion
+    # claim has to descend from, which is a fact about the attempt and has to be there for every
+    # one of them. Nothing read the old name (D-145).
+    | . + {baseline: $commit}
     | . + {settings: $settings, prompt_path: $pp, prompt_sha256: $sha}')"
 
   # The five lines a dispatch leaves behind, on stdout: a person's own `baton dispatch` reads them

@@ -1,0 +1,2 @@
+== the branch moved on after the merge, so its tip is no longer inside the commit claimed and a different candidate would be substituted for the frozen one ==
+rejected  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.json (completion-chain: m02 at @CANDIDATE@ is not an ancestor of @MERGE@, so the commit claimed as the merge does not carry the work)

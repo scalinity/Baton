@@ -1,0 +1,2 @@
+== the artifact asserts its own check result, which only Baton writes ==
+rejected  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.json (reserved-field: the artifact carries check_result, which only Baton writes)

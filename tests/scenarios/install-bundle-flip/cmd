@@ -33,26 +33,30 @@ libdir_of() {
   if [ -n "$ldo_pin" ]; then printf '%s\n' "$home/bin/lib/$ldo_pin"; else printf '%s\n' "$home/bin/lib"; fi
 }
 whole_of() { shasum -a 256 "$1"/*.sh | shasum -a 256 | awk '{ print $1 }'; }
+# How many libraries a whole set holds, taken from the repository rather than written down. The
+# question here is whether a reader keeps its set entire, not how many files Baton happens to have,
+# and a literal count turns every added library into a failure of this scenario (M10 added one).
+libs=$(ls "$ROOT"/lib/*.sh | wc -l | tr -d ' ')
 
 inst
 # What a process that has already opened the installed script holds for the rest of its run. It is
 # kept beside the original so that its own path resolution is the one the installed relay performs.
 cp "$home/bin/baton" "$home/bin/baton-reader"
 reader_lib=$(libdir_of "$home/bin/baton-reader")
-[ "$(ls "$reader_lib"/*.sh | wc -l | tr -d ' ')" -eq 20 ]
+[ "$(ls "$reader_lib"/*.sh | wc -l | tr -d ' ')" -eq "$libs" ]
 whole=$(whole_of "$reader_lib")
 
 # A later close-out installs a changed library set while that reader is still sourcing.
 printf '\n# a later close-out changes a library\n' >> "$linked/lib/derive.sh"
 inst
-[ "$(ls "$reader_lib"/*.sh | wc -l | tr -d ' ')" -eq 20 ]
+[ "$(ls "$reader_lib"/*.sh | wc -l | tr -d ' ')" -eq "$libs" ]
 [ "$whole" = "$(whole_of "$reader_lib")" ]
 ! grep -q 'a later close-out' "$reader_lib/derive.sh"
 grep -q 'a later close-out' "$(libdir_of "$home/bin/baton")/derive.sh"
 [ "$(libdir_of "$home/bin/baton")" != "$reader_lib" ]
 echo 'the reader keeps its whole previous set, byte for byte, while the new one is published beside it'
 
-# Both copies run, each loading twenty libraries from its own set.
+# Both copies run, each loading its own set whole.
 BATON_HOME=$home sh "$home/bin/baton" help > /dev/null
 BATON_HOME=$home sh "$home/bin/baton-reader" help > /dev/null
 echo 'both the published relay and the reader load their own library set'

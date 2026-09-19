@@ -365,6 +365,8 @@ tick_run() {
 
   # 2. Consume the inbox. Moving the call is all this is: inbox_consume is M02's, it takes the lock
   #    and nothing else, and the lock is already held here.
+  #    Its first act is now the reconciliation of a consumption interrupted between its move and
+  #    its event (F07, D-146); the pass owns that, so nothing here changes.
   inbox_consume "$tr_rows" "$tr_rows_ok" || {
     render_failure err "inbox       the inbox pass failed; some artifacts may remain unread"
     tr_status=3
