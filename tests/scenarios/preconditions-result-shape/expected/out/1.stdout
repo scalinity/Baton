@@ -2,6 +2,7 @@
 {
   "branch": "m02",
   "brief": "docs/milestones/M02.md",
+  "checkout": "@TMP@/Fixture",
   "failures": [],
   "milestone": "M02",
   "project": "Fixture",
@@ -10,20 +11,24 @@
 }
 === a milestone with unmet preconditions, in the order they are checked
 {
+  "checkout": "@TMP@/Fixture",
   "failures": [
     {
       "check": "slot",
       "path": "docs/milestones/M04.md",
+      "repair": "git -C '@TMP@/Fixture' add -- 'docs/milestones/M04.md' && git -C '@TMP@/Fixture' commit -m 'Record M04 brief'",
       "stage": "prompt"
     },
     {
       "check": "reference",
       "path": "docs/nowhere.md",
+      "repair": "git -C '@TMP@/Fixture' add -- 'docs/nowhere.md' && git -C '@TMP@/Fixture' commit -m 'Record docs/nowhere.md'",
       "stage": "prompt"
     },
     {
       "check": "reference-ambiguous",
       "path": "docs/milestones/M04.md",
+      "repair": "git -C '@TMP@/Fixture' add -- 'docs/milestones/M04.md' && git -C '@TMP@/Fixture' commit -m 'Record M04 brief'",
       "stage": "prompt"
     }
   ],

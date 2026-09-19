@@ -366,8 +366,13 @@ dispatch_one() {
   # exists. It is kept as the final race check: the preconditions read a worktree that may not have
   # existed yet, and between that reading and this one `worktree_ensure` created or reused one. Its
   # removal would need proof that no such window exists, not the observation that it usually agrees.
+  #
+  # Its message no longer names a branch behind the brief's commit as the cause. That cause is what
+  # the `behind-brief` precondition now refuses before this point, so a dispatch reaching here has
+  # already been told the branch carries the commit: what is left is the file going between the two
+  # readings, and a message naming a cause already ruled out would send a person the wrong way.
   if [ ! -r "$do_wt_path/$do_brief" ]; then
-    dispatch_failed "$do_project" "$do_id" worktree "Baton needs $do_id's brief $do_brief readable in its own worktree. Branch $do_branch predates the brief's commit and its worktree has no readable brief. Bring main into the branch yourself: git -C \"$do_wt_path\" merge main"
+    dispatch_failed "$do_project" "$do_id" worktree "Baton needs $do_id's brief $do_brief readable in its own worktree. The preconditions found the branch carrying the brief's commit, and the file was not readable in $do_wt_path a moment later. Look at the worktree yourself, then dispatch again: git -C \"$do_wt_path\" status"
     return 1
   fi
   do_inflight=$(derive_in_flight "$do_project" "$do_rows") || { echo "baton: $do_inflight" >&2; return 1; }

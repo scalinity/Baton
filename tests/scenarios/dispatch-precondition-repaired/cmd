@@ -2,14 +2,44 @@ set -eu
 # The refusal is a state a person can leave: write the brief, commit it, and the same dispatch goes
 # through and creates everything it was withholding. Then the worktree is reused with uncommitted
 # work in it, because refusing early must not turn into discarding a branch-local edit.
+#
+# The inventory is printed either side of both, so this scenario is also the control for
+# `dispatch-precondition-no-creation`: the same function that reports "nothing changed" there is
+# shown here reporting the branch, worktree, settings file and sidecar that a dispatch does create.
+inventory() {
+  git -C Fixture for-each-ref --format='ref %(refname)' | sort
+  ls -1 . | sed 's/^/beside /' | sort
+  printf 'settings %s\n' "$(ls -1 "$BATON_HOME/settings" 2>/dev/null | wc -l | tr -d ' ')"
+  printf 'sidecars %s\n' "$(ls -1 "$BATON_HOME/prompts" 2>/dev/null | wc -l | tr -d ' ')"
+  printf 'bg launches %s\n' "$(grep -c -- ' --bg ' "$SHIM/calls.log" || true)"
+  printf 'caffeinate calls %s\n' "$(grep -c '^caffeinate ' "$SHIM/calls.log" || true)"
+}
 if ! git -C Fixture show-ref --verify --quiet refs/heads/m03; then
   echo '--- the brief is written but not committed'
-  sed 's/M02/M03/g' "$ROOT/tests/project/docs/milestones/M02.md" > Fixture/docs/milestones/M03.md
+  # Written from a literal rather than copied from tests/project/, because the commit this scenario
+  # makes lands as a raw hash in the log and the sidecar: derived from the shared fixture brief, an
+  # edit to that file anywhere else would fail this scenario with an opaque hash diff.
+  cat > Fixture/docs/milestones/M03.md <<'BRIEF'
+# M03 — The third
+
+## Completion evidence
+
+## Copy-ready session prompt
+
+```
+You are implementing milestone M03 of Fixture. One line that never changes.
+
+WHAT ELSE IS IN FLIGHT. Runs alone unless the dispatch says otherwise.
+
+CLOSE-OUT. Print the handover artifact last in a baton fence. Do not start M04.
+```
+BRIEF
+  echo '--- before'; inventory
   status=0; "$BATON" dispatch Fixture M03 || status=$?
   test "$status" -eq 1
+  echo '--- after the refusal'; inventory
   test ! -e Fixture-M03
   test ! -e "$BATON_HOME/settings/Fixture-M03.json"
-  echo 'refused, and no branch, worktree or settings file exists'
 
   echo '--- the repair: the same brief, committed on main'
   git -C Fixture add -- docs/milestones/M03.md
@@ -17,6 +47,7 @@ if ! git -C Fixture show-ref --verify --quiet refs/heads/m03; then
   GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example GIT_COMMITTER_DATE=2026-09-01T00:00:00+0000 \
     git -C Fixture commit -q -m 'Record M03 brief'
   "$BATON" dispatch Fixture M03
+  echo '--- after the dispatch that was not refused'; inventory
 
   echo '--- a redispatch over uncommitted work in the reused worktree'
   printf 'work in progress\n' > Fixture-M03/scratch.txt

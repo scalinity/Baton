@@ -264,13 +264,16 @@ plan_preconditions_report() {
 "
       continue
     fi
-    ppr_count=$(printf '%s' "$ppr_res" | jq -r '.failures | length' 2>/dev/null) || ppr_count=
-    if [ -z "$ppr_count" ]; then
+    # The same reading `dispatch_one` makes of the same result: an array, or nothing that may be
+    # read as an absence of defects. Two readers of one result that disagreed on what counts as a
+    # result would put the report and the refusal back out of step, which is what sharing it avoids.
+    if ! printf '%s' "$ppr_res" | jq -e '(.failures | type) == "array"' > /dev/null 2>&1; then
       ppr_unmet=$((ppr_unmet + 1))
-      ppr_lines="$ppr_lines  $ppr_id  not inspected  the precondition result did not parse
+      ppr_lines="$ppr_lines  $ppr_id  not inspected  the precondition result carried no failures array
 "
       continue
     fi
+    ppr_count=$(printf '%s' "$ppr_res" | jq -r '.failures | length')
     if [ "$ppr_count" -eq 0 ]; then
       ppr_lines="$ppr_lines  $ppr_id  ready
 "
@@ -310,5 +313,7 @@ verb_plan() {
     echo "widenings, newest first:"
     printf '%s' "$vp_w" | jq -r '.[] | "  \(.at)  \(.milestone)  \(.rule)"'
   fi
-  plan_preconditions_report "$1" "$vp_tables"
+  # Explicitly, rather than on `set -e`: the verb's other failures exit with a status they chose,
+  # and a reader should not have to know which shell option carries this one.
+  plan_preconditions_report "$1" "$vp_tables" || exit 1
 }

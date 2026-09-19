@@ -8,8 +8,8 @@ echo '=== a milestone with every precondition met'
 dispatch_preconditions Fixture M02 | jq -S .
 
 echo '=== a milestone with unmet preconditions, in the order they are checked'
-dispatch_preconditions Fixture M04 | jq -S '{project, milestone, references_inspected,
-                                             failures: [.failures[] | {check, stage, path}]}'
+dispatch_preconditions Fixture M04 | jq -S '{project, milestone, checkout, references_inspected,
+                                             failures: [.failures[] | {check, stage, path, repair}]}'
 
 echo '=== a result that could not be collected at all: status, and no JSON to mistake for success'
 status=0

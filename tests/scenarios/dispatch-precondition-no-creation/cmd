@@ -18,19 +18,23 @@ inventory() {
 # states in the same order as the first however the first one left the file.
 printf '%s\n' '{ "permissions": { "allow": ["Bash(jq:*)"], "deny": ["Bash(sudo:*)"] } }' > "$perm"
 
+# The proof is asserted here as well as frozen in expected/, so that a blanket re-freeze of every
+# scenario cannot quietly accept a refusal that started creating something.
 echo '--- before'
-inventory
+before=$(inventory); printf '%s\n' "$before"
 status=0; "$BATON" dispatch Fixture M03 || status=$?
 echo "--- after a prompt-stage refusal (exit $status)"
-inventory
+after=$(inventory); printf '%s\n' "$after"
 test "$status" -eq 1
+test "$before" = "$after"
 
 echo '--- the deny rules are emptied, and M07 is refused at the settings stage'
 printf '%s\n' '{ "permissions": { "allow": ["Bash(jq:*)"], "deny": [] } }' > "$perm"
 status=0; "$BATON" dispatch Fixture M07 || status=$?
 echo "--- after a settings-stage refusal (exit $status)"
-inventory
+after=$(inventory); printf '%s\n' "$after"
 test "$status" -eq 1
+test "$before" = "$after"
 
 # The lock is the one thing a refusal still takes, and the failure record is the one thing it still
 # writes; neither is creation in the sense this milestone refuses.

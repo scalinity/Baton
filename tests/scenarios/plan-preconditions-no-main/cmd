@@ -8,3 +8,13 @@ status=0
 out=$("$BATON" plan Fixture) || status=$?
 printf '%s\n' "$out" | sed -n '/^preconditions/,$p'
 echo "exit $status"
+
+echo '=== and a registered path that is not a git repository at all'
+# The plan file is still readable, so the verb gets as far as the preconditions; git's own words for
+# what it found are carried into the diagnostic rather than a guess at why main is missing.
+mv Fixture/.git Fixture/.git-moved
+status=0
+out=$("$BATON" plan Fixture) || status=$?
+printf '%s\n' "$out" | sed -n '/^preconditions/,$p'
+echo "exit $status"
+mv Fixture/.git-moved Fixture/.git
