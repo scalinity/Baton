@@ -1,0 +1,15 @@
+set -eu
+# A directory already at the managed destination. The worktree stays where it is and keeps working,
+# the refusal names the repair that fixes the likeliest cause — a worktree moved by hand, leaving
+# git's registration on the old path — and the tick still completes: the marker is written, because
+# a directory in the way is a fact about that directory and not a tick that failed to run. A failing
+# pass here would freeze the clock `status` reads for as long as the directory stayed.
+if [ ! -e Fixture-M03 ]; then
+  git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M03 -b m03 main
+  mkdir -p "$BATON_HOME/worktrees/Fixture/M03"
+fi
+"$BATON" tick
+test -d Fixture-M03
+test -d "$BATON_HOME/worktrees/Fixture/M03"
+test -f "$BATON_HOME/last-tick"
+printf '%s\n' 'the worktree stayed, the destination was left alone, and the tick still wrote its marker'

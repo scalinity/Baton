@@ -2,3 +2,5 @@ open -g @TMP@/home/bin/Baton.app
   posted: Baton · Fixture/M02 · question | left behind by a launch that reached the applet as it quit | claude://claude.ai/code/session_01Stranded
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json

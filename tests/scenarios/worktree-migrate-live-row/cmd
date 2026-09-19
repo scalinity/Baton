@@ -1,5 +1,6 @@
 set -eu
-# The one guard: a live row whose cwd is the worktree refuses the move. The harness resolves a
+# The one guard, asked of a cwd *under* the worktree rather than equal to it, which is the clause
+# the comment describes and the shape a session in a subdirectory really has. The harness resolves a
 # session by id and restores the working directory it recorded, so moving the ground under a
 # running one strands it. The refusal says nothing — a worktree is guarded exactly while its lane
 # is in flight, which `status` already shows, and a line a minute would bury the moves that happen.
