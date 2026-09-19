@@ -1,0 +1,13 @@
+set -eu
+# The plan parses and its graph holds; the briefs do not, in every way a brief can fail to be one.
+# M01 has lost a numbered section and the slot paragraph Baton replaces at dispatch, its section 5
+# names its paths in prose rather than between backticks — which would make an honest completion
+# unprovable — and its Completion evidence already has content, which tells the first session to
+# resume work nobody did. M02 has lost its Recovery procedure, its Size and the VERIFICATION part of
+# its prompt, and its slot paragraph is a sentence of its own rather than the one Baton replaces.
+# Each is named with its repair, in one pass, and nothing is adopted.
+"$BATON" tick || true
+printf '%s\n' '--- every defect, in one pass ---'
+jq -r '.plan_owed.defects[] | "  * \(.what)\n    repair: \(.repair)"' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- nothing was adopted and nothing was seeded ---'
+jq -c '{plan: (.plan // "none"), plan_format, has_start: (has("start"))}' "$BATON_HOME/projects/Fixture/project.json"

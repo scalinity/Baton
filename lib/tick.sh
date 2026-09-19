@@ -345,10 +345,33 @@ tick_run() {
 
   # 1. Self-check, per registered project, in directory order. A project that fails is skipped for
   #    the rest of the tick; the others carry on.
+  #
+  #    The generation pass runs *before* each project's self-check and not after it, because a
+  #    project that owes a plan is exactly a project the self-check fails: it reads the registration,
+  #    finds no plan it can parse, parks the project `plan-unreadable` and skips it for the rest of
+  #    the tick, so nothing downstream would ever reach it. The pass adopts a plan that has arrived
+  #    and holds — after which the self-check on the next line reads it and `park_resolve` closes the
+  #    park in the same tick — and otherwise produces the one candidate that asks for a plan to be
+  #    written. The candidate joins `tr_cands`, so the holds, `cap_order` and the cap admit it like
+  #    any other and nothing waits on its result (D-164).
   tr_plans='{}'
+  tr_cands='[]'
   for tr_pj in "$BATON_HOME"/projects/*/project.json; do
     [ -f "$tr_pj" ] || continue
     tr_key=$(basename "$(dirname "$tr_pj")")
+    #    Only on a tick that could see the rows, for the reason the guard below the loop gives: the
+    #    pass asks whether the planning lane has a live session, and a listing the service failed to
+    #    produce would answer no for every lane alike. A plan waiting one more minute costs nothing.
+    if [ "$tr_rows_ok" = yes ]; then
+      if tr_planning=$(planning_pass "$tr_key" "$tr_rows"); then
+        render_lines "$(printf '%s' "$tr_planning" | jq -c .lines)" action
+        tr_cands=$(printf '%s' "$tr_cands" | jq -c \
+          --argjson a "$(printf '%s' "$tr_planning" | jq -c .candidates)" '. + $a')
+      else
+        render_row out action 'generate    %s · the plan generation pass failed this tick\n' "$(render_token out lane "$tr_key")"
+        tr_status=3
+      fi
+    fi
     if tr_plan=$(self_check "$tr_key"); then
       tr_plans=$(printf '%s' "$tr_plans" | jq -c --arg k "$tr_key" --argjson p "$tr_plan" '. + {($k): $p}')
       park_resolve "$tr_key" '^plan-(unreadable|unparseable)$' 'the plan file reads again' || tr_status=3
@@ -402,7 +425,6 @@ tick_run() {
   # not cost every other project its tick, every minute, until someone reads a log. The loop reads the
   # keys by index rather than through a pipe, so the candidates it collects outlive it.
   tr_keys=$(printf '%s' "$tr_plans" | jq -c 'keys_unsorted')
-  tr_cands='[]'
   tr_n=$(printf '%s' "$tr_keys" | jq length); tr_i=0
   while [ "$tr_i" -lt "$tr_n" ]; do
     tr_key=$(printf '%s' "$tr_keys" | jq -r ".[$tr_i]"); tr_i=$((tr_i + 1))

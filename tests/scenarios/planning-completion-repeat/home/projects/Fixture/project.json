@@ -1,0 +1,5 @@
+{"path": "@TMP@/Fixture", "check": {"command": "sh check.sh", "deadline_seconds": 60},
+ "goal": "a fixture project.", "done": "every milestone reads done.",
+ "constraints": ["POSIX shell only."], "non_goals": ["a rewrite in another language."],
+ "plan_format": "generated", "onboarded_at": "2026-09-11T22:00:00+01:00",
+ "plan_owed": {"reason": "no readable milestone table was found in the repository", "owner": "M12"}}

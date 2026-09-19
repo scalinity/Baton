@@ -1,0 +1,2 @@
+== the planning handover Baton already consumed is delivered again: it is archived as a repeat, no chain is checked a second time, and the plan the first one produced is not adopted twice ==
+repeated  M00-plan-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M00-plan-11111111-2222-4333-8444-555555555555-2026-09-12T00:05:00+01:00.json (repeats M00-plan-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json, acted on once)

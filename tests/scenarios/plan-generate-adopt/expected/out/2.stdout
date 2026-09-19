@@ -1,0 +1,9 @@
+--- the registration after adoption ---
+{"plan":"docs/MILESTONES.md","plan_format":"native","plan_owed":"cleared","start":[{"milestone":"M01","brief":{"path":"docs/milestones/M01.md","heading":"Copy-ready session prompt"},"disposition":"run"},{"milestone":"M02","brief":{"path":"docs/milestones/M02.md","heading":"Copy-ready session prompt"},"disposition":"wait","wait_for":["M01"]}]}
+--- what the tick recorded ---
+{"kind":"onboarded","milestone":null,"outcome":null,"plan":"docs/MILESTONES.md","milestones":null,"start":["M01","M02"],"how":null}
+{"kind":"plan_generation","milestone":"M00-plan","outcome":"adopted","plan":"docs/MILESTONES.md","milestones":2,"start":null,"how":null}
+{"kind":"dispatch","milestone":"M01","outcome":null,"plan":null,"milestones":null,"start":null,"how":null}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M01 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s

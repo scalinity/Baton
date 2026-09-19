@@ -65,6 +65,7 @@ fi
 . "$BATON_LIB/tick.sh"
 . "$BATON_LIB/lifecycle.sh"
 . "$BATON_LIB/onboard.sh"
+. "$BATON_LIB/planning.sh"
 
 # Before any verb: nothing Baton starts inherits the Claude Code session this may be running inside.
 claude_env_clean

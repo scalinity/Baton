@@ -1,0 +1,5 @@
+--- the park is closed and the registration is settled ---
+{"plan":"docs/MILESTONES.md","plan_format":"native","plan_owed":"cleared","start":[{"milestone":"M01","disposition":"run"},{"milestone":"M02","disposition":"wait"}]}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M01 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s

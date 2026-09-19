@@ -391,6 +391,21 @@ gate and an owed artifact, and it spends an admission slot. Nothing waits on its
 or a tick, because a slot held while its own answer is awaited is a lane nothing closes.
 _Avoid_: judgment request (that is the other role), helper session, subagent
 
+**Planning lane**:
+The judgment session that writes a project's plan, on the reserved milestone id `M00-plan`. It runs
+for a project whose registration owes a plan, reads the repository and the confirmed goal, and writes
+the plan document and one brief per milestone as the project's own documents. The lane is the ordinary
+kind: the same worktree, settings, launch and dispatch event, and its completion proved the same way
+against a declared scope that is Baton's own text rather than a brief's.
+_Avoid_: planner, plan session, generator session
+
+**Generated plan**:
+A plan the planning lane wrote, adopted only once it parses strictly and its graph and briefs hold.
+Until then it is a plan **owed**: the defects Baton measured are recorded with their repairs, they
+travel into the next attempt's prompt, and what is already right stays in the repository for that
+attempt to build on rather than replace.
+_Avoid_: draft plan, proposed plan
+
 **Prompt sidecar**:
 The file holding the exact text of one prompt Baton delivered, at `~/.baton/prompts/<session>/<n>.txt`,
 pointed at and hashed by the event that delivered it. The log's own overflow, not a thing beside it.

@@ -1,0 +1,6 @@
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+--- the defect ---
+  * docs/MILESTONES.md parses only with Baton's own defaults for Model, and a plan Baton asked for is read strictly
+    repair: give the milestone table in docs/MILESTONES.md every column the generation prompt names — ID, Depends on, Model, Effort, Remote, Status — and commit it on main
+--- nothing was adopted, and no adaptation was recorded ---
+{"plan":"none","plan_format":"generated","has_adaptation":false,"has_start":false}

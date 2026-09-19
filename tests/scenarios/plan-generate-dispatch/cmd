@@ -1,0 +1,17 @@
+set -eu
+# The state M11 leaves for a repository with no plan: plan_format generated, plan_owed naming M12,
+# no start. The tick parks the project at the self-check as before — that park is accurate — and
+# now also dispatches one planning session to write the plan the project owes. The lane is a lane
+# like any other: a name, an attempt, a baseline, an injected Stop gate and one admission slot, and
+# nothing in the tick waits for its answer.
+"$BATON" tick || true
+printf '%s\n' '--- the dispatch event ---'
+jq -c 'select(.kind == "dispatch") | {kind, project, milestone, attempt, role, model, effort, branch, name}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- the prompt Baton composed ---'
+sed -n '1,8p' "$BATON_HOME"/prompts/*/1.txt
+printf '%s\n' '--- the slot paragraph it was dispatched with ---'
+grep -n '^WHAT ELSE IS IN FLIGHT' "$BATON_HOME"/prompts/*/1.txt
+printf '%s\n' '--- the registration is untouched ---'
+jq -c '{plan_format, plan_owed, has_start: (has("start"))}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- the repository is untouched ---'
+git -C "$PWD/Fixture" status --porcelain -- CLAUDE.md docs

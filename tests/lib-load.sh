@@ -25,3 +25,4 @@
 . "$ROOT/lib/tick.sh"
 . "$ROOT/lib/lifecycle.sh"
 . "$ROOT/lib/onboard.sh"
+. "$ROOT/lib/planning.sh"
