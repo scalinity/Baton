@@ -8,6 +8,8 @@ registered Fixture
   non-goals   a rewrite in another language.
   onboarded   2026-09-19T08:00:00+01:00
   starting    M01 · run · docs/milestones/M01.md
+preconditions: 1 eligible, 0 with unmet preconditions
+  M01  ready
 --- what was derived ---
 {"command":"cargo test","deadline_seconds":1800}
 ["Bash(jq:*)","Bash(cargo:*)","Bash(make:*)"]

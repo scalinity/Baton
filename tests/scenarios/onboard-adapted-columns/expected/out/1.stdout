@@ -13,6 +13,8 @@ Register this project and let Baton run it? [yes/no] onboarded Fixture
   defaulted   Model=opus, Effort=blank, Remote=blank
   starting    M02 · run · docs/milestones/M02.md
   starting    M03 · wait for M02 · docs/milestones/M03.md
+preconditions: 1 eligible, 0 with unmet preconditions
+  M02  ready
 the next tick reads Fixture and dispatches what the starting handover says run
 --- the plan the tick now sees ---
 plan Fixture: @TMP@/Fixture/docs/MILESTONES.md

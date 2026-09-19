@@ -1,0 +1,8 @@
+{"has_handover":true,"in_force":[{"milestone":"M02","disposition":"run","rank":0,"from":"M01-s1-2026-09-19T07-30-00.json"},{"milestone":"M03","disposition":"wait","rank":0,"from":"M01-s1-2026-09-19T07-30-00.json"}]}
+--- and the tick dispatches what the handover says, not what the seed says ---
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+dispatched Fixture/M02

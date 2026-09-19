@@ -1,6 +1,5 @@
 {
   "path": "@TMP@/Fixture",
-  "plan": "docs/MILESTONES.md",
   "goal": "a fixture project.",
   "done": "every milestone reads done.",
   "constraints": [

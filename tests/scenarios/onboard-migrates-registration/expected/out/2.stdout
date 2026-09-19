@@ -11,5 +11,7 @@ registered Fixture
   onboarded   2026-09-19T08:00:00+01:00
   starting    M03 · run · docs/milestones/M03.md
   starting    M04 · wait for M03 · docs/milestones/M04.md
+preconditions: 1 eligible, 0 with unmet preconditions
+  M03  ready
 --- after: the fields it lacked, and nothing it had ---
 {"path":"@TMP@/Fixture","plan":"docs/MILESTONES.md","check":{"command":"make check","deadline_seconds":60},"plan_format":"native","goal":"a fixture project.","kept":"a field no installer writes, kept across the migration","start":["M03","M04"]}

@@ -12,6 +12,9 @@ registered Fixture
   starting    M04 · held by "v0.1 ships" · docs/milestones/M04.md
   starting    M06 · wait for M02, M05 · docs/milestones/M06.md
   starting    M07 · run · docs/milestones/M07.md
+preconditions: 2 eligible, 0 with unmet preconditions
+  M02  ready
+  M07  ready
 --- and now a different checkout with the same basename ---
 exit 1
 @TMP@/Fixture

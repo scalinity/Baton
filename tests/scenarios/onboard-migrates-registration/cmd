@@ -2,7 +2,9 @@ set -eu
 # F11. A registration written by an installer that only ever wrote `{path, plan}` when the file was
 # absent, so reinstalling could never give it an intent record. Onboarding supplies one, keeps the
 # standing check a person had set by hand, and does not reset progress: M01 and M02 still read done
-# and the starting handover names only M03 and M04.
+# and the starting handover names only M03 and M04. The fixture ships a `tests/run.sh`, so detection
+# derives `sh tests/run.sh` and the hand-set `make check` is a value the guard has to refuse to
+# overwrite rather than one nothing competes with.
 printf '%s\n' '--- before ---'
 jq -c . "$BATON_HOME/projects/Fixture/project.json"
 printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"

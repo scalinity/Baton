@@ -1,0 +1,12 @@
+  plan        docs/MILESTONES.md does not parse even with defaults: the milestones table, row M01, cell Model: "gpt-9" is not a model alias in config.json or a full model id
+Fixture at @TMP@/Fixture — a fixture project.
+Done: every milestone reads done.
+Must hold: POSIX shell only. · Not this: a rewrite in another language.
+Plan: none readable — M12 must generate one. Standing check: none detected.
+Register this project and let Baton run it? [yes/no] onboarded Fixture with no usable plan
+  checkout    @TMP@/Fixture
+  goal        a fixture project.
+  plan        none readable; plan_format is generated and the plan is owed
+  next        M12 generates the plan from the confirmed goal; nothing is dispatched until one exists
+--- what M12 is told ---
+{"plan":"docs/MILESTONES.md","plan_format":"generated","plan_owed":{"reason":"docs/MILESTONES.md does not parse even with defaults: the milestones table, row M01, cell Model: \"gpt-9\" is not a model alias in config.json or a full model id","owner":"M12"}}

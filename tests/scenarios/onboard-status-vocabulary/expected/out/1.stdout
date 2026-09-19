@@ -16,6 +16,9 @@ Register this project and let Baton run it? [yes/no] onboarded Fixture
   starting    M02 · run · docs/milestones/M02.md
   starting    M04 · wait for M03 · docs/milestones/M04.md
   starting    M05 · run · docs/milestones/M05.md
+preconditions: 2 eligible, 0 with unmet preconditions
+  M02  ready
+  M05  ready
 the next tick reads Fixture and dispatches what the starting handover says run
 --- the plan the tick now sees: M03 held, and M04 waiting on it for ever ---
 plan Fixture: @TMP@/Fixture/docs/MILESTONES.md

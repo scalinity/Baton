@@ -15,6 +15,15 @@
     "version": "2.1.278 (Claude Code)",
     "checked_at": "2026-09-19T08:00:00+01:00"
   },
+  "adaptation": {
+    "defaults": {
+      "Model": "opus",
+      "Effort": "",
+      "Remote": ""
+    },
+    "status_map": {},
+    "gates": "absent"
+  },
   "start": {
     "at": "2026-09-19T08:00:00+01:00",
     "eligible": [
@@ -38,14 +47,5 @@
         ]
       }
     ]
-  },
-  "adaptation": {
-    "defaults": {
-      "Model": "opus",
-      "Effort": "",
-      "Remote": ""
-    },
-    "status_map": {},
-    "gates": "absent"
   }
 }

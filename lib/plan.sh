@@ -51,10 +51,20 @@ plan_extract() {
     # REQ-PLAN-01 says and what a plan Baton did not author needs: a project whose own table opens
     # with `Owner` or `Title` has an `ID` column all the same, and reading columns by name is
     # pointless if finding the table does not.
+    #
+    # The companion column is what keeps that from stealing the table. A plan document may hold other
+    # tables — a traceability table, a ticket list — and one of those may have a column called `ID`;
+    # under "the first header with an ID cell" it would be chosen, fail on the missing `Depends on`,
+    # and park a project whose plan had been read for months. So a candidate header must carry both
+    # the locating cell and the one column the table cannot be without: `Depends on` for the
+    # milestones, `Holds` for the gates. A header with neither is not that table and is skipped, and
+    # a header with the locating cell and a *misspelt* companion still fails the read, because then it
+    # is that table and the failure is the point.
     function has_cell(name,    i) {
       for (i = 1; i <= nc; i++) if (C[i] == name) return 1
       return 0
     }
+    function locates(name, companion) { return has_cell(name) && has_cell(companion) }
     function header(table, names,    k, i, want) {
       split("", col)
       for (i = 1; i <= nc; i++) col[C[i]] = i
@@ -69,8 +79,8 @@ plan_extract() {
     /^[ \t]*\|/ {
       cells($0)
       if (state == "") {
-        if (has_cell("ID") && !seen_m) { seen_m = 1; header("milestones", "ID,Depends on,Model,Effort,Remote,Status"); state = "m-sep"; next }
-        if (has_cell("Gate") && !seen_g) { seen_g = 1; header("gates", "Gate,Holds,Cleared"); state = "g-sep"; next }
+        if (locates("ID", "Depends on") && !seen_m) { seen_m = 1; header("milestones", "ID,Depends on,Model,Effort,Remote,Status"); state = "m-sep"; next }
+        if (locates("Gate", "Holds") && !seen_g) { seen_g = 1; header("gates", "Gate,Holds,Cleared"); state = "g-sep"; next }
         next
       }
       if (state == "m-sep") { state = "m"; row = 0; next }
@@ -169,10 +179,12 @@ parse_remote() {
 parse_status() {
   case "$1" in ''|done|held) printf '%s\n' "$1"; return 0 ;; esac
   [ -n "${2:-}" ] || return 1
-  ps_mapped=$(printf '%s' "$2" | jq -r --arg t "$1" '
-    (.[$t] // .[$t | ascii_downcase] // empty) | if type == "object" then .status else . end' 2>/dev/null) || return 1
+  # `-e` on the lookup, so a key whose value is `null` — which a hand edit leaves behind — fails
+  # rather than reading as blank and making the row runnable. `// empty` alone would swallow it, and
+  # `has($t)` would then say the map named the word.
+  ps_mapped=$(printf '%s' "$2" | jq -er --arg t "$1" '
+    (.[$t] // .[$t | ascii_downcase]) | if type == "object" then .status else . end' 2>/dev/null) || return 1
   case "$ps_mapped" in ''|done|held) ;; *) return 1 ;; esac
-  printf '%s' "$2" | jq -e --arg t "$1" 'has($t) or has($t | ascii_downcase)' > /dev/null 2>&1 || return 1
   printf '%s\n' "$ps_mapped"
 }
 

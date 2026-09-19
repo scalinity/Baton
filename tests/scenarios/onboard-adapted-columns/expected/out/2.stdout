@@ -10,6 +10,8 @@ registered Fixture
   defaulted   Model=opus, Effort=blank, Remote=blank
   starting    M02 · run · docs/milestones/M02.md
   starting    M03 · wait for M02 · docs/milestones/M03.md
+preconditions: 1 eligible, 0 with unmet preconditions
+  M02  ready
 --- the plan the tick now sees ---
 plan Fixture: @TMP@/Fixture/docs/MILESTONES.md
 M01  done  model opus  effort -  remote no
