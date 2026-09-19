@@ -391,7 +391,7 @@ brief_size() {
 
 # size_effort <size>: the reasoning effort a declared Size asks for, or empty for a Size Baton does
 # not recognise. The mapping, settled once here so that later pacing consumes this seam rather than
-# inventing a second one (M13 §10, D-174):
+# inventing a second one (M13 §10, D-176):
 #
 #     small → medium      medium → high      large → high
 #
@@ -682,7 +682,7 @@ dispatch_one() {
   # sibling convention — `../Fixture-M02`, where it said which project and which milestone — and M09
   # moved new worktrees to `<managed root>/<project>/<milestone>`, where it says only "M02" beside a
   # milestone already called M02. What this sentence is for is telling a session where another
-  # session is working so it stays out of it, and a path is that; a name that repeats the id is not (D-176).
+  # session is working so it stays out of it, and a path is that; a name that repeats the id is not (D-178).
   do_also=$(printf '%s' "$do_inflight" | jq -r --arg me "$do_id" --argjson plan "$do_plan" '
     ($plan.milestones | map(select(.status == "done") | .id)) as $done
     | map(select(.milestone as $m | $m != $me and (($done | index($m)) == null)))

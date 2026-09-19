@@ -307,7 +307,7 @@ dispatch_run() {
     # independent pair were therefore told "Nothing else is in flight", each about the other, which is
     # the one sentence part 2 exists to say. It is the defect D-130 names one level further in: there
     # the listing went stale between the top of the tick and the cap, here between one dispatch and
-    # the next, and the answer is the same — read it where it is used (D-175).
+    # the next, and the answer is the same — read it where it is used (D-177).
     #
     # A listing that cannot be re-read stops the pass rather than falling back to the stale one. The
     # fallback would be the cheaper mistake of the two — part 5 carries the standing parallel-run
