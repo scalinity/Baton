@@ -1,0 +1,6 @@
+== limitation 33's first half: a lane carrying two parks had no answerable name. The park's own
+== at is that name, and it answers exactly one of them.
+status 1
+== and it lands once. The same park id finds nothing the second time, and the refusal shows the
+== park that is still standing rather than reading as though the lane were clear.
+status 1

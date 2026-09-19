@@ -1,0 +1,12 @@
+baton: no park of Fixture/M03 was raised at 2026-09-12T10:00:00+01:00; the open ones are:
+  baton answer Fixture/M03@2026-09-12T11:10:00+01:00 · question · Baton · Fixture · M03 is waiting for input
+  baton answer Fixture/M03@2026-09-12T11:11:00+01:00 · other · the session stopped: a second park on the same lane
+baton: no park of Fixture/M03 was raised at 2026-09-12T11:1; the open ones are:
+  baton answer Fixture/M03@2026-09-12T11:10:00+01:00 · question · Baton · Fixture · M03 is waiting for input
+  baton answer Fixture/M03@2026-09-12T11:11:00+01:00 · other · the session stopped: a second park on the same lane
+baton: nothing is waiting on Fixture/M03@yesterday
+baton: nothing is waiting on Fixture/M09@2026-09-12T11:10:00+01:00
+baton: M03 is parked in 2 projects; name one:
+  baton answer Fixture/M03 · question · Baton · Fixture · M03 is waiting for input
+  baton answer Fixture/M03 · other · the session stopped: a second park on the same lane
+  baton answer ?/M03 · other · the file is not a JSON object

@@ -18,6 +18,7 @@ completion.sh
 declared.sh
 derive.sh
 dispatch.sh
+disposition.sh
 escalate.sh
 inbox.sh
 lifecycle.sh

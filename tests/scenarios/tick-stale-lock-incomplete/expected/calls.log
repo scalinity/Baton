@@ -1,4 +1,3 @@
-osascript -e 'display notification "the lock was held by pid 999999 since directory mtime 1789210200 (10 m) and its holder is gone; it has been cleared and the tick proceeded · nothing to do; Baton cleared it and carried on" with title "Baton · baton-unhealthy"'
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
