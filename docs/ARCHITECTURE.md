@@ -1174,7 +1174,8 @@ ignored with a message. It stops likewise when the `BATON_TESTS_DEADLINE` whole 
 named have elapsed since the run began, there being no default and so no bound unless one is asked
 for; a scenario already started finishes first. The run sets
 `LC_ALL=en_US.UTF-8` for itself, the locale the expectations were frozen under, and exits 3 before
-running anything where `locale -a` does not list it. Exit 3 is distinct from the 0 of a passing run
+running anything where `locale -a` does not list it. It unsets `NO_COLOR` and `FORCE_COLOR` and sets
+neither, so every scenario starts from one baseline and one that tests colour chooses its own. Exit 3 is distinct from the 0 of a passing run
 and from the 1 a run ends with when a scenario fails or the harness itself errors. Hook scenarios
 pipe `tests/payloads/*.json` (copied from the prototype's `obs/`, two constructed) into a hook
 through `cmd`. launchd is never in the tests.

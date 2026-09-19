@@ -28,7 +28,7 @@
 # A run whose BATON_TESTS_OWNER=<pid> has gone stops on its own, and so does one that has reached the
 # BATON_TESTS_DEADLINE=<seconds> a caller named, of which there is none by default; both exit 3,
 # before the next scenario begins. The run sets LC_ALL=en_US.UTF-8 for itself and refuses, exit 3,
-# where that locale is not installed.
+# where that locale is not installed, and unsets NO_COLOR and FORCE_COLOR.
 set -eu
 
 # A run is abandoned when the caller that wanted its result has gone, and only that caller can say
@@ -75,6 +75,13 @@ if ! locale -a 2>/dev/null | grep -qx 'en_US.UTF-8'; then
 fi
 LC_ALL=en_US.UTF-8
 export LC_ALL
+
+# Colour is the same kind of inheritance. A layout that renders for a terminal reads NO_COLOR
+# (lib/render.sh), and a verb run from inside a Claude Code session inherits FORCE_COLOR
+# (lib/answer.sh, lib/dispatch.sh), so a calling shell that has either changes what a scenario is
+# handed. render-matrix already scrubs both for its own terminal. Both are unset here and neither is
+# set, so every scenario starts from one baseline and a scenario that tests colour chooses its own.
+unset NO_COLOR FORCE_COLOR
 
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(dirname "$here")
