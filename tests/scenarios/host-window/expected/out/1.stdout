@@ -1,0 +1,124 @@
+=== the window is [2026-09-12T10:00:00+01:00, 2026-09-12T12:00:00+01:00], 7200 s, interval 60
+
+--- covered by sleep, with dark wakes too short to have run a tick
+covering-sleep             {"assessed":"explained","sleep_seconds":7100,"longest_awake_seconds":50,"sleep_count":2}
+
+--- the same history with the marker inside an awake stretch rather than a sleep: still short
+awake-at-the-marker        {"assessed":"explained","sleep_seconds":7100,"longest_awake_seconds":50,"sleep_count":1}
+
+--- a complete timeline with no sleep in the window at all
+no-sleep                   {"assessed":"unexplained","sleep_seconds":0,"longest_awake_seconds":7200,"sleep_count":0}
+
+--- overlap is not coverage: one awake stretch of exactly two intervals is not silent
+exactly-two-intervals      {"assessed":"unexplained","sleep_seconds":7080,"longest_awake_seconds":120,"sleep_count":2}
+
+--- and one second under it is
+one-second-under           {"assessed":"explained","sleep_seconds":7081,"longest_awake_seconds":119,"sleep_count":2}
+
+--- two short awake stretches are two opportunities, never one long one, and are not summed
+two-short-stretches        {"assessed":"explained","sleep_seconds":6962,"longest_awake_seconds":119,"sleep_count":3}
+
+--- a UTC offset change inside the window is read and never assumed. The wake below reads
+--- 06:59:10 -0400, which is 11:59:10 +0100 and fifty seconds short of the endpoint; taking
+--- the clock face at its word instead would put it five hours early and explain nothing.
+offset-change              {"assessed":"explained","sleep_seconds":7150,"longest_awake_seconds":50,"sleep_count":1}
+
+=== and every shape that is not a timeline. Unknown is not asleep: each of these keeps the
+=== message and says which doubt it was, rather than claiming the host reported no sleep.
+
+--- Wake Requests are scheduled requests and explain nothing on their own
+wake-requests-only         {"assessed":"unknown","reason":"no-transitions"}
+
+--- an empty history from a command that succeeded is not proof of no sleep
+empty-history              {"assessed":"unknown","reason":"no-transitions"}
+
+--- history that starts after the marker cannot say what the machine was doing when it began
+no-state-at-marker         {"assessed":"unknown","reason":"no-state-at-marker"}
+
+--- a Sleep at the boundary of the history with no wake after it: Baton is awake, reading this
+trailing-sleep             {"assessed":"unknown","reason":"trailing-sleep-unmatched"}
+
+--- a Sleep while already asleep is a wake the history lost, not twelve seconds of sleep
+missing-wake               {"assessed":"unknown","reason":"missing-wake"}
+
+--- but an unclosed stretch too short to have held a tick is an awake portion and not a doubt.
+--- The real history carries twelve-second ones; reporting each as unknown would make a whole
+--- night unreadable over a stretch that could not have changed the answer. It is still not
+--- counted as sleep — 09:58 to 09:58:12 falls out as awake, which can only count against.
+short-missing-wake         {"assessed":"explained","sleep_seconds":7128,"longest_awake_seconds":50,"sleep_count":2}
+
+--- and the same for a Sleep at the end of the history, within two intervals of the endpoint:
+--- unproven, so it is awake, and too short to be worth reporting as a doubt of its own
+short-trailing-sleep       {"assessed":"explained","sleep_seconds":7140,"longest_awake_seconds":60,"sleep_count":1}
+
+--- a doubt is positioned between the transitions either side of it, so one at the very start of
+--- the history has nothing before it and one at the very end has nothing after, and each is
+--- open on that side. The two ends therefore answer differently, which is the point of both
+--- cases: a doubt open backwards is bounded forwards by the next good record, so a line that
+--- would not parse a day before the window says nothing about the window --
+malformed-first-line       {"assessed":"explained","sleep_seconds":7150,"longest_awake_seconds":50,"sleep_count":1}
+
+--- -- while the same line at the end of the history is open forwards and bounded only by the
+--- wake before it, so it could have happened inside the window and taints it
+malformed-last-line        {"assessed":"unknown","reason":"malformed-timestamp"}
+
+--- a conflict outside the window still disqualifies it when it is the record the state at the
+--- marker is read from: the machine cannot have been both when the gap began
+conflict-at-the-marker     {"assessed":"unknown","reason":"conflicting-transitions"}
+
+--- asleep and awake at one instant is not a state
+conflicting-transitions    {"assessed":"unknown","reason":"conflicting-transitions"}
+
+--- a timestamp Baton cannot place is a hole, whether the month or the offset is the wrong one
+malformed-offset           {"assessed":"unknown","reason":"malformed-timestamp"}
+
+--- a reboot: the counter pmset prints per sleep cycle has gone backwards
+boot-boundary              {"assessed":"unknown","reason":"boot-boundary"}
+
+--- the clock moved backwards between two records, which no offset change can do
+clock-discontinuity        {"assessed":"unknown","reason":"clock-discontinuity"}
+
+--- a doubt outside the window says nothing about the window: the same reboot, a day earlier
+boot-boundary-outside      {"assessed":"explained","sleep_seconds":7150,"longest_awake_seconds":50,"sleep_count":1}
+
+--- and the read that failed, which is the plainest doubt of the lot
+read-failed                {"assessed":"unknown","reason":"history-unreadable"}
+
+=== the evidence an explained window carries, in full, in the offset it was asked for
+{
+  "assessed": "explained",
+  "endpoint": "2026-09-12T12:00:00+01:00",
+  "window_seconds": 7200,
+  "sleep_seconds": 7100,
+  "longest_awake_seconds": 50,
+  "sleep_count": 2,
+  "sleeps": [
+    {
+      "from": "2026-09-12T10:00:00+01:00",
+      "to": "2026-09-12T10:59:10+01:00"
+    },
+    {
+      "from": "2026-09-12T11:00:00+01:00",
+      "to": "2026-09-12T11:59:10+01:00"
+    }
+  ],
+  "history_records": 4
+}
+
+=== the history is read once for as long as the lock is held, however many windows ask about
+=== it, and read afresh once the lock is gone. Every probe above ran without one, which is why
+=== each of them saw its own history.
+three windows under one lock:  1 read
+one more with the lock gone:   1 read
+
+=== and a read that failed is remembered as a failure, not retried until the lock goes. Both
+=== answers below are history-unreadable and not no-transitions, which is what says the cached
+=== line was read as a failure rather than as an empty history.
+two windows under one lock:    1 read
+first:  {"assessed":"unknown","reason":"history-unreadable"}
+second: {"assessed":"unknown","reason":"history-unreadable"}
+
+=== proven sleep for a caller measuring elapsed time, and the empty answer that means "do not
+=== subtract": the stall rule reads this, and an answer it cannot trust leaves the age alone.
+inside an explained window:  [7100]
+with the read failing:       []

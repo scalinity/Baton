@@ -302,6 +302,32 @@ stall_check() {
     sc_mtime=$(transcript_mtime "$sc_session") || continue
     sc_age=$((sc_now - sc_mtime))
     [ "$sc_age" -ge "$sc_limit" ] || continue
+    # Age the host was asleep through is not inactivity. A Mac that slept the night leaves every
+    # transcript in the fleet older than the threshold, and a session woken beside Baton has not
+    # stopped working — it has not been running. So the proven sleep inside the very window being
+    # measured comes off the age, and what is left is the awake inactivity the threshold was written
+    # about (D-008's thirty minutes of *unchanged transcripts*, which presumes a machine that was
+    # there to change them).
+    #
+    # It is asked last of the three tests and not first: the raw age has to be past the threshold
+    # and the key has to be unspent. An ordinary tick therefore costs no read at all, and a lane
+    # already notified about costs none however many ticks it stays stalled. **The case that does
+    # cost one every tick is a lane held silent by this subtraction** — its raw age stays past the
+    # threshold and its key stays unspent, so each tick re-reads until the transcript moves or the
+    # awake share crosses the line. On the real Mac that is a `pmset -g log` a minute, for at most
+    # `stallMinutes` after a wake, per idle lane; measured at about a second. Priced and accepted
+    # rather than cached across ticks, because a cache that outlived the lock would be Baton state
+    # with a staleness rule of its own, and the whole of this file's cost is one second of a sixty.
+    # The subtraction is bounded by what the host proved: `host_sleep_proven` prints nothing
+    # when the history is unreadable, ambiguous or does not reach back to the transcript, and the
+    # age then stands exactly as it did before this existed — the conservative direction, because a
+    # stall is a notification Baton keeps working past and an unnotified one is the thing nobody
+    # hears about.
+    #
+    # The age itself is not rewritten: `transcript_age_seconds` stays the wall age, because that is
+    # the observation, and the awake share is a second field beside it. A line saying "no transcript
+    # change for 31 m" about a transcript last touched ten hours ago would trade one wrong number
+    # for another.
     sc_spent=$(derive_key_spent "$1" "$sc_milestone" "$sc_attempt" stall) || { render_failure err "$sc_spent"; return 1; }
     if [ "$(printf '%s' "$sc_spent" | jq -r .spent)" != false ]; then
       # A remote lane's stall key is spent only while the transcript has not moved since the
@@ -313,15 +339,25 @@ stall_check() {
       sc_spent_at=$(iso_epoch "$(printf '%s' "$sc_spent" | jq -r .at)") || { render_failure err "$sc_spent_at"; return 1; }
       [ "$sc_mtime" -gt "$sc_spent_at" ] || continue
     fi
+    sc_slept=$(host_sleep_proven "$sc_mtime" "$sc_now" "$BATON_TICK_SECONDS")
+    sc_awake=''
+    if [ -n "$sc_slept" ] && [ "$sc_slept" -gt 0 ]; then
+      sc_awake=$((sc_age - sc_slept))
+      [ "$sc_awake" -ge 0 ] || sc_awake=0
+      [ "$sc_awake" -ge "$sc_limit" ] || continue
+    fi
     sc_state=$(printf '%s' "$sc_l" | jq -r '.row.state // "unknown"')
     # Composed here and not inside the call: a message built inside a nested command substitution
     # is parsed by /bin/sh — bash 3.2 on this Mac — with the quoting state mistracked, so an
     # apostrophe in the text silently ends the quoted jq program and the event loses its fields.
-    sc_detail="no transcript change for $(duration "$sc_age"); the row reads $sc_state"
+    sc_detail="no transcript change for $(duration "$sc_age")"
+    [ -z "$sc_awake" ] || sc_detail="$sc_detail, of which $(duration "$sc_awake") with the host awake"
+    sc_detail="$sc_detail; the row reads $sc_state"
     sc_fields=$(jq -nc --arg s "$sc_state" --argjson age "$sc_age" --arg m "$sc_milestone" \
-      --arg d "$sc_detail" '
-      {state: $s, transcript_age_seconds: $age,
-       detail: ($d + (if $s == "done" then " · baton answer \($m) to finish the close-out"
+      --arg d "$sc_detail" --arg aw "$sc_awake" '
+      {state: $s, transcript_age_seconds: $age}
+      | if $aw != "" then . + {awake_age_seconds: ($aw | tonumber)} else . end
+      | . + {detail: ($d + (if $s == "done" then " · baton answer \($m) to finish the close-out"
                       else " · read it in Claude.app before touching it" end))}')
     notification_write "$1" "$sc_milestone" "$sc_session" "$sc_attempt" stall "" "$sc_fields"
     render_row out action 'stall     %s/%s · %s · %s unchanged, state %s\n' "$(render_token out lane "$1")" "$(render_token out milestone "$sc_milestone")" "$(render_token out session "$sc_session")" "$(duration "$sc_age")" "$sc_state"
@@ -431,19 +467,54 @@ question_check() {
 # The tick passes the clock it started with, because its own step 2 can run for minutes and a tick
 # is not an outage while it is working; every other caller reads the gap from outside a tick, where
 # now is the honest instant.
+#
+# **Detection and attribution are two steps and stay two steps.** Everything above this line is
+# unchanged: the threshold, the open-lane test and the marker key decide *that* there was a gap, and
+# nothing about the host is asked until they have. Only then does `lib/host.sh` read the sleep
+# history — once, after the key test, so a gap already reported costs no read and a tick with no gap
+# costs none either — and `disposition_of` turns its answer into the one thing that differs:
+# `record_notification` for a gap the host accounts for, `notification_write` for every other, which
+# is both halves of "unexplained still notifies, unknown still notifies, and neither is silently
+# suppressed". The event is written in both cases and carries the evidence either way.
 gap_check() {
   gc_gap=$(derive_gap "$1" "${2:-}") || { render_failure err "$gc_gap"; return 1; }
   [ "$(printf '%s' "$gc_gap" | jq -r .report)" = true ] || return 0
   gc_marker=$(printf '%s' "$gc_gap" | jq -r .marker)
   gc_log=$(log_json) || { render_failure err "$gc_log"; return 1; }
+  # The key is spent by a recorded gap as much as by a delivered one: `record_notification` writes
+  # the same `notification` event with the same class and key, so the second reading of one marker
+  # writes nothing and raises nothing whichever channel the first went out on.
   if printf '%s' "$gc_log" | jq -e --arg k "$gc_marker" \
        'any(.[]; .kind == "notification" and .class == "gap" and .key == $k)' > /dev/null; then
     return 0
   fi
   gc_seconds=$(printf '%s' "$gc_gap" | jq -r .gap_seconds)
-  gc_detail="no tick for $(duration "$gc_seconds"); the last one completed at $gc_marker, and a lane was open through it"
+  # The window the gap measured, and never the instant this runs: `host_gap_evidence` derives the
+  # endpoint from the marker and the duration, because an event written minutes after the gap ended
+  # would otherwise ask the host to account for minutes the gap never covered.
+  gc_host=$(host_gap_evidence "$gc_marker" "$gc_seconds") || { render_failure err "$gc_host"; return 1; }
+  # Emptiness is checked as well as the status, because the two failures downstream of it are the
+  # ones this whole change must not have: an empty evidence object makes `--argjson h` fail, which
+  # leaves `gc_fields` empty, which `fields_or_fail` refuses — and the gap then has no event *and*
+  # no message. `host_window` always prints an object, so this is the awk itself having broken;
+  # failing the tick here costs a marker and reports the gap again next minute, which is the
+  # direction to err in.
+  [ -n "$gc_host" ] || { render_failure err "gap_check: the host evidence came back empty; the gap is not reported this tick"; return 1; }
+  gc_base="no tick for $(duration "$gc_seconds"); the last one completed at $gc_marker, and a lane was open through it"
+  gc_detail=$(host_gap_detail "$gc_base" "$gc_host")
   gc_fields=$(jq -nc --argjson s "$gc_seconds" --arg m "$gc_marker" --arg d "$gc_detail" \
-    '{gap_seconds: $s, marker: $m, detail: $d}')
-  notification_write "" "" "" "" gap "$gc_marker" "$gc_fields"
-  render_row out action 'gap       Baton was not running for %s, measured against %s\n' "$(duration "$gc_seconds")" "$(render_token out timestamp "$gc_marker")"
+    --argjson h "$gc_host" '{gap_seconds: $s, marker: $m, detail: $d, host: $h}')
+  gc_disp=$(disposition_of notification gap "$gc_fields") || { render_failure err "gap_check: the gap has no disposition"; return 1; }
+  # Recorded as the table's answer, after it was asked. It is written for a person reading the log
+  # and for `status`, and it is never read back as input: `disposition_of` reads `host.assessed` and
+  # nothing else, so a field on the event cannot talk the table into a different answer.
+  gc_fields=$(printf '%s' "$gc_fields" | jq -c --arg d "$gc_disp" '. + {disposition: $d}')
+  gc_notifies=0; disposition_notifies "$gc_disp" || gc_notifies=$?
+  if [ "$gc_notifies" -eq 1 ]; then
+    record_notification "" "" "" "" gap "$gc_marker" "$gc_fields" || return 1
+    render_row out record 'gap       Baton was not running for %s, measured against %s · the host accounts for it · recorded, not sent\n' "$(duration "$gc_seconds")" "$(render_token out timestamp "$gc_marker")"
+  else
+    notification_write "" "" "" "" gap "$gc_marker" "$gc_fields"
+    render_row out action 'gap       Baton was not running for %s, measured against %s\n' "$(duration "$gc_seconds")" "$(render_token out timestamp "$gc_marker")"
+  fi
 }

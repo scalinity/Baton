@@ -1,0 +1,292 @@
+set -eu
+# The parser and the coverage policy, on their own, across every history shape §4 names. A verb
+# would prove one of these per scenario; this drives them all against one window, so the boundary
+# between "explained" and every kind of doubt is one readable table rather than twenty directories.
+#
+# The window is two hours, 10:00 to 12:00 on 2026-09-12 in +01:00, and the interval is sixty
+# seconds, so two intervals — the threshold an awake portion has to stay under — is 120 s.
+. "$ROOT/tests/lib-load.sh"
+
+from=$(iso_epoch 2026-09-12T10:00:00+01:00)
+to=$(iso_epoch 2026-09-12T12:00:00+01:00)
+
+# Each case is read in a command substitution, which is a subshell, because the history is read once
+# per process on purpose: the memo that makes "once per needed tick" true would otherwise make every
+# case after the first read the first one's history.
+#
+# The jq program is one line and is not nested inside another substitution. /bin/sh here is bash 3.2
+# and mistracks the quoting state of a multi-line quoted string inside `$( )` inside `" "`, which is
+# the same hazard `stall_check` carries a note about.
+probe() {
+  pr_name=$1
+  cat > "$SHIM/pmset.log"
+  pr_out=$(host_window "$from" "$to" 3600 60)
+  pr_sum=$(printf '%s' "$pr_out" | jq -c 'if .assessed == "unknown" then {assessed, reason} else {assessed, sleep_seconds, longest_awake_seconds, sleep_count} end')
+  printf '%-26s %s\n' "$pr_name" "$pr_sum"
+}
+
+echo '=== the window is [2026-09-12T10:00:00+01:00, 2026-09-12T12:00:00+01:00], 7200 s, interval 60'
+echo
+
+echo '--- covered by sleep, with dark wakes too short to have run a tick'
+probe covering-sleep <<'HISTORY'
+2026-09-12 09:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3420 secs
+2026-09-12 09:57:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to smc.sysState.Wake Using BATT (Charge:89%) 60 secs
+2026-09-12 09:57:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to smc.sysState.Wake Using BATT (Charge:89%) 60 secs
+2026-09-12 09:58:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3670 secs
+2026-09-12 10:30:00 +0100 Wake Requests       	[process=powerd request=UserWake deltaSecs=1781 wakeAt=2026-09-12 11:00:00]
+2026-09-12 10:30:00 +0100 Assertions          	PID 356(powerd) Created InternalPreventSleep "com.apple.powermanagement.darkwakelinger" 00:00:00
+2026-09-12 10:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+2026-09-12 11:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 3550 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- the same history with the marker inside an awake stretch rather than a sleep: still short'
+probe awake-at-the-marker <<'HISTORY'
+2026-09-12 09:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:89%) 50 secs
+2026-09-12 10:00:50 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 7100 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- a complete timeline with no sleep in the window at all'
+probe no-sleep <<'HISTORY'
+2026-09-12 08:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:91%) 5400 secs
+2026-09-12 09:30:00 +0100 Wake                	Wake from Deep Idle [CDNP] : due to HID Activity Using AC (Charge:91%)
+HISTORY
+
+echo
+echo '--- overlap is not coverage: one awake stretch of exactly two intervals is not silent'
+probe exactly-two-intervals <<'HISTORY'
+2026-09-12 09:50:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 4080 secs
+2026-09-12 10:58:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 120 secs
+2026-09-12 11:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 3600 secs
+2026-09-12 12:00:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 30 secs
+HISTORY
+
+echo
+echo '--- and one second under it is'
+probe one-second-under <<'HISTORY'
+2026-09-12 09:50:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 4081 secs
+2026-09-12 10:58:01 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 119 secs
+2026-09-12 11:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 3600 secs
+2026-09-12 12:00:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 30 secs
+HISTORY
+
+echo
+echo '--- two short awake stretches are two opportunities, never one long one, and are not summed'
+probe two-short-stretches <<'HISTORY'
+2026-09-12 09:50:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3000 secs
+2026-09-12 10:40:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 119 secs
+2026-09-12 10:41:59 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 3481 secs
+2026-09-12 11:40:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 119 secs
+2026-09-12 11:41:59 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 1081 secs
+2026-09-12 12:00:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- a UTC offset change inside the window is read and never assumed. The wake below reads'
+echo '--- 06:59:10 -0400, which is 11:59:10 +0100 and fifty seconds short of the endpoint; taking'
+echo '--- the clock face at its word instead would put it five hours early and explain nothing.'
+probe offset-change <<'HISTORY'
+2026-09-12 09:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 10750 secs
+2026-09-12 06:59:10 -0400 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '=== and every shape that is not a timeline. Unknown is not asleep: each of these keeps the'
+echo '=== message and says which doubt it was, rather than claiming the host reported no sleep.'
+echo
+echo '--- Wake Requests are scheduled requests and explain nothing on their own'
+probe wake-requests-only <<'HISTORY'
+2026-09-12 09:58:00 +0100 Wake Requests       	[process=powerd request=UserWake deltaSecs=120 wakeAt=2026-09-12 10:00:00]
+2026-09-12 10:30:00 +0100 Wake Requests       	[process=mDNSResponder request=Maintenance deltaSecs=7200 wakeAt=2026-09-12 12:30:00]
+2026-09-12 11:30:00 +0100 WakeTime            	Wake Time: 00:00:00
+HISTORY
+
+echo
+echo '--- an empty history from a command that succeeded is not proof of no sleep'
+probe empty-history < /dev/null
+
+echo
+echo '--- history that starts after the marker cannot say what the machine was doing when it began'
+probe no-state-at-marker <<'HISTORY'
+2026-09-12 10:30:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 5400 secs
+2026-09-12 11:59:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 60 secs
+HISTORY
+
+echo
+echo '--- a Sleep at the boundary of the history with no wake after it: Baton is awake, reading this'
+probe trailing-sleep <<'HISTORY'
+2026-09-12 09:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3420 secs
+2026-09-12 09:57:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:89%) 60 secs
+2026-09-12 09:58:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 7320 secs
+HISTORY
+
+echo
+echo '--- a Sleep while already asleep is a wake the history lost, not twelve seconds of sleep'
+probe missing-wake <<'HISTORY'
+2026-09-12 09:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3600 secs
+2026-09-12 10:30:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 5400 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- but an unclosed stretch too short to have held a tick is an awake portion and not a doubt.'
+echo '--- The real history carries twelve-second ones; reporting each as unknown would make a whole'
+echo '--- night unreadable over a stretch that could not have changed the answer. It is still not'
+echo '--- counted as sleep — 09:58 to 09:58:12 falls out as awake, which can only count against.'
+probe short-missing-wake <<'HISTORY'
+2026-09-12 09:58:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 1910 secs
+2026-09-12 10:29:50 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 10 secs
+2026-09-12 10:30:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 12 secs
+2026-09-12 10:30:12 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 5338 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- and the same for a Sleep at the end of the history, within two intervals of the endpoint:'
+echo '--- unproven, so it is awake, and too short to be worth reporting as a doubt of its own'
+probe short-trailing-sleep <<'HISTORY'
+2026-09-12 09:58:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 7260 secs
+2026-09-12 11:59:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 20 secs
+2026-09-12 11:59:20 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 40 secs
+HISTORY
+
+echo
+echo '--- a doubt is positioned between the transitions either side of it, so one at the very start of'
+echo '--- the history has nothing before it and one at the very end has nothing after, and each is'
+echo '--- open on that side. The two ends therefore answer differently, which is the point of both'
+echo '--- cases: a doubt open backwards is bounded forwards by the next good record, so a line that'
+echo '--- would not parse a day before the window says nothing about the window --'
+probe malformed-first-line <<'HISTORY'
+2026-09-11 08:00:00 -04X0 Wake                	Wake from Deep Idle [CDNP] : due to HID Activity Using AC (Charge:91%)
+2026-09-12 09:58:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 7270 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- -- while the same line at the end of the history is open forwards and bounded only by the'
+echo '--- wake before it, so it could have happened inside the window and taints it'
+probe malformed-last-line <<'HISTORY'
+2026-09-12 09:58:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 7270 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+2026-09-12 13:00:00 -04X0 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 600 secs
+HISTORY
+
+echo
+echo '--- a conflict outside the window still disqualifies it when it is the record the state at the'
+echo '--- marker is read from: the machine cannot have been both when the gap began'
+probe conflict-at-the-marker <<'HISTORY'
+2026-09-12 09:58:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 7270 secs
+2026-09-12 09:58:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:89%) 10 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- asleep and awake at one instant is not a state'
+probe conflicting-transitions <<'HISTORY'
+2026-09-12 09:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3600 secs
+2026-09-12 10:30:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 60 secs
+2026-09-12 10:30:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 60 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- a timestamp Baton cannot place is a hole, whether the month or the offset is the wrong one'
+probe malformed-offset <<'HISTORY'
+2026-09-12 09:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3600 secs
+2026-09-12 10:30:00 -04X0 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 60 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- a reboot: the counter pmset prints per sleep cycle has gone backwards'
+probe boot-boundary <<'HISTORY'
+2026-09-12 09:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3600 secs
+Sleep/Wakes since boot:212   Dark Wake Count in this sleep cycle:6
+2026-09-12 10:30:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 60 secs
+Sleep/Wakes since boot:3   Dark Wake Count in this sleep cycle:1
+2026-09-12 10:31:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 5290 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- the clock moved backwards between two records, which no offset change can do'
+probe clock-discontinuity <<'HISTORY'
+2026-09-12 09:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3600 secs
+2026-09-12 10:30:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 60 secs
+2026-09-12 10:25:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 5650 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- a doubt outside the window says nothing about the window: the same reboot, a day earlier'
+probe boot-boundary-outside <<'HISTORY'
+2026-09-11 09:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3600 secs
+Sleep/Wakes since boot:212   Dark Wake Count in this sleep cycle:6
+2026-09-11 10:30:00 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 60 secs
+Sleep/Wakes since boot:3   Dark Wake Count in this sleep cycle:1
+2026-09-12 09:58:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 7270 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+
+echo
+echo '--- and the read that failed, which is the plainest doubt of the lot'
+printf '1\n' > "$SHIM/pmset.status"
+failed=$(host_window "$from" "$to" 3600 60)
+printf '%-26s %s\n' read-failed "$(printf '%s' "$failed" | jq -c '{assessed, reason}')"
+rm -f "$SHIM/pmset.status"
+
+echo
+echo '=== the evidence an explained window carries, in full, in the offset it was asked for'
+cat > "$SHIM/pmset.log" <<'HISTORY'
+2026-09-12 09:58:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:89%) 3670 secs
+2026-09-12 10:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+2026-09-12 11:00:00 +0100 Sleep               	Entering Sleep state due to 'Maintenance Sleep': Using Batt (Charge:88%) 3550 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using BATT (Charge:88%) 50 secs
+HISTORY
+full=$(host_window "$from" "$to" 3600 60)
+printf '%s' "$full" | jq .
+
+echo
+echo '=== the history is read once for as long as the lock is held, however many windows ask about'
+echo '=== it, and read afresh once the lock is gone. Every probe above ran without one, which is why'
+echo '=== each of them saw its own history.'
+before=$(grep -c 'pmset -g log' "$SHIM/calls.log")
+mkdir -p "$BATON_HOME/lock"
+host_window "$from" "$to" 3600 60 > /dev/null
+host_window "$from" "$to" 3600 60 > /dev/null
+host_window "$((from - 86400))" "$((to - 86400))" 3600 60 > /dev/null
+under=$(grep -c 'pmset -g log' "$SHIM/calls.log")
+echo "three windows under one lock:  $((under - before)) read"
+rm -rf "$BATON_HOME/lock"
+host_window "$from" "$to" 3600 60 > /dev/null
+after=$(grep -c 'pmset -g log' "$SHIM/calls.log")
+echo "one more with the lock gone:   $((after - under)) read"
+
+echo
+echo '=== and a read that failed is remembered as a failure, not retried until the lock goes. Both'
+echo '=== answers below are history-unreadable and not no-transitions, which is what says the cached'
+echo '=== line was read as a failure rather than as an empty history.'
+printf '1\n' > "$SHIM/pmset.status"
+mkdir -p "$BATON_HOME/lock"
+failed_once=$(host_window "$from" "$to" 3600 60)
+failed_twice=$(host_window "$from" "$to" 3600 60)
+final=$(grep -c 'pmset -g log' "$SHIM/calls.log")
+echo "two windows under one lock:    $((final - after)) read"
+printf 'first:  %s\n' "$(printf '%s' "$failed_once" | jq -c '{assessed, reason}')"
+printf 'second: %s\n' "$(printf '%s' "$failed_twice" | jq -c '{assessed, reason}')"
+rm -rf "$BATON_HOME/lock"
+rm -f "$SHIM/pmset.status"
+
+echo
+echo '=== proven sleep for a caller measuring elapsed time, and the empty answer that means "do not'
+echo '=== subtract": the stall rule reads this, and an answer it cannot trust leaves the age alone.'
+proven=$(host_sleep_proven "$from" "$to" 60)
+echo "inside an explained window:  [$proven]"
+printf '1\n' > "$SHIM/pmset.status"
+proven=$(host_sleep_proven "$from" "$to" 60)
+echo "with the read failing:       [$proven]"
+rm -f "$SHIM/pmset.status"
