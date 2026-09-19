@@ -499,10 +499,27 @@ dispatch_stop_jobs() {
   return 1
 }
 
-# dispatch_one <project> <milestone> <plan json> <rows json>: step 8 for one milestone.
+# dispatch_one <project> <milestone> <plan json> <rows json>: step 8 for one milestone, or for the
+# planning lane, which is dispatched exactly as a milestone is and differs in three places only.
+#
+# The planning lane (`lib/planning.sh`) has no row in the plan — there is no plan, which is what it
+# is for — so its model and effort come from config.json, its preconditions are the ground and the
+# rail rather than a brief on `main`, and its prompt is Baton's own text rather than a brief's fenced
+# block. Everything after that is the same code: the same worktree, the same settings file, the same
+# launch, the same cleanup budget, the same `dispatch` event and the same five lines. Writing it a
+# second time would give the planning lane its own launch failure handling, and the cap's
+# conservative count of a launch that could not be proved to have started nothing (D-130) is
+# precisely the code that must not exist twice.
 dispatch_one() {
   do_project=$1; do_id=$2; do_plan=$3; do_rows=$4
   do_path=$(project_path "$do_project")
+  do_planning=false
+  if [ "$do_id" = "$PLANNING_ID" ]; then
+    do_planning=true
+    # The "also in flight" list below reads this document, and the planning lane is dispatched for a
+    # project whose plan is exactly what does not parse. An empty table is the truth about it.
+    do_plan='{"milestones":[]}'
+  fi
 
   # Before anything is created. Every defect `dispatch_preconditions` can see is knowable from the
   # plan, the checkout and Baton's own state, so seeing one after a branch, a worktree and a
@@ -511,7 +528,11 @@ dispatch_one() {
   # result's fixed order, which makes it deterministic rather than whichever check happened to run.
   # A result that could not be collected is not an absence of defects: it is refused in its own
   # right, because reading it as success is exactly the mistake this check exists to prevent.
-  do_pre=$(dispatch_preconditions "$do_project" "$do_id") || {
+  if [ "$do_planning" = true ]; then
+    do_pre=$(planning_preconditions "$do_project")
+  else
+    do_pre=$(dispatch_preconditions "$do_project" "$do_id")
+  fi || {
     dispatch_failed "$do_project" "$do_id" worktree "the dispatch preconditions for $do_id could not be read: $do_pre"
     return 1
   }
@@ -526,10 +547,18 @@ dispatch_one() {
     return 1
   fi
 
-  do_row=$(printf '%s' "$do_plan" | plan_row "$do_id")
-  do_model=$(printf '%s' "$do_row" | jq -r .model)
-  do_effort=$(printf '%s' "$do_row" | jq -r .effort)
-  do_remote=$(printf '%s' "$do_row" | jq -r .remote)
+  if [ "$do_planning" = true ]; then
+    # config.json's, because there is no row to read them from. Never `Remote: yes`: a planning
+    # session is not one whose questions a person answers from the phone — it is told not to ask.
+    do_model=$(planning_model)
+    do_effort=$(planning_effort)
+    do_remote=false
+  else
+    do_row=$(printf '%s' "$do_plan" | plan_row "$do_id")
+    do_model=$(printf '%s' "$do_row" | jq -r .model)
+    do_effort=$(printf '%s' "$do_row" | jq -r .effort)
+    do_remote=$(printf '%s' "$do_row" | jq -r .remote)
+  fi
   do_attempt=$(attempt_of "$do_project" "$do_id") || { render_failure err "baton: $do_attempt"; return 1; }
   do_attempt=$((do_attempt + 1))
   do_name=$(session_name "$do_project" "$do_id")
@@ -542,20 +571,32 @@ dispatch_one() {
 
   do_settings=$(settings_compose "$do_project" "$do_id") || { dispatch_failed "$do_project" "$do_id" settings "$do_settings"; return 1; }
 
-  do_brief=docs/milestones/$do_id.md
-  do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
-  # The same readability the preconditions already inspected, asked again of the worktree that now
-  # exists. It is kept as the final race check: the preconditions read a worktree that may not have
-  # existed yet, and between that reading and this one `worktree_ensure` created or reused one. Its
-  # removal would need proof that no such window exists, not the observation that it usually agrees.
-  #
-  # Its message no longer names a branch behind the brief's commit as the cause. That cause is what
-  # the `behind-brief` precondition now refuses before this point, so a dispatch reaching here has
-  # already been told the branch carries the commit: what is left is the file going between the two
-  # readings, and a message naming a cause already ruled out would send a person the wrong way.
-  if [ ! -r "$do_wt_path/$do_brief" ]; then
-    dispatch_failed "$do_project" "$do_id" worktree "Baton needs $do_id's brief $do_brief readable in its own worktree. The preconditions found the branch carrying the brief's commit, and the file was not readable in $do_wt_path a moment later. Look at the worktree yourself, then dispatch again: git -C \"$do_wt_path\" status"
-    return 1
+  if [ "$do_planning" = true ]; then
+    # Baton's own text, composed from the registration the confirmation wrote and the defects the
+    # last attempt left. There is no brief to read and none to be readable in the worktree, so the
+    # two checks below are the milestone lane's alone.
+    do_reg=$(jq -c . "$BATON_HOME/projects/$do_project/project.json" 2>/dev/null) \
+      || { dispatch_failed "$do_project" "$do_id" prompt "$BATON_HOME/projects/$do_project/project.json does not parse, so the planning prompt cannot be composed"; return 1; }
+    do_owed=$(planning_owed "$do_project") || do_owed='{}'
+    do_prompt=$(planning_prompt "$do_project" "$do_path" "$do_reg" \
+      "$(printf '%s' "$do_owed" | jq -c '.defects // []')" "$do_attempt") \
+      || { dispatch_failed "$do_project" "$do_id" prompt "the planning prompt could not be composed"; return 1; }
+  else
+    do_brief=docs/milestones/$do_id.md
+    do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
+    # The same readability the preconditions already inspected, asked again of the worktree that now
+    # exists. It is kept as the final race check: the preconditions read a worktree that may not have
+    # existed yet, and between that reading and this one `worktree_ensure` created or reused one. Its
+    # removal would need proof that no such window exists, not the observation that it usually agrees.
+    #
+    # Its message no longer names a branch behind the brief's commit as the cause. That cause is what
+    # the `behind-brief` precondition now refuses before this point, so a dispatch reaching here has
+    # already been told the branch carries the commit: what is left is the file going between the two
+    # readings, and a message naming a cause already ruled out would send a person the wrong way.
+    if [ ! -r "$do_wt_path/$do_brief" ]; then
+      dispatch_failed "$do_project" "$do_id" worktree "Baton needs $do_id's brief $do_brief readable in its own worktree. The preconditions found the branch carrying the brief's commit, and the file was not readable in $do_wt_path a moment later. Look at the worktree yourself, then dispatch again: git -C \"$do_wt_path\" status"
+      return 1
+    fi
   fi
   do_inflight=$(derive_in_flight "$do_project" "$do_rows") || { render_failure err "baton: $do_inflight"; return 1; }
   do_inflight=$(printf '%s' "$do_inflight" | jq -c .in_flight)
@@ -651,8 +692,13 @@ dispatch_one() {
   log_event dispatch "$do_project" "$do_id" "$do_session" "$do_attempt" "$(jq -nc \
     --arg name "$do_name" --arg model "$do_model" --arg effort "$do_effort" \
     --arg wt "$do_wt_path" --arg branch "$do_branch" --argjson reused "$do_reused" --arg commit "$do_commit" \
-    --arg settings "$do_settings" --arg pp "$do_prompt_path" --arg sha "$do_prompt_sha" --argjson remote "$do_remote" '
+    --arg settings "$do_settings" --arg pp "$do_prompt_path" --arg sha "$do_prompt_sha" --argjson remote "$do_remote" \
+    --argjson planning "$do_planning" '
     {name: $name, model: $model}
+    # The role, on the one lane that is not a milestone. It is absent from every other dispatch
+    # rather than written as `milestone`, because a field an event has no value for is absent from
+    # it (§6.1), and every dispatch before this one had no role to name.
+    | if $planning then . + {role: "planning"} else . end
     | if $effort != "" then . + {effort: $effort} else . end
     | . + {remote: $remote, worktree: $wt, branch: $branch, worktree_reused: $reused}
     # The baseline, on every dispatch and not only on a reused worktree. It was `worktree_commit`

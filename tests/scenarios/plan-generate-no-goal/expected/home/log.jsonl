@@ -1,0 +1,2 @@
+{"at":"2026-09-19T08:00:00+01:00","kind":"self_check_failed","project":"Fixture","stage":"read","path":"@TMP@/home/projects/Fixture/project.json","detail":"the registration names no path and plan"}
+{"at":"2026-09-19T08:00:00+01:00","kind":"escalation","project":"Fixture","class":"plan-unreadable","scope":"project","carries":{"stage":"read","path":"@TMP@/home/projects/Fixture/project.json","detail":"the registration names no path and plan"},"channel":["notification"]}

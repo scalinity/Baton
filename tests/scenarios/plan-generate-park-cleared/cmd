@@ -1,0 +1,12 @@
+set -eu
+# The whole path, from the park to the first generated milestone running. An earlier tick could not
+# read a plan and parked the project plan-unreadable, once, which is accurate; the planning session
+# it dispatched has since merged a plan and its briefs and handed over. This tick measures them,
+# adopts them through onboarding's own seeding path, and the self-check that follows reads the plan
+# and closes the park the ordinary way — a person's word is not needed for either, because nothing
+# here is a person's decision. The starting handover then makes the first milestone a candidate.
+"$BATON" tick || true
+printf '%s\n' '--- the park is closed and the registration is settled ---'
+jq -c '{plan, plan_format, plan_owed: (.plan_owed // "cleared"), start: [.start.eligible[] | {milestone, disposition}]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

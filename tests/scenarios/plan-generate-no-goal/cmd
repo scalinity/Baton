@@ -1,0 +1,11 @@
+set -eu
+# A registration that owes a plan and carries no confirmed goal: the one confirmation never
+# completed, or a hand edit emptied it. There is nothing to plan against, and a plan generated
+# against nothing would be a plan for a project Baton cannot say the purpose of — which is the one
+# thing the single human touchpoint exists to prevent. No session is started and the verb that
+# supplies the goal is named.
+"$BATON" tick || true
+printf '%s\n' '--- nothing was dispatched ---'
+jq -c 'select(.kind == "dispatch" or .kind == "plan_generation")' "$BATON_HOME/log.jsonl" || true
+test ! -d "$BATON_HOME/prompts"
+echo 'no prompt sidecar was written'

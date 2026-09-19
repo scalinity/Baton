@@ -1,0 +1,11 @@
+set -eu
+# A plan whose every cell is a token and whose graph is still not one Baton will drive: M01 is
+# marked done before anybody did it, M02 depends on a milestone the table does not hold, the
+# reserved planning id is used as a row, an invented gate holds the only unfinished milestone, and
+# between them nothing is eligible at all. The pass reports every one of them rather than stopping
+# at the first, because the next attempt reads the list and a defect at a time costs a session each.
+"$BATON" tick || true
+printf '%s\n' '--- every defect, in one pass ---'
+jq -r '.plan_owed.defects[] | "  * \(.what)\n    repair: \(.repair)"' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- nothing was adopted and nothing was seeded ---'
+jq -c '{plan: (.plan // "none"), plan_format, has_start: (has("start"))}' "$BATON_HOME/projects/Fixture/project.json"

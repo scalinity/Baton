@@ -1,0 +1,13 @@
+{
+  "path": "@TMP@/Fixture",
+  "plan_format": "generated",
+  "onboarded_at": "2026-09-19T08:00:00+01:00",
+  "cli": {
+    "version": "2.1.278 (Claude Code)",
+    "checked_at": "2026-09-19T08:00:00+01:00"
+  },
+  "plan_owed": {
+    "reason": "no readable milestone table was found in the repository",
+    "owner": "M12"
+  }
+}

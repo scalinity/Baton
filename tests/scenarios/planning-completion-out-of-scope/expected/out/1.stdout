@@ -1,0 +1,2 @@
+== a planning session that changed neither the plan document nor the briefs did not do what it was dispatched for: the handover is rejected, and the refusal names the two paths the generation prompt asked for ==
+rejected  M00-plan-11111111-2222-4333-8444-555555555555.json → @TMP@/home/rejected/M00-plan-11111111-2222-4333-8444-555555555555.json (completion-scope: the one path the branch changed is not inside M00-plan's declared scope, which is docs/milestones docs/MILESTONES.md)

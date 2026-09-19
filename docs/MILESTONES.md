@@ -80,7 +80,8 @@ which gives its acceptance to M16; there is nothing for a person to clear.
 | REQ-VERB | 01–10 | **M01** (01, 05, 06), M02 (04), M03 (02), M05 (03, 07), M07-b (08), M17-b (09), **M11** (01 amended, 10: `onboard`) |
 | REQ-SETUP | 01–08 | **M01** (05), **M03** (01, 04, 07, 08), M07 (06), M03 (02, 03: checked, recorded) |
 | REQ-LIFE | 01–04 | **M07-b** (01–04) |
-| REQ-ONBOARD | 01–10 | **M11** (01–10) |
+| REQ-ONBOARD | 01–10 | **M11** (01–10), M12 (02 amended: generation authors the target's own plan and briefs) |
+| REQ-GENERATE | 01–10 | **M12** (01–10) |
 
 Every requirement in `docs/SPEC.md` §2 appears above; every milestone owns at least one in bold
 except M07 and M08, which are acceptance and onboarding.
