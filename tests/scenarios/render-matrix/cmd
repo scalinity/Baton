@@ -82,3 +82,26 @@ echo
 echo "== stderr to a pipe, stdout to the terminal =="
 pty env "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 \
   sh -c ". \"\$ROOT/lib/render.sh\"; exec 2> /dev/null; render_init; $records"
+echo
+
+# The invariant the rest of this file rests on: at a width that keeps the single-line shape, what a
+# terminal is sent is the plain bytes with escapes around some of them and nothing else. Anything
+# the renderer added to the content — a word, a marker, a re-ordering — would show up here.
+echo "== a terminal at eighty columns, with only the escapes removed, against the pipe =="
+pty env -u NO_COLOR -u FORCE_COLOR "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 \
+  sh -c ". \"\$ROOT/lib/render.sh\"; render_init; $records" \
+  | sed "s/$(printf '\033')\[[0-9;]*m//g" > got-styled
+env -u NO_COLOR -u FORCE_COLOR -u TERM "ROOT=$ROOT" COLUMNS=80 LC_ALL=en_US.UTF-8 \
+  sh -c ". \"\$ROOT/lib/render.sh\"; render_init; $records" > got-plain 2>&1
+# The one difference is the one that is meant: a repair the caller handed over separately is a line
+# of its own on a terminal and is joined onto the failure in plain, so that a grep of `launchd.err`
+# finds the whole failure in one hit. Every other record is the same bytes either way. The check is
+# left showing that difference rather than filtered to nothing, because a comparison that can only
+# ever say "identical" is not a comparison.
+if diff got-plain got-styled > /dev/null; then
+  echo "identical"
+else
+  echo "the plain-mode joins of a separate repair, and nothing else:"
+  diff got-plain got-styled
+fi
+rm -f got-styled got-plain

@@ -218,3 +218,11 @@ baton: the plan file cannot be read; git -C /tmp/Fixture checkout -- docs/MILEST
 [33moffline[0m  [36mFixture[0m/[36mM01[0m · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
   [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
 [36mhold[0m  [33mfable[0m · the window reads 82% and a backslash \ survives
+
+== a terminal at eighty columns, with only the escapes removed, against the pipe ==
+the plain-mode joins of a separate repair, and nothing else:
+8c8,9
+< baton: the plan file cannot be read; git -C /tmp/Fixture checkout -- docs/MILESTONES.md
+---
+> baton: the plan file cannot be read
+>     git -C /tmp/Fixture checkout -- docs/MILESTONES.md
