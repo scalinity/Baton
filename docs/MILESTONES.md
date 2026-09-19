@@ -81,7 +81,7 @@ which gives its acceptance to M16; there is nothing for a person to clear.
 | REQ-SETUP | 01–08 | **M01** (05), **M03** (01, 04, 07, 08), M07 (06), M03 (02, 03: checked, recorded) |
 | REQ-LIFE | 01–04 | **M07-b** (01–04) |
 | REQ-ONBOARD | 01–10 | **M11** (01–10), M12 (02 amended: generation authors the target's own plan and briefs) |
-| REQ-GENERATE | 01–10 | **M12** (01–10) |
+| REQ-GENERATE | 01–12 | **M12** (01–12) |
 
 Every requirement in `docs/SPEC.md` §2 appears above; every milestone owns at least one in bold
 except M07 and M08, which are acceptance and onboarding.
@@ -103,6 +103,17 @@ except M07 and M08, which are acceptance and onboarding.
 ## Split rule
 
 M10-b was split off M10 on 2026-09-19, after implementation rather than before: the review found that M10's own change — a standing check running under the tick lock for minutes (D-148) — makes the gap rule report the check as an outage and the stale-lock line advise removing a live lock. Fixing either needs `lib/derive.sh`, `lib/rows.sh` and `lib/tick.sh`, three counted files against M10's budget of two, which is what the rule below triggers on. M10's own acceptance holds in full, so it is `done` and this is a separate, smaller piece of work rather than an unfinished remainder; no `stopped` artifact is written for it (D-152).
+
+M12 was **not** split, and records why here because it crossed the count. It changes four `lib/`
+files beyond the one it introduces, where the rule triggers above two. Three carry behaviour —
+`lib/dispatch.sh` (a branch on the lane's id), `lib/tick.sh` (a call before the self-check) and
+`lib/completion.sh` (a one-line delegation with no decision of its own) — and none of the three is
+separable from the others: they are the one seam that lets a lane with no plan row be dispatched,
+reach the tick, and have its completion proved. The fourth, `lib/onboard.sh`, is one person-facing
+sentence that M11 wrote truthfully and M12 makes false. Splitting the three would produce a
+half-wired feature rather than two coherent pieces, which is the outcome the rule exists to
+prevent. M12's own acceptance holds in full, so no `stopped` artifact is written, as with M10-b
+(D-152).
 
 M15 was split before implementation on 2026-09-17: taxonomy/L33/replan stays in M15,
 host-explained gaps and wake reconciliation move to M15-b, and the original natural remainder

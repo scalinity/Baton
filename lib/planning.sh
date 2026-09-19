@@ -30,9 +30,9 @@
 #   * **Adoption goes through onboarding's own seeding path.** `onboard_commit` with the seed is the
 #     write M11 already has — the rail, the registration, then the event, in one order — and
 #     `onboard_start` is the `eligible[]` it seeds from. Generation calls it directly rather than
-#     re-running `verb_onboard`, which would ask the toolchain again, print a person-facing report
-#     and `exit` on several paths, and an `exit` inside the tick ends the tick. What nothing here
-#     does is compute eligibility a second way.
+#     re-running `verb_onboard`, which prints a report written for a person at a terminal and
+#     `exit`s on several paths — and an `exit` inside the tick ends the tick rather than the pass.
+#     What nothing here does is compute eligibility a second way.
 #
 #   * **The plan is measured, not hoped.** Everything the generator is told to satisfy is something
 #     `plan_tables`, `dispatch_preconditions` or this file can check, and a plan that fails one is
@@ -87,8 +87,18 @@ planning_owed() {
 # attempt is a dispatch event, and a second counter would be a second truth about one fact.
 planning_attempts() { attempt_of "$1" "$PLANNING_ID"; }
 
-# planning_attempts_max: the bound, from config.json.
-planning_attempts_max() { config_num planningAttempts "$PLANNING_ATTEMPTS_DEFAULT"; }
+# planning_attempts_max: the bound, from config.json. Validated as text before it is compared, the
+# way `completion_check_command` validates its deadline: `config_num` hands back whatever the file
+# holds, and `[ 0 -ge abc ]` is an error rather than a comparison — which reads as "the bound is not
+# reached" and quietly removes the bound. A value that is not a number falls back to the default.
+planning_attempts_max() {
+  pam_v=$(config_num planningAttempts "$PLANNING_ATTEMPTS_DEFAULT")
+  case "$pam_v" in
+    ''|*[!0-9]*) pam_v=$PLANNING_ATTEMPTS_DEFAULT ;;
+    *) [ "${#pam_v}" -le 9 ] || pam_v=$PLANNING_ATTEMPTS_DEFAULT ;;
+  esac
+  printf '%s\n' "$pam_v"
+}
 
 # planning_scope_patterns: the planning role's declared scope, in `completion_scope_patterns`' own
 # one-pattern-per-line shape.
@@ -102,8 +112,14 @@ planning_scope_patterns() { printf '%s\n%s\n' "$PLANNING_BRIEFS" "$PLANNING_PLAN
 
 # planning_model / planning_effort: what the planning session runs at. Planning is the work every
 # later milestone inherits, so it defaults to the capable model at high effort; both are one line in
-# config.json for a person who wants otherwise. The model is resolved through `parse_model`, as a
-# plan cell is, so the value handed to `claude_bg` is a model id and never an alias.
+# config.json for a person who wants otherwise.
+#
+# The model is resolved through `parse_model`, as a plan cell is, so an alias `config.json` maps
+# reaches `claude_bg` as the id it maps to. A value that is neither a mapped alias nor a
+# `claude-…` id is passed through as it was written rather than refused: a plan cell that will not
+# parse parks the whole project, which is right for a document a person wrote and wrong for one
+# number in Baton's own config — the CLI refuses the model itself, and its refusal is the message,
+# recorded as a `dispatch_failed` at the launch stage.
 planning_model() {
   pmo_alias=$(jq -r '.planningModel // "opus"' "$BATON_HOME/config.json" 2>/dev/null) || pmo_alias=opus
   [ -n "$pmo_alias" ] && [ "$pmo_alias" != null ] || pmo_alias=opus
@@ -218,9 +234,15 @@ planning_brief_defects() {
     found && infence && /^```/ { exit }
     found && infence { print }')
   if [ -n "$pbd_block" ]; then
-    printf '%s\n' "$pbd_block" | grep -Fqx "$PLANNING_SLOT" || printf '%s\t%s\n' \
-      "$pbd_rel does not carry the slot paragraph verbatim: Baton replaces that whole paragraph at dispatch with what else is in flight, and it matches the sentence and not its first words" \
-      "make part 2 of the fenced block in $pbd_rel exactly \"$PLANNING_SLOT\", alone on its line, and commit it on main"
+    # The line, and the blank line after it. `slot_line` replaces the paragraph and swallows every
+    # non-blank line that follows, so a brief whose part 3 begins on the next line loses its whole
+    # STARTUP ORDER at dispatch and nothing says so — the prompt simply arrives without it. The two
+    # are one defect with one repair, so they are reported as one.
+    printf '%s\n' "$pbd_block" | awk -v want="$PLANNING_SLOT" '
+      $0 == want { found = 1; getline nextline; if (nextline ~ /^[ \t]*$/) alone = 1; exit }
+      END { exit (found && alone ? 0 : 1) }' || printf '%s\t%s\n' \
+      "$pbd_rel does not carry the slot paragraph verbatim as its own paragraph: Baton matches the whole sentence and then replaces every line up to the next blank one, so a part 3 beginning on the next line is swallowed with it" \
+      "make part 2 of the fenced block in $pbd_rel exactly \"$PLANNING_SLOT\", alone on its line with a blank line after it, and commit it on main"
     for pbd_part in 'STARTUP ORDER' 'WHAT TO SETTLE RATHER THAN INHERIT' CONSTRAINTS VERIFICATION CLOSE-OUT; do
       printf '%s\n' "$pbd_block" | grep -Fq "$pbd_part" && continue
       printf '%s\t%s\n' \
@@ -473,12 +495,21 @@ The milestone table, in the plan document:
 
   * The header must carry both an ID cell and a Depends on cell. That pair is how Baton finds this
     table among the document's others, and a table without Depends on is not a table at all to it.
-  * ID is M and digits, optionally one lowercase suffix: M01, M02, M07-b. M00-plan is reserved for
-    this session and must not appear as a row.
+  * ID is M, then digits, then optionally a hyphen and one run of lowercase letters and digits:
+    M01, M02, M07-b. M00-plan is reserved for this session and must not appear as a row.
   * Depends on holds ids and ranges only — M05, M06 or M01-M13 — or an en dash for none. Every id
     named must be a row in this same table. Prose is not a token and fails the read.
-  * Model is an alias Baton knows: opus, sonnet, haiku or fable. Effort is blank or one of low,
-    medium, high, xhigh, max. Remote is blank or yes.
+PLANNING_TABLE
+
+  # The aliases this home actually maps, rather than a list written here: a person who renames one
+  # would otherwise get a plan refused for a model the prompt told the session to use, which is the
+  # rule-stated-but-not-measured drift this file exists to avoid. A full `claude-…` id is the other
+  # thing `parse_model` takes, so the sentence names both.
+  printf '  * Model is one of the aliases this Baton knows — %s — or a full model id beginning\n    claude-. Effort is blank or one of low, medium, high, xhigh, max. Remote is blank or yes.\n' \
+    "$(jq -r '(.models // {}) | keys_unsorted | join(", ")' "$BATON_HOME/config.json" 2>/dev/null \
+       || printf 'the keys of .models in %s/config.json' "$BATON_HOME")"
+
+  /bin/cat <<'PLANNING_TABLE2'
   * Status is blank on every row. Nothing is done yet, and a row that is not blank is a row Baton
     will never dispatch.
   * Columns beyond those six are ignored by Baton and are for people to read; a Title is worth having.
@@ -565,7 +596,7 @@ The Completion evidence section is left empty. The session that does the milesto
 and the recovery clause reads it: a brief that arrives with anything under that heading tells the
 first session to resume work nobody did.
 
-PLANNING_TABLE
+PLANNING_TABLE2
 
   printf 'The Copy-ready session prompt section holds exactly one fenced code block, and that block is the\nwhole prompt Baton hands the session. Seven parts, in this order:\n'
   /bin/cat <<'PLANNING_SEVEN'
@@ -608,15 +639,16 @@ PLANNING_SEVEN
   /bin/cat <<'PLANNING_ARTIFACT'
         "session": "<the value of CLAUDE_CODE_SESSION_ID>", "outcome": "complete",
         "merged_as": "<the merge commit on main>", "written_at": "<now, ISO 8601>",
-        "eligible": [ {"milestone": "<ID>",
-                       "brief": {"path": "docs/milestones/<ID>.md",
+        "eligible": [ {"milestone": "<OTHER ID>",
+                       "brief": {"path": "docs/milestones/<OTHER ID>.md",
                                  "heading": "Copy-ready session prompt"},
                        "disposition": "run"} ]}
-     with one eligible entry per milestone the plan then makes eligible: disposition run when every
-     dependency reads done, wait with wait_for naming the unfinished ones otherwise, and held with
-     held_by naming the gate when an uncleared gate holds it. The artifact must never carry
-     baseline, changed_paths or check_result: those three are Baton's own, and an artifact carrying
-     one is rejected.
+     where <ID> is the milestone just finished and each <OTHER ID> is a *different* milestone: one
+     entry per milestone the plan then makes eligible, never the finished one itself. Disposition
+     run when every dependency of that milestone reads done, wait with wait_for naming the ones
+     that do not, and held with held_by naming the gate when an uncleared gate holds it. The
+     artifact must never carry baseline, changed_paths or check_result: those three are Baton's
+     own, and an artifact carrying one is rejected.
   7. print that file verbatim, last, in a fenced block whose info-string is baton.
 Section 11 of each brief names that milestone's direct successors — every milestone whose Depends on
 names it. Baton dispatches only what a handover lists, so a close-out that omits a successor stops
@@ -666,27 +698,23 @@ PLANNING_CLOSE
 # `dispatch_preconditions`' own `{failures: [{check, stage, path, detail, repair}]}` shape so that
 # `dispatch_one` reads one result whichever lane it is dispatching.
 #
-# It is a shorter list than a milestone's, and the difference is the point: there is no brief to
-# find on `main`, no fenced block to read and no `docs/…` reference to look up, because the prompt is
-# Baton's own text. What is left is the ground — a `main` to branch the worktree from — and the rail
-# the settings file is composed out of.
+# It is the same pass, with the checks that are not this lane's dropped. A shorter list written here
+# would be two implementations of two rules — "the checkout has a `main`" and "the rail carries its
+# deny classes" — and two implementations of one rule is this codebase's named way of ending up with
+# a plan the reporter calls ready and the dispatch refuses. So the one pass runs and its result is
+# filtered: what the planning lane keeps is `checkout` and `permissions`, and what it drops is
+# everything about a brief and the worktree that would hold it, because the prompt is Baton's own
+# text and there is no brief to find, no fenced block to read and no `docs/…` reference to look up.
+#
+# The filter names the checks it keeps rather than the ones it drops: a check added to
+# `dispatch_preconditions` later is one this lane has not been told about, and passing it through
+# unexamined would refuse a planning dispatch for a reason nobody decided applies to it.
 planning_preconditions() {
   ppc_key=$1
-  ppc_path=$(project_path "$ppc_key") \
-    || { echo "$BATON_HOME/projects/$ppc_key/project.json does not name a checkout"; return 1; }
-  ppc_fail='[]'
-  if ! ppc_head=$(git -C "$ppc_path" rev-parse --verify --quiet "main^{commit}" 2>&1); then
-    ppc_check="git -C $(shell_word "$ppc_path") rev-parse --verify main"
-    ppc_fail=$(printf '%s' "$ppc_fail" | jq -c --arg d "Baton needs $ppc_key's checkout at $ppc_path to have a main branch: the planning worktree is created from it and the plan is merged into it. main does not resolve to a commit there${ppc_head:+ ($(printf '%s' "$ppc_head" | head -1))}. Repair the checkout yourself, then check it with: $ppc_check" --arg r "$ppc_check" \
-      '. + [{check: "checkout", stage: "worktree", path: "'"$ppc_path"'", detail: $d, repair: $r}]')
-  fi
-  if ! ppc_perm=$(permissions_inspect "$ppc_key"); then
-    ppc_f=$BATON_HOME/projects/$ppc_key/permissions.json
-    ppc_fail=$(printf '%s' "$ppc_fail" | jq -c --arg d "$ppc_perm" --arg r "vi $(shell_word "$ppc_f")" --arg p "$ppc_f" \
-      '. + [{check: "permissions", stage: "settings", path: $p, detail: $d, repair: $r}]')
-  fi
-  jq -nc --arg p "$ppc_key" --arg m "$PLANNING_ID" --arg c "$ppc_path" --argjson f "$ppc_fail" \
-    '{project: $p, milestone: $m, checkout: $c, references_inspected: true, failures: $f}'
+  ppc_all=$(dispatch_preconditions "$ppc_key" "$PLANNING_ID") || { echo "$ppc_all"; return 1; }
+  printf '%s' "$ppc_all" | jq -ce '
+    .failures |= map(select(.check == "checkout" or .check == "permissions"))
+    | .references_inspected = true'
 }
 
 # planning_record <project key> <outcome> <attempt> <fields json>: one `plan_generation` event.
@@ -731,6 +759,17 @@ planning_recorded_since() {
 # A refusal writes the defects into `plan_owed` rather than anywhere new, because that is the record
 # the next attempt's prompt is composed from and the field M11 already put there for this purpose.
 # The partial work stays on the branch and in the repository: the next attempt repairs it.
+#
+# **This function is the adopted-plan boundary, and M15-c's scope guard goes at the line marked
+# below.** It is the one place a plan becomes the project's plan, it is reached once per adoption,
+# and it already holds both halves of what that guard is defined to receive: the confirmed intent
+# record — `goal`, `done`, `constraints` and `non_goals`, read from the registration a few lines
+# down as `pa_intent` — and the work being judged, which is the parsed plan in `pa_res.tables` and
+# the documents at `pa_plan` and `$PLANNING_BRIEFS` on `main`. What it does not hold, and must not
+# be given, is the plan author's rationale: the generating session's prompt and transcript are not
+# read here and nothing passes them on, which is the independence the guard exists for (SCOPE §6
+# M15-c, §8 item 6). A refusal from that guard is a refusal to adopt, so it belongs beside the
+# defect branch and not after the write. M12 does not implement it.
 planning_adopt() {
   pa_key=$1
   pa_lines=''
@@ -773,15 +812,20 @@ planning_adopt() {
     return 0
   fi
 
+  # ---- the adopted-plan boundary: M15-c's scope guard goes here, before anything is written ----
   pa_seed=yes
   ! jq -e '(.start.eligible | type) == "array"' "$pa_f" > /dev/null 2>&1 || pa_seed=no
   pa_tool=$(onboard_toolchain "$pa_c")
   pa_intent=$(jq -c '{goal: (.goal // ""), done: (.done // ""),
                       constraints: (.constraints // []), non_goals: (.non_goals // [])}' "$pa_f") \
     || { render_failure err "baton: $pa_f does not parse"; planning_verdict false; return 0; }
-  pa_class=$(onboard_classify "$pa_c" "$pa_plan")
-  pa_cli=$(jq -nc --arg v "$(jq -r '.cli.version // ""' "$pa_f" 2>/dev/null || true)" '{version: $v}')
-  onboard_commit "$pa_key" "$pa_c" "$pa_plan" "$pa_tool" "$pa_intent" "$pa_class" "$pa_cli" "$pa_seed" \
+  # The classification `planning_validate` already made, carried through rather than made again: it
+  # is a read of the same file at the same moment, and asking twice is one more chance for the two
+  # answers to differ. `{}` for the CLI, because nothing here asked the binary anything —
+  # `onboard_commit` writes `cli` only when a version is passed, so the registration keeps the
+  # `checked_at` of the run that really checked (REQ-ONBOARD-10).
+  pa_class=$(printf '%s' "$pa_res" | jq -c '{plan_format, adaptation: {}, tables}')
+  onboard_commit "$pa_key" "$pa_c" "$pa_plan" "$pa_tool" "$pa_intent" "$pa_class" '{}' "$pa_seed" \
     || { render_failure err "baton: $pa_key the generated plan could not be adopted"; planning_verdict false; return 0; }
   pa_count=$(printf '%s' "$pa_res" | jq -r '.tables.milestones | length')
   pa_plural=s; [ "$pa_count" -ne 1 ] || pa_plural=''
@@ -864,6 +908,44 @@ planning_pass() {
     planning_pass_out '[]'; return 0
   fi
 
+  # **A lane park on the planning lane holds it**, exactly as `dispositions_intersect` holds a
+  # milestone whose lane is parked (`lib/candidates.sh`). That filter is what makes `dispatch_try`'s
+  # own sentence true — "the park is then what stops the retry" — and this lane never reaches it,
+  # because a project that owes a plan fails the self-check and is absent from the per-project loop.
+  # Without this the candidate is produced over the park every tick: `dispatch_one` fails at the same
+  # stage, `dispatch_try` sees two failures or more and escalates *again* — it has no once-key and
+  # `escalate` de-duplicates nothing — and a person gets a Mac message a minute about a condition
+  # they have already been told about. The attempt bound does not catch it either: a dispatch that
+  # produced no session writes `dispatch_failed` and not `dispatch`, so `attempt_of` never moves.
+  #
+  # **And the `dispatch-failed` park is released here**, which is the other half. A milestone's is
+  # released by `edit_reread_check` when a person's edit changes the brief or the plan it hashed;
+  # this lane has no brief and its plan is the thing that does not parse, so nothing hashes and
+  # nothing would ever release it. What parked it is a condition Baton can read for itself — a
+  # checkout with no `main`, or a rail with no deny rules — so the pass that would re-fail on it
+  # asks it again instead, and closes the park the way `park_resolve` closes the self-check's own
+  # (D-169). Every other class parks a session a person answers, and those keep their own route.
+  ppa_lane=$(printf '%s' "$ppa_parked" | jq -r --arg m "$PLANNING_ID" \
+    'first(.parked[] | select(.scope == "lane" and .milestone == $m)) as $p
+     | if $p == null then "" else "\($p.class) \($p.at)" end')
+  if [ -n "$ppa_lane" ]; then
+    ppa_class=${ppa_lane%% *}; ppa_at=${ppa_lane#* }
+    ppa_cleared=no
+    if [ "$ppa_class" = dispatch-failed ] && ppa_pre=$(planning_preconditions "$ppa_key") \
+       && printf '%s' "$ppa_pre" | jq -e '(.failures | length) == 0' > /dev/null 2>&1; then
+      ppa_cleared=yes
+    fi
+    if [ "$ppa_cleared" = yes ]; then
+      resolve "$ppa_key" "$PLANNING_ID" "" "" "$ppa_at" edit || { render_failure err "baton: $ppa_key the dispatch-failed park on $PLANNING_ID could not be resolved"; return 1; }
+      planning_pass_line "$(render_plain 'unparked  %s/%s · the dispatch preconditions hold again · the park raised at %s is closed' \
+        "$ppa_key" "$PLANNING_ID" "$ppa_at")"
+    else
+      planning_pass_line "$(render_plain 'generate  %s/%s · the lane is parked (%s), so no planning session starts' \
+        "$ppa_key" "$PLANNING_ID" "$ppa_class")"
+      planning_pass_out '[]'; return 0
+    fi
+  fi
+
   # A live row under the lane's own name is a session somebody started by hand, and dispatching over
   # one is the mistake with no undo. The same refusal `dispositions_intersect` makes for a milestone.
   if printf '%s' "$ppa_rows" | jq -e --arg n "$(session_name "$ppa_key" "$PLANNING_ID")" \
@@ -881,7 +963,9 @@ planning_pass() {
     # say the same thing twice (D-167). What is recorded here is why Baton stopped spending sessions.
     if ! planning_recorded_since "$ppa_key" exhausted; then
       planning_record "$ppa_key" exhausted "$ppa_attempts" \
-        "$(planning_owed "$ppa_key" | jq -c --argjson m "$ppa_max" '{max: $m, reason: (.reason // "")}')"
+        "$(planning_owed "$ppa_key" | jq -c --argjson m "$ppa_max" --argjson c "$PLANNING_DEFECT_CHARS" '
+           def cut($k): tostring | if (length <= $k) then . else .[0:$k] + "…" end;
+           {max: $m, reason: ((.reason // "") | cut($c))}')"
       planning_pass_line "$(render_plain 'generate  %s · %s generation attempts have not produced a plan Baton will adopt · the project stays parked until the plan is repaired by hand' \
         "$ppa_key" "$ppa_attempts")"
     fi

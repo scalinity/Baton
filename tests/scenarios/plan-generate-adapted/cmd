@@ -1,0 +1,12 @@
+set -eu
+# The plan reads, but only with Baton's own defaults: the generator left out the Model column the
+# prompt names, and `onboard_classify` supplies it. That is the right answer for somebody else's
+# plan — M11 records the tolerance in the registration and changes nothing in the repository — and
+# the wrong one for a plan Baton commissioned with the columns named, because an adaptation is a
+# permission granted for ever and the repair here is one concrete column. So it is refused, with
+# the columns the reader had to default named in the defect.
+"$BATON" tick || true
+printf '%s\n' '--- the defect ---'
+jq -r '.plan_owed.defects[] | "  * \(.what)\n    repair: \(.repair)"' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- nothing was adopted, and no adaptation was recorded ---'
+jq -c '{plan: (.plan // "none"), plan_format, has_adaptation: (has("adaptation")), has_start: (has("start"))}' "$BATON_HOME/projects/Fixture/project.json"

@@ -1,0 +1,12 @@
+generate  Fixture · attempt 1 left a plan with 1 thing to repair · the next attempt carries them
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+backgrounded · 0badc0d1 · Baton · Fixture · M00-plan
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/home/worktrees/Fixture/M00-plan (branch m00-plan)
+settings  @TMP@/home/settings/Fixture-M00-plan.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+--- the defect ---
+  * docs/MILESTONES.md parses only with Baton's own defaults for Model, and a plan Baton asked for is read strictly
+    repair: give the milestone table in docs/MILESTONES.md every column the generation prompt names — ID, Depends on, Model, Effort, Remote, Status — and commit it on main
+--- nothing was adopted, and no adaptation was recorded ---
+{"plan":"none","plan_format":"generated","has_adaptation":false,"has_start":false}

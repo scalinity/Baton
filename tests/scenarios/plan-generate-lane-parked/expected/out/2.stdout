@@ -1,0 +1,13 @@
+generate  Fixture/M00-plan · the lane is parked (dispatch-failed), so no planning session starts
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+generate  Fixture/M00-plan · the lane is parked (dispatch-failed), so no planning session starts
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+--- nothing was dispatched and nothing was escalated again ---
+{"kind":"dispatch_failed","milestone":"M00-plan","class":null,"stage":"settings"}
+{"kind":"dispatch_failed","milestone":"M00-plan","class":null,"stage":"settings"}
+{"kind":"escalation","milestone":"M00-plan","class":"dispatch-failed","stage":null}
+{"kind":"escalation","milestone":null,"class":"plan-unreadable","stage":null}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+project park  Fixture · plan-unreadable · the registration names no path and plan · fix the plan file; the next tick re-reads it
+parked  Fixture/M00-plan · dispatch-failed · 2 dispatches in a row produced no session, the last at the settings stage: permissions.deny is empty, and a session without that rail is not dispatched · fix what the settings stage names, then baton answer M00-plan "<ruling>"

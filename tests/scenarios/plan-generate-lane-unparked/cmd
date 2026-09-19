@@ -1,0 +1,12 @@
+set -eu
+# The same park, with the rail since restored. A milestone's dispatch-failed park is released by
+# edit_reread_check, which re-reads the brief and the plan a person may have edited; this lane has
+# no brief and its plan is the thing that does not parse, so nothing hashes and nothing would ever
+# release it. What parked it is a condition Baton can read for itself, so the pass that would
+# re-fail on it asks it again instead and closes the park the way park_resolve closes the
+# self-check's own. Then generation starts, in the same tick.
+"$BATON" tick || true
+printf '%s\n' '--- the park is resolved and the lane is dispatched ---'
+jq -c 'select(.kind == "resolution" or .kind == "dispatch") | {kind, milestone, how, role, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true
