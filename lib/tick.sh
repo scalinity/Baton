@@ -422,15 +422,15 @@ tick_run() {
   # Mac's, as the cap is. Before the dispatch, so a process taken offline is gone before a new one
   # starts; and the wake session after it, because the first `offline` event is what calls for one.
   offline_check "$tr_rows" || {
-    echo "offline     the offline pass failed; no finished session was taken offline this tick"
+    render_row out action 'offline     the offline pass failed; no finished session was taken offline this tick\n'
     tr_status=3
   }
   wake_session_ensure "$tr_rows" || {
-    echo "wake        the wake session could not be checked this tick"
+    render_row out action 'wake        the wake session could not be checked this tick\n'
     tr_status=3
   }
   dispatch_run "$tr_cands" "$tr_plans" || {
-    echo "dispatch    the dispatch pass failed; nothing more is dispatched this tick"
+    render_row out action 'dispatch    the dispatch pass failed; nothing more is dispatched this tick\n'
     tr_status=3
   }
 

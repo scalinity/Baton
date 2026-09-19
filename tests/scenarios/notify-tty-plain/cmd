@@ -1,0 +1,36 @@
+set -eu
+# The same tick as `notify-session-url`, run with a real terminal on both its streams. What is being
+# proved is the one thing the redirected scenarios cannot: that a Mac message is plain *because it
+# is a message*, and not merely because nothing was watching. The spool's three lines go to another
+# program and then to Notification Center, so a rendering context is not theirs to inherit.
+#
+# The applet and the osascript fallback are the shims; no real notification is raised, and the
+# session in the fixture is a transcript on disk.
+pty() {
+  script -q /dev/null "$@" < /dev/null 2>&1 | tr -d '\015\010' | sed '1s/^\^D//'
+}
+
+echo "== the tick, with a terminal on both streams =="
+pty env -u NO_COLOR -u FORCE_COLOR TERM=xterm-256color LC_ALL=en_US.UTF-8 COLUMNS=100 \
+  "BATON_HOME=$BATON_HOME" "BATON_CLAUDE=$BATON_CLAUDE" "BATON_DATE=$BATON_DATE" \
+  "BATON_CAFFEINATE=$BATON_CAFFEINATE" "BATON_OSASCRIPT=$BATON_OSASCRIPT" "BATON_OPEN=$BATON_OPEN" \
+  "BATON_SHIM=$BATON_SHIM" "BATON_DAEMON_LOG=$BATON_DAEMON_LOG" \
+  "BATON_TRANSCRIPTS=$BATON_TRANSCRIPTS" "BATON_JOBS=$BATON_JOBS" \
+  sh "$BATON" tick || true
+
+echo
+echo "== what the applet was handed, byte for byte =="
+# The shim posts and clears the spool as the real applet does, recording the three fields it read.
+grep 'posted:' "$SHIM/calls.log" | od -c
+
+echo
+echo "== an escape byte anywhere in what left this process =="
+# The spool if anything is still in it, what the applet was handed, the event log, and the one
+# target the applet keeps. None of them is a stream of this process and none may carry a context.
+if LC_ALL=C grep -q "$(printf '\033')" \
+     "$SHIM/calls.log" "$BATON_HOME/log.jsonl" "$BATON_HOME/notify/target" \
+     "$BATON_HOME"/notify/spool/* 2>/dev/null; then
+  echo "FOUND — a rendering context reached transport"
+else
+  echo "none"
+fi

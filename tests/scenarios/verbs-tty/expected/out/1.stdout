@@ -1,0 +1,98 @@
+== status, 100 columns ==
+last tick [2m2026-09-12T10:00:00+01:00[0m (2 h 0 m ago) · unattended needs the lid open or clamshell
+[33mproject park[0m  [36mOther[0m · plan-unparseable · the Model column is missing from the header · [33mfix the plan file; the next tick re-reads it[0m
+[33mparked[0m  [36mFixture[0m/[36mM02[0m · asking · Expose the formatter, or keep it internal? · [33mbaton answer M02 <n>[0m
+[33mtaken over[0m  [36mFixture[0m/[36mM03[0m at [2m2026-09-12T09:15:44.812Z[0m; hand back with [33mbaton answer M03 "continue"[0m
+[33mwaiting[0m  [36mFixture[0m/[36mM04[0m · rate_limit · 1 h 30 m since [2m2026-09-12T10:30:00+01:00[0m · retry due
+[33mhold[0m  [33mopus[0m · rate_limit
+[33mhold[0m  [33mfable[0m · fableReserve · reading 83
+[36min flight[0m  [36mFixture[0m/[36mM03[0m · [2mf3[0m · fable · attempt 1 · 4 h 0 m · stalled · long-running
+[36min flight[0m  [36mOther[0m/[36mM01[0m · [2mo1[0m · opus · attempt 1 · 3 h 55 m · input needed
+[33mblocked[0m  [36mFixture[0m/[36mM05[0m · waiting on [36mM02[0m
+[33mwaiting for[0m  [36mFixture[0m/[36mM03[0m · waits for [36mM05[0m · not eligible yet
+[33mgap[0m  Baton was not running for 2 h 0 m, measured against [2m2026-09-12T10:00:00+01:00[0m
+[33minbox[0m  [2mM06-f6.json[0m · asking · not yet consumed
+
+== status, 44 columns ==
+last tick [2m2026-09-12T10:00:00+01:00[0m (2 h 0 m ago)
+      · unattended needs the lid open or clamshell
+[33mproject park[0m  [36mOther[0m
+      · plan-unparseable
+      · the Model column is missing from the header
+      · [33mfix the plan file; the next tick re-reads it[0m
+[33mparked[0m  [36mFixture[0m/[36mM02[0m
+      · asking
+      · Expose the formatter, or keep it internal?
+      · [33mbaton answer M02 <n>[0m
+[33mtaken over[0m  [36mFixture[0m/[36mM03[0m at [2m2026-09-12T09:15:44.812Z[0m; hand back with [33mbaton answer M03 "continue"[0m
+[33mwaiting[0m  [36mFixture[0m/[36mM04[0m
+      · rate_limit
+      · 1 h 30 m since [2m2026-09-12T10:30:00+01:00[0m
+      · retry due
+[33mhold[0m  [33mopus[0m
+      · rate_limit
+[33mhold[0m  [33mfable[0m
+      · fableReserve
+      · reading 83
+[36min flight[0m  [36mFixture[0m/[36mM03[0m
+      · [2mf3[0m
+      · fable
+      · attempt 1
+      · 4 h 0 m
+      · stalled
+      · long-running
+[36min flight[0m  [36mOther[0m/[36mM01[0m
+      · [2mo1[0m
+      · opus
+      · attempt 1
+      · 3 h 55 m
+      · input needed
+[33mblocked[0m  [36mFixture[0m/[36mM05[0m
+      · waiting on [36mM02[0m
+[33mwaiting for[0m  [36mFixture[0m/[36mM03[0m
+      · waits for [36mM05[0m
+      · not eligible yet
+[33mgap[0m  Baton was not running for 2 h 0 m, measured against [2m2026-09-12T10:00:00+01:00[0m
+[33minbox[0m  [2mM06-f6.json[0m
+      · asking
+      · not yet consumed
+
+== plan, 100 columns ==
+[36mplan Fixture: @TMP@/Fixture/docs/MILESTONES.md[0m
+[36mM01[0m  done  model opus  effort -  remote no
+[36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mM03[0m  in flight  model claude-opus-5  effort -  remote no
+[36mM04[0m  held by gate "v0.1 ships"  model fable  effort max  remote no
+[36mM05[0m  held  model sonnet  effort -  remote no
+[36mM06[0m  waits on M02, M05  model haiku  effort low  remote yes
+[36mM07[0m  [33meligible[0m  model opus  effort -  remote no
+gate "[33mv0.1 ships[0m" holds [36mM04[0m
+gate "[33mcleared gate[0m" holds [36mM07[0m, cleared by D-003
+[36mwidenings: none[0m
+[36mpreconditions: 2 eligible, 0 with unmet preconditions[0m
+  [36mM02[0m  ready
+  [36mM07[0m  ready
+
+== help, 100 columns ==
+[36musage: baton <verb> ...[0m
+  [36mtick                               [0mthe eight steps for every registered project, then the marker
+  [36manswer <milestone> <ruling | n>    [0mdeliver a ruling into a parked lane; "continue" hands back a takeover
+  [36mstatus                             [0mthe one view: parks, takeovers, waits, holds, in flight, the inbox
+  [36mplan <project>                     [0mprint the graph as the tick sees it; validate every Model cell
+  [36mdispatch <project> <milestone>     [0mstep 8 by hand: worktree, settings, prompt, claude --bg, one event
+  [36mallow <milestone> '<rule>'         [0mwrite the rule into the project's allowlist and the live settings
+  [36mwake [<milestone> [<text>]]        [0mbring a finished session back, carrying the text; with none, list them
+
+== wrong argument count, the same rows on stderr ==
+[36musage: baton <verb> ...[0m
+  [36mtick                               [0mthe eight steps for every registered project, then the marker
+  [36manswer <milestone> <ruling | n>    [0mdeliver a ruling into a parked lane; "continue" hands back a takeover
+  [36mstatus                             [0mthe one view: parks, takeovers, waits, holds, in flight, the inbox
+  [36mplan <project>                     [0mprint the graph as the tick sees it; validate every Model cell
+  [36mdispatch <project> <milestone>     [0mstep 8 by hand: worktree, settings, prompt, claude --bg, one event
+  [36mallow <milestone> '<rule>'         [0mwrite the rule into the project's allowlist and the live settings
+  [36mwake [<milestone> [<text>]]        [0mbring a finished session back, carrying the text; with none, list them
+
+== a milestone the plan does not carry ==
+[33mbaton:[0m M99 is not in Fixture's plan
+

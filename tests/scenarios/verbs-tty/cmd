@@ -1,0 +1,33 @@
+set -eu
+# The verbs themselves against a real terminal, over the busiest state the fixtures hold: every
+# section of `status`, the whole of `plan` including its precondition report, `help` on stdout and
+# the same seven rows as a refusal on stderr, and a dispatch refused for a milestone the plan does
+# not carry. What this proves that `render-matrix` cannot is that `render_init` at the verb boundary
+# reaches every library — the records are composed eight files apart — and that the two verbs a
+# person reads most are laid out by the same primitives as the rest.
+#
+# Read-only: `status` and `plan` write nothing, and the dispatch is refused before anything is
+# created. Nothing is resumed, stopped or notified.
+pty() {
+  script -q /dev/null "$@" < /dev/null 2>&1 | tr -d '\015\010' | sed '1s/^\^D//'
+}
+
+run() {
+  echo "== $1 =="
+  rt_cols=$2
+  shift 2
+  pty env -u NO_COLOR -u FORCE_COLOR TERM=xterm-256color LC_ALL=en_US.UTF-8 \
+    "COLUMNS=$rt_cols" "BATON_HOME=$BATON_HOME" "BATON_CLAUDE=$BATON_CLAUDE" "BATON_DATE=$BATON_DATE" \
+    "BATON_CAFFEINATE=$BATON_CAFFEINATE" "BATON_OSASCRIPT=$BATON_OSASCRIPT" "BATON_OPEN=$BATON_OPEN" \
+    "BATON_SHIM=$BATON_SHIM" "BATON_DAEMON_LOG=$BATON_DAEMON_LOG" \
+    "BATON_TRANSCRIPTS=$BATON_TRANSCRIPTS" "BATON_JOBS=$BATON_JOBS" \
+    sh "$@" || true
+  echo
+}
+
+run 'status, 100 columns' 100 "$BATON" status
+run 'status, 44 columns'   44 "$BATON" status
+run 'plan, 100 columns'   100 "$BATON" plan Fixture
+run 'help, 100 columns'   100 "$BATON" help
+run 'wrong argument count, the same rows on stderr' 100 "$BATON" plan
+run 'a milestone the plan does not carry' 100 "$BATON" dispatch Fixture M99

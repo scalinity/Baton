@@ -1,0 +1,84 @@
+set -eu
+# The rendering layer against a real terminal, and against every way a person or a pipe can ask it
+# not to decorate. `script` is the base system's pseudo-terminal: it gives the command a real tty on
+# stdout, which is the one thing a redirected harness cannot otherwise produce, so the decorated
+# path is exercised rather than asserted. Nothing here starts a session, reads a project or writes
+# anything under BATON_HOME; the layer is loaded on its own.
+#
+# The pty echoes the EOF it is handed as the two characters "^D" and two backspaces to erase them,
+# and ends every line with CR LF. Those three are the terminal's, not the renderer's, so they are
+# removed and everything else is compared exactly — including the escapes, which are the point.
+. "$ROOT/lib/render.sh"
+
+pty() {
+  script -q /dev/null "$@" < /dev/null 2>&1 | tr -d '\015\010' | sed '1s/^\^D//'
+}
+
+# The records are the real shapes from the inventory, with the fields a person actually reads: a
+# lane, a class, a detail, a command to type; a session id and a path; a name carrying the record's
+# own separator inside it; a percent sign and a backslash in data.
+records='
+render_heading out "plan Fixture: /tmp/Fixture/docs/MILESTONES.md\n"
+render_row out action "parked  %s/%s · %s · %s · %s\n" \
+  "$(render_token out lane Fixture)" "$(render_token out milestone M04)" omitted \
+  "the plan no longer makes M04 eligible" \
+  "$(render_hint out "edit the plan or the brief; the next tick re-reads it")"
+render_row out record "in flight  %s/%s · %s · %s · attempt %s · %s\n" \
+  "$(render_token out lane Fixture)" "$(render_token out milestone M02)" \
+  "$(render_token out session 0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0)" opus 1 "4 m"
+render_row out action "offline  %s/%s · message %s, or %s\n" \
+  "$(render_token out lane Fixture)" "$(render_token out milestone M01)" \
+  "$(render_hint out "Baton · wake")" "$(render_hint out "baton wake Fixture/M01")"
+render_row out plain "  %s  %s  model %s  effort %s  remote %s\n" \
+  "$(render_token out milestone M02)" "$(render_token out state eligible)" opus high no
+render_row out record "hold  %s · the window reads 82%% and a backslash \\\\ survives\n" \
+  "$(render_token out state fable)"
+render_failure err "baton: dispatch of Fixture M02 failed at prompt: the brief has no fenced block"
+render_failure err "baton: the plan file cannot be read" "git -C /tmp/Fixture checkout -- docs/MILESTONES.md"
+'
+
+show() {
+  echo "== $1 =="
+  shift
+  pty env -u NO_COLOR -u FORCE_COLOR "$@" sh -c ". \"\$ROOT/lib/render.sh\"; render_init; $records"
+  echo
+}
+
+# A terminal, at the widths either side of the narrow threshold and well past it.
+for w in 40 59 60 80 120; do
+  show "tty, COLUMNS=$w" "ROOT=$ROOT" TERM=xterm-256color "COLUMNS=$w" LC_ALL=en_US.UTF-8
+done
+
+# An unknown locale takes the ASCII continuation; the data's own separators are never transliterated.
+show "tty, COLUMNS=40, C locale" "ROOT=$ROOT" TERM=xterm-256color COLUMNS=40 LC_ALL=C
+
+# Every way of asking for no decoration, all of them on a real terminal.
+show "tty, NO_COLOR empty"    "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 NO_COLOR=
+show "tty, NO_COLOR=1"        "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 NO_COLOR=1
+show "tty, TERM=dumb"         "ROOT=$ROOT" TERM=dumb COLUMNS=80 LC_ALL=en_US.UTF-8
+show "tty, TERM unset"        -u TERM "ROOT=$ROOT" COLUMNS=80 LC_ALL=en_US.UTF-8
+show "tty, FORCE_COLOR ignored under NO_COLOR" "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 NO_COLOR= FORCE_COLOR=1
+
+# A width the environment gives badly. Each falls back, and none of them reaches shell arithmetic
+# as a number: with no controlling terminal `stty size` has nothing to answer, so the default of
+# eighty stands and the wide layout is what a bad COLUMNS gets.
+for w in 0 -1 1e9 abc 999999; do
+  show "tty, COLUMNS=$w is not a width" "ROOT=$ROOT" TERM=xterm-256color "COLUMNS=$w" LC_ALL=en_US.UTF-8
+done
+
+# And the contract itself: no terminal at all. FORCE_COLOR is in the environment, as it is in every
+# process started from inside a Claude Code session, and changes nothing.
+echo "== pipe, FORCE_COLOR set =="
+env "ROOT=$ROOT" TERM=xterm-256color COLUMNS=40 LC_ALL=en_US.UTF-8 FORCE_COLOR=1 \
+  sh -c ". \"\$ROOT/lib/render.sh\"; render_init; $records" 2>&1
+echo
+
+# One stream a terminal and the other not, both ways: the answer is per stream, and a verb whose
+# stdout is redirected still decorates the stderr a person is watching.
+echo "== stdout to a pipe, stderr to the terminal =="
+pty env "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 \
+  sh -c ". \"\$ROOT/lib/render.sh\"; exec > /dev/null; render_init; $records"
+echo
+echo "== stderr to a pipe, stdout to the terminal =="
+pty env "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 \
+  sh -c ". \"\$ROOT/lib/render.sh\"; exec 2> /dev/null; render_init; $records"

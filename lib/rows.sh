@@ -263,9 +263,9 @@ crash_check() {
       "$(printf '%s' "$cc_row" | jq -c --argjson n "$cc_next" \
            '{pid: null, state: .state, sighting: $n} | with_entries(select(.key == "pid" or .value != null))')"
     if [ "$cc_next" = 2 ]; then
-      echo "crash     $1/$cc_milestone · $cc_session · confirmed on the second sighting"
+      render_row out action 'crash     %s/%s · %s · confirmed on the second sighting\n' "$(render_token out lane "$1")" "$(render_token out milestone "$cc_milestone")" "$(render_token out session "$cc_session")"
     else
-      echo "crash?    $1/$cc_milestone · $cc_session · first sighting, no row and no ending"
+      render_row out action 'crash?    %s/%s · %s · first sighting, no row and no ending\n' "$(render_token out lane "$1")" "$(render_token out milestone "$cc_milestone")" "$(render_token out session "$cc_session")"
     fi
   done
 }
@@ -324,7 +324,7 @@ stall_check() {
        detail: ($d + (if $s == "done" then " · baton answer \($m) to finish the close-out"
                       else " · read it in Claude.app before touching it" end))}')
     notification_write "$1" "$sc_milestone" "$sc_session" "$sc_attempt" stall "" "$sc_fields"
-    echo "stall     $1/$sc_milestone · $sc_session · $(duration "$sc_age") unchanged, state $sc_state"
+    render_row out action 'stall     %s/%s · %s · %s unchanged, state %s\n' "$(render_token out lane "$1")" "$(render_token out milestone "$sc_milestone")" "$(render_token out session "$sc_session")" "$(duration "$sc_age")" "$sc_state"
   done
 }
 
@@ -360,7 +360,7 @@ long_running_check() {
     lr_fields=$(jq -nc --argjson age "$lr_age" --arg since "$lr_since" --arg d "$lr_detail" \
       '{elapsed_seconds: $age, since: $since, detail: $d}')
     notification_write "$1" "$lr_milestone" "$lr_session" "$lr_attempt" long-running "" "$lr_fields"
-    echo "long      $1/$lr_milestone · $lr_session · $(duration "$lr_age")"
+    render_row out action 'long      %s/%s · %s · %s\n' "$(render_token out lane "$1")" "$(render_token out milestone "$lr_milestone")" "$(render_token out session "$lr_session")" "$(duration "$lr_age")"
   done
 }
 
@@ -418,7 +418,7 @@ question_check() {
     qc_carries=$(jq -nc --arg n "$qc_name" --arg j "$qc_job" --arg d "$qc_detail" \
       '{row: $n, job: $j, waiting_for: "input needed", detail: $d}')
     escalate "$1" "$qc_milestone" "$qc_session" "$qc_attempt" question lane "$qc_carries"
-    echo "question  $1/$qc_milestone · $qc_session · waiting for input"
+    render_row out action 'question  %s/%s · %s · waiting for input\n' "$(render_token out lane "$1")" "$(render_token out milestone "$qc_milestone")" "$(render_token out session "$qc_session")"
   done
 }
 
@@ -441,5 +441,5 @@ gap_check() {
   gc_fields=$(jq -nc --argjson s "$gc_seconds" --arg m "$gc_marker" --arg d "$gc_detail" \
     '{gap_seconds: $s, marker: $m, detail: $d}')
   notification_write "" "" "" "" gap "$gc_marker" "$gc_fields"
-  echo "gap       Baton was not running for $(duration "$gc_seconds"), measured against $gc_marker"
+  render_row out action 'gap       Baton was not running for %s, measured against %s\n' "$(duration "$gc_seconds")" "$(render_token out timestamp "$gc_marker")"
 }

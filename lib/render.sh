@@ -308,7 +308,8 @@ render_lines() {
 # <message> is the whole sentence the caller composed from facts it already had; nothing here
 # classifies an error, invents wording or reads a tool's stderr to explain itself. <repair> is the
 # command to type when the caller has it as a separate thing, appended in plain mode and given its
-# own line on a terminal, never shortened.
+# own line on a terminal, never shortened. Plain keeps the failure to one line, so that a person or
+# a script grepping `launchd.err` finds the whole of it in the hit rather than the half of it.
 #
 # It writes no log and claims no event. A message and a record are two different acts, and a
 # failure renderer that implied the second would say a park exists that nothing wrote (D-057).
@@ -317,7 +318,7 @@ render_failure() {
   rf_stream=$1; rf_msg=$2; rf_repair=${3-}
 
   if ! render_styled "$rf_stream"; then
-    if [ -n "$rf_repair" ]; then rf_out="$rf_msg $rf_repair"; else rf_out=$rf_msg; fi
+    if [ -n "$rf_repair" ]; then rf_out="$rf_msg; $rf_repair"; else rf_out=$rf_msg; fi
   else
     case "$rf_msg" in
       'baton: '*) rf_out="$(render_paint "$RENDER_SGR_ACTION" 'baton:') ${rf_msg#baton: }" ;;

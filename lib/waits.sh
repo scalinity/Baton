@@ -70,7 +70,7 @@ wait_notify() {
   wn_fields=$(jq -nc --arg e "$wn_e" --argjson age "$4" --arg since "$3" --arg d "$wn_detail" \
     '{error: $e, elapsed_seconds: $age, since: $since, detail: $d}')
   notification_write "$1" "$wn_m" "$wn_s" "$wn_a" "$wn_class" "" "$wn_fields"
-  echo "ceiling   $1/$wn_m · $wn_e · $(duration "$4") of waiting"
+  render_row out action 'ceiling   %s/%s · %s · %s of waiting\n' "$(render_token out lane "$1")" "$(render_token out milestone "$wn_m")" "$wn_e" "$(duration "$4")"
 }
 
 # wait_retry_run <project> <wait json> <rows json>: one turn of the wait — stop, flagless resume
@@ -160,7 +160,7 @@ holds_apply() {
     log_event hold "$(printf '%s' "$hap_h" | jq -r .project)" "" \
       "$(printf '%s' "$hap_h" | jq -r .session)" "" \
       "$(printf '%s' "$hap_h" | jq -c '{model: "all", cause: .cause}')"
-    echo "hold      all · a second model is limited, so the limit is shared and every model is held"
+    render_row out action 'hold      all · a second model is limited, so the limit is shared and every model is held\n'
   fi
 
   hap_n=$(printf '%s' "$hap_open" | jq length); hap_i=0

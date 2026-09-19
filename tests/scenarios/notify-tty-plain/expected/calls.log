@@ -1,0 +1,6 @@
+[cwd @TMP@] claude agents --json
+open -g @TMP@/home/bin/Baton.app
+  posted: Baton · Fixture/M02 · question | Baton · Fixture · M02 is waiting for input, and no payload carries the question, so it can only be read in the session · answer it in place in Claude.app, or baton answer M02 "<ruling>" | claude://claude.ai/code/session_01Newest_x-Y
+caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 502
