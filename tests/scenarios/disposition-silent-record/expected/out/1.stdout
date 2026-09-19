@@ -1,0 +1,18 @@
+=== the one class the table calls HOST-EXPLAINED writes its event, and channel says which it is
+=== a class that reaches a person cannot be recorded silently, whatever the caller believes
+  asking -> exit 1
+  question -> exit 1
+  merge-failed -> exit 1
+  dispatch-failed -> exit 1
+  main-broken -> exit 1
+  unfinished-twice -> exit 1
+
+=== gap is the class the fourth disposition was named for, and it is refused here too: a gap is
+=== over when it is reported, but nothing yet explains it. There is no notification arm at all
+=== until docs/milestones/M15-b.md can say which gaps the host accounts for.
+  gap -> exit 1
+
+=== the refusals a person reads, on the stream they belong to
+
+=== what was written: one line, and the notifier was not called at all
+{"kind":"escalation","class":"baton-unhealthy","scope":"project","channel":["record"]}

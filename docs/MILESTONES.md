@@ -49,6 +49,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M15 | The escalation taxonomy | M12 | opus | high | | | Four dispositions, including HOST-EXPLAINED; solvable parks resolve without notification; replan preserves the goal; the taxonomy owns whether a re-read rebaseline earns a notification class of its own (D-136) | No |
 | M15-b | Host-explained gaps and wake reconciliation | M15 | opus | high | | | Sleep-explained gaps stay recorded and visible without notifications; unexplained gaps notify; confirmed dead sessions use existing recovery | No |
 | M15-c | The independent scope guard | M15-b | opus | high | | | Goal-only checks at plan adoption and close-out; drift always reaches a person | No |
+| M15-d | Replan: when the plan is what is wrong | M15 | opus | high | | | A milestone that comes back unfinished twice, or blocked on a dependency nothing will deliver, is replanned from the confirmed goal instead of asking; every milestone Baton proved complete stays done | No |
 | M16 | Cold live trial on Reclaim | M14, M15-c | opus | medium | | | Unregistered Reclaim completes at least three cold milestones with one intent confirmation and a live budget pause/resume | No |
 | M17 | Dispatch preconditions before worktree creation | – | opus | high | | done | Plan reports every eligible milestone's unmet dispatch preconditions in one pass; dispatch refuses them before creating a branch, worktree or settings, retaining the existing retry bound | No |
 | M17-b | One rendering layer for Baton's output | M17 | opus | high | | done | Every verb and Mac message uses lib/render.sh; terminal output is consistent, plain and matchable when piped and under NO_COLOR; behaviour and event-log format stay unchanged; lib/declared.sh:98 stops claiming a person edited the plan (D-136) | No |
@@ -120,6 +121,20 @@ host-explained gaps and wake reconciliation move to M15-b, and the original natu
 (independent scope guard) moves to M15-c. M16 waits for M15-c and M14. No part is marked done;
 this planning-only split produces no runtime handover or stopped artifact. Recheck the file-count
 rule in each part against the actual interfaces before implementation and split further if needed.
+
+M15 was split **again** on 2026-09-19, by its own implementation session and before it wrote any
+code, because that recheck did not hold. Both of M15's routing dispositions need libraries beyond
+its budget of two, and the count was measured rather than estimated. Replan cannot preserve
+completed work through M12's generation path: `planning_validate` raises a defect for every row
+whose `Status` is not blank, and `planning_prompt` tells the generating session to blank them, so a
+replan of a project with history is refused row by row and instructed to erase it — repairing that
+is `lib/planning.sh`, a third counted file against `lib/answer.sh` and `lib/tick.sh`. AI resolution
+needs a second judgment role, which M12 already measured the cost of: `lib/dispatch.sh`,
+`lib/completion.sh` and `lib/inbox.sh`, three more. Replan becomes **M15-d**, with a row above and a
+brief on `main`. The AI route is **recorded and not scheduled** (D-179): a row would put work nobody
+has decided to do into the dispatch queue by default, and measuring its cost was meant to make
+starting it a decision. M15's own acceptance holds in full for what it kept, so it is `done` and no
+`stopped` artifact is written, as with M10-b and M12 (D-152).
 
 A milestone is split before implementation if its checklist has more than about 15 items or
 touches more than two counted `lib/` files beyond the ones it introduces. By the owner's amendment

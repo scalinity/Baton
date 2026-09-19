@@ -1,0 +1,7 @@
+== a park id that names no park is refused on its own terms, because a lane whose parks are all
+== at other times and a lane with no park at all read identically otherwise.
+status 1
+== the same, for a time that is not a time: nothing matches, and the open ones are still shown
+status 1
+== a lane with no park at all keeps the older refusal, which names the target as it was typed
+status 1

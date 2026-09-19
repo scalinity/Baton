@@ -1,0 +1,43 @@
+=== every class class_or_fail accepts, what it needs, and whether it reaches a person
+escalation    asking            human-required  notifies
+escalation    question          human-required  notifies
+escalation    ladder-end        human-required  notifies
+escalation    unfinished-twice  replan          notifies
+escalation    blocked           replan          notifies
+escalation    merge-failed      human-required  notifies
+escalation    other             human-required  notifies
+escalation    disagreement      human-required  notifies
+escalation    omitted           human-required  notifies
+escalation    model_not_found   human-required  notifies
+escalation    dispatch-failed   human-required  notifies
+escalation    plan-unreadable   human-required  notifies
+escalation    plan-unparseable  human-required  notifies
+escalation    main-broken       human-required  notifies
+escalation    baton-unhealthy   HOST-EXPLAINED  silent
+notification  rate_limit        human-required  notifies
+notification  billing_error     human-required  notifies
+notification  unrecoverable     human-required  notifies
+notification  transient         human-required  notifies
+notification  stall             human-required  notifies
+notification  long-running      human-required  notifies
+notification  blocked_by        human-required  notifies
+notification  distant_wait_for  human-required  notifies
+notification  prompt-lost       human-required  notifies
+notification  gap               human-required  notifies
+notification  takeover-silent   human-required  notifies
+
+=== the one arm that reads the carries: a bounded choice the session enumerated
+with options:    AI-resolvable
+one option:      AI-resolvable
+options a string, which a session may still write:
+                 AI-resolvable
+empty options:   human-required
+no options:      human-required
+no carries:      human-required
+
+=== a class neither list holds is refused, not defaulted
+exit 1
+exit 1
+
+=== a disposition is not a class, and asking the wrong question fails where it is visible
+exit 2

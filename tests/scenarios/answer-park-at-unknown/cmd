@@ -1,0 +1,7 @@
+echo "== a park id that names no park is refused on its own terms, because a lane whose parks are all"
+echo "== at other times and a lane with no park at all read identically otherwise."
+"$BATON" answer Fixture/M03@2026-09-12T10:00:00+01:00 "go on" || echo "status $?"
+echo "== the same, for a time that is not a time: nothing matches, and the open ones are still shown"
+"$BATON" answer Fixture/M03@yesterday "go on" || echo "status $?"
+echo "== a lane with no park at all keeps the older refusal, which names the target as it was typed"
+"$BATON" answer Fixture/M09@2026-09-12T11:10:00+01:00 "go on" || echo "status $?"

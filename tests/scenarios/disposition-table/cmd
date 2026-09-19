@@ -1,0 +1,45 @@
+set -eu
+# The mapping, proved exhaustive rather than asserted exhaustive. The class list is read out of
+# `class_or_fail` in lib/notify.sh — the taxonomy the log enforces — and not written here, so a class
+# added there without an arm in `disposition_of` shows up in this expectation as a refusal rather
+# than passing unnoticed. That is the whole reason the list is extracted instead of typed: two lists
+# of classes is the drift this file exists to make impossible.
+. "$ROOT/tests/lib-load.sh"
+
+echo '=== every class class_or_fail accepts, what it needs, and whether it reaches a person'
+awk '/^class_or_fail\(\) \{/, /^\}/' "$ROOT/lib/notify.sh" \
+  | awk -F')' '/^ *(escalation|notification):/ { print $1 }' \
+  | tr '|' '\n' \
+  | sed 's/^ *//; s/ *$//' \
+  | while IFS=: read -r kind class; do
+      [ -n "$class" ] || continue
+      d=$(disposition_of "$kind" "$class" 2>/dev/null) || d=REFUSED
+      reaches=notifies
+      disposition_notifies "$d" || reaches=silent
+      printf '%-12s  %-16s  %-14s  %s\n' "$kind" "$class" "$d" "$reaches"
+    done
+
+echo
+echo '=== the one arm that reads the carries: a bounded choice the session enumerated'
+echo "with options:    $(disposition_of escalation asking '{"question":"which reading?","options":["a","b"]}')"
+echo "one option:      $(disposition_of escalation asking '{"question":"which reading?","options":["a"]}')"
+echo "options a string, which a session may still write:"
+echo "                 $(disposition_of escalation asking '{"question":"which?","options":"a"}')"
+echo "empty options:   $(disposition_of escalation asking '{"question":"what is the key?","options":[]}')"
+echo "no options:      $(disposition_of escalation asking '{"question":"what is the key?"}')"
+echo "no carries:      $(disposition_of escalation asking)"
+
+echo
+echo '=== a class neither list holds is refused, not defaulted'
+status=0
+disposition_of escalation permission || status=$?
+echo "exit $status"
+status=0
+disposition_of notification gap-explained || status=$?
+echo "exit $status"
+
+echo
+echo '=== a disposition is not a class, and asking the wrong question fails where it is visible'
+status=0
+disposition_notifies asking || status=$?
+echo "exit $status"
