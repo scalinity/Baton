@@ -1,0 +1,23 @@
+echo "== pending consume is a completed tick: last-tick advances, the artifact stays, and an open lane with no row is not a crash =="
+sh "$ROOT/tests/completion-fixture.sh" check-slow
+"$BATON" tick
+dir=$BATON_HOME/checks/Fixture/M02-1
+if [ -f "$BATON_HOME/inbox/M02-11111111-2222-4333-8444-555555555555.json" ]; then
+  echo "artifact unconsumed"
+else
+  echo "artifact consumed"
+fi
+if [ -f "$BATON_HOME/last-tick" ]; then echo "marker $(cat "$BATON_HOME/last-tick")"; else echo "no marker"; fi
+if grep -q '"kind":"crash_sighting"' "$BATON_HOME/log.jsonl" 2>/dev/null; then echo "crash sighted"; else echo "no crash"; fi
+pid=$(cat "$dir/pid" 2>/dev/null || true)
+if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then echo "check still running"; else echo "check not running"; fi
+if [ -n "$pid" ]; then
+  pkill -TERM -P "$pid" 2>/dev/null || true
+  kill -TERM "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+fi
+if [ -d "$dir/tree" ]; then
+  git -C "$PWD/Fixture" worktree remove --force "$dir/tree" >/dev/null 2>&1 || true
+  rm -rf "$dir/tree"
+fi
+rm -f "$dir/pid"

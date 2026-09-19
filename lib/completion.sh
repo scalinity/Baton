@@ -291,31 +291,121 @@ completion_check_command() {
   jq -nc --arg c "$ccc_cmd" --argjson d "$ccc_deadline" '{command: $c, deadline: $d}'
 }
 
+# completion_check_elapsed <dir>: seconds since the check's recorded start, or since the
+# directory's mtime when no start was written — the same fallback D-117 uses for a lock with no
+# `at`. The deadline is wall clock: a sleeping Mac spends it, and a later tick observes it rather
+# than waiting it out. Prints the integer; status 1 only when the clock itself will not read.
+completion_check_elapsed() {
+  ce_at=$(cat "$1/started_at" 2>/dev/null || true)
+  if ! ce_start=$(iso_epoch "$ce_at" 2>/dev/null); then
+    ce_start=$(stat -f %m "$1" 2>/dev/null) || { echo 0; return 0; }
+  fi
+  ce_now=$(now_epoch) || { echo "$ce_now"; return 1; }
+  echo $((ce_now - ce_start))
+}
+
+# completion_check_pending <revision> <command> <output>: the document a later tick collects from.
+# Status 0: pending is not a failure.
+completion_check_pending() {
+  jq -nc --arg r "$1" --arg c "$2" --arg p "$3" \
+    '{revision: $r, command: $c, outcome: "pending", exit: -1, output: $p}'
+}
+
+# completion_check_finish <repo> <dir> <revision> <command> <output> <timed-out: yes|no>: the
+# result document for a check that has ended. The tree is removed; the done-marker is left for
+# `completion_verify` to drop after it has written `result.json`, so a tick killed between collect
+# and the evidence file can collect the same marker again rather than see a dead producer.
+completion_check_finish() {
+  ccf_repo=$1; ccf_dir=$2; ccf_rev=$3; ccf_cmd=$4; ccf_out=$5; ccf_timedout=$6
+  if [ "$ccf_timedout" = yes ]; then
+    # The half-written marker the kill interrupted. `>` creates `.exit.tmp` before the status is in
+    # it and the rename is what publishes it, which is why the observer reads only the renamed name —
+    # but a kill landing between the two leaves the `.tmp` in the evidence directory, and whether it
+    # does depends on the timing of a signal. The next observation sweeps it, so nothing read it;
+    # what it cost was a **non-deterministic standing check**, which is worse than it sounds, because
+    # the standing check is the thing every completion is proved against. `completion-timed-out`
+    # failed once under the load of two lanes and passed three times in a row alone, and a flake
+    # there parks a project `main-broken` for a milestone that did nothing wrong (D-172).
+    rm -f "$ccf_out.exit.tmp"
+    ccf_exit=-1; ccf_outcome=timed-out
+  else
+    ccf_exit=$(cat "$ccf_out.exit" 2>/dev/null) || ccf_exit=''
+    case "$ccf_exit" in
+      ''|*[!0-9]*) ccf_exit=-1; ccf_outcome=unrun ;;
+      0) ccf_outcome=passed ;;
+      *) ccf_outcome=failed ;;
+    esac
+  fi
+  git -C "$ccf_repo" worktree remove --force "$ccf_dir/tree" > /dev/null 2>&1 || true
+  jq -nc --arg r "$ccf_rev" --arg c "$ccf_cmd" --arg o "$ccf_outcome" --argjson e "$ccf_exit" \
+    --arg p "$ccf_out" \
+    '{revision: $r, command: $c, outcome: $o, exit: $e, output: $p}'
+}
+
+# completion_check_observe <repo> <dir> <revision> <command> <deadline>: collect, time out, or
+# return pending. Absence of the marker is resolved by liveness plus elapsed time, never by
+# waiting: a dead producer with no marker before the deadline stays pending; past the deadline it
+# is `timed-out`.
+completion_check_observe() {
+  cco_repo=$1; cco_dir=$2; cco_rev=$3; cco_cmd=$4; cco_deadline=$5
+  cco_out=$cco_dir/output.txt
+  [ -z "$cco_rev" ] && cco_rev=$(cat "$cco_dir/revision" 2>/dev/null || true)
+  if [ -f "$cco_dir/deadline" ]; then
+    cco_have=$(cat "$cco_dir/deadline" 2>/dev/null || true)
+    case "$cco_have" in
+      ''|*[!0-9]*) ;;
+      *) cco_deadline=$cco_have ;;
+    esac
+  fi
+  if [ -f "$cco_out.exit" ]; then
+    completion_check_finish "$cco_repo" "$cco_dir" "$cco_rev" "$cco_cmd" "$cco_out" no
+    return 0
+  fi
+  cco_elapsed=$(completion_check_elapsed "$cco_dir") || { echo "$cco_elapsed"; return 1; }
+  if [ "$cco_elapsed" -ge "$cco_deadline" ]; then
+    cco_pid=$(cat "$cco_dir/pid" 2>/dev/null || true)
+    if [ -n "$cco_pid" ]; then
+      pkill -TERM -P "$cco_pid" 2>/dev/null || true
+      kill -TERM "$cco_pid" 2>/dev/null || true
+    fi
+    completion_check_finish "$cco_repo" "$cco_dir" "$cco_rev" "$cco_cmd" "$cco_out" yes
+    return 0
+  fi
+  completion_check_pending "$cco_rev" "$cco_cmd" "$cco_out"
+}
+
 # completion_check_run <repo> <project> <milestone> <attempt> <revision>: the standing check, run by
 # Baton on the tree at <revision>. Prints the result document; the detail and status 1 when the
-# tree could not be made or is not the revision it was asked for.
+# tree could not be made or is not the revision it was asked for. A check still running, or one
+# whose producer died before the deadline with no marker, prints `outcome: pending` with status 0
+# and does not wait.
 #
 # The tree is a detached worktree of the project's own repository, checked out at that revision and
 # then asked what it stands at, because a checkout labelled with a sampled HEAD is a label and not
-# a proof. It is removed afterwards: it carries no session, so D-078's reason for keeping a
-# worktree — that a session whose working directory is gone cannot be resumed — does not reach it,
-# and a tree kept per attempt would grow a copy of the repository every milestone (D-148).
+# a proof. It is removed when the run ends, on a later tick if need be: it carries no session, so
+# D-078's reason for keeping a worktree — that a session whose working directory is gone cannot be
+# resumed — does not reach it, and a tree kept per attempt would grow a copy of the repository every
+# milestone (D-148).
+#
+# The check directory is the interlock. `mkdir` without `-p` creates it or loses the race; a later
+# tick that finds the directory does not start a second check. A crash between that mkdir and the
+# launch writes `started_at` first, so the lane is not wedged: elapsed time still runs, and past
+# the deadline the observation is `timed-out`.
 #
 # The deadline is enforced with a done-marker rather than by waiting on the child: a finished child
 # is a zombie until it is reaped and answers `kill -0` as though it were still running, so polling
-# liveness would never end. A run that passes its deadline is killed, with its children, and
+# liveness would never end. A run that has passed its deadline is killed, with its children, and
 # recorded as `timed-out`, which is not a pass. The kill reaches one generation: `sh -c` execs a
 # simple command, so the ordinary case is the check itself, but a check that forks workers of its
 # own can leave them behind.
 #
-# The marker is renamed into place rather than written where the poll can see it. `>` creates the
-# file before anything is written to it, so a poll that tests only for its existence can read an
-# empty string, take the `''` arm below, and record a check that *passed* as `unrun` — which parks
-# the project. The window is small and the failure is silent, which is the combination worth
-# spending a rename on.
+# The marker is renamed into place rather than written where the observer can see it. `>` creates
+# the file before anything is written to it, so a test that looks only for its existence can read
+# an empty string and record a check that *passed* as `unrun` — which parks the project. The window
+# is small and the failure is silent, which is the combination worth spending a rename on.
 #
-# The deadline counts iterations of a one-second sleep plus the loop's own work, so it is a lower
-# bound on wall clock rather than an exact limit, and a sleeping Mac spends it while asleep.
+# The deadline is wall clock from `started_at`. A sleeping Mac spends it. The tick no longer waits
+# it out; it observes it.
 completion_check_run() {
   ccr_repo=$1; ccr_project=$2; ccr_milestone=$3; ccr_attempt=$4; ccr_rev=$5
 
@@ -326,12 +416,31 @@ completion_check_run() {
   ccr_dir=$(completion_check_dir "$ccr_project" "$ccr_milestone" "$ccr_attempt")
   ccr_tree=$ccr_dir/tree
   ccr_out=$ccr_dir/output.txt
-  mkdir -p "$ccr_dir" 2>/dev/null || { echo "$ccr_dir is not a directory Baton can write"; return 1; }
-  rm -f "$ccr_out" "$ccr_out.exit" "$ccr_out.exit.tmp"
-  if [ -e "$ccr_tree" ]; then
-    git -C "$ccr_repo" worktree remove --force "$ccr_tree" > /dev/null 2>&1 || true
-    rm -rf "$ccr_tree"
+
+  if [ -d "$ccr_dir" ]; then
+    completion_check_observe "$ccr_repo" "$ccr_dir" "$ccr_rev" "$ccr_cmd" "$ccr_deadline"
+    return 0
   fi
+
+  mkdir -p "$(dirname "$ccr_dir")" 2>/dev/null \
+    || { echo "$ccr_dir is not a directory Baton can write"; return 1; }
+  if ! mkdir "$ccr_dir" 2>/dev/null; then
+    # Another tick won the create, or a previous tick already started this attempt. Do not start
+    # a second check; observe whatever is there.
+    if [ -d "$ccr_dir" ]; then
+      completion_check_observe "$ccr_repo" "$ccr_dir" "$ccr_rev" "$ccr_cmd" "$ccr_deadline"
+      return 0
+    fi
+    echo "$ccr_dir is not a directory Baton can write"
+    return 1
+  fi
+
+  # `started_at` is written before the tree is made, so a crash between mkdir and launch still
+  # has an elapsed time and will time out rather than sit pending forever.
+  printf '%s\n' "$(baton_now)" > "$ccr_dir/started_at"
+  printf '%s\n' "$ccr_rev" > "$ccr_dir/revision"
+  printf '%s\n' "$ccr_deadline" > "$ccr_dir/deadline"
+
   # A tree whose directory went away — a tick killed mid-check, a cleared temporary directory — is
   # still registered, and `worktree add` refuses a registered path. Pruning drops only entries whose
   # directory is gone, so a live milestone worktree is never touched by it.
@@ -340,78 +449,58 @@ completion_check_run() {
   # core.hooksPath for the reason worktree_ensure empties it: `worktree add` runs the repository's
   # post-checkout hook, and a target project's hook is not Baton's to run.
   ccr_add=$(git -C "$ccr_repo" -c core.hooksPath=/dev/null worktree add --detach "$ccr_tree" "$ccr_rev" 2>&1) \
-    || { echo "the tree at $ccr_rev could not be checked out: $ccr_add"; return 1; }
+    || { git -C "$ccr_repo" worktree remove --force "$ccr_tree" > /dev/null 2>&1 || true
+         rm -rf "$ccr_dir"
+         echo "the tree at $ccr_rev could not be checked out: $ccr_add"; return 1; }
 
   ccr_head=$(git -C "$ccr_tree" rev-parse HEAD 2>/dev/null) || ccr_head=''
   if [ "$ccr_head" != "$ccr_rev" ]; then
     git -C "$ccr_repo" worktree remove --force "$ccr_tree" > /dev/null 2>&1 || true
+    rm -rf "$ccr_dir"
     echo "the tree Baton checked out stands at ${ccr_head:-nothing}, not at $ccr_rev"
     return 1
   fi
   ccr_dirty=$(git -C "$ccr_tree" status --porcelain 2>/dev/null) || ccr_dirty=''
   if [ -n "$ccr_dirty" ]; then
     git -C "$ccr_repo" worktree remove --force "$ccr_tree" > /dev/null 2>&1 || true
+    rm -rf "$ccr_dir"
     echo "the tree Baton checked out at $ccr_rev is not clean, so what ran would not be that revision"
     return 1
   fi
 
-  # `set +e` inside the subshell, which inherits this file's `set -e`: without it a check that
-  # failed would kill the subshell at the failing command, the marker would never be written, and
-  # the poll below would run to the deadline and record a failing check as `timed-out`. A check
-  # exiting non-zero is the ordinary case this exists to catch, not an error in the shell.
-  # The subshell's own stderr goes nowhere, and only the subshell's: the command's own output is
+  # `set +e` inside the runner, which inherits this file's `set -e`: without it a check that
+  # failed would kill the runner at the failing command and the marker would never be written.
+  # A check exiting non-zero is the ordinary case this exists to catch, not an error in the shell.
+  # `trap '' HUP` and stdin closed, because this tick will exit before the check does; without
+  # them the child dies with the tick and a later observation sees a dead producer with no marker.
+  # The runner's own stderr goes nowhere, and only the runner's: the command's own output is
   # redirected to `$ccr_out` inside it, before this applies. What this discards is the shell's
   # job-control notice — `…: 40552 Terminated: 15  sh -c …` — which a shell writes when it reaps a
   # child the deadline killed. It is the shell talking about its own bookkeeping, it is not the
   # check's output, and whether it appears at all depends on the timing of the kill, so a frozen
   # expectation that included it would pass on one machine and fail on the next (D-152).
-  ( set +e
-    cd "$ccr_tree" && sh -c "$ccr_cmd" > "$ccr_out" 2>&1
-    printf '%s\n' "$?" > "$ccr_out.exit.tmp" && mv "$ccr_out.exit.tmp" "$ccr_out.exit" ) 2>/dev/null &
-  ccr_pid=$!
-  ccr_waited=0
-  ccr_timedout=no
-  while [ ! -f "$ccr_out.exit" ]; do
-    if [ "$ccr_waited" -ge "$ccr_deadline" ]; then
-      ccr_timedout=yes
-      pkill -TERM -P "$ccr_pid" 2>/dev/null || true
-      kill -TERM "$ccr_pid" 2>/dev/null || true
-      break
-    fi
-    sleep 1
-    ccr_waited=$((ccr_waited + 1))
-  done
-  wait "$ccr_pid" 2>/dev/null || true
+  #
+  # POSIX: a non-interactive shell waits for its asynchronous commands before exiting. This
+  # function is captured with `$(…)`, which is such a shell, so a `&` here would hold the lock
+  # for the whole suite — the defect. `exec echo` replaces that shell after the fork, so it
+  # never reaches the wait; the runner is reparented and the substitution returns the pid.
+  CCR_TREE=$ccr_tree CCR_CMD=$ccr_cmd CCR_OUT=$ccr_out CCR_EXIT=$ccr_out.exit \
+  sh -c '
+    trap "" HUP
+    (
+      trap "" HUP
+      set +e
+      cd "$CCR_TREE" && sh -c "$CCR_CMD" > "$CCR_OUT" 2>&1
+      printf "%s\n" "$?" > "$CCR_EXIT.tmp" && mv "$CCR_EXIT.tmp" "$CCR_EXIT"
+    ) < /dev/null >/dev/null 2>&1 &
+    exec echo $!
+  ' > "$ccr_dir/pid.tmp"
+  mv "$ccr_dir/pid.tmp" "$ccr_dir/pid"
 
-  if [ "$ccr_timedout" = yes ]; then
-    # The half-written marker the kill interrupted. `>` creates `.exit.tmp` before the status is in
-    # it and the rename is what publishes it, which is why the poll reads only the renamed name —
-    # but a kill landing between the two leaves the `.tmp` in the evidence directory, and whether it
-    # does depends on the timing of a signal. The next run sweeps it, so nothing read it; what it
-    # cost was a **non-deterministic standing check**, which is worse than it sounds, because the
-    # standing check is the thing every completion is proved against. `completion-timed-out` failed
-    # once under the load of two lanes and passed three times in a row alone, and a flake there
-    # parks a project `main-broken` for a milestone that did nothing wrong (D-172).
-    rm -f "$ccr_out.exit.tmp"
-    ccr_exit=-1; ccr_outcome=timed-out
-  else
-    ccr_exit=$(cat "$ccr_out.exit" 2>/dev/null) || ccr_exit=''
-    case "$ccr_exit" in
-      ''|*[!0-9]*) ccr_exit=-1; ccr_outcome=unrun ;;
-      0) ccr_outcome=passed ;;
-      *) ccr_outcome=failed ;;
-    esac
-  fi
-  rm -f "$ccr_out.exit"
-
-  git -C "$ccr_repo" worktree remove --force "$ccr_tree" > /dev/null 2>&1 || true
-
-  # How long it took is not recorded. It is the one number in the result that the machine decides
-  # rather than the repository, so a frozen expectation holding it would fail on a loaded Mac and
-  # pass on a quiet one; nothing reads it, and `timed-out` already says the deadline was reached.
-  jq -nc --arg r "$ccr_rev" --arg c "$ccr_cmd" --arg o "$ccr_outcome" --argjson e "$ccr_exit" \
-    --arg p "$ccr_out" \
-    '{revision: $r, command: $c, outcome: $o, exit: $e, output: $p}'
+  # Always pending on the starting tick, even if the check has already finished: collecting here
+  # would make a fast check consume on the same tick as a slow one pending, which is a race the
+  # fixtures cannot freeze.
+  completion_check_pending "$ccr_rev" "$ccr_cmd" "$ccr_out"
 }
 
 # completion_evidence_write <project> <milestone> <attempt> <document>: the evidence file, written
@@ -442,6 +531,26 @@ completion_evidence_write() {
 # Prints the document with status 0 for a proved completion, an unproved one, and a proved one
 # whose check failed; prints {rule, detail} with status 1 for a chain or scope that does not hold,
 # which is a rejection.
+# completion_verify_from_check <project> <milestone> <attempt> <chain json> <check json>:
+# pending returns the pending document and writes nothing; a finished check writes the evidence
+# file, drops the start-interlock files, and prints the consumed-event summary.
+completion_verify_from_check() {
+  cvf_project=$1; cvf_milestone=$2; cvf_attempt=$3; cvf_chain=$4; cvf_check=$5
+  cvf_dir=$(completion_check_dir "$cvf_project" "$cvf_milestone" "$cvf_attempt")
+  if [ "$(printf '%s' "$cvf_check" | jq -r '.outcome // empty')" = pending ]; then
+    jq -nc --argjson a "$cvf_attempt" --argjson c "$cvf_check" \
+      '{pending: true, attempt: $a, check: $c}'
+    return 0
+  fi
+  cvf_full=$(printf '%s' "$cvf_chain" | jq -c --argjson a "$cvf_attempt" --argjson c "$cvf_check" \
+    '{proved: true, attempt: $a} + . + {check: $c}')
+  cvf_evidence=$(completion_evidence_write "$cvf_project" "$cvf_milestone" "$cvf_attempt" "$cvf_full")
+  rm -f "$cvf_dir/output.txt.exit" "$cvf_dir/output.txt.exit.tmp" \
+    "$cvf_dir/pid" "$cvf_dir/started_at" "$cvf_dir/revision" "$cvf_dir/deadline" \
+    "$cvf_dir/chain.json" "$cvf_dir/chain.json.tmp"
+  completion_summary "$cvf_full" "$cvf_evidence"
+}
+
 completion_verify() {
   cv_repo=$1; cv_project=$2; cv_milestone=$3; cv_session=$4; cv_merged=$5
 
@@ -450,6 +559,30 @@ completion_verify() {
   if [ -z "$cv_attempt" ]; then
     jq -nc --arg d "no dispatch event names session $cv_session, so Baton did not start this milestone and has no baseline to bind it to" \
       '{proved: false, why: $d}'
+    return 0
+  fi
+
+  cv_dir=$(completion_check_dir "$cv_project" "$cv_milestone" "$cv_attempt")
+  # Evidence already written means the check has been collected. A tick killed between that write
+  # and `archive_move` must not start a second check and must not re-derive a chain against a
+  # branch that may have moved.
+  if [ -f "$cv_dir/result.json" ]; then
+    cv_full=$(jq -c . "$cv_dir/result.json" 2>/dev/null) \
+      || { jq -nc --arg d "the evidence file could not be read back" '{rule: "completion-chain", detail: $d}'; return 1; }
+    completion_summary "$cv_full" "$cv_dir/result.json"
+    return 0
+  fi
+
+  # A check already started persisted the chain it was judged against. Re-resolving T from the
+  # branch now would refuse an honest merge if the branch moved while the check ran.
+  if [ -f "$cv_dir/chain.json" ]; then
+    cv_chain=$(jq -c . "$cv_dir/chain.json" 2>/dev/null) \
+      || { jq -nc --arg d "the persisted chain could not be read back" '{rule: "completion-chain", detail: $d}'; return 1; }
+    cv_rev=$(printf '%s' "$cv_chain" | jq -r '.integration // empty')
+    if ! cv_check=$(completion_check_run "$cv_repo" "$cv_project" "$cv_milestone" "$cv_attempt" "$cv_rev"); then
+      cv_check=$(jq -nc --arg r "$cv_rev" --arg d "$cv_check" '{revision: $r, outcome: "unrun", exit: -1, detail: $d}')
+    fi
+    completion_verify_from_check "$cv_project" "$cv_milestone" "$cv_attempt" "$cv_chain" "$cv_check"
     return 0
   fi
 
@@ -481,16 +614,20 @@ completion_verify() {
     || { jq -nc --arg d "$cv_hits" '{rule: "completion-scope", detail: $d}'; return 1; }
 
   cv_rev=$(printf '%s' "$cv_chain" | jq -r .integration)
+  cv_chain=$(printf '%s' "$cv_chain" | jq -c --argjson h "$cv_hits" '. + {in_scope: $h}')
   if ! cv_check=$(completion_check_run "$cv_repo" "$cv_project" "$cv_milestone" "$cv_attempt" "$cv_rev"); then
     cv_check=$(jq -nc --arg r "$cv_rev" --arg d "$cv_check" '{revision: $r, outcome: "unrun", exit: -1, detail: $d}')
   fi
 
-  cv_full=$(printf '%s' "$cv_chain" | jq -c --argjson a "$cv_attempt" --argjson c "$cv_check" \
-    --argjson h "$cv_hits" '{proved: true, attempt: $a} + . + {in_scope: $h, check: $c}')
+  # Persist the frozen chain before returning pending, so the collecting tick does not re-resolve
+  # the branch. Written by rename so a reader that finds the file finds a whole one.
+  if [ "$(printf '%s' "$cv_check" | jq -r '.outcome // empty')" = pending ]; then
+    mkdir -p "$cv_dir" 2>/dev/null || true
+    printf '%s\n' "$cv_chain" > "$cv_dir/chain.json.tmp" 2>/dev/null \
+      && mv "$cv_dir/chain.json.tmp" "$cv_dir/chain.json" 2>/dev/null || true
+  fi
 
-  cv_evidence=$(completion_evidence_write "$cv_project" "$cv_milestone" "$cv_attempt" "$cv_full")
-
-  completion_summary "$cv_full" "$cv_evidence"
+  completion_verify_from_check "$cv_project" "$cv_milestone" "$cv_attempt" "$cv_chain" "$cv_check"
 }
 
 # completion_summary <full document> <evidence path>: the document as the `consumed` event carries
