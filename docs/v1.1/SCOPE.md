@@ -84,20 +84,30 @@ resumed once its working directory is gone."* Its evidence is measured, not theo
 close-out removed `../Baton-M06`. Claude.app then shows each as not connected and a message to it
 does not send.
 
-The managed root prevents new sibling clutter in `~/Documents/Apps`. Relocating an existing
-session-bearing worktree requires a disposable fixture proving a supported mechanism that keeps
-the same session's stop/resume behavior and writes at the new path; Git relocation alone is not
-proof. Never edit Claude's private databases. If that mechanism cannot be proved, grandfather the
-recorded path and state the limitation. Worktrees of a shell repository cost almost nothing.
-Overturning D-078 would need a new decision entry and a better reason than disk
-tidiness. If disk pressure ever becomes real — a Swift target with DerivedData per worktree — add an
-explicit `baton prune` a person runs deliberately, never an automatic one, and record why D-078 no
-longer holds.
+The managed root prevents new sibling clutter in `~/Documents/Apps`. **The legacy siblings move too**
+— superseding this section's earlier requirement that a session-bearing worktree be relocated only
+after a proof, under D-137, which is the new decision entry the paragraph below asks for. Every
+`<checkout>-<milestone>` sibling migrates to the managed root with `git worktree move`, which deletes
+nothing: branches, commits, uncommitted changes and ignored build products all survive.
 
-**Done when:** new worktrees use the managed root; every existing recorded session path remains
-valid unless supported same-session relocation is proved, with branches and dirty changes intact.
-Grandfathered paths are a stated limitation, not a claim that every existing worktree was relocated.
-A dispatched session appears in the desktop sidebar grouped under its project rather than under Other.
+The proof is still attempted, and it is attempted first. M09 is the first work that can run the
+fixture, because it is a dispatched session and may start a disposable one. It tries any supported
+relocation the installed CLI offers — established by observing `claude --help` and the job and
+session records, **never** by editing them, because Claude's private databases stay untouched — and
+then a symlink left at the legacy absolute path, whose cost is that ten symlinks still occupy ten
+entries in `~/Documents/Apps`. If a mechanism is proved, the migration is lossless. If none is, the
+migration happens anyway at the cost D-137 accepts: hand-resume of ten finished, merged milestones.
+Transcripts, usage statistics and prompt history are unaffected either way — measured, not assumed.
+If disk pressure ever becomes real — a Swift target with DerivedData per worktree — add an explicit
+`baton prune` a person runs deliberately, never an automatic one, and record why D-078 no longer
+holds for deletion as well.
+
+**Done when:** new worktrees use the managed root; every legacy sibling has moved there with its
+branch and dirty changes intact, or is named in the completion evidence as one of the two residuals
+that cannot move (M09's own worktree, and a sibling lane still live); the fixture's result is
+recorded either way; each migrated worktree's legacy absolute path is recorded beside its milestone,
+so its transcript directory is still findable by slug. A dispatched session appears in the desktop
+sidebar grouped under its project rather than under Other.
 
 ### M10 — Completion that proves the work
 
@@ -413,8 +423,10 @@ restoration can then admit M17 automatically. This operational fact is recorded,
 
 1. An unprepared repository is onboarded and runs, with exactly one human interaction: the intent
    confirmation.
-2. New Baton artifacts stay under `$BATON_HOME` and the target repository; existing recorded
-   session worktree paths may be grandfathered under M09's stated limitation. Dispatched sessions
+2. New Baton artifacts stay under `$BATON_HOME` and the target repository, and the legacy sibling
+   worktrees have moved there too, with branches and dirty changes intact — superseding the earlier
+   grandfathering criterion under D-137. The only paths left outside are the two residuals M09 names
+   and cannot move: its own worktree, and a sibling lane still live. Dispatched sessions
    group under their project in the desktop sidebar rather than under Other.
 3. A completion claim that did not do the work is rejected.
 4. A run pauses on budget and resumes without help.
