@@ -60,12 +60,12 @@ The milestone table, in the plan document:
 
   * The header must carry both an ID cell and a Depends on cell. That pair is how Baton finds this
     table among the document's others, and a table without Depends on is not a table at all to it.
-  * ID is M and digits, optionally one lowercase suffix: M01, M02, M07-b. M00-plan is reserved for
-    this session and must not appear as a row.
+  * ID is M, then digits, then optionally a hyphen and one run of lowercase letters and digits:
+    M01, M02, M07-b. M00-plan is reserved for this session and must not appear as a row.
   * Depends on holds ids and ranges only — M05, M06 or M01-M13 — or an en dash for none. Every id
     named must be a row in this same table. Prose is not a token and fails the read.
-  * Model is an alias Baton knows: opus, sonnet, haiku or fable. Effort is blank or one of low,
-    medium, high, xhigh, max. Remote is blank or yes.
+  * Model is one of the aliases this Baton knows — fable, opus, sonnet, haiku — or a full model id beginning
+    claude-. Effort is blank or one of low, medium, high, xhigh, max. Remote is blank or yes.
   * Status is blank on every row. Nothing is done yet, and a row that is not blank is a row Baton
     will never dispatch.
   * Columns beyond those six are ignored by Baton and are for people to read; a Title is worth having.
@@ -197,15 +197,16 @@ chain running after you. Write it into every brief, with the milestone's own id 
        {"baton": 1, "project": "@TMP@/Fixture", "milestone": "<ID>",
         "session": "<the value of CLAUDE_CODE_SESSION_ID>", "outcome": "complete",
         "merged_as": "<the merge commit on main>", "written_at": "<now, ISO 8601>",
-        "eligible": [ {"milestone": "<ID>",
-                       "brief": {"path": "docs/milestones/<ID>.md",
+        "eligible": [ {"milestone": "<OTHER ID>",
+                       "brief": {"path": "docs/milestones/<OTHER ID>.md",
                                  "heading": "Copy-ready session prompt"},
                        "disposition": "run"} ]}
-     with one eligible entry per milestone the plan then makes eligible: disposition run when every
-     dependency reads done, wait with wait_for naming the unfinished ones otherwise, and held with
-     held_by naming the gate when an uncleared gate holds it. The artifact must never carry
-     baseline, changed_paths or check_result: those three are Baton's own, and an artifact carrying
-     one is rejected.
+     where <ID> is the milestone just finished and each <OTHER ID> is a *different* milestone: one
+     entry per milestone the plan then makes eligible, never the finished one itself. Disposition
+     run when every dependency of that milestone reads done, wait with wait_for naming the ones
+     that do not, and held with held_by naming the gate when an uncleared gate holds it. The
+     artifact must never carry baseline, changed_paths or check_result: those three are Baton's
+     own, and an artifact carrying one is rejected.
   7. print that file verbatim, last, in a fenced block whose info-string is baton.
 Section 11 of each brief names that milestone's direct successors — every milestone whose Depends on
 names it. Baton dispatches only what a handover lists, so a close-out that omits a successor stops

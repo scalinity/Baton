@@ -1,0 +1,7 @@
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+dispatch  Fixture/M00-plan · 2 consecutive failures · the lane is parked
+--- nothing was created ---
+no branch, no worktree, no settings file, no sidecar
+--- what the log holds ---
+{"kind":"dispatch_failed","milestone":"M00-plan","stage":"settings","detail":"Baton needs Fixture's permission rules at @TMP@/home/projects/Fixture/permissions.json to carry the two deny classes a bypassPermissions session runs behind (docs/SPEC.md REQ-PERM-04). permissions.deny is empty, and a session without that rail is not dispatched. Restore the owner's deny rules yourself, then dispatch again: vi '@TMP@/home/projects/Fixture/permissions.json'"}
+{"kind":"dispatch_failed","milestone":"M00-plan","stage":"settings","detail":"Baton needs Fixture's permission rules at @TMP@/home/projects/Fixture/permissions.json to carry the two deny classes a bypassPermissions session runs behind (docs/SPEC.md REQ-PERM-04). permissions.deny is empty, and a session without that rail is not dispatched. Restore the owner's deny rules yourself, then dispatch again: vi '@TMP@/home/projects/Fixture/permissions.json'"}
