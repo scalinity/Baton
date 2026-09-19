@@ -2,6 +2,6 @@ consumed  M01-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M
 omitted  Fixture/M07 · no archived handover of Fixture lists M07, though the plan makes it eligible · the lane is parked
 backgrounded · 0badc0d1 · Baton · Fixture · M02
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
-worktree  @TMP@/Fixture-M02 (branch m02)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
 settings  @TMP@/home/settings/Fixture-M02.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

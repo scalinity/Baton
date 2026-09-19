@@ -1,5 +1,5 @@
 You are implementing milestone M04 of Fixture. One line that never changes.
 
-WHAT ELSE IS IN FLIGHT. You are working in @TMP@/Fixture-M04 on branch m04; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Also in flight: M02 (worktree Fixture-M02, brief docs/milestones/M02.md), M03 (worktree Fixture-M03, brief docs/milestones/M03.md). Stage only your own paths; never git add -A. Do not start the milestone after this one.
+WHAT ELSE IS IN FLIGHT. You are working in @TMP@/home/worktrees/Fixture/M04 on branch m04; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Also in flight: M02 (worktree Fixture-M02, brief docs/milestones/M02.md), M03 (worktree Fixture-M03, brief docs/milestones/M03.md). Stage only your own paths; never git add -A. Do not start the milestone after this one.
 
 CLOSE-OUT. Write the handover and print it last. Do not start the next milestone.

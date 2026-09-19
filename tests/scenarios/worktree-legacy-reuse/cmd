@@ -1,0 +1,13 @@
+set -eu
+# A worktree git already has registered at the legacy sibling path is reused where it stands. The
+# managed root is where a worktree is *created*, never where one is looked for: a recorded path is
+# the session's own working directory and a dispatch that went somewhere else would strand it.
+if ! git -C Fixture show-ref --verify --quiet refs/heads/m02; then
+  git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M02 -b m02 main
+fi
+status=0
+"$BATON" dispatch Fixture M02 || status=$?
+test -d Fixture-M02
+test ! -e "$BATON_HOME/worktrees"
+printf '%s\n' 'the recorded legacy path was reused and no managed directory was made'
+exit "$status"
