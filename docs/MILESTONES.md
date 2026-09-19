@@ -136,7 +136,7 @@ has decided to do into the dispatch queue by default, and measuring its cost was
 starting it a decision. M15's own acceptance holds in full for what it kept, so it is `done` and no
 `stopped` artifact is written, as with M10-b and M12 (D-152).
 
-M15-b **crossed the count at three and was not split** (D-191), measured before any code was
+M15-b **crossed the count at three and was not split** (D-193), measured before any code was
 written. `lib/host.sh` is introduced and uncounted; the three counted are `lib/disposition.sh`
 (the `gap` arm becomes a reading of the event's own evidence, plus `record_notification`),
 `lib/rows.sh` (`gap_check` routes on the disposition, `stall_check` subtracts proven sleep) and
