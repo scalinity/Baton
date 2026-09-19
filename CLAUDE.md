@@ -29,7 +29,9 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
    `docs/DECISIONS.md` entries, the `docs/ARCHITECTURE.md` §10 row; commit on the branch.
 2. Merge into `main`. If the merge fails, write a `stopped` artifact with reason `merge-failed`
    and go no further. Then run the standing check, `sh tests/run.sh`, on `main`; fix `main` if it
-   fails, else write `stopped` with reason `main-broken`.
+   fails, else write `stopped` with reason `main-broken`. Read the run to completion and quote its
+   scenario count and its failure count in the completion evidence: a run the harness moved to the
+   background is not finished until its output has been read, and a check nobody read is unrun.
 3. On `main`: refresh the copy-ready prompt only of a listed milestone with neither an open lane nor an open park (parts 1 and
    3–7; part 4 additively; part 2 stays the slot line). Establish open lanes and open parks
    by `baton status` and the dispatch-log check in `CONTRACT.md` clause 3(c); absence from status

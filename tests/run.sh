@@ -25,7 +25,25 @@
 # has been read and judged right; BATON_TESTS_FREEZE=all does it for every scenario and is for a
 # harness change that moves every expectation at once. BATON_TESTS_ONLY=<glob> runs the scenarios
 # whose names match it and no others; the standing check is the run without it.
+# BATON_TESTS_DEADLINE=<seconds> (default 1800) stops a run that has reached it, and a run whose
+# starting process has gone stops on its own; both exit 3, before the next scenario begins.
 set -eu
+
+# A run is an orphan when the process that started it is gone: a session that moves the suite to the
+# background and then ends leaves it reparented to launchd (ppid 1), running every scenario twice
+# for nobody. The test is parentage and not elapsed time, so a slow run whose starter is alive is
+# never stopped by it. If ps is unavailable or blocked the substitution is empty, `[ "" = 1 ]` is
+# false, and the guard never fires rather than firing wrongly.
+# The deadline is the harness measuring itself: it reads the real clock with a bare `date` and
+# writes no event, so BATON_DATE, which governs the timestamps the log holds, has no part in it.
+# Both stops exit 3, never 0 and never the 1 of a failed scenario, so an abort is not a pass and is
+# told apart from a scenario that failed.
+run_orphaned() {
+  [ "$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')" = 1 ]
+}
+run_started=$(date +%s)
+run_deadline=${BATON_TESTS_DEADLINE:-1800}
+
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(dirname "$here")
 tmproot=$(mktemp -d "${TMPDIR:-/tmp}/baton-tests.XXXXXX")
@@ -45,6 +63,14 @@ BATON_DATE=date
 . "$root/lib/derive.sh"
 
 for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
+  if run_orphaned; then
+    echo "run: the starting process is gone; this run is an orphan and stops here" >&2
+    exit 3
+  fi
+  if [ "$(( $(date +%s) - run_started ))" -ge "$run_deadline" ]; then
+    echo "run: reached ${run_deadline}s; stopping rather than running unbounded" >&2
+    exit 3
+  fi
   # A glob that matches nothing is left as its own text by the shell; it names no scenario.
   [ -d "$sc" ] || continue
   sc=${sc%/}
