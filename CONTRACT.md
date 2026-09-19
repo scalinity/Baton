@@ -88,9 +88,12 @@ requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `do
 
 ## Baton's side, recorded beside the contract
 
-Baton creates the milestone worktree from `main`, dispatches with it as `cwd` and never removes it,
-recording on the dispatch event the commit it stands at — the attempt's **baseline**; injects the
-Stop gate, the StopFailure hook and the status-feed command at dispatch, the first two
+Baton creates the milestone worktree from `main` under its own home, dispatches with it as `cwd`,
+and records on the dispatch event the commit it stands at — the attempt's **baseline**. It never
+removes a worktree. It may move one, which loses nothing, and never while a session is working in
+it; a project's own record of where a worktree is is git's registration, so a session's recorded
+working directory and Baton's next dispatch cannot disagree. It injects the Stop gate, the
+StopFailure hook and the status-feed command at dispatch, the first two
 standing down once the session's `complete` handover is archived; verifies `merged_as` before a
 `complete` handover is acted on, and for a handover of a milestone it dispatched verifies the whole
 chain — the baseline is an ancestor of the attempt's branch tip, that tip is an ancestor of

@@ -375,7 +375,7 @@ tick_run() {
   # sight every lane, and a dispatch would be a dispatch over something already running. A handover
   # waiting one more minute costs nothing; `status` line 9 shows it waiting. The status says the
   # tick did not complete, so the marker is not written and the gap report is what tells the person.
-  # This reading stays on `now` where the one after the lanes passes `tr_now` (D-153): it returns
+  # This reading stays on `now` where the one after the lanes passes `tr_now` (D-155): it returns
   # before step 2, the only pass that can spend minutes, so the two instants are the same second and
   # `now` is the one that stays honest if anything is ever added above it.
   [ "$tr_rows_ok" = yes ] || { gap_check "$tr_rows"; return 3; }
@@ -437,6 +437,23 @@ tick_run() {
       tr_status=3
     fi
   done
+  # The legacy sibling worktrees into the managed root, per project, before the dispatch. After the
+  # per-project loop because a lane recovered there may have just ended, and before the dispatch
+  # because `worktree_ensure` resolves from git's own registration: a worktree moved in this pass is
+  # found at its new path by the very next dispatch of that milestone, in this same tick. Ordered
+  # before `offline_check` deliberately — that pass stops a finished session's process, and a
+  # worktree freed by it is one this pass may move on the next tick, never in the same breath as a
+  # stop no listing has yet confirmed.
+  #
+  # A project whose migration fails stops neither the others nor the dispatch. Nothing downstream
+  # reads a worktree's location except through `worktree_of`, which asks git every time, so a
+  # worktree that stayed where it was is a worktree that still works.
+  tr_n=$(printf '%s' "$tr_keys" | jq length); tr_i=0
+  while [ "$tr_i" -lt "$tr_n" ]; do
+    tr_key=$(printf '%s' "$tr_keys" | jq -r ".[$tr_i]"); tr_i=$((tr_i + 1))
+    worktree_migrate "$tr_key" "$tr_rows" || tr_status=3
+  done
+
   # A finished session's process, once across every project: its ranking bounds memory, which is the
   # Mac's, as the cap is. Before the dispatch, so a process taken offline is gone before a new one
   # starts; and the wake session after it, because the first `offline` event is what calls for one.

@@ -1,2 +1,2 @@
-mkdir -p Fixture-M02
+mkdir -p "$BATON_HOME/worktrees/Fixture/M02"
 "$BATON" dispatch Fixture M02
