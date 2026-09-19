@@ -110,8 +110,18 @@ Bind completion to the dispatch baseline: the commit must descend from the basel
 dispatch, the branch must have touched paths within the milestone's declared scope, and the standing
 check result must be recorded by Baton rather than asserted by the session.
 
+**F07 comes before F09 in this milestone's lead-in.** `inbox_consume` moves an artifact through
+`archive_move` before appending `consumed`, so a tick killed between them leaves an archived file no
+event claims, with no advancement and a suppressed crash path. Recovery for an archived artifact
+whose consumed receipt is missing is established **first**; only then does F09 settle the standing
+check's command, working directory, pinned revision, deadline and result-to-revision binding. The
+order is the point: adding more completion-result semantics on top of a receipt that can go missing
+puts the new evidence in the same hole as the old.
+
 **Done when:** a completion artifact naming an unrelated ancestral commit is rejected; one whose
-branch changed nothing in scope is rejected; the check result in the record was produced by Baton.
+branch changed nothing in scope is rejected; the check result in the record was produced by Baton;
+and an archived artifact whose `consumed` event is missing is reconciled on a later tick rather than
+stranded.
 
 ### M11 — `baton onboard <path>`
 
@@ -134,8 +144,40 @@ V1.1: Baton states what it thinks the project is and what done looks like, in ab
 takes a yes or no. It is not a plan review. It is the check that catches "this is a rewrite, and I
 did not want a rewrite" in ten seconds.
 
+**The confirmation produces a record, and the record carries constraints.** F10 is settled here, not
+carried to M15-c as a reminder: the same confirmation that takes the yes writes a **confirmed intent
+record** holding the existing `goal` *and* explicit constraints and non-goals. For Baton that record
+names the controller's POSIX-shell boundary and excludes a Swift/SQLite replacement. The independent
+guard (M15-c) receives that record and the work being evaluated — never the plan author's rationale,
+which is the thing it exists to be independent of. This adds no second plan-approval gate: one
+confirmation, one record, a wider record. The regression it owes is one goal paired with two
+proposals — a permitted extension and the forbidden controller replacement — which the constraint
+record must distinguish and a goal-only check cannot.
+
+**F11 settles with F10, here.** Existing registrations must migrate into the new intent
+representation without resetting progress. `install.sh:131-133` writes `{path, plan}` **only when
+`projects/<key>/project.json` does not already exist**, so reinstalling over a registration writes
+nothing and can never supply a field that registration lacks; Baton's own registration is exactly
+that case. Migration is M11's, not the installer's.
+
+**F03 is settled here too, before M11's first judgment session.** Request identity, terminal
+outcomes, restart behaviour and admission-slot ownership for planning and judgment sessions belong
+to the first special session, not to a later guard that inherits them undefined. A guard session
+holding an admission slot while its own result is awaited can deadlock the cap, and D-130 now bears
+on this directly: `do_unresolved` counts a launch that could not be proved to have started nothing,
+so a special session's slot is counted conservatively and a role with no terminal outcome holds that
+count open.
+
+**M4 moves here** (V1 review, minor): there is no version pin, fingerprint or canary anywhere and
+`claude --version` is never run, so a prose-in-JSON match such as `(.row.waitingFor // "") == "input
+needed"` would cost the `question` park silently if its casing changed. No present-day CLI
+incompatibility is verified — the concern is the missing detector as this interface widens, so the
+checks belong to the shapes the new session roles actually consume rather than to a general sweep.
+
 **Done when:** an unprepared repository is registered and its plan parses, without a human editing
-anything in that repository first.
+anything in that repository first; the confirmation writes an intent record carrying goal,
+constraints and non-goals; an existing registration migrates into it without losing progress; and
+the session-role lifecycle is written down before the first judgment session runs.
 
 ### M12 — Plan generation from a repository
 
@@ -377,7 +419,10 @@ restoration can then admit M17 automatically. This operational fact is recorded,
 3. A completion claim that did not do the work is rejected.
 4. A run pauses on budget and resumes without help.
 5. Two independent milestones run concurrently.
-6. A milestone that drifts from the stated goal trips the scope guard and reaches a person.
+6. A milestone that drifts from the stated goal trips the scope guard and reaches a person. The
+   guard is given M11's confirmed intent record — goal, constraints and non-goals — and the work,
+   never the plan author's rationale; a goal-only check does not meet this item, because one goal
+   admits both a permitted extension and a forbidden controller replacement (F10, settled in M11).
 7. Execution stays on subscription pricing throughout.
 8. M17 reports every eligible milestone's unmet dispatch preconditions together and refuses them
    before branch/worktree/settings creation, retaining the existing retry bound. M17-b gives all
