@@ -49,7 +49,11 @@ answer_candidates_print() {
   acp_n=$(printf '%s' "$1" | jq length); acp_i=0
   while [ "$acp_i" -lt "$acp_n" ]; do
     acp_c=$(printf '%s' "$1" | jq -c --argjson i "$acp_i" '.[$i]'); acp_i=$((acp_i + 1))
-    acp_target=$(printf '%s' "$acp_c" | jq -r '.project + "/" + .milestone')
+    # `?` for a park that names no project, which is how `status` already renders one, so the two
+    # verbs do not spell the same park two ways. Such a park cannot be answered at all — no ruling
+    # reaches a lane Baton never dispatched — and the line is a command, so `?` is the honest
+    # rendering: obviously not runnable, rather than the literal `null` this printed before.
+    acp_target=$(printf '%s' "$acp_c" | jq -r '(.project // "?") + "/" + .milestone')
     [ "$acp_q" != at ] || acp_target=$acp_target@$(printf '%s' "$acp_c" | jq -r .at)
     render_row "$acp_stream" plain '  %s · %s · %s\n' \
       "$(render_hint "$acp_stream" "baton answer $acp_target")" \
@@ -212,16 +216,19 @@ answer_handback() {
 #
 # The park is named by its `at`, because that is already its identity everywhere else: derivation 2
 # keys on it, `resolve` closes an escalation by it, and `escalation_at` joins the two. Inventing a
-# short id would be a second name for a thing that has one. `@` separates it because no milestone id
-# and no ISO timestamp holds one, and the split takes the *last* `@` so a project key that holds one
-# still parses.
+# short id would be a second name for a thing that has one.
+#
+# `@` separates it, and the split is written so that a project key holding one cannot be mistaken for
+# it: the tail must begin with a digit, which every `at` does because every one begins with a year,
+# and the split then takes the *last* `@`. Without the digit `pro@ject/M03` parses as the project
+# `pro` parked at `ject/M03`, and the person gets a refusal about a lane they did not name.
 verb_answer() {
   # An empty ruling would still arrive under the label, telling the session a decision had been made
   # and giving it nothing; and it would close the park, so the person could not send the real one.
   [ -n "$2" ] || { render_failure err "baton: a ruling is words or an option number, and this one is empty"; return 1; }
   case "$1" in
-    *@*) vba_at=${1##*@}; vba_t=${1%@*} ;;
-    *)   vba_at=''; vba_t=$1 ;;
+    *@[0-9]*) vba_at=${1##*@}; vba_t=${1%@*} ;;
+    *)        vba_at=''; vba_t=$1 ;;
   esac
   case "$vba_t" in
     */*) vba_p=${vba_t%%/*}; vba_m=${vba_t#*/} ;;
