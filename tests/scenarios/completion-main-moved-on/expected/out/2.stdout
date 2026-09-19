@@ -1,1 +1,2 @@
 == another lane's work landed on main after the merge: the changed paths are still the branch's own, and the check names the merge commit rather than whatever main now points at ==
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json (complete, merged_as @MERGE@, 1 path changed, check passed)

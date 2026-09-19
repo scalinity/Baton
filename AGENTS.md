@@ -29,15 +29,24 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
    `docs/DECISIONS.md` entries, the `docs/ARCHITECTURE.md` §10 row; commit on the branch.
 2. Merge into `main`. If the merge fails, write a `stopped` artifact with reason `merge-failed`
    and go no further. Then run the standing check, `sh tests/run.sh`, on `main`; fix `main` if it
-   fails, else write `stopped` with reason `main-broken`.
+   fails, else write `stopped` with reason `main-broken`. Read the run to completion and quote its
+   scenario count and its failure count in the completion evidence: a run the harness moved to the
+   background is not finished until its output has been read, and a check nobody read is unrun.
+   Run it by absolute path — `sh /Users/danny/Documents/Apps/Baton/tests/run.sh` for `main` — and
+   never `cd` out of the session's own worktree to do it: two full runs that began with a `cd` into
+   the canonical checkout ended in a signal with no failing line and no message, because the shell
+   is reset when a command leaves the session's directory and the reset took the run with it.
+   `tests/run.sh` reads nothing from the working directory, so the absolute path runs `main`'s copy
+   without leaving the worktree.
 3. On `main`: refresh the copy-ready prompt only of a listed milestone with neither an open lane nor an open park (parts 1 and
    3–7; part 4 additively; part 2 stays the slot line). Establish open lanes and open parks
    by `baton status` and the dispatch-log check in `CONTRACT.md` clause 3(c); absence from status
    does not prove closure. Still name every eligible milestone with its correct disposition; write
    `done` in this milestone's `Status`
    cell in `docs/MILESTONES.md`; correct the plan file if this session learned it is wrong, with a
-   decision entry; leave the session's worktree (`../Baton-M<nn>`) in place, so the session can be
-   resumed later; commit. Then run `BATON_HOME=/Users/danny/.baton sh install.sh` from the canonical
+   decision entry; leave the session's worktree in place — its path is the one the
+   dispatch printed, not a path derived from the milestone's name — so the session can be resumed
+   later; commit. Then run `BATON_HOME=/Users/danny/.baton sh install.sh` from the canonical
    checkout, so the tick that consumes this handover and dispatches the next milestone runs the relay
    just merged (D-079); the home is named because a session inherits the background service's
    environment, which can carry another home's `BATON_HOME` (D-091). The
@@ -56,7 +65,9 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
 
 M01 is the one session started by hand, on `main`, with no worktree and no injected gate: the
 contract in this file alone makes it write the artifact. From M02 on, every session is dispatched
-by Baton into `../Baton-M<nn>` on branch `m<nn>`, with the Stop gate injected.
+by Baton into its milestone worktree on branch `m<nn>`, with the Stop gate injected. A new worktree
+is created at `~/.baton/worktrees/Baton/M<nn>`; one the milestone already has is used where git has
+it registered, which is what the dispatch's own `worktree` line names.
 
 ## What a kickoff prompt contains
 
@@ -103,7 +114,9 @@ reason.
 - **The tick embeds no model call** (ADR 0001, D-001). Judgement is dispatched as a session and
   returns as an artifact.
 - **Never touch a target project's code.** Reclaim is read, never written; no session is dispatched
-  into it before M08, and no Baton session edits it ever. A plan that does not parse is reported.
+  into it before M16, which onboards it, and no Baton session edits it ever. A plan that does not
+  parse is reported. `baton onboard` does not write a target repository either: a plan it cannot read
+  strictly is adapted in the registration, never in the project's own document (D-156).
 - **The deny list is the safety rail.** Dispatched sessions run under `bypassPermissions`; the two
   deny classes in `docs/SPEC.md` REQ-PERM-04 are what stops a session escalating privileges or
   rewriting Baton's own record. A session writes `~/.baton/inbox/` and nothing else under

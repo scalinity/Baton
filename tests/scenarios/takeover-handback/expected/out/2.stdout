@@ -1,3 +1,7 @@
+== a park id names a park, and a taken-over lane has none. It is refused before the hand-back
+== below, because falling through to that would flaglessly resume a session on the strength of
+== a timestamp that matched nothing — a resume nobody asked for.
+status 1
 == a taken-over lane is not parked, so it has no ruling to receive ==
 status 1
 == the hand-back is the word continue, and it writes a resume and no resolution ==

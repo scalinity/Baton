@@ -1,0 +1,12 @@
+set -eu
+# The same two-hour gap against a host that would not answer: `pmset` exits non-zero. The message
+# goes out, as it must, and it says which doubt this was — "the sleep history could not explain it
+# (history-unreadable), which is not a claim that the host stayed awake". The event carries
+# `host.assessed: unknown` with the reason, so the log says the same thing the Mac said.
+#
+# This is the fallback the whole design turns on. If macOS stops retaining this history, or renames
+# a domain, or a later version refuses the read in a LaunchAgent, every gap lands here: visible,
+# notified, and honest about what was not established. It never lands on silence.
+"$BATON" tick
+echo
+"$BATON" status

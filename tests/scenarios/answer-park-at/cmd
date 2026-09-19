@@ -1,0 +1,6 @@
+echo "== limitation 33's first half: a lane carrying two parks had no answerable name. The park's own"
+echo "== at is that name, and it answers exactly one of them."
+"$BATON" answer Fixture/M03@2026-09-12T11:11:00+01:00 "go on without the second opinion" || echo "status $?"
+echo "== and it lands once. The same park id finds nothing the second time, and the refusal shows the"
+echo "== park that is still standing rather than reading as though the lane were clear."
+"$BATON" answer Fixture/M03@2026-09-12T11:11:00+01:00 "go on without the second opinion" || echo "status $?"

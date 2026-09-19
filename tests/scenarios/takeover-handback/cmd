@@ -1,3 +1,7 @@
+echo "== a park id names a park, and a taken-over lane has none. It is refused before the hand-back"
+echo "== below, because falling through to that would flaglessly resume a session on the strength of"
+echo "== a timestamp that matched nothing — a resume nobody asked for."
+"$BATON" answer M03@2026-09-12T10:30:00+01:00 continue || echo "status $?"
 echo "== a taken-over lane is not parked, so it has no ruling to receive =="
 "$BATON" answer M03 "do it the other way" || echo "status $?"
 echo "== the hand-back is the word continue, and it writes a resume and no resolution =="

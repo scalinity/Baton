@@ -76,11 +76,11 @@ echo
 # One stream a terminal and the other not, both ways: the answer is per stream, and a verb whose
 # stdout is redirected still decorates the stderr a person is watching.
 echo "== stdout to a pipe, stderr to the terminal =="
-pty env "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 \
+pty env -u NO_COLOR -u FORCE_COLOR "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 \
   sh -c ". \"\$ROOT/lib/render.sh\"; exec > /dev/null; render_init; $records"
 echo
 echo "== stderr to a pipe, stdout to the terminal =="
-pty env "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 \
+pty env -u NO_COLOR -u FORCE_COLOR "ROOT=$ROOT" TERM=xterm-256color COLUMNS=80 LC_ALL=en_US.UTF-8 \
   sh -c ". \"\$ROOT/lib/render.sh\"; exec 2> /dev/null; render_init; $records"
 echo
 

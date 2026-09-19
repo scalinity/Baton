@@ -1,3 +1,9 @@
 echo "== the standing check outlasts its deadline: it is killed and recorded timed-out, which is not a pass, so the project is parked rather than the chain advancing on a check that never finished =="
 sh "$ROOT/tests/completion-fixture.sh" check-slow
 sh "$ROOT/tests/consume-once.sh"
+# The starting tick returns pending without waiting. Advance the frozen clock past the
+# registered deadline (1 s) so the next observation records timed-out rather than holding
+# the lock through a sleep.
+if [ -f "$BATON_HOME/inbox/M02-11111111-2222-4333-8444-555555555555.json" ]; then
+  printf '%s\n' "2026-09-12T00:00:02+01:00" > "${SHIM:?}/now"
+fi

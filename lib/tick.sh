@@ -384,8 +384,17 @@ tick_run() {
   # because REQ-TICK-03 names one, and it is resolved in the same breath because the condition it
   # names is already over: Baton kept working past it, which is what separates a message from a
   # park, and leaving it open would hold every project on something nobody has to do.
+  #
+  # **Recorded and not delivered** (`record_only`), because that sentence is the definition of the
+  # fourth disposition and this class is the one condition that already met it. The event, the line
+  # and the resolution are unchanged; what goes is the Mac message, which said "nothing to do; Baton
+  # cleared it and carried on" — `escalation_verb`'s own words for this class since M05 — about a
+  # park that no longer existed by the time the tick ended. A message that cannot be acted on
+  # teaches its reader to dismiss the channel, and this channel carries the parks that can.
+  # `record_only` asks `disposition_of` rather than taking this call's word for it, so the class and
+  # the delivery cannot drift apart.
   if [ -n "${1:-}" ]; then
-    escalate "" "" "" "" baton-unhealthy project "$1" || tr_status=3
+    record_only "" "" "" "" baton-unhealthy project "$1" || tr_status=3
     printf '%s' "$1" | jq -r '"unhealthy   " + .detail' || tr_status=3
     park_resolve "" '^baton-unhealthy$' 'the lock was cleared' > /dev/null || tr_status=3
   fi
@@ -452,6 +461,18 @@ tick_run() {
   #    its event (F07, D-146); the pass owns that, so nothing here changes.
   inbox_consume "$tr_rows" "$tr_rows_ok" || {
     render_failure err "inbox       the inbox pass failed; some artifacts may remain unread"
+    tr_status=3
+  }
+
+  # The rejection parks that name no project, re-read. It runs here and not inside `tick_project`
+  # because a park with no project is absent from every per-project pass by construction, which is
+  # the whole of why it was the one park with no route out at all (limitation 33). It runs *after*
+  # the consume rather than before it because one of the two conditions it reads is a handover of
+  # the same session having been acted on, and the consume is what acts on one — so a session that
+  # rewrote its artifact correctly has its old rejection park closed in the same tick rather than a
+  # minute later, which is the same reason step 3's three unparks run before the rows are read.
+  rejection_resolve_check || {
+    render_failure err "settle      the rejection parks could not be re-read this tick"
     tr_status=3
   }
 

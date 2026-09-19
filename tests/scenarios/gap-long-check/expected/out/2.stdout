@@ -1,1 +1,2 @@
 == the standing check Baton runs itself spends eleven minutes under the tick lock: the gap is measured against the clock the tick started with, so Baton does not report itself as an outage for the length of the check it was running ==
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:11:00+01:00.json (complete, merged_as @MERGE@, 1 path changed, check passed)

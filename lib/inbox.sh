@@ -187,10 +187,12 @@ artifact_check() {
                 | with_entries(select(.value != null))]')
       done
       # Last of the complete checks, because it is the only expensive one: it asks git four
-      # questions and then runs the project's standing check on a tree of its own. A file that
+      # questions and then starts the project's standing check on a tree of its own. A file that
       # fails a cheap rule never reaches it, and a file that reaches it is one whose every other
       # rule has held. Its refusals are rejections; a check that ran and failed is not one, and
-      # arrives here as a result the consume records and parks on (M10 §7.4).
+      # arrives here as a result the consume records and parks on (M10 §7.4). A check still
+      # running returns pending: the artifact stays, the tick completes, and a later tick
+      # collects the marker.
       ac_completion=$(completion_verify "$ac_path" "$ac_key" \
         "$(printf '%s' "$ac_a" | jq -r .milestone)" "$ac_session" "$ac_merged") || {
         jq -nc --argjson c "$ac_completion" '$c'
@@ -386,7 +388,16 @@ inbox_consume() {
       render_failure err "baton: $ic_repeat"
       ic_status=1
     elif ic_ok=$(artifact_check "$ic_f"); then
-      consume_one "$ic_f" "$ic_ok" "$1" || ic_status=1
+      # A standing check still running, or one whose producer died before the deadline with no
+      # marker, is not a consume failure (D-133) and must not withhold the tick marker (D-115).
+      # The artifact stays; the next tick observes the same directory and does not start a second
+      # check.
+      if printf '%s' "$ic_ok" | jq -e '.completion.pending == true' >/dev/null 2>&1; then
+        render_row out action 'check     %s · standing check pending\n' \
+          "$(render_token out milestone "$(printf '%s' "$ic_ok" | jq -r '.artifact.milestone')")"
+      else
+        consume_one "$ic_f" "$ic_ok" "$1" || ic_status=1
+      fi
     else
       # jq answers an empty document with an empty string and a zero status, so a check that died
       # without naming a rule would reject the file under a blank rule and say nothing useful. Name

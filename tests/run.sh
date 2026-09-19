@@ -8,7 +8,8 @@
 #
 # A scenario holds: cmd (sourced twice; $BATON, $ROOT, $SCENARIO, $SHIM are set), home/ (the
 # BATON_HOME to start from; @TMP@ and @COMMIT@ in any file are replaced), rows.json (what agents --json answers
-# first), now (the clock), optional shim/ (the claude shim's knobs), optional project/ (a fixture
+# first), now (the clock), optional shim/ (the claude shim's knobs, and the pmset shim's pmset.log —
+# the host's sleep history — and pmset.status), optional project/ (a fixture
 # project; tests/project/ otherwise), optional other/ (a second fixture project at $tmp/Other, its
 # commit @OTHERCOMMIT@), optional transcripts/ (the tree BATON_TRANSCRIPTS points at), optional
 # jobs/ (the tree BATON_JOBS points at), optional
@@ -25,7 +26,64 @@
 # has been read and judged right; BATON_TESTS_FREEZE=all does it for every scenario and is for a
 # harness change that moves every expectation at once. BATON_TESTS_ONLY=<glob> runs the scenarios
 # whose names match it and no others; the standing check is the run without it.
+# A run whose BATON_TESTS_OWNER=<pid> has gone stops on its own, and so does one that has reached the
+# BATON_TESTS_DEADLINE=<seconds> a caller named, of which there is none by default; both exit 3,
+# before the next scenario begins. The run sets LC_ALL=en_US.UTF-8 for itself and refuses, exit 3,
+# where that locale is not installed, and unsets NO_COLOR and FORCE_COLOR.
 set -eu
+
+# A run is abandoned when the caller that wanted its result has gone, and only that caller can say
+# who it is: BATON_TESTS_OWNER names a process that lives exactly as long as the caller wants the
+# run, and once `kill -0` says it is gone the run stops before its next scenario. No owner named
+# means no such stop, so a run detached on purpose is never at risk, because nothing claims to own
+# it. Parentage cannot stand in for this: a parent of launchd (ppid 1) says the starter has gone and
+# not that nobody is reading, and a live session reads a detached run's output from a file.
+# A run with BATON_TESTS_FREEZE set ignores the owner altogether, because stopping it midway leaves
+# the expectations frozen so far, which running it again does not repair.
+# The owner is a pid of the same user. `kill -0` also fails on another user's live process, and a
+# pid handed to a new process after its owner died reads as alive, which is the safe direction.
+# The deadline is the harness measuring itself: it reads the real clock with a bare `date` and
+# writes no event, so BATON_DATE, which governs the timestamps the log holds, has no part in it.
+# There is no default deadline. A constant cannot track a suite that has grown from 246 scenarios to
+# 405 during this project, and a deadline that fires on a healthy run is read downstream as evidence
+# about the code: the abort is a status other than 0, which the relay records as a failed check. A
+# caller that wants a bound names one.
+# Both stops exit 3, never 0 and never the 1 of a failed scenario, so an abort is not a pass and is
+# told apart from a scenario that failed.
+run_owner=${BATON_TESTS_OWNER:-}
+case "$run_owner" in
+  '') ;;
+  *[!0-9]*) echo "run: BATON_TESTS_OWNER is not a pid ($run_owner); running without an owner" >&2
+            run_owner= ;;
+esac
+if [ -n "$run_owner" ] && [ -n "${BATON_TESTS_FREEZE:-}" ]; then
+  echo "run: BATON_TESTS_FREEZE is set, so BATON_TESTS_OWNER is not enforced" >&2
+  run_owner=
+fi
+run_started=$(date +%s)
+run_deadline=${BATON_TESTS_DEADLINE:-}
+
+# The expectations were frozen under en_US.UTF-8, which the launchd job and every dispatched session
+# already run in (LC_ALL in the plist and in claude_bg), so the harness sets it itself and does not
+# rely on its caller. A shell with no LANG runs in the C locale, where the truncation of a multibyte
+# string, the bytes of `·` in an `od` dump and the order `ls` gives all differ, and four scenarios
+# fail for a reason that has nothing to do with the code, which a hand-run close-out reads as a
+# broken main. Where the locale is not installed the run refuses rather than run in another one and
+# report failures that mean nothing.
+if ! locale -a 2>/dev/null | grep -qx 'en_US.UTF-8'; then
+  echo "run: the en_US.UTF-8 locale is not installed (locale -a does not list it), and the expectations were frozen under it; refusing to run in another locale" >&2
+  exit 3
+fi
+LC_ALL=en_US.UTF-8
+export LC_ALL
+
+# Colour is the same kind of inheritance. A layout that renders for a terminal reads NO_COLOR
+# (lib/render.sh), and a verb run from inside a Claude Code session inherits FORCE_COLOR
+# (lib/answer.sh, lib/dispatch.sh), so a calling shell that has either changes what a scenario is
+# handed. render-matrix already scrubs both for its own terminal. Both are unset here and neither is
+# set, so every scenario starts from one baseline and a scenario that tests colour chooses its own.
+unset NO_COLOR FORCE_COLOR
+
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(dirname "$here")
 tmproot=$(mktemp -d "${TMPDIR:-/tmp}/baton-tests.XXXXXX")
@@ -45,6 +103,14 @@ BATON_DATE=date
 . "$root/lib/derive.sh"
 
 for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
+  if [ -n "$run_owner" ] && ! kill -0 "$run_owner" 2>/dev/null; then
+    echo "run: the owner, pid $run_owner, has gone; this run is abandoned and stops here" >&2
+    exit 3
+  fi
+  if [ -n "$run_deadline" ] && [ "$(( $(date +%s) - run_started ))" -ge "$run_deadline" ]; then
+    echo "run: reached ${run_deadline}s; stopping rather than running unbounded" >&2
+    exit 3
+  fi
   # A glob that matches nothing is left as its own text by the shell; it names no scenario.
   [ -d "$sc" ] || continue
   sc=${sc%/}
@@ -134,6 +200,7 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
              BATON_CAFFEINATE="$here/shim/caffeinate" BATON_OSASCRIPT="$here/shim/osascript" BATON_OPEN="$here/shim/open" \
              BATON_SHIM="$tmp/shim" BATON_DAEMON_LOG="$tmp/shim/daemon.log" \
              BATON_TRANSCRIPTS="$tmp/transcripts" BATON_JOBS="$tmp/jobs" BATON_INSTALL_TEST=1 \
+             BATON_PMSET="$here/shim/pmset" \
              BATON="$root/bin/baton" ROOT="$root" SCENARIO="$sc" SHIM="$tmp/shim"
       cd "$tmp"
       set +e
