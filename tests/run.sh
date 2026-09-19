@@ -25,8 +25,10 @@
 # has been read and judged right; BATON_TESTS_FREEZE=all does it for every scenario and is for a
 # harness change that moves every expectation at once. BATON_TESTS_ONLY=<glob> runs the scenarios
 # whose names match it and no others; the standing check is the run without it.
-# BATON_TESTS_DEADLINE=<seconds> (default 1800) stops a run that has reached it, and a run whose
-# starting process has gone stops on its own; both exit 3, before the next scenario begins.
+# A run whose parent process is launchd stops on its own, and so does one that has reached the
+# BATON_TESTS_DEADLINE=<seconds> a caller named, of which there is none by default; both exit 3,
+# before the next scenario begins. The run sets LC_ALL=en_US.UTF-8 for itself and refuses, exit 3,
+# where that locale is not installed.
 set -eu
 
 # A run is an orphan when the process that started it is gone: a session that moves the suite to the
@@ -36,13 +38,31 @@ set -eu
 # false, and the guard never fires rather than firing wrongly.
 # The deadline is the harness measuring itself: it reads the real clock with a bare `date` and
 # writes no event, so BATON_DATE, which governs the timestamps the log holds, has no part in it.
+# There is no default deadline. A constant cannot track a suite that has grown from 246 scenarios to
+# 405 during this project, and a deadline that fires on a healthy run is read downstream as evidence
+# about the code: the abort is a status other than 0, which the relay records as a failed check. A
+# caller that wants a bound names one.
 # Both stops exit 3, never 0 and never the 1 of a failed scenario, so an abort is not a pass and is
 # told apart from a scenario that failed.
 run_orphaned() {
   [ "$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')" = 1 ]
 }
 run_started=$(date +%s)
-run_deadline=${BATON_TESTS_DEADLINE:-1800}
+run_deadline=${BATON_TESTS_DEADLINE:-}
+
+# The expectations were frozen under en_US.UTF-8, which the launchd job and every dispatched session
+# already run in (LC_ALL in the plist and in claude_bg), so the harness sets it itself and does not
+# rely on its caller. A shell with no LANG runs in the C locale, where the truncation of a multibyte
+# string, the bytes of `·` in an `od` dump and the order `ls` gives all differ, and four scenarios
+# fail for a reason that has nothing to do with the code, which a hand-run close-out reads as a
+# broken main. Where the locale is not installed the run refuses rather than run in another one and
+# report failures that mean nothing.
+if ! locale -a 2>/dev/null | grep -qx 'en_US.UTF-8'; then
+  echo "run: the en_US.UTF-8 locale is not installed (locale -a does not list it), and the expectations were frozen under it; refusing to run in another locale" >&2
+  exit 3
+fi
+LC_ALL=en_US.UTF-8
+export LC_ALL
 
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(dirname "$here")
@@ -67,7 +87,7 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
     echo "run: the starting process is gone; this run is an orphan and stops here" >&2
     exit 3
   fi
-  if [ "$(( $(date +%s) - run_started ))" -ge "$run_deadline" ]; then
+  if [ -n "$run_deadline" ] && [ "$(( $(date +%s) - run_started ))" -ge "$run_deadline" ]; then
     echo "run: reached ${run_deadline}s; stopping rather than running unbounded" >&2
     exit 3
   fi
