@@ -44,7 +44,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M10-b | The tick's own clock, while it is working | M10 | opus | medium | | done | A completion whose standing check takes minutes produces no "Baton was not running" message, and a person told about a lock during one is told its holder is alive | No |
 | M11 | baton onboard <path> | M09, M10 | opus | high | | done | An unprepared or partly completed repository is registered and its existing plan adapted after one intent confirmation, which writes a confirmed intent record carrying goal, constraints and non-goals (F10); an existing registration migrates into it without resetting progress (F11); the planning/judgment session lifecycle is settled before the first judgment session (F03); CLI-shape checks cover what those roles consume (M4) | No |
 | M12 | Plan generation from a repository | M11 | opus | high | | done | A repository without a usable plan generates conforming briefs and its first milestone dispatches and completes | No |
-| M13 | Autonomous handoff, and more than one at a time | M12 | opus | high | | | Newly eligible work runs up to the cap, an independent pair overlaps, and effort follows declared Size; co-dispatched sessions name each other in their slot lines, which closes the open half of docs/v2/01-findings.md finding 24 | No |
+| M13 | Autonomous handoff, and more than one at a time | M12 | opus | high | | done | Newly eligible work runs up to the cap, an independent pair overlaps, and effort follows declared Size; co-dispatched sessions name each other in their slot lines, which closes the open half of docs/v2/01-findings.md finding 24 | No |
 | M14 | Budget-aware pacing | M13 | opus | medium | | | Budget exhaustion produces a visible pause and resume time; work resumes automatically when the window rolls | No |
 | M15 | The escalation taxonomy | M12 | opus | high | | | Four dispositions, including HOST-EXPLAINED; solvable parks resolve without notification; replan preserves the goal; the taxonomy owns whether a re-read rebaseline earns a notification class of its own (D-136) | No |
 | M15-b | Host-explained gaps and wake reconciliation | M15 | opus | high | | | Sleep-explained gaps stay recorded and visible without notifications; unexplained gaps notify; confirmed dead sessions use existing recovery | No |
@@ -131,7 +131,7 @@ replan of a project with history is refused row by row and instructed to erase i
 is `lib/planning.sh`, a third counted file against `lib/answer.sh` and `lib/tick.sh`. AI resolution
 needs a second judgment role, which M12 already measured the cost of: `lib/dispatch.sh`,
 `lib/completion.sh` and `lib/inbox.sh`, three more. Replan becomes **M15-d**, with a row above and a
-brief on `main`. The AI route is **recorded and not scheduled** (D-179): a row would put work nobody
+brief on `main`. The AI route is **recorded and not scheduled** (D-182): a row would put work nobody
 has decided to do into the dispatch queue by default, and measuring its cost was meant to make
 starting it a decision. M15's own acceptance holds in full for what it kept, so it is `done` and no
 `stopped` artifact is written, as with M10-b and M12 (D-152).

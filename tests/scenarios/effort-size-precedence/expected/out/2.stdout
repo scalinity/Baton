@@ -1,0 +1,10 @@
+== precedence, three ways. M05's brief declares Large and its plan row's Effort cell says low: the cell is a person's instruction about the dispatch and wins over the brief's description of the work. M06 declares a Size that is not one of the three and M07 states one only inside its fenced prompt, where the dispatch does not look; both carry no effort at all, which is what a blank Effort cell has always meant, and neither parks the project ==
+== what actually reached the CLI ==
+--model opus --effort low 
+--model opus 
+--model opus 
+== status: nothing parked over a Size Baton could not read ==
+last tick: no tick yet · unattended needs the lid open or clamshell
+in flight  Fixture/M05 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+in flight  Fixture/M06 · 0badc0d2-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+in flight  Fixture/M07 · 0badc0d3-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s

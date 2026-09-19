@@ -1,0 +1,4 @@
+echo "== a close-out that named only one half of the pair. M02 is dispatched and M03 — plan-eligible and named by nobody — parks as omitted rather than being admitted silently: eligibility is not a disposition, and the safety net stays under the automatic chain =="
+"$BATON" tick
+echo "== status =="
+"$BATON" status

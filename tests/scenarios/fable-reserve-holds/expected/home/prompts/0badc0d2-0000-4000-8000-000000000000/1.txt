@@ -1,6 +1,6 @@
 You are implementing milestone M07 of Fixture. One line that never changes.
 
-WHAT ELSE IS IN FLIGHT. You are working in @TMP@/home/worktrees/Fixture/M07 on branch m07; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Nothing else is in flight. Stage only your own paths; never git add -A. Do not start the milestone after this one.
+WHAT ELSE IS IN FLIGHT. You are working in @TMP@/home/worktrees/Fixture/M07 on branch m07; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Also in flight: M02 (worktree @TMP@/home/worktrees/Fixture/M02, brief docs/milestones/M02.md). Stage only your own paths; never git add -A. Do not start the milestone after this one.
 
 STARTUP ORDER. Read CLAUDE.md, then the brief.
 
