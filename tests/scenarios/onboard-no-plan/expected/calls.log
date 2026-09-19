@@ -5,3 +5,5 @@ osascript -e 'display notification "the registration names no path and plan · f
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
