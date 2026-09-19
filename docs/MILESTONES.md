@@ -48,7 +48,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M15-b | Host-explained gaps and wake reconciliation | M15 | opus | high | | | Sleep-explained gaps stay recorded and visible without notifications; unexplained gaps notify; confirmed dead sessions use existing recovery | No |
 | M15-c | The independent scope guard | M15-b | opus | high | | | Goal-only checks at plan adoption and close-out; drift always reaches a person | No |
 | M16 | Cold live trial on Reclaim | M14, M15-c | opus | medium | | | Unregistered Reclaim completes at least three cold milestones with one intent confirmation and a live budget pause/resume | No |
-| M17 | Dispatch preconditions before worktree creation | – | opus | high | | | Plan reports every eligible milestone's unmet dispatch preconditions in one pass; dispatch refuses them before creating a branch, worktree or settings, retaining the existing retry bound | No |
+| M17 | Dispatch preconditions before worktree creation | – | opus | high | | done | Plan reports every eligible milestone's unmet dispatch preconditions in one pass; dispatch refuses them before creating a branch, worktree or settings, retaining the existing retry bound | No |
 | M17-b | One rendering layer for Baton's output | M17 | opus | high | | | Every verb and Mac message uses lib/render.sh; terminal output is consistent, plain and matchable when piped and under NO_COLOR; behaviour and event-log format stay unchanged; lib/declared.sh:98 stops claiming a person edited the plan (D-136) | No |
 
 ## Gates
