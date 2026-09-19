@@ -1,0 +1,44 @@
+--- before
+ref refs/heads/main
+worktree Fixture
+beside Fixture
+beside home
+beside jobs
+beside out
+beside shim
+beside transcripts
+settings 0
+sidecars 0
+bg launches 0
+claude stops 0
+caffeinate calls 0
+--- after a prompt-stage refusal (exit 1)
+ref refs/heads/main
+worktree Fixture
+beside Fixture
+beside home
+beside jobs
+beside out
+beside shim
+beside transcripts
+settings 0
+sidecars 0
+bg launches 0
+claude stops 0
+caffeinate calls 0
+--- the deny rules are emptied, and M07 is refused at the settings stage
+--- after a settings-stage refusal (exit 1)
+ref refs/heads/main
+worktree Fixture
+beside Fixture
+beside home
+beside jobs
+beside out
+beside shim
+beside transcripts
+settings 0
+sidecars 0
+bg launches 0
+claude stops 0
+caffeinate calls 0
+two refusals, two failure records, nothing created

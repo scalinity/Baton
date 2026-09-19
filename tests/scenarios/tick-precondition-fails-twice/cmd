@@ -1,0 +1,22 @@
+set -eu
+# A precondition failure is a dispatch failure like any other, and it climbs the same ladder: the
+# first one retries on the next tick and the second parks the lane. M17 deliberately left that bound
+# alone — first-occurrence escalation is M15's classification work — so this fixture is what would
+# notice if the earlier refusal had quietly turned one failure into a park. The harness's two runs
+# are the two ticks.
+"$BATON" tick
+# Whichever tick this is, nothing was created for the lane.
+test ! -e Fixture-M02
+test ! -e "$BATON_HOME/settings/Fixture-M02.json"
+test ! -e "$BATON_HOME/prompts"
+test "$(grep -c -- ' --bg ' "$SHIM/calls.log" || true)" = 0
+# The bound itself, asserted here and not only frozen in expected/: one failure and no park after
+# the first tick, two failures and exactly one park after the second. Which tick this is comes from
+# the log rather than from a counter, so the assertion holds whichever run is executing.
+fails=$(jq -se '[.[] | select(.kind == "dispatch_failed" and .milestone == "M02")] | length' "$BATON_HOME/log.jsonl")
+parks=$(jq -se '[.[] | select(.kind == "escalation" and .milestone == "M02" and .class == "dispatch-failed")] | length' "$BATON_HOME/log.jsonl")
+case "$fails" in
+  1) test "$parks" -eq 0 ;;
+  2) test "$parks" -eq 1 ;;
+  *) echo "unexpected failure count $fails" >&2; exit 1 ;;
+esac

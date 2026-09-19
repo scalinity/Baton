@@ -1,0 +1,5 @@
+You are implementing milestone M03 of Fixture. One line that never changes.
+
+WHAT ELSE IS IN FLIGHT. You are working in @TMP@/Fixture-M03 on branch m03; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Nothing else is in flight. Stage only your own paths; never git add -A. Do not start the milestone after this one.
+
+CLOSE-OUT. Print the handover artifact last in a baton fence. Do not start M04.

@@ -1,0 +1,44 @@
+set -eu
+# The third worktree shape: a worktree cut from the branch before the brief landed on main, so the
+# brief is neither in its HEAD nor on its disk. Both worktree checks fire on one milestone, and the
+# repair offered for the absent file is the merge rather than a checkout of a path the branch does
+# not carry — which is the reading `dispatch-worktree-brief-unreadable` gets the other answer to.
+if ! git -C Fixture show-ref --verify --quiet refs/heads/m03; then
+  git -C Fixture branch m03
+  git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M03 m03
+  cat > Fixture/docs/milestones/M03.md <<'BRIEF'
+# M03 — Committed on main after the branch was cut
+
+## Completion evidence
+
+## Copy-ready session prompt
+
+```
+You are implementing milestone M03 of Fixture. One line that never changes.
+
+WHAT ELSE IS IN FLIGHT. Runs alone unless the dispatch says otherwise.
+
+CLOSE-OUT. Print the handover artifact last in a baton fence.
+```
+BRIEF
+  git -C Fixture add -- docs/milestones/M03.md
+  GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@example GIT_AUTHOR_DATE=2026-09-01T00:00:00+0000 \
+  GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example GIT_COMMITTER_DATE=2026-09-01T00:00:00+0000 \
+    git -C Fixture commit -q -m 'Record M03 brief'
+fi
+head_before=$(git -C Fixture-M03 rev-parse HEAD)
+status=0
+"$BATON" dispatch Fixture M03 || status=$?
+test "$status" -eq 1
+# Two independent worktree-stage defects on one milestone; the event carries the first of them.
+jq -se 'last | .kind == "dispatch_failed" and .stage == "worktree"' "$BATON_HOME/log.jsonl" > /dev/null
+. "$ROOT/tests/lib-load.sh"
+dispatch_preconditions Fixture M03 \
+  | jq -e '[.failures[] | .check] == ["behind-brief", "worktree-brief"]' > /dev/null
+dispatch_preconditions Fixture M03 \
+  | jq -e '[.failures[] | .repair] | unique | length == 1 and (.[0] | test("merge main$"))' > /dev/null
+test ! -e Fixture-M03/docs/milestones/M03.md
+test "$(git -C Fixture-M03 rev-parse HEAD)" = "$head_before"
+test ! -e "$BATON_HOME/settings/Fixture-M03.json"
+printf '%s\n' 'Both worktree checks fired, both offering the merge; nothing was created or moved.'
+exit "$status"

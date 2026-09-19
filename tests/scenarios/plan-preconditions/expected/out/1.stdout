@@ -1,0 +1,26 @@
+plan Fixture: @TMP@/Fixture/docs/MILESTONES.md
+M01  done  model opus  effort -  remote no
+M02  eligible  model opus  effort high  remote no
+M03  eligible  model opus  effort -  remote no
+M04  eligible  model opus  effort -  remote no
+M05  eligible  model opus  effort -  remote no
+M06  held  model sonnet  effort -  remote no
+M07  waits on M06  model opus  effort -  remote no
+M08  held by gate "v1 ships"  model fable  effort -  remote no
+M09  eligible  model opus  effort -  remote no
+M10  eligible  model opus  effort -  remote no
+gate "v1 ships" holds M08
+widenings: none
+preconditions: 6 eligible, 5 with unmet preconditions
+  M02  ready
+  M03  prompt/brief  docs/milestones/M03.md  Baton needs M03's brief docs/milestones/M03.md on main with a fenced block under "## Copy-ready session prompt". The brief is on main, but no complete fenced block follows that heading. Add the heading and fenced block, then commit it on main: git -C "@TMP@/Fixture" add -- "docs/milestones/M03.md" && git -C "@TMP@/Fixture" commit -m "Record M03 brief"
+  M03  note  the kickoff prompt could not be read, so the documents it names were not inspected
+  M04  prompt/slot  docs/milestones/M04.md  Baton needs M04's kickoff prompt to carry the slot paragraph it replaces at dispatch with what else is in flight: the prompt has no paragraph beginning WHAT ELSE IS IN FLIGHT. Write the paragraph "WHAT ELSE IS IN FLIGHT. Runs alone unless the dispatch says otherwise." into the fenced block under "## Copy-ready session prompt", then commit it on main: git -C '@TMP@/Fixture' add -- 'docs/milestones/M04.md' && git -C '@TMP@/Fixture' commit -m 'Record M04 brief'
+  M04  prompt/reference  docs/nowhere.md  Baton needs every document M04's kickoff prompt names to be on main, because the session is told to read them and its worktree is created from main. It names docs/nowhere.md, which main does not have. Write or restore that document, then commit it on main: git -C '@TMP@/Fixture' add -- 'docs/nowhere.md' && git -C '@TMP@/Fixture' commit -m 'Record docs/nowhere.md'
+  M04  prompt/reference-ambiguous  docs/milestones/M04.md  Baton needs every document M04's kickoff prompt names to be a concrete path it can look up on main. "docs/*.md" is not one, and Baton never evaluates the text to find out what it means. Write the concrete path into the fenced block under "## Copy-ready session prompt", then commit it on main: git -C '@TMP@/Fixture' add -- 'docs/milestones/M04.md' && git -C '@TMP@/Fixture' commit -m 'Record M04 brief'
+  M05  prompt/brief  docs/milestones/M05.md  Baton needs M05's brief docs/milestones/M05.md on main with a fenced block under "## Copy-ready session prompt". It does not exist on main or in the working tree. Write the brief with that heading and fenced block, then commit it on main: git -C "@TMP@/Fixture" add -- "docs/milestones/M05.md" && git -C "@TMP@/Fixture" commit -m "Record M05 brief"
+  M05  note  the kickoff prompt could not be read, so the documents it names were not inspected
+  M09  prompt/brief  docs/milestones/M09.md  Baton needs M09's brief docs/milestones/M09.md on main with a fenced block under "## Copy-ready session prompt". The brief is on main, but no complete fenced block follows that heading. Add the heading and fenced block, then commit it on main: git -C "@TMP@/Fixture" add -- "docs/milestones/M09.md" && git -C "@TMP@/Fixture" commit -m "Record M09 brief"
+  M09  note  the kickoff prompt could not be read, so the documents it names were not inspected
+  M10  prompt/brief  docs/milestones/M10.md  Baton needs M10's brief docs/milestones/M10.md on main with a fenced block under "## Copy-ready session prompt". It is written on disk but not committed to main. A dispatch reads briefs from main and creates its worktree from main, so the session would not have the file. On main, run: git -C "@TMP@/Fixture" add -- "docs/milestones/M10.md" && git -C "@TMP@/Fixture" commit -m "Record M10 brief"
+  M10  note  the kickoff prompt could not be read, so the documents it names were not inspected

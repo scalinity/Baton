@@ -237,8 +237,68 @@ plan_of_project() {
   printf '%s\n' "$pp_tables"
 }
 
+# plan_preconditions_report <project> <plan json>: the last section of `baton plan`, and the reason
+# a person can repair a whole plan's dispatch defects in one pass instead of learning them one
+# refused dispatch at a time. Every plan-eligible milestone is inspected — the pass does not stop at
+# the first defect, and a defect on one milestone says nothing about its peers — and each failure is
+# printed as `<id>  <stage>/<check>  <path>  <detail>` so a person can grep for a milestone, a stage
+# or a check and still read the whole repair. A shared defect, such as permission rules without deny
+# rules, therefore names every milestone it would refuse rather than only the first.
+#
+# Writes nothing, dispatches nothing, and promises nothing: the runtime rows, the holds and the cap
+# decide admission in their own callers, and a milestone reported ready here is one no *knowable*
+# precondition refuses. Prints the count line first; returns 1 if anything is unmet.
+plan_preconditions_report() {
+  ppr_eligible=$(printf '%s' "$2" | plan_eligible)
+  if [ -z "$ppr_eligible" ]; then
+    echo "preconditions: no eligible milestone"
+    return 0
+  fi
+  ppr_lines=
+  ppr_n=0; ppr_unmet=0
+  for ppr_id in $ppr_eligible; do
+    ppr_n=$((ppr_n + 1))
+    if ! ppr_res=$(dispatch_preconditions "$1" "$ppr_id"); then
+      ppr_unmet=$((ppr_unmet + 1))
+      ppr_lines="$ppr_lines  $ppr_id  not inspected  $ppr_res
+"
+      continue
+    fi
+    # The same reading `dispatch_one` makes of the same result: an array, or nothing that may be
+    # read as an absence of defects. Two readers of one result that disagreed on what counts as a
+    # result would put the report and the refusal back out of step, which is what sharing it avoids.
+    if ! printf '%s' "$ppr_res" | jq -e '(.failures | type) == "array"' > /dev/null 2>&1; then
+      ppr_unmet=$((ppr_unmet + 1))
+      ppr_lines="$ppr_lines  $ppr_id  not inspected  the precondition result carried no failures array
+"
+      continue
+    fi
+    ppr_count=$(printf '%s' "$ppr_res" | jq -r '.failures | length')
+    if [ "$ppr_count" -eq 0 ]; then
+      ppr_lines="$ppr_lines  $ppr_id  ready
+"
+      continue
+    fi
+    ppr_unmet=$((ppr_unmet + 1))
+    ppr_lines="$ppr_lines$(printf '%s' "$ppr_res" | jq -r --arg id "$ppr_id" \
+      '.failures[] | "  \($id)  \(.stage)/\(.check)  \(.path)  \(.detail)"')
+"
+    # Said once, not as a guess per filename: a prompt that could not be read is a prompt whose
+    # references nothing can inspect, and inventing the documents it might have named would be
+    # reporting defects Baton has not seen.
+    printf '%s' "$ppr_res" | jq -e .references_inspected > /dev/null \
+      || ppr_lines="$ppr_lines  $ppr_id  note  the kickoff prompt could not be read, so the documents it names were not inspected
+"
+  done
+  echo "preconditions: $ppr_n eligible, $ppr_unmet with unmet preconditions"
+  printf '%s' "$ppr_lines"
+  [ "$ppr_unmet" -eq 0 ] || return 1
+}
+
 # verb_plan <project>: the graph as the tick sees it; every Model cell validated by the parse;
-# the project's widening events newest first. Writes nothing.
+# the project's widening events newest first; then every eligible milestone's unmet dispatch
+# preconditions. Writes nothing, and returns 1 when a precondition is unmet so that a script can
+# branch on a plan that cannot be dispatched from.
 verb_plan() {
   vp_tables=$(plan_of_project "$1") || { vp_st=$?; echo "$vp_tables" >&2; exit $vp_st; }
   echo "plan $1: $(project_path "$1")/$(jq -r .plan "$BATON_HOME/projects/$1/project.json")"
@@ -253,4 +313,7 @@ verb_plan() {
     echo "widenings, newest first:"
     printf '%s' "$vp_w" | jq -r '.[] | "  \(.at)  \(.milestone)  \(.rule)"'
   fi
+  # Explicitly, rather than on `set -e`: the verb's other failures exit with a status they chose,
+  # and a reader should not have to know which shell option carries this one.
+  plan_preconditions_report "$1" "$vp_tables" || exit 1
 }

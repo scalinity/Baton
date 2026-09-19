@@ -1,0 +1,9 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/Fixture-M03] claude --bg -n 'Baton · Fixture · M03' --model claude-opus-5 --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M03.json <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/Fixture-M03] claude --bg -n 'Baton · Fixture · M03' --model claude-opus-5 --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M03.json <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4242

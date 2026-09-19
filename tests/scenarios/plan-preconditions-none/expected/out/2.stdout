@@ -1,0 +1,8 @@
+plan Fixture: @TMP@/Fixture/docs/MILESTONES.md
+M01  done  model opus  effort -  remote no
+M02  held  model opus  effort -  remote no
+M03  waits on M02  model opus  effort -  remote no
+M04  held by gate "v1 ships"  model fable  effort -  remote no
+gate "v1 ships" holds M04
+widenings: none
+preconditions: no eligible milestone

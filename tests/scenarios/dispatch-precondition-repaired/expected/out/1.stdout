@@ -1,0 +1,53 @@
+--- the brief is written but not committed
+--- before
+ref refs/heads/main
+beside Fixture
+beside home
+beside jobs
+beside out
+beside shim
+beside transcripts
+settings 0
+sidecars 0
+bg launches 0
+caffeinate calls 0
+--- after the refusal
+ref refs/heads/main
+beside Fixture
+beside home
+beside jobs
+beside out
+beside shim
+beside transcripts
+settings 0
+sidecars 0
+bg launches 0
+caffeinate calls 0
+--- the repair: the same brief, committed on main
+backgrounded · 0badc0d1 · Baton · Fixture · M03
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/Fixture-M03 (branch m03)
+settings  @TMP@/home/settings/Fixture-M03.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+--- after the dispatch that was not refused
+ref refs/heads/m03
+ref refs/heads/main
+beside Fixture
+beside Fixture-M03
+beside home
+beside jobs
+beside out
+beside shim
+beside transcripts
+settings 1
+sidecars 1
+bg launches 1
+caffeinate calls 1
+--- a redispatch over uncommitted work in the reused worktree
+backgrounded · 0badc0d2 · Baton · Fixture · M03
+session   0badc0d2-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/Fixture-M03 (branch m03, reused at @BRIEFCOMMIT@)
+settings  @TMP@/home/settings/Fixture-M03.json
+prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
+the uncommitted file is still there
+one refusal, then two dispatches

@@ -1,0 +1,21 @@
+set -eu
+# Every branch of the reference classifier, against one prompt, so that a change to the trimming or
+# to what counts as a template shows up here rather than in whichever brief happens to carry the
+# shape. The classifier is the one part of the preconditions that reads text a person wrote, so its
+# rules are worth pinning on their own: what it looks up, what it passes over, and what it refuses
+# to guess at.
+. "$ROOT/tests/lib-load.sh"
+prompt_references <<'PROMPT'
+Plain: docs/SPEC.md and docs/SPEC.md again — the same document is looked up once.
+Backticks: `docs/ARCHITECTURE.md`. Parentheses: (docs/CONTEXT.md). Quotes: "docs/QUOTED.md".
+A markdown link: [docs/LINKED.md](docs/LINKED.md) and a trailing comma: docs/COMMA.md, then a colon: docs/COLON.md:
+A directory, explicitly: docs/milestones/ and one without the slash: docs/adr
+Templates, passed over: docs/milestones/<ID>.md docs/milestones/M<nn>.md
+Emphasis: **docs/BOLD.md** and _docs/ITALIC.md_ — but a bare glob keeps its star: docs/adr/* docs/adr/**
+A fragment names a place inside a document: docs/SPEC.md#req-perm-04 and docs/SPEC.md again
+At the end of a clause, the mark attached: docs/DASH.md— docs/SECTION.md§3 docs/EN.md–3 docs/BOTH.md.—
+Shell text, never evaluated: docs/$MILESTONE.md docs/*.md docs/M0?.md docs/[abc].md
+Finite alternatives, expanded: docs/{ONE,TWO}.md and nested in a directory: docs/{v1,v2}/SCOPE.md
+Not finite: docs/{1..3}.md docs/{a}.md docs/{,b}.md docs/{a,b}{c,d}.md
+Not a docs reference at all: /Users/danny/Documents/Apps/Baton/docs/SPEC.md ~/.baton/inbox/M17.json tests/run.sh
+PROMPT

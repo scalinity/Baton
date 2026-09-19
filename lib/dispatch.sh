@@ -48,13 +48,23 @@ row_for_id() {
   return 1
 }
 
+# worktree_of <path> <milestone>: the names a milestone's worktree would carry —
+# ../<Project>-<milestone> and the branch <milestone lowercased> — without touching either. Printed
+# as {"worktree","branch"}. `worktree_ensure` creates from these and `dispatch_preconditions`
+# inspects them, so the naming is written once and the two cannot drift apart.
+worktree_of() {
+  jq -nc --arg w "$(dirname "$1")/$(basename "$1")-$2" --arg b "$(printf '%s' "$2" | tr 'A-Z' 'a-z')" \
+    '{worktree: $w, branch: $b}'
+}
+
 # worktree_ensure <path> <milestone>: ../<Project>-<milestone> on branch <milestone lowercased>,
 # created from main; reused if it exists, recording the commit it stands at. Prints
 # {"worktree","branch","reused","commit"}.
 worktree_ensure() {
   we_path=$1; we_id=$2
-  we_wt=$(dirname "$we_path")/$(basename "$we_path")-$we_id
-  we_branch=$(printf '%s' "$we_id" | tr 'A-Z' 'a-z')
+  we_names=$(worktree_of "$we_path" "$we_id")
+  we_wt=$(printf '%s' "$we_names" | jq -r .worktree)
+  we_branch=$(printf '%s' "$we_names" | jq -r .branch)
   if [ -d "$we_wt" ]; then
     we_reused=true
     we_commit=$(git -C "$we_wt" rev-parse HEAD 2>&1) || { echo "$we_wt exists but is not a worktree: $we_commit"; return 1; }
@@ -311,6 +321,29 @@ dispatch_stop_jobs() {
 dispatch_one() {
   do_project=$1; do_id=$2; do_plan=$3; do_rows=$4
   do_path=$(project_path "$do_project")
+
+  # Before anything is created. Every defect `dispatch_preconditions` can see is knowable from the
+  # plan, the checkout and Baton's own state, so seeing one after a branch, a worktree and a
+  # settings file exist is a cost with nothing bought. The whole result is collected — `baton plan`
+  # reports all of it — and the one event this failure writes carries the first defect in the
+  # result's fixed order, which makes it deterministic rather than whichever check happened to run.
+  # A result that could not be collected is not an absence of defects: it is refused in its own
+  # right, because reading it as success is exactly the mistake this check exists to prevent.
+  do_pre=$(dispatch_preconditions "$do_project" "$do_id") || {
+    dispatch_failed "$do_project" "$do_id" worktree "the dispatch preconditions for $do_id could not be read: $do_pre"
+    return 1
+  }
+  if ! printf '%s' "$do_pre" | jq -e '(.failures | type) == "array"' > /dev/null 2>&1; then
+    dispatch_failed "$do_project" "$do_id" worktree "the dispatch preconditions for $do_id returned no readable result; nothing was created"
+    return 1
+  fi
+  if [ "$(printf '%s' "$do_pre" | jq -r '.failures | length')" -gt 0 ]; then
+    dispatch_failed "$do_project" "$do_id" \
+      "$(printf '%s' "$do_pre" | jq -r '.failures[0].stage')" \
+      "$(printf '%s' "$do_pre" | jq -r '.failures[0].detail')"
+    return 1
+  fi
+
   do_row=$(printf '%s' "$do_plan" | plan_row "$do_id")
   do_model=$(printf '%s' "$do_row" | jq -r .model)
   do_effort=$(printf '%s' "$do_row" | jq -r .effort)
@@ -329,8 +362,17 @@ dispatch_one() {
 
   do_brief=docs/milestones/$do_id.md
   do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
+  # The same readability the preconditions already inspected, asked again of the worktree that now
+  # exists. It is kept as the final race check: the preconditions read a worktree that may not have
+  # existed yet, and between that reading and this one `worktree_ensure` created or reused one. Its
+  # removal would need proof that no such window exists, not the observation that it usually agrees.
+  #
+  # Its message no longer names a branch behind the brief's commit as the cause. That cause is what
+  # the `behind-brief` precondition now refuses before this point, so a dispatch reaching here has
+  # already been told the branch carries the commit: what is left is the file going between the two
+  # readings, and a message naming a cause already ruled out would send a person the wrong way.
   if [ ! -r "$do_wt_path/$do_brief" ]; then
-    dispatch_failed "$do_project" "$do_id" worktree "Baton needs $do_id's brief $do_brief readable in its own worktree. Branch $do_branch predates the brief's commit and its worktree has no readable brief. Bring main into the branch yourself: git -C \"$do_wt_path\" merge main"
+    dispatch_failed "$do_project" "$do_id" worktree "Baton needs $do_id's brief $do_brief readable in its own worktree. The preconditions found the branch carrying the brief's commit, and the file was not readable in $do_wt_path a moment later. Look at the worktree yourself, then dispatch again: git -C \"$do_wt_path\" status"
     return 1
   fi
   do_inflight=$(derive_in_flight "$do_project" "$do_rows") || { echo "baton: $do_inflight" >&2; return 1; }

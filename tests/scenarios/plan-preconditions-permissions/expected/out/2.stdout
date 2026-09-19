@@ -1,0 +1,20 @@
+=== deny rules present: nothing to report
+preconditions: 2 eligible, 0 with unmet preconditions
+  M02  ready
+  M07  ready
+exit 0
+=== deny empty
+preconditions: 2 eligible, 2 with unmet preconditions
+  M02  settings/permissions  @TMP@/home/projects/Fixture/permissions.json  Baton needs Fixture's permission rules at @TMP@/home/projects/Fixture/permissions.json to carry the two deny classes a bypassPermissions session runs behind (docs/SPEC.md REQ-PERM-04). permissions.deny is empty, and a session without that rail is not dispatched. Restore the owner's deny rules yourself, then dispatch again: vi '@TMP@/home/projects/Fixture/permissions.json'
+  M07  settings/permissions  @TMP@/home/projects/Fixture/permissions.json  Baton needs Fixture's permission rules at @TMP@/home/projects/Fixture/permissions.json to carry the two deny classes a bypassPermissions session runs behind (docs/SPEC.md REQ-PERM-04). permissions.deny is empty, and a session without that rail is not dispatched. Restore the owner's deny rules yourself, then dispatch again: vi '@TMP@/home/projects/Fixture/permissions.json'
+exit 1
+=== the file does not parse
+preconditions: 2 eligible, 2 with unmet preconditions
+  M02  settings/permissions  @TMP@/home/projects/Fixture/permissions.json  Baton needs Fixture's permission rules at @TMP@/home/projects/Fixture/permissions.json to carry the two deny classes a bypassPermissions session runs behind (docs/SPEC.md REQ-PERM-04). It does not parse as JSON holding permissions.deny: jq: parse error: Unfinished JSON term at EOF at line 2, column 0. Restore the owner's deny rules yourself, then dispatch again: vi '@TMP@/home/projects/Fixture/permissions.json'
+  M07  settings/permissions  @TMP@/home/projects/Fixture/permissions.json  Baton needs Fixture's permission rules at @TMP@/home/projects/Fixture/permissions.json to carry the two deny classes a bypassPermissions session runs behind (docs/SPEC.md REQ-PERM-04). It does not parse as JSON holding permissions.deny: jq: parse error: Unfinished JSON term at EOF at line 2, column 0. Restore the owner's deny rules yourself, then dispatch again: vi '@TMP@/home/projects/Fixture/permissions.json'
+exit 1
+=== the file is missing
+preconditions: 2 eligible, 2 with unmet preconditions
+  M02  settings/permissions  @TMP@/home/projects/Fixture/permissions.json  Baton needs Fixture's permission rules at @TMP@/home/projects/Fixture/permissions.json to carry the two deny classes a bypassPermissions session runs behind (docs/SPEC.md REQ-PERM-04). The file does not exist. Restore the owner's deny rules yourself, then dispatch again: vi '@TMP@/home/projects/Fixture/permissions.json'
+  M07  settings/permissions  @TMP@/home/projects/Fixture/permissions.json  Baton needs Fixture's permission rules at @TMP@/home/projects/Fixture/permissions.json to carry the two deny classes a bypassPermissions session runs behind (docs/SPEC.md REQ-PERM-04). The file does not exist. Restore the owner's deny rules yourself, then dispatch again: vi '@TMP@/home/projects/Fixture/permissions.json'
+exit 1

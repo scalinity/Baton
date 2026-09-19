@@ -1,0 +1,19 @@
+set -eu
+# The machine-readable side of the interface, written down where a change to it shows up as a diff:
+# M17-b renders this result and must know its field names, and a caller must be able to tell a
+# result that names unmet preconditions from a result it could not collect at all.
+. "$ROOT/tests/lib-load.sh"
+
+echo '=== a milestone with every precondition met'
+dispatch_preconditions Fixture M02 | jq -S .
+
+echo '=== a milestone with unmet preconditions, in the order they are checked'
+dispatch_preconditions Fixture M04 | jq -S '{project, milestone, checkout, references_inspected,
+                                             failures: [.failures[] | {check, stage, path, repair}]}'
+
+echo '=== a result that could not be collected at all: status, and no JSON to mistake for success'
+status=0
+out=$(dispatch_preconditions Nosuch M02) || status=$?
+echo "exit $status"
+printf '%s\n' "$out"
+printf '%s' "$out" | jq -e . > /dev/null 2>&1 && echo 'PARSED AS JSON' || echo 'not JSON'

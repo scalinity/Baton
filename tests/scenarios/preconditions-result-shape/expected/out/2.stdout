@@ -1,0 +1,42 @@
+=== a milestone with every precondition met
+{
+  "branch": "m02",
+  "brief": "docs/milestones/M02.md",
+  "checkout": "@TMP@/Fixture",
+  "failures": [],
+  "milestone": "M02",
+  "project": "Fixture",
+  "references_inspected": true,
+  "worktree": "@TMP@/Fixture-M02"
+}
+=== a milestone with unmet preconditions, in the order they are checked
+{
+  "checkout": "@TMP@/Fixture",
+  "failures": [
+    {
+      "check": "slot",
+      "path": "docs/milestones/M04.md",
+      "repair": "git -C '@TMP@/Fixture' add -- 'docs/milestones/M04.md' && git -C '@TMP@/Fixture' commit -m 'Record M04 brief'",
+      "stage": "prompt"
+    },
+    {
+      "check": "reference",
+      "path": "docs/nowhere.md",
+      "repair": "git -C '@TMP@/Fixture' add -- 'docs/nowhere.md' && git -C '@TMP@/Fixture' commit -m 'Record docs/nowhere.md'",
+      "stage": "prompt"
+    },
+    {
+      "check": "reference-ambiguous",
+      "path": "docs/milestones/M04.md",
+      "repair": "git -C '@TMP@/Fixture' add -- 'docs/milestones/M04.md' && git -C '@TMP@/Fixture' commit -m 'Record M04 brief'",
+      "stage": "prompt"
+    }
+  ],
+  "milestone": "M04",
+  "project": "Fixture",
+  "references_inspected": true
+}
+=== a result that could not be collected at all: status, and no JSON to mistake for success
+exit 1
+@TMP@/home/projects/Nosuch/project.json does not name a checkout
+not JSON

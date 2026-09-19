@@ -9,3 +9,6 @@ M07  eligible  model opus  effort -  remote no
 gate "v0.1 ships" holds M04
 gate "cleared gate" holds M07, cleared by D-003
 widenings: none
+preconditions: 2 eligible, 0 with unmet preconditions
+  M02  ready
+  M07  ready
