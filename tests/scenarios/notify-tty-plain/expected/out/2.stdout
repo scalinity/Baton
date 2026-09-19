@@ -1,0 +1,25 @@
+== the tick, with a terminal on both streams ==
+
+== what the applet was handed, byte for byte ==
+0000000            p   o   s   t   e   d   :       B   a   t   o   n    
+0000020    ·  **       F   i   x   t   u   r   e   /   M   0   2       ·
+0000040   **       q   u   e   s   t   i   o   n       |       B   a   t
+0000060    o   n       ·  **       F   i   x   t   u   r   e       ·  **
+0000100        M   0   2       i   s       w   a   i   t   i   n   g    
+0000120    f   o   r       i   n   p   u   t   ,       a   n   d       n
+0000140    o       p   a   y   l   o   a   d       c   a   r   r   i   e
+0000160    s       t   h   e       q   u   e   s   t   i   o   n   ,    
+0000200    s   o       i   t       c   a   n       o   n   l   y       b
+0000220    e       r   e   a   d       i   n       t   h   e       s   e
+0000240    s   s   i   o   n       ·  **       a   n   s   w   e   r    
+0000260    i   t       i   n       p   l   a   c   e       i   n       C
+0000300    l   a   u   d   e   .   a   p   p   ,       o   r       b   a
+0000320    t   o   n       a   n   s   w   e   r       M   0   2       "
+0000340    <   r   u   l   i   n   g   >   "       |       c   l   a   u
+0000360    d   e   :   /   /   c   l   a   u   d   e   .   a   i   /   c
+0000400    o   d   e   /   s   e   s   s   i   o   n   _   0   1   N   e
+0000420    w   e   s   t   _   x   -   Y  \n                            
+0000431
+
+== an escape byte anywhere in what left this process ==
+none

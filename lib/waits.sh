@@ -63,14 +63,14 @@ wait_notify() {
   wn_ceiling=$(ceiling_seconds "$(printf '%s' "$2" | jq -r .route.notify)")
   [ "$wn_ceiling" -ge 0 ] || return 0
   [ "$4" -ge "$wn_ceiling" ] || return 0
-  wn_spent=$(derive_key_spent "$1" "$wn_m" "$wn_a" "$wn_class") || { echo "$wn_spent" >&2; return 1; }
+  wn_spent=$(derive_key_spent "$1" "$wn_m" "$wn_a" "$wn_class") || { render_failure err "$wn_spent"; return 1; }
   [ "$(printf '%s' "$wn_spent" | jq -r .spent)" = false ] || return 0
   wn_retry=$(config_num retryMinutes 15)
   wn_detail="$wn_e since $3, waiting $(duration "$4"); Baton keeps resuming every $wn_retry minutes and stops for nothing"
   wn_fields=$(jq -nc --arg e "$wn_e" --argjson age "$4" --arg since "$3" --arg d "$wn_detail" \
     '{error: $e, elapsed_seconds: $age, since: $since, detail: $d}')
   notification_write "$1" "$wn_m" "$wn_s" "$wn_a" "$wn_class" "" "$wn_fields"
-  echo "ceiling   $1/$wn_m · $wn_e · $(duration "$4") of waiting"
+  render_row out action 'ceiling   %s/%s · %s · %s of waiting\n' "$(render_token out lane "$1")" "$(render_token out milestone "$wn_m")" "$wn_e" "$(duration "$4")"
 }
 
 # wait_retry_run <project> <wait json> <rows json>: one turn of the wait — stop, flagless resume
@@ -84,22 +84,22 @@ wait_retry_run() {
   wrr_m=$(printf '%s' "$2" | jq -r .milestone)
   wrr_a=$(printf '%s' "$2" | jq -r .attempt)
   wrr_e=$(printf '%s' "$2" | jq -r '.error // "unknown"')
-  wrr_run=$(wait_run "$1" "$wrr_m" "$wrr_a") || { echo "$wrr_run" >&2; return 1; }
+  wrr_run=$(wait_run "$1" "$wrr_m" "$wrr_a") || { render_failure err "$wrr_run"; return 1; }
   wrr_since=$(printf '%s' "$wrr_run" | jq -r --arg f "$(printf '%s' "$2" | jq -r .since)" '.since // $f')
   wrr_n=$(( $(printf '%s' "$wrr_run" | jq -r .retries) + 1 ))
 
   # The session currently carrying the attempt, which is the newest of its dispatch and every later
   # copy_fork (§6.1): a wait that forked once is resumed under the copy's id from then on.
-  wrr_s=$(current_session "$1" "$wrr_m" "$wrr_a") || { echo "$wrr_s" >&2; return 1; }
+  wrr_s=$(current_session "$1" "$wrr_m" "$wrr_a") || { render_failure err "$wrr_s"; return 1; }
   [ -n "$wrr_s" ] || wrr_s=$(printf '%s' "$2" | jq -r '.session // ""')
-  [ -n "$wrr_s" ] || { echo "baton: $1/$wrr_m is waiting but no event names its session" >&2; return 0; }
+  [ -n "$wrr_s" ] || { render_failure err "baton: $1/$wrr_m is waiting but no event names its session"; return 0; }
 
   wrr_out=$(resume_session "$1" "$wrr_m" "$wrr_a" "$wrr_s" "$(job_of_session "$3" "$wrr_s")" \
-    continue "$wrr_e") || { echo "$wrr_out" >&2; return 1; }
+    continue "$wrr_e") || { render_failure err "$wrr_out"; return 1; }
   log_event wait_retry "$1" "$wrr_m" "$wrr_s" "$wrr_a" \
     "$(jq -nc --arg e "$wrr_e" --arg since "$wrr_since" --argjson r "$wrr_n" \
        '{error: $e, since: $since, retry: $r}')"
-  printf 'retry     %s/%s · %s · retry %s · %s\n' "$1" "$wrr_m" "$wrr_e" "$wrr_n" \
+  render_row out record 'retry     %s/%s · %s · retry %s · %s\n' "$(render_token out lane "$1")" "$(render_token out milestone "$wrr_m")" "$wrr_e" "$wrr_n" \
     "$(printf '%s' "$wrr_out" | jq -r .outcome)"
 }
 
@@ -115,7 +115,7 @@ wait_retry_run() {
 # would open the model every fifteen minutes and the same tick would dispatch a new session onto it,
 # which is the whole of what the hold exists to stop.
 holds_apply() {
-  hap_waits=$(wait_due "") || { echo "$hap_waits" >&2; return 1; }
+  hap_waits=$(wait_due "") || { render_failure err "$hap_waits"; return 1; }
   hap_want='[]'
   hap_n=$(printf '%s' "$hap_waits" | jq length); hap_i=0
   while [ "$hap_i" -lt "$hap_n" ]; do
@@ -123,7 +123,7 @@ holds_apply() {
     [ "$(printf '%s' "$hap_w" | jq -r .route.hold)" = true ] || continue
     hap_model=$(model_of_attempt "$(printf '%s' "$hap_w" | jq -r .project)" \
       "$(printf '%s' "$hap_w" | jq -r .milestone)" "$(printf '%s' "$hap_w" | jq -r .attempt)") \
-      || { echo "$hap_model" >&2; return 1; }
+      || { render_failure err "$hap_model"; return 1; }
     # A wait on a lane with no dispatch event names no model, so there is nothing to hold. The
     # wait itself still runs; only the hold needs the model.
     [ -n "$hap_model" ] || continue
@@ -132,7 +132,7 @@ holds_apply() {
   done
   hap_want=$(printf '%s' "$hap_want" | jq -c 'unique_by([.model, .cause])')
 
-  hap_open=$(derive_holds) || { echo "$hap_open" >&2; return 1; }
+  hap_open=$(derive_holds) || { render_failure err "$hap_open"; return 1; }
   hap_open=$(printf '%s' "$hap_open" | jq -c \
     '[ .holds[] | select(.cause == "rate_limit" or .cause == "billing_error") ]')
 
@@ -144,8 +144,8 @@ holds_apply() {
     log_event hold "$(printf '%s' "$hap_h" | jq -r .project)" "" \
       "$(printf '%s' "$hap_h" | jq -r .session)" "" \
       "$(printf '%s' "$hap_h" | jq -c '{model, cause}')"
-    printf 'hold      %s · %s · no dispatch on it while the wait stands\n' \
-      "$(printf '%s' "$hap_h" | jq -r .model)" "$(printf '%s' "$hap_h" | jq -r .cause)"
+    render_row out action 'hold      %s · %s · no dispatch on it while the wait stands\n' \
+      "$(render_token out state "$(printf '%s' "$hap_h" | jq -r .model)")" "$(printf '%s' "$hap_h" | jq -r .cause)"
   done
 
   # The second-model rule. rate_limit names two different limits — the per-model one, for which
@@ -160,7 +160,7 @@ holds_apply() {
     log_event hold "$(printf '%s' "$hap_h" | jq -r .project)" "" \
       "$(printf '%s' "$hap_h" | jq -r .session)" "" \
       "$(printf '%s' "$hap_h" | jq -c '{model: "all", cause: .cause}')"
-    echo "hold      all · a second model is limited, so the limit is shared and every model is held"
+    render_row out action 'hold      all · a second model is limited, so the limit is shared and every model is held\n'
   fi
 
   hap_n=$(printf '%s' "$hap_open" | jq length); hap_i=0
@@ -174,8 +174,8 @@ holds_apply() {
     fi
     log_event hold_lifted "$(printf '%s' "$hap_h" | jq -r '.project // ""')" "" "" "" \
       "$(printf '%s' "$hap_h" | jq -c '{model, cause}')"
-    printf 'lifted    %s · %s · the wait cleared\n' \
-      "$(printf '%s' "$hap_h" | jq -r .model)" "$(printf '%s' "$hap_h" | jq -r .cause)"
+    render_row out record 'lifted    %s · %s · the wait cleared\n' \
+      "$(render_token out state "$(printf '%s' "$hap_h" | jq -r .model)")" "$(printf '%s' "$hap_h" | jq -r .cause)"
   done
 }
 
@@ -235,19 +235,19 @@ reserve_check() {
   rck_model=$(jq -r '.models.fable // "fable"' "$BATON_HOME/config.json" 2>/dev/null || echo fable)
   rck_doc=$(reserve_reading)
   rck_bites=$(printf '%s' "$rck_doc" | jq --argjson r "$rck_reserve" '$r < 100 and (.reading // -1) >= $r')
-  rck_holds=$(derive_holds) || { echo "$rck_holds" >&2; return 1; }
+  rck_holds=$(derive_holds) || { render_failure err "$rck_holds"; return 1; }
   rck_open=$(printf '%s' "$rck_holds" | jq 'any(.holds[]; .cause == "fableReserve")')
   if [ "$rck_bites" = true ] && [ "$rck_open" = false ]; then
     log_event hold "" "" "" "" "$(printf '%s' "$rck_doc" | jq -c --arg m "$rck_model" \
       '{model: $m, cause: "fableReserve", reading, status_file}')" || return 1
-    printf 'hold      %s · fableReserve · the seven-day window reads %s%%, at or above the reserve of %s\n' \
-      "$rck_model" "$(printf '%s' "$rck_doc" | jq -r .reading)" "$rck_reserve"
+    render_row out action 'hold      %s · fableReserve · the seven-day window reads %s%%, at or above the reserve of %s\n' \
+      "$(render_token out state "$rck_model")" "$(printf '%s' "$rck_doc" | jq -r .reading)" "$rck_reserve"
   elif [ "$rck_bites" = false ] && [ "$rck_open" = true ]; then
     # Lifted under the model the hold was written with, which derivation 6 matches on: a `models.fable`
     # edited while the hold stood would otherwise write a lift that closes nothing, on every tick.
     rck_model=$(printf '%s' "$rck_holds" | jq -r 'first(.holds[] | select(.cause == "fableReserve") | .model)')
     log_event hold_lifted "" "" "" "" "$(jq -nc --arg m "$rck_model" '{model: $m, cause: "fableReserve"}')" || return 1
-    printf 'lifted    %s · fableReserve · the seven-day window reads below the reserve, or no reading stands\n' "$rck_model"
+    render_row out record 'lifted    %s · fableReserve · the seven-day window reads below the reserve, or no reading stands\n' "$(render_token out state "$rck_model")"
   fi
 }
 
@@ -260,7 +260,7 @@ reserve_check() {
 # account that Baton could not ask, and the two ways of being wrong are not equal: withholding a
 # dispatch costs a minute, while dispatching onto a limited model costs the session.
 hold_bites() {
-  hb_doc=$(derive_dispatch_hold) || { echo "$hb_doc" >&2; return 0; }
+  hb_doc=$(derive_dispatch_hold) || { render_failure err "$hb_doc"; return 0; }
   printf '%s' "$hb_doc" | jq -e --arg m "$1" '.all or ((.held_models | index($m)) != null)' > /dev/null && return 0
   printf '%s' "$hb_doc" | jq -e 'any(.causes[]; .cause == "fableReserve")' > /dev/null && is_fable "$1"
 }

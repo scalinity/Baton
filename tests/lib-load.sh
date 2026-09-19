@@ -2,6 +2,7 @@
 # Sources the libraries in the order bin/baton does, for a scenario whose cmd calls a library
 # function directly rather than through a verb. The seams are already exported by tests/run.sh.
 # A derivation is not a verb and writes nothing, so nothing here takes the lock.
+. "$ROOT/lib/render.sh"
 . "$ROOT/lib/lock.sh"
 . "$ROOT/lib/log.sh"
 . "$ROOT/lib/plan.sh"

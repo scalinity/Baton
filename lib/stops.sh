@@ -237,7 +237,7 @@ resume_session() {
 
   if [ -n "$rs_job" ]; then
     "$BATON_CLAUDE" stop "$rs_job" > /dev/null 2>&1 || true
-    stop_settle "$rs_s" || echo "baton: $rs_p/$rs_m session $rs_s still had a live row after the stop; resuming anyway, and a fork is what the classifier below is for" >&2
+    stop_settle "$rs_s" || render_failure err "baton: $rs_p/$rs_m session $rs_s still had a live row after the stop; resuming anyway, and a fork is what the classifier below is for"
   fi
 
   rs_tmp=$(mktemp "${TMPDIR:-/tmp}/baton-resume.XXXXXX")
@@ -263,7 +263,7 @@ resume_session() {
     # The `resume` event records that it was refused; the table fixes its fields and the reason is
     # not one of them. So the reason goes where a dispatch failure's detail already goes, which is
     # the one place a person looking at why the ladder is climbing will find it.
-    echo "baton: $rs_p/$rs_m the resume was refused: $rs_note" >&2
+    render_failure err "baton: $rs_p/$rs_m the resume was refused: $rs_note"
   fi
 
   rs_side=$(sidecar_write "$rs_s" "$rs_text")
@@ -285,7 +285,7 @@ resume_session() {
       rs_full=$(fork_session "$rs_new") || rs_full=''
       if [ -z "$rs_full" ]; then
         rs_full=$rs_new
-        echo "baton: $rs_p/$rs_m forked as $rs_new and neither a row nor a transcript names its session id; the short id stands in" >&2
+        render_failure err "baton: $rs_p/$rs_m forked as $rs_new and neither a row nor a transcript names its session id; the short id stands in"
       fi
       log_event copy_fork "$rs_p" "$rs_m" "$rs_full" "$rs_a" \
         "$(jq -nc --arg f "$rs_s" --arg n "$rs_note" '{from_session: $f, note: $n}')"
@@ -294,7 +294,7 @@ resume_session() {
       # A note naming no id is still a fork: something is running that Baton cannot address. The
       # resume event already records `forked`, which is not a failure ending, so this is said where
       # a person will read it rather than swallowed.
-      echo "baton: $rs_p/$rs_m forked on resume but the note named no id: $rs_note" >&2
+      render_failure err "baton: $rs_p/$rs_m forked on resume but the note named no id: $rs_note"
     fi
     # Find the original again by the lane's name and its original session id, without a pid test.
     # A fork has the same name, so name alone could stop the copy we just adopted. This also works
@@ -325,8 +325,8 @@ resume_session() {
         --arg d "the resume forked and the original session $rs_s may still be running: $rs_unresolved. $(session_name "$rs_p" "$rs_m") is now carried by ${rs_new:-a copy Baton could not name}; stop the original by hand and leave one session live" \
         '{original: $o, why: $w, detail: $d} | if $c != "" then . + {copy: $c} else . end')
       escalate "$rs_p" "$rs_m" "${rs_new:-$rs_s}" "$rs_a" other lane "$rs_carries" \
-        || echo "baton: $rs_p/$rs_m the park for the unstopped original $rs_s could not be written" >&2
-      echo "baton: $rs_p/$rs_m forked and the original session $rs_s was not confirmed stopped ($rs_unresolved); the lane is parked" >&2
+        || render_failure err "baton: $rs_p/$rs_m the park for the unstopped original $rs_s could not be written"
+      render_failure err "baton: $rs_p/$rs_m forked and the original session $rs_s was not confirmed stopped ($rs_unresolved); the lane is parked"
     fi
   fi
 
@@ -380,7 +380,7 @@ ladder_position() {
 # session is bounded the same way a first dispatch is: two failures in a row park the lane.
 redispatch() {
   if ! rdp_row=$(printf '%s' "$3" | plan_row "$2" 2>/dev/null); then
-    echo "baton: $1/$2 would be redispatched but the plan no longer holds it" >&2
+    render_failure err "baton: $1/$2 would be redispatched but the plan no longer holds it"
     return 0
   fi
   rdp_model=$(printf '%s' "$rdp_row" | jq -r '.model // ""')
@@ -388,25 +388,25 @@ redispatch() {
   # would start from a `main` a person has been asked to fix. It waits as it waits for a hold, and the
   # rule that asked for it asks again on the tick after the park is answered.
   if rdp_park=$(project_held "$1"); then
-    printf 'held      %s/%s · the project is parked (%s), so the redispatch waits for the park to be answered\n' "$1" "$2" "$rdp_park"
+    render_row out action 'held      %s/%s · the project is parked (%s), so the redispatch waits for the park to be answered\n' "$(render_token out lane "$1")" "$(render_token out milestone "$2")" "$rdp_park"
     return 0
   fi
   if hold_bites "$rdp_model"; then
-    printf 'held      %s/%s · %s is held, so the redispatch waits for the wait to clear\n' "$1" "$2" "$rdp_model"
+    render_row out action 'held      %s/%s · %s is held, so the redispatch waits for the wait to clear\n' "$(render_token out lane "$1")" "$(render_token out milestone "$2")" "$(render_token out state "$rdp_model")"
     return 0
   fi
   rdp_attempt=$(attempt_of "$1" "$2")
   rdp_session=$(current_session "$1" "$2" "$rdp_attempt")
   rdp_job=$(job_of_session "$4" "$rdp_session" any-state)
   if [ -z "$rdp_job" ]; then
-    echo "baton: $1/$2 redispatch refused: no job identifies outgoing session $rdp_session in the listing" >&2
+    render_failure err "baton: $1/$2 redispatch refused: no job identifies outgoing session $rdp_session in the listing"
     return 0
   fi
   if ! "$BATON_CLAUDE" stop "$rdp_job" > /dev/null 2>&1 || ! stop_settle "$rdp_session"; then
-    echo "baton: $1/$2 redispatch refused: outgoing job $rdp_job has not been confirmed stopped" >&2
+    render_failure err "baton: $1/$2 redispatch refused: outgoing job $rdp_job has not been confirmed stopped"
     return 0
   fi
-  printf 'redispatch %s/%s · %s\n' "$1" "$2" "$5"
+  render_row out record 'redispatch %s/%s · %s\n' "$(render_token out lane "$1")" "$(render_token out milestone "$2")" "$5"
   dispatch_try "$1" "$2" "$3" "$4"
 }
 
@@ -417,15 +417,15 @@ ladder_step() {
   lst_ending=$(printf '%s' "$6" | jq -r '.ending // ""')
   lst_acted=$(printf '%s' "$6" | jq -r .acted)
   lst_fail=$(printf '%s' "$6" | jq -r '.ineffective_failures // .failures')
-  lst_s=$(current_session "$1" "$2" "$3") || { echo "$lst_s" >&2; return 1; }
+  lst_s=$(current_session "$1" "$2" "$3") || { render_failure err "$lst_s"; return 1; }
 
   case "$lst_next" in
     resume)
       [ "$lst_acted" = false ] || return 0
-      [ -n "$lst_s" ] || { echo "baton: $1/$2 has a failure ending but no event names its session" >&2; return 0; }
+      [ -n "$lst_s" ] || { render_failure err "baton: $1/$2 has a failure ending but no event names its session"; return 0; }
       lst_job=$(job_of_session "$5" "$lst_s" any-state)
       if [ -z "$lst_job" ]; then
-        echo "baton: $1/$2 resume rung refused: no job identifies session $lst_s in the listing" >&2
+        render_failure err "baton: $1/$2 resume rung refused: no job identifies session $lst_s in the listing"
         return 0
       fi
       # A crash with no transcript on disk cannot be resumed under its id, so it takes the
@@ -442,8 +442,8 @@ ladder_step() {
                         lst_class=$(printf '%s' "$6" | jq -r '.ending_class // "process gone"') ;;
       esac
       lst_out=$(resume_session "$1" "$2" "$3" "$lst_s" "$lst_job" \
-        "$lst_kind" "$lst_class") || { echo "$lst_out" >&2; return 1; }
-      printf 'resume    %s/%s · %s · %s · %s\n' "$1" "$2" "$lst_s" "$lst_kind" \
+        "$lst_kind" "$lst_class") || { render_failure err "$lst_out"; return 1; }
+      render_row out record 'resume    %s/%s · %s · %s · %s\n' "$(render_token out lane "$1")" "$(render_token out milestone "$2")" "$(render_token out session "$lst_s")" "$lst_kind" \
         "$(printf '%s' "$lst_out" | jq -r .outcome)"
       ;;
     redispatch)
@@ -478,7 +478,7 @@ ladder_step() {
         --arg dd "$lst_fail failure endings $lst_span, the last $lst_says: $lst_detail" \
         '{failures: $n, ending: $e, last_detail: $d, detail: $dd}')
       escalate "$1" "$2" "$lst_s" "$3" ladder-end lane "$lst_carries"
-      printf 'ladder    %s/%s · %s failures in a row · the lane is parked\n' "$1" "$2" "$lst_fail"
+      render_row out action 'ladder    %s/%s · %s failures in a row · the lane is parked\n' "$(render_token out lane "$1")" "$(render_token out milestone "$2")" "$lst_fail"
       ;;
   esac
 }
@@ -513,13 +513,13 @@ stops_standing_by() {
 # The escalate rung still fires, because three refused resumes in a row mean the session cannot be
 # resumed at all, and the lane is better handed over than retried until morning.
 stops_run() {
-  srn_parked=$(derive_parked "$1") || { echo "$srn_parked" >&2; return 1; }
-  srn_flight=$(derive_in_flight "$1" "$3") || { echo "$srn_flight" >&2; return 1; }
+  srn_parked=$(derive_parked "$1") || { render_failure err "$srn_parked"; return 1; }
+  srn_flight=$(derive_in_flight "$1" "$3") || { render_failure err "$srn_flight"; return 1; }
   srn_flying=$(printf '%s' "$srn_flight" | jq -c '[ .in_flight[] | .milestone ]')
   srn_now=$(now_epoch)
 
   # 1. The waits, routed by the error alone.
-  srn_waits=$(wait_due "$1") || { echo "$srn_waits" >&2; return 1; }
+  srn_waits=$(wait_due "$1") || { render_failure err "$srn_waits"; return 1; }
   srn_waiting=''
   srn_n=$(printf '%s' "$srn_waits" | jq length); srn_i=0
   while [ "$srn_i" -lt "$srn_n" ]; do
@@ -533,9 +533,9 @@ stops_run() {
     if stops_standing_by "$srn_s" "$srn_m" "$4" "$srn_parked"; then continue; fi
     case "$(printf '%s' "$srn_w" | jq -r .route.action)" in
       wait)
-        srn_run=$(wait_run "$1" "$srn_m" "$srn_a") || { echo "$srn_run" >&2; return 1; }
+        srn_run=$(wait_run "$1" "$srn_m" "$srn_a") || { render_failure err "$srn_run"; return 1; }
         srn_since=$(printf '%s' "$srn_run" | jq -r --arg f "$(printf '%s' "$srn_w" | jq -r .since)" '.since // $f')
-        srn_at=$(iso_epoch "$srn_since") || { echo "$srn_at" >&2; return 1; }
+        srn_at=$(iso_epoch "$srn_since") || { render_failure err "$srn_at"; return 1; }
         wait_notify "$1" "$srn_w" "$srn_since" "$((srn_now - srn_at))"
         # max_output_tokens is retried at once, but only for its first retry: the turn ended at the
         # output limit with everything intact, so there is nothing to wait out — and a session that
@@ -550,7 +550,7 @@ stops_run() {
       redispatch)
         # invalid_request: the context is what failed, so a resume fails the same way. The second in
         # a row says the fresh context was not the answer either, and the ladder has then ended.
-        srn_run=$(consecutive_run "$1" "$srn_m" invalid_request) || { echo "$srn_run" >&2; return 1; }
+        srn_run=$(consecutive_run "$1" "$srn_m" invalid_request) || { render_failure err "$srn_run"; return 1; }
         if [ "$(printf '%s' "$srn_run" | jq -r .count)" -ge 2 ]; then
           case "$(person_acted "$1" "$srn_m" ladder-end)" in
             edit)
@@ -560,7 +560,7 @@ stops_run() {
           esac
           escalate "$1" "$srn_m" "$srn_s" "$srn_a" ladder-end lane \
             "$(splits_carries "$srn_run" "$srn_m" "with $srn_e")"
-          printf 'ladder    %s/%s · %s twice in a row · the lane is parked\n' "$1" "$srn_m" "$srn_e"
+          render_row out action 'ladder    %s/%s · %s twice in a row · the lane is parked\n' "$(render_token out lane "$1")" "$(render_token out milestone "$srn_m")" "$srn_e"
         else
           redispatch "$1" "$srn_m" "$2" "$3" "the context is what failed, so attempt $((srn_a + 1)) starts fresh"
         fi
@@ -593,7 +593,7 @@ stops_run() {
         escalate "$1" "$srn_m" "$srn_s" "$srn_a" model_not_found lane \
           "$(jq -nc --arg m "$srn_cell" --arg f "$srn_plan_file" --arg d "$srn_detail" \
              '{model: $m, plan: $f, detail: $d}')"
-        printf 'model     %s/%s · %s was refused · the lane is parked until the cell is edited\n' "$1" "$srn_m" "$srn_cell"
+        render_row out action 'model     %s/%s · %s was refused · the lane is parked until the cell is edited\n' "$(render_token out lane "$1")" "$(render_token out milestone "$srn_m")" "$(render_token out state "$srn_cell")"
         ;;
     esac
   done
@@ -601,9 +601,9 @@ stops_run() {
   # 2. The ladder, over every open lane. The parks are re-read first: a section above may have
   # written one, and a lane parked twice in a tick is a lane `baton answer` then refuses to act on
   # because two escalations carry its name.
-  srn_parked=$(derive_parked "$1") || { echo "$srn_parked" >&2; return 1; }
-  srn_log=$(log_json) || { echo "$srn_log" >&2; return 1; }
-  srn_open=$(lanes_open "$1" "$srn_log") || { echo "$srn_open" >&2; return 1; }
+  srn_parked=$(derive_parked "$1") || { render_failure err "$srn_parked"; return 1; }
+  srn_log=$(log_json) || { render_failure err "$srn_log"; return 1; }
+  srn_open=$(lanes_open "$1" "$srn_log") || { render_failure err "$srn_open"; return 1; }
   srn_n=$(printf '%s' "$srn_open" | jq length); srn_i=0
   while [ "$srn_i" -lt "$srn_n" ]; do
     srn_l=$(printf '%s' "$srn_open" | jq -c ".[$srn_i]"); srn_i=$((srn_i + 1))
@@ -612,7 +612,7 @@ stops_run() {
     srn_s=$(printf '%s' "$srn_l" | jq -r '.session // ""')
     [ -n "$srn_a" ] || continue
     if stops_standing_by "$srn_s" "$srn_m" "$4" "$srn_parked"; then continue; fi
-    srn_pos=$(ladder_position "$1" "$srn_m" "$srn_a") || { echo "$srn_pos" >&2; return 1; }
+    srn_pos=$(ladder_position "$1" "$srn_m" "$srn_a") || { render_failure err "$srn_pos"; return 1; }
     srn_next=$(printf '%s' "$srn_pos" | jq -r .next)
     [ "$srn_next" != none ] || continue
     if [ "$srn_next" != escalate ] && printf '%s\n' "$srn_waiting" | grep -Fqx "$srn_m"; then continue; fi
@@ -620,8 +620,8 @@ stops_run() {
   done
 
   # 3. The declared stops that have not been acted on, against the parks as they now stand.
-  srn_parked=$(derive_parked "$1") || { echo "$srn_parked" >&2; return 1; }
-  srn_declared=$(declared_open "$1") || { echo "$srn_declared" >&2; return 1; }
+  srn_parked=$(derive_parked "$1") || { render_failure err "$srn_parked"; return 1; }
+  srn_declared=$(declared_open "$1") || { render_failure err "$srn_declared"; return 1; }
   srn_n=$(printf '%s' "$srn_declared" | jq length); srn_i=0
   while [ "$srn_i" -lt "$srn_n" ]; do
     srn_d=$(printf '%s' "$srn_declared" | jq -c ".[$srn_i]"); srn_i=$((srn_i + 1))

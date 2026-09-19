@@ -107,9 +107,9 @@ transcript_mtime() {
 # rest of the tick must leave alone, and the record a person reads. That is the same convention
 # every derivation naming two halves of one read follows (D-031).
 takeover_check() {
-  tc_over=$(derive_taken_over "$1" "$2") || { echo "$tc_over" >&2; return 1; }
-  tc_log=$(log_json) || { echo "$tc_log" >&2; return 1; }
-  tc_parked=$(derive_parked "$1") || { echo "$tc_parked" >&2; return 1; }
+  tc_over=$(derive_taken_over "$1" "$2") || { render_failure err "$tc_over"; return 1; }
+  tc_log=$(log_json) || { render_failure err "$tc_log"; return 1; }
+  tc_parked=$(derive_parked "$1") || { render_failure err "$tc_parked"; return 1; }
   tc_off='[]'; tc_lines='[]'
 
   tc_n=$(printf '%s' "$tc_over" | jq '.taken_over | length'); tc_i=0
@@ -184,10 +184,10 @@ takeover_check() {
 #    of the first run's event, which is what INV-05 requires it to ignore. Two real ticks are sixty
 #    seconds apart and never share a reading.
 crash_check() {
-  cc_flight=$(derive_in_flight "$1" "$2") || { echo "$cc_flight" >&2; return 1; }
-  cc_log=$(log_json) || { echo "$cc_log" >&2; return 1; }
+  cc_flight=$(derive_in_flight "$1" "$2") || { render_failure err "$cc_flight"; return 1; }
+  cc_log=$(log_json) || { render_failure err "$cc_log"; return 1; }
   cc_window=$(( 2 * BATON_TICK_SECONDS ))
-  cc_now=$(iso_epoch "$4") || { echo "$cc_now" >&2; return 1; }
+  cc_now=$(iso_epoch "$4") || { render_failure err "$cc_now"; return 1; }
 
   cc_n=$(printf '%s' "$cc_flight" | jq '.no_row | length'); cc_i=0
   while [ "$cc_i" -lt "$cc_n" ]; do
@@ -238,7 +238,7 @@ crash_check() {
     # sighting expires in, for the same reason: it is how long a fact about a row takes to settle.
     cc_reset=$(printf '%s' "$cc_sight" | jq -r '.reset_at // ""')
     if [ -n "$cc_reset" ]; then
-      cc_reset=$(iso_epoch "$cc_reset") || { echo "$cc_reset" >&2; return 1; }
+      cc_reset=$(iso_epoch "$cc_reset") || { render_failure err "$cc_reset"; return 1; }
       [ $((cc_now - cc_reset)) -ge "$cc_window" ] || continue
     fi
     cc_sight=$(printf '%s' "$cc_sight" | jq -c '.previous // {}')
@@ -249,7 +249,7 @@ crash_check() {
     # every four minutes and derive_ladder, which counts every second sighting since the reset as a
     # failure ending, would read "escalate" off a single crash.
     if [ -n "$cc_prev" ] && [ "$cc_prev" != 2 ]; then
-      cc_at=$(iso_epoch "$(printf '%s' "$cc_sight" | jq -r .at)") || { echo "$cc_at" >&2; return 1; }
+      cc_at=$(iso_epoch "$(printf '%s' "$cc_sight" | jq -r .at)") || { render_failure err "$cc_at"; return 1; }
       [ $((cc_now - cc_at)) -le "$cc_window" ] || cc_prev=''
     fi
     [ "$cc_prev" != 2 ] || continue
@@ -263,9 +263,9 @@ crash_check() {
       "$(printf '%s' "$cc_row" | jq -c --argjson n "$cc_next" \
            '{pid: null, state: .state, sighting: $n} | with_entries(select(.key == "pid" or .value != null))')"
     if [ "$cc_next" = 2 ]; then
-      echo "crash     $1/$cc_milestone · $cc_session · confirmed on the second sighting"
+      render_row out action 'crash     %s/%s · %s · confirmed on the second sighting\n' "$(render_token out lane "$1")" "$(render_token out milestone "$cc_milestone")" "$(render_token out session "$cc_session")"
     else
-      echo "crash?    $1/$cc_milestone · $cc_session · first sighting, no row and no ending"
+      render_row out action 'crash?    %s/%s · %s · first sighting, no row and no ending\n' "$(render_token out lane "$1")" "$(render_token out milestone "$cc_milestone")" "$(render_token out session "$cc_session")"
     fi
   done
 }
@@ -281,7 +281,7 @@ crash_check() {
 # next, and `question_check` parks neither. A prompt nobody answers from the phone is then this
 # check's to surface, whichever the row reads, or it would surface nowhere.
 stall_check() {
-  sc_flight=$(derive_in_flight "$1" "$2") || { echo "$sc_flight" >&2; return 1; }
+  sc_flight=$(derive_in_flight "$1" "$2") || { render_failure err "$sc_flight"; return 1; }
   sc_limit=$(( $(config_num stallMinutes 30) * 60 ))
   sc_now=$(now_epoch)
   sc_n=$(printf '%s' "$sc_flight" | jq '.in_flight | length'); sc_i=0
@@ -302,7 +302,7 @@ stall_check() {
     sc_mtime=$(transcript_mtime "$sc_session") || continue
     sc_age=$((sc_now - sc_mtime))
     [ "$sc_age" -ge "$sc_limit" ] || continue
-    sc_spent=$(derive_key_spent "$1" "$sc_milestone" "$sc_attempt" stall) || { echo "$sc_spent" >&2; return 1; }
+    sc_spent=$(derive_key_spent "$1" "$sc_milestone" "$sc_attempt" stall) || { render_failure err "$sc_spent"; return 1; }
     if [ "$(printf '%s' "$sc_spent" | jq -r .spent)" != false ]; then
       # A remote lane's stall key is spent only while the transcript has not moved since the
       # notification. For it the stall is the only way an unanswered phone prompt surfaces, and a
@@ -310,7 +310,7 @@ stall_check() {
       # to re-arm the key — so the next unanswered prompt of the attempt would pass
       # in silence. The second run of a tick sees its own notification at or after the mtime.
       printf '%s' "$sc_l" | jq -e '(.remote // false) == true' > /dev/null || continue
-      sc_spent_at=$(iso_epoch "$(printf '%s' "$sc_spent" | jq -r .at)") || { echo "$sc_spent_at" >&2; return 1; }
+      sc_spent_at=$(iso_epoch "$(printf '%s' "$sc_spent" | jq -r .at)") || { render_failure err "$sc_spent_at"; return 1; }
       [ "$sc_mtime" -gt "$sc_spent_at" ] || continue
     fi
     sc_state=$(printf '%s' "$sc_l" | jq -r '.row.state // "unknown"')
@@ -324,7 +324,7 @@ stall_check() {
        detail: ($d + (if $s == "done" then " · baton answer \($m) to finish the close-out"
                       else " · read it in Claude.app before touching it" end))}')
     notification_write "$1" "$sc_milestone" "$sc_session" "$sc_attempt" stall "" "$sc_fields"
-    echo "stall     $1/$sc_milestone · $sc_session · $(duration "$sc_age") unchanged, state $sc_state"
+    render_row out action 'stall     %s/%s · %s · %s unchanged, state %s\n' "$(render_token out lane "$1")" "$(render_token out milestone "$sc_milestone")" "$(render_token out session "$sc_session")" "$(duration "$sc_age")" "$sc_state"
   done
 }
 
@@ -333,8 +333,8 @@ stall_check() {
 # lane is still counted — the takeover restarts the clock and resets the key (derivation 11), so an abandoned
 # lane notifies once and is not silently forgotten.
 long_running_check() {
-  lr_flight=$(derive_in_flight "$1" "$2") || { echo "$lr_flight" >&2; return 1; }
-  lr_log=$(log_json) || { echo "$lr_log" >&2; return 1; }
+  lr_flight=$(derive_in_flight "$1" "$2") || { render_failure err "$lr_flight"; return 1; }
+  lr_log=$(log_json) || { render_failure err "$lr_log"; return 1; }
   lr_limit=$(( $(config_num longRunningHours 6) * 3600 ))
   lr_now=$(now_epoch)
   lr_n=$(printf '%s' "$lr_flight" | jq '.in_flight | length'); lr_i=0
@@ -349,18 +349,18 @@ long_running_check() {
         | select(.kind == "dispatch" or .kind == "takeover"
                  or (.kind == "resume" and (.outcome == "delivered" or .outcome == "forked"))) ]
       | last | .at // empty') \
-      || { echo "$lr_since" >&2; return 1; }
+      || { render_failure err "$lr_since"; return 1; }
     [ -n "$lr_since" ] || continue
-    lr_at=$(iso_epoch "$lr_since") || { echo "$lr_at" >&2; return 1; }
+    lr_at=$(iso_epoch "$lr_since") || { render_failure err "$lr_at"; return 1; }
     lr_age=$((lr_now - lr_at))
     [ "$lr_age" -ge "$lr_limit" ] || continue
-    lr_spent=$(derive_key_spent "$1" "$lr_milestone" "$lr_attempt" long-running) || { echo "$lr_spent" >&2; return 1; }
+    lr_spent=$(derive_key_spent "$1" "$lr_milestone" "$lr_attempt" long-running) || { render_failure err "$lr_spent"; return 1; }
     [ "$(printf '%s' "$lr_spent" | jq -r .spent)" = false ] || continue
     lr_detail="running $(duration "$lr_age") since $lr_since, the latest dispatch, successful resume or takeover of this attempt"
     lr_fields=$(jq -nc --argjson age "$lr_age" --arg since "$lr_since" --arg d "$lr_detail" \
       '{elapsed_seconds: $age, since: $since, detail: $d}')
     notification_write "$1" "$lr_milestone" "$lr_session" "$lr_attempt" long-running "" "$lr_fields"
-    echo "long      $1/$lr_milestone · $lr_session · $(duration "$lr_age")"
+    render_row out action 'long      %s/%s · %s · %s\n' "$(render_token out lane "$1")" "$(render_token out milestone "$lr_milestone")" "$(render_token out session "$lr_session")" "$(duration "$lr_age")"
   done
 }
 
@@ -372,8 +372,8 @@ long_running_check() {
 # Idempotent because an open escalation of the class for the lane is the key; the lane unparks when
 # the question is answered in place, which is M05's resolution.
 question_check() {
-  qc_flight=$(derive_in_flight "$1" "$2") || { echo "$qc_flight" >&2; return 1; }
-  qc_parked=$(derive_parked "$1") || { echo "$qc_parked" >&2; return 1; }
+  qc_flight=$(derive_in_flight "$1" "$2") || { render_failure err "$qc_flight"; return 1; }
+  qc_parked=$(derive_parked "$1") || { render_failure err "$qc_parked"; return 1; }
   qc_n=$(printf '%s' "$qc_flight" | jq '.in_flight | length'); qc_i=0
   while [ "$qc_i" -lt "$qc_n" ]; do
     qc_l=$(printf '%s' "$qc_flight" | jq -c ".in_flight[$qc_i]"); qc_i=$((qc_i + 1))
@@ -404,9 +404,9 @@ question_check() {
     # gives a row to settle after the same two events (D-054): a real question is still open after it.
     if [ -n "$qc_attempt" ]; then
       qc_last=$(newest_event_at "$1" "$qc_milestone" "$qc_attempt" '^(dispatch|resume)$') \
-        || { echo "$qc_last" >&2; return 1; }
+        || { render_failure err "$qc_last"; return 1; }
       if [ -n "$qc_last" ]; then
-        qc_last=$(iso_epoch "$qc_last") || { echo "$qc_last" >&2; return 1; }
+        qc_last=$(iso_epoch "$qc_last") || { render_failure err "$qc_last"; return 1; }
         [ $(( $(now_epoch) - qc_last )) -ge $(( 2 * BATON_TICK_SECONDS )) ] || continue
       fi
     fi
@@ -418,7 +418,7 @@ question_check() {
     qc_carries=$(jq -nc --arg n "$qc_name" --arg j "$qc_job" --arg d "$qc_detail" \
       '{row: $n, job: $j, waiting_for: "input needed", detail: $d}')
     escalate "$1" "$qc_milestone" "$qc_session" "$qc_attempt" question lane "$qc_carries"
-    echo "question  $1/$qc_milestone · $qc_session · waiting for input"
+    render_row out action 'question  %s/%s · %s · waiting for input\n' "$(render_token out lane "$1")" "$(render_token out milestone "$qc_milestone")" "$(render_token out session "$qc_session")"
   done
 }
 
@@ -428,10 +428,10 @@ question_check() {
 # guard; the marker this tick is about to write changes the key, which is why the second run of a
 # scenario reports nothing.
 gap_check() {
-  gc_gap=$(derive_gap "$1") || { echo "$gc_gap" >&2; return 1; }
+  gc_gap=$(derive_gap "$1") || { render_failure err "$gc_gap"; return 1; }
   [ "$(printf '%s' "$gc_gap" | jq -r .report)" = true ] || return 0
   gc_marker=$(printf '%s' "$gc_gap" | jq -r .marker)
-  gc_log=$(log_json) || { echo "$gc_log" >&2; return 1; }
+  gc_log=$(log_json) || { render_failure err "$gc_log"; return 1; }
   if printf '%s' "$gc_log" | jq -e --arg k "$gc_marker" \
        'any(.[]; .kind == "notification" and .class == "gap" and .key == $k)' > /dev/null; then
     return 0
@@ -441,5 +441,5 @@ gap_check() {
   gc_fields=$(jq -nc --argjson s "$gc_seconds" --arg m "$gc_marker" --arg d "$gc_detail" \
     '{gap_seconds: $s, marker: $m, detail: $d}')
   notification_write "" "" "" "" gap "$gc_marker" "$gc_fields"
-  echo "gap       Baton was not running for $(duration "$gc_seconds"), measured against $gc_marker"
+  render_row out action 'gap       Baton was not running for %s, measured against %s\n' "$(duration "$gc_seconds")" "$(render_token out timestamp "$gc_marker")"
 }

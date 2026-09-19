@@ -28,6 +28,7 @@ log.sh
 notify.sh
 plan.sh
 preconditions.sh
+render.sh
 rows.sh
 status.sh
 stops.sh

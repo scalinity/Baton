@@ -24,9 +24,9 @@ lock_stale_report() {
   fi
   ls_age=$(( $(now_epoch) - ls_epoch ))
   [ "$ls_age" -ge "$BATON_TICK_SECONDS" ] || return 0
-  printf 'stale lock  %s held by pid %s since %s (%s ago); if no verb is running, remove it\n' \
-    "$BATON_HOME/lock" "$(cat "$BATON_HOME/lock/pid" 2>/dev/null || echo '?')" \
-    "$ls_at" "$(duration "$ls_age")"
+  render_row out action 'stale lock  %s held by pid %s since %s (%s ago); if no verb is running, remove it\n' \
+    "$(render_token out path "$BATON_HOME/lock")" "$(cat "$BATON_HOME/lock/pid" 2>/dev/null || echo '?')" \
+    "$(render_token out timestamp "$ls_at")" "$(duration "$ls_age")"
 }
 
 # lock_stale_break: the tick alone, before it takes the lock. A lock past the interval whose holder
@@ -93,7 +93,7 @@ self_check_failed_once() {
     '{stage: $s, path: $p, detail: $d} + $x')
   sfc_class=plan-unreadable
   [ "$2" != parse ] || sfc_class=plan-unparseable
-  sfc_parked=$(derive_parked "$1") || { echo "$sfc_parked" >&2; return 1; }
+  sfc_parked=$(derive_parked "$1") || { render_failure err "$sfc_parked"; return 1; }
   if printf '%s' "$sfc_parked" | jq -e --arg c "$sfc_class" \
        'any(.parked[]; .scope == "project" and .class == $c)' > /dev/null; then
     return 0
@@ -110,7 +110,7 @@ self_check_failed_once() {
 # after it was fixed, and `derive_gap`'s "a gap with nothing to do is not one" would never be true
 # again, because a parked lane is a lane.
 park_resolve() {
-  prs_parked=$(derive_parked "$1") || { echo "$prs_parked" >&2; return 1; }
+  prs_parked=$(derive_parked "$1") || { render_failure err "$prs_parked"; return 1; }
   prs_open=$(printf '%s' "$prs_parked" | jq -c --arg c "$2" \
     '[ .parked[] | select(.scope == "project" and (.class | test($c))) ]')
   prs_n=$(printf '%s' "$prs_open" | jq length); prs_i=0
@@ -118,8 +118,8 @@ park_resolve() {
     prs_e=$(printf '%s' "$prs_open" | jq -c ".[$prs_i]"); prs_i=$((prs_i + 1))
     prs_at=$(printf '%s' "$prs_e" | jq -r .at)
     resolve "$(printf '%s' "$prs_e" | jq -r '.project // ""')" "" "" "" "$prs_at" edit
-    printf 'resolved  %s · %s · the park raised at %s is closed\n' \
-      "$(printf '%s' "$prs_e" | jq -r '.project // "all projects"')" "$3" "$prs_at"
+    render_row out record 'resolved  %s · %s · the park raised at %s is closed\n' \
+      "$(render_token out lane "$(printf '%s' "$prs_e" | jq -r '.project // "all projects"')")" "$3" "$(render_token out timestamp "$prs_at")"
   done
 }
 
@@ -173,7 +173,7 @@ caffeinate_timed() {
 # past caffeinateMaxHours from the wait's start. Writes no event; `caffeinate -i` does not prevent
 # lid-close sleep, which is the hardware condition `status` states (REQ-SETUP-07).
 caffeinate_rearm() {
-  cr_doc=$(derive_caffeinate "$1" "$2") || { echo "$cr_doc" >&2; return 1; }
+  cr_doc=$(derive_caffeinate "$1" "$2") || { render_failure err "$cr_doc"; return 1; }
   cr_n=$(printf '%s' "$cr_doc" | jq '.wake | length'); cr_i=0
   while [ "$cr_i" -lt "$cr_n" ]; do
     cr_pid=$(printf '%s' "$cr_doc" | jq -r ".wake[$cr_i].pid // empty"); cr_i=$((cr_i + 1))
@@ -199,7 +199,7 @@ caffeinate_rearm() {
 dispatch_try() {
   dt_project=$1; dt_id=$2
   dispatch_one "$dt_project" "$dt_id" "$3" "$4" && return 0
-  dt_log=$(log_json) || { echo "$dt_log" >&2; return 0; }
+  dt_log=$(log_json) || { render_failure err "$dt_log"; return 0; }
   dt_fails=$(printf '%s' "$dt_log" | jq --arg p "$dt_project" --arg m "$dt_id" '
     [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
     | ([ $ev[] | select(.kind == "dispatch") ] | last | .i // -1) as $reset
@@ -212,7 +212,7 @@ dispatch_try() {
     '{consecutive: $n, stage: .stage,
       detail: "\($n) dispatches in a row produced no session, the last at the \(.stage) stage: \(.detail)"}')
   escalate "$dt_project" "$dt_id" "" "" dispatch-failed lane "$dt_carries"
-  printf 'dispatch  %s/%s · %s consecutive failures · the lane is parked\n' "$dt_project" "$dt_id" "$dt_fails"
+  render_row out action 'dispatch  %s/%s · %s consecutive failures · the lane is parked\n' "$(render_token out lane "$dt_project")" "$(render_token out milestone "$dt_id")" "$dt_fails"
 }
 
 # tick_project <project> <plan json> <rows json> <this tick's clock>: steps 3 and 4 for one project.
@@ -229,7 +229,10 @@ tick_project() {
   question_resolve_check "$1" "$3" || return 1
   fork_resolve_check "$1" "$3" || return 1
   tp_over=$(takeover_check "$1" "$3") || return 1
-  printf '%s' "$tp_over" | jq -r '.lines[]'
+  # `takeover_check` returns its lines beside the machine stand-off list, because they are two
+  # halves of one reading and a helper that printed as it went would be deciding for its caller.
+  # The lines carry no styling of their own: they are rendered here, where they meet a stream.
+  render_lines "$(printf '%s' "$tp_over" | jq -c .lines)" action
   tp_off=$(printf '%s' "$tp_over" | jq -r '.stand_off[]')
   crash_check "$1" "$3" "$tp_off" "$4" || return 1
   stall_check "$1" "$3" "$tp_off" || return 1
@@ -279,8 +282,8 @@ dispatch_run() {
   # dispatch neither takes a listing it would not read nor counts a cap it would not spend.
   [ "$(printf '%s' "$1" | jq length)" -gt 0 ] || return 0
   drn_cap=$(config_num cap 2)
-  drn_rows=$(rows_read) || { echo "claude agents --json could not be read before the cap was counted" >&2; return 1; }
-  drn_flight=$(derive_in_flight "" "$drn_rows") || { echo "$drn_flight" >&2; return 1; }
+  drn_rows=$(rows_read) || { render_failure err "claude agents --json could not be read before the cap was counted"; return 1; }
+  drn_flight=$(derive_in_flight "" "$drn_rows") || { render_failure err "$drn_flight"; return 1; }
   drn_counts=$(printf '%s' "$drn_flight" | jq -c \
     '[ .in_flight[] | .project ] | group_by(.) | map({key: .[0], value: length}) | from_entries')
   drn_total=$(printf '%s' "$drn_flight" | jq '.in_flight | length')
@@ -291,23 +294,23 @@ dispatch_run() {
     hold_bites "$(printf '%s' "$drn_c" | jq -r '.model // ""')" && continue
     drn_kept=$(printf '%s' "$drn_kept" | jq -c --argjson c "$drn_c" '. + [$c]')
   done
-  drn_order=$(cap_order "$drn_kept" "$drn_counts") || { echo "the cap order could not be computed" >&2; return 1; }
+  drn_order=$(cap_order "$drn_kept" "$drn_counts") || { render_failure err "the cap order could not be computed"; return 1; }
   drn_n=$(printf '%s' "$drn_order" | jq length); drn_i=0
   while [ "$drn_i" -lt "$drn_n" ] && [ "$((drn_total + do_unresolved))" -lt "$drn_cap" ]; do
     drn_c=$(printf '%s' "$drn_order" | jq -c ".[$drn_i]"); drn_i=$((drn_i + 1))
     drn_p=$(printf '%s' "$drn_c" | jq -r .project)
     drn_m=$(printf '%s' "$drn_c" | jq -r .milestone)
     drn_plan=$(printf '%s' "$2" | jq -c --arg k "$drn_p" '.[$k]')
-    drn_before=$(attempt_of "$drn_p" "$drn_m") || { echo "$drn_before" >&2; return 1; }
+    drn_before=$(attempt_of "$drn_p" "$drn_m") || { render_failure err "$drn_before"; return 1; }
     dispatch_try "$drn_p" "$drn_m" "$drn_plan" "$drn_rows"
-    drn_after=$(attempt_of "$drn_p" "$drn_m") || { echo "$drn_after" >&2; return 1; }
+    drn_after=$(attempt_of "$drn_p" "$drn_m") || { render_failure err "$drn_after"; return 1; }
     [ "$drn_after" -gt "$drn_before" ] || continue
     drn_total=$((drn_total + 1))
     # The override follows the dispatch it records, so a dispatch that failed leaves no record of the
     # plan having overruled a `held` into a session that never started.
     if printf '%s' "$drn_c" | jq -e 'has("override")' > /dev/null; then
       plan_override_once "$drn_p" "$drn_m" "$(printf '%s' "$drn_c" | jq -c .override)" \
-        || echo "override  $drn_p/$drn_m · the plan_override for this dispatch could not be written" >&2
+        || render_failure err "override  $drn_p/$drn_m · the plan_override for this dispatch could not be written"
     fi
   done
 }
@@ -334,7 +337,7 @@ tick_run() {
     tr_rows_ok=yes
   else
     tr_rows_ok=no
-    echo "baton: claude agents --json could not be read; no lane is reconciled and nothing is dispatched" >&2
+    render_failure err "baton: claude agents --json could not be read; no lane is reconciled and nothing is dispatched"
   fi
 
   # 1. Self-check, per registered project, in directory order. A project that fails is skipped for
@@ -347,7 +350,7 @@ tick_run() {
       tr_plans=$(printf '%s' "$tr_plans" | jq -c --arg k "$tr_key" --argjson p "$tr_plan" '. + {($k): $p}')
       park_resolve "$tr_key" '^plan-(unreadable|unparseable)$' 'the plan file reads again' || tr_status=3
     else
-      echo "self-check  $tr_key · $tr_plan"
+      render_row out action 'self-check  %s · %s\n' "$(render_token out lane "$tr_key")" "$tr_plan"
     fi
   done
 
@@ -363,7 +366,7 @@ tick_run() {
   # 2. Consume the inbox. Moving the call is all this is: inbox_consume is M02's, it takes the lock
   #    and nothing else, and the lock is already held here.
   inbox_consume "$tr_rows" "$tr_rows_ok" || {
-    echo "inbox       the inbox pass failed; some artifacts may remain unread" >&2
+    render_failure err "inbox       the inbox pass failed; some artifacts may remain unread"
     tr_status=3
   }
 
@@ -377,13 +380,13 @@ tick_run() {
   # `hold_bites` reads the log rather than this function, so the next dispatch would land on the
   # very model a limit had just refused.
   holds_apply || {
-    echo "holds       the hold pass failed; a dispatch may not be withheld this tick" >&2
+    render_failure err "holds       the hold pass failed; a dispatch may not be withheld this tick"
     tr_status=3
   }
   # The reserve beside it, for the same reason: the seven-day window is the account's, so it is read
   # once and holds Fable for every project alike.
   reserve_check || {
-    echo "holds       the reserve pass failed; a Fable dispatch may not be withheld this tick" >&2
+    render_failure err "holds       the reserve pass failed; a Fable dispatch may not be withheld this tick"
     tr_status=3
   }
 
@@ -400,7 +403,7 @@ tick_run() {
     tr_key=$(printf '%s' "$tr_keys" | jq -r ".[$tr_i]"); tr_i=$((tr_i + 1))
     tr_plan=$(printf '%s' "$tr_plans" | jq -c --arg k "$tr_key" '.[$k]')
     if ! tick_project "$tr_key" "$tr_plan" "$tr_rows" "$tr_now"; then
-      echo "reconcile   $tr_key · the tick could not finish this project"
+      render_row out action 'reconcile   %s · the tick could not finish this project\n' "$(render_token out lane "$tr_key")"
       tr_status=3
       continue
     fi
@@ -408,10 +411,10 @@ tick_run() {
     # been asked to fix, while the lanes already running carried on through steps 3 and 4 above.
     project_held "$tr_key" > /dev/null && continue
     if tr_doc=$(dispositions_intersect "$tr_key" "$tr_plan" "$tr_rows"); then
-      printf '%s' "$tr_doc" | jq -r '.lines[]'
+      render_lines "$(printf '%s' "$tr_doc" | jq -c .lines)"
       tr_cands=$(printf '%s' "$tr_doc" | jq -c --argjson a "$tr_cands" '$a + .candidates')
     else
-      echo "reconcile   $tr_key · the dispositions could not be read: $tr_doc"
+      render_row out action 'reconcile   %s · the dispositions could not be read: %s\n' "$(render_token out lane "$tr_key")" "$tr_doc"
       tr_status=3
     fi
   done
@@ -419,15 +422,15 @@ tick_run() {
   # Mac's, as the cap is. Before the dispatch, so a process taken offline is gone before a new one
   # starts; and the wake session after it, because the first `offline` event is what calls for one.
   offline_check "$tr_rows" || {
-    echo "offline     the offline pass failed; no finished session was taken offline this tick"
+    render_row out action 'offline     the offline pass failed; no finished session was taken offline this tick\n'
     tr_status=3
   }
   wake_session_ensure "$tr_rows" || {
-    echo "wake        the wake session could not be checked this tick"
+    render_row out action 'wake        the wake session could not be checked this tick\n'
     tr_status=3
   }
   dispatch_run "$tr_cands" "$tr_plans" || {
-    echo "dispatch    the dispatch pass failed; nothing more is dispatched this tick"
+    render_row out action 'dispatch    the dispatch pass failed; nothing more is dispatched this tick\n'
     tr_status=3
   }
 

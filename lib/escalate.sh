@@ -203,7 +203,7 @@ reread_changed() {
 # resume that the CLI refused is not an ending: the session did not end, Baton failed to reach it,
 # and the park stands until the person sends the ruling again — which must then still count.
 person_acted() {
-  pac_log=$(log_json) || { echo "$pac_log" >&2; return 1; }
+  pac_log=$(log_json) || { render_failure err "$pac_log"; return 1; }
   printf '%s' "$pac_log" | jq -r --arg p "$1" --arg m "$2" --arg c "$3" '
     [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
     | ([ $ev[] | select(.kind == "consumed" or (.kind == "crash_sighting" and .sighting == 2)
@@ -245,7 +245,7 @@ escalate() {
   # outside the two is a park that holds nothing and is shown as nothing.
   case "$esc_scope" in
     lane|project) ;;
-    *) echo "escalate: \"$esc_scope\" is not a scope; it is lane or project" >&2; return 1 ;;
+    *) render_failure err "escalate: \"$esc_scope\" is not a scope; it is lane or project"; return 1 ;;
   esac
   # The hashes go on a lane park when an edit is a way out of its class — or when no ruling can
   # reach the lane, whatever its class. A ruling is delivered by resuming a session Baton dispatched
@@ -293,7 +293,7 @@ escalate() {
 resolve() {
   case "$6" in
     ruling|"answered in place"|edit) ;;
-    *) echo "resolve: \"$6\" is not one of ruling, answered in place, edit" >&2; return 1 ;;
+    *) render_failure err "resolve: \"$6\" is not one of ruling, answered in place, edit"; return 1 ;;
   esac
   log_event resolution "$1" "$2" "$3" "$4" \
     "$(jq -nc --arg h "$6" --arg a "$5" '{how: $h, escalation_at: $a}')"
@@ -521,7 +521,7 @@ ending_escalate() {
   if [ -n "$end_carries" ] && escalate "$1" "$2" "$3" "$4" "$end_class" "$end_scope" "$end_carries"; then
     return 0
   fi
-  echo "baton: $1/$2 the $end_class park did not fit its full carries; parking it with a pointer to $7" >&2
+  render_failure err "baton: $1/$2 the $end_class park did not fit its full carries; parking it with a pointer to $7"
   escalate "$1" "$2" "$3" "$4" "$end_class" "$end_scope" \
     "$(jq -nc --arg a "$7" '{detail: "the session stopped with words Baton could not carry whole; they are in the archived artifact", archive: $a}')"
 }
@@ -566,7 +566,7 @@ reread_baseline_of() {
 # rather than a minute later, and a refused model or an ended ladder is redispatched rather than
 # parked again (`person_acted`).
 edit_reread_check() {
-  err_parked=$(derive_parked "$1") || { echo "$err_parked" >&2; return 1; }
+  err_parked=$(derive_parked "$1") || { render_failure err "$err_parked"; return 1; }
   err_list=$(printf '%s' "$err_parked" | jq -c '[ .parked[] | select(.carries.reread != null) ]')
   err_n=$(printf '%s' "$err_list" | jq length); err_i=0
   while [ "$err_i" -lt "$err_n" ]; do
@@ -578,7 +578,7 @@ edit_reread_check() {
     err_v=$(printf '%s' "$err_receipt" | jq -r '.version // 1')
     case "$err_v" in
       1|2) ;;
-      *) echo "baton: $1/$err_m the park raised at $err_at carries a re-read receipt of version $err_v, which this relay cannot read; the park stands" >&2
+      *) render_failure err "baton: $1/$err_m the park raised at $err_at carries a re-read receipt of version $err_v, which this relay cannot read; the park stands"
          continue ;;
     esac
     err_want=$(policy_fields "$(class_reread_policy "$err_class")")
@@ -604,24 +604,24 @@ edit_reread_check() {
       err_rest=$(printf '%s' "$err_want" | jq -c '[ .[] | select(. != "brief_sha256" and . != "status_sha256") ]')
       if [ "$(printf '%s' "$err_changed" | jq length)" -eq 0 ] \
          && [ "$(printf '%s' "$err_rest" | jq length)" -gt 0 ]; then
-        err_base=$(reread_baseline_of "$1" "$err_m" "$err_at") || { echo "$err_base" >&2; return 1; }
+        err_base=$(reread_baseline_of "$1" "$err_m" "$err_at") || { render_failure err "$err_base"; return 1; }
         if [ "$(printf '%s' "$err_base" | jq -r .found)" -gt 1 ]; then
-          echo "baton: $1/$err_m more than one re-read baseline names the park raised at $err_at; the park stands" >&2
+          render_failure err "baton: $1/$err_m more than one re-read baseline names the park raised at $err_at; the park stands"
           continue
         elif [ "$(printf '%s' "$err_base" | jq -r .found)" -eq 0 ]; then
           err_new=$(printf '%s' "$err_now" | jq -c --argjson want "$err_rest" \
             '. as $n | reduce $want[] as $k ({}; if $n | has($k) then . + {($k): $n[$k]} else . end)')
           if [ "$(printf '%s' "$err_new" | jq length)" -ne "$(printf '%s' "$err_rest" | jq length)" ]; then
-            echo "baton: $1/$err_m the re-read baseline for the park raised at $err_at needs a reading the plan does not give; the park stands" >&2
+            render_failure err "baton: $1/$err_m the re-read baseline for the park raised at $err_at needs a reading the plan does not give; the park stands"
             continue
           fi
           log_event reread_baseline "$1" "$err_m" "$(printf '%s' "$err_e" | jq -r '.session // ""')" \
             "$(printf '%s' "$err_e" | jq -r '.attempt // ""')" \
             "$(jq -nc --arg a "$err_at" --arg p "$(class_reread_policy "$err_class")" --argjson h "$err_new" \
                '{escalation_at: $a, version: 2, policy: $p, hashes: $h}')" \
-            || { echo "baton: $1/$err_m the re-read baseline for the park raised at $err_at could not be written; the park stands" >&2; continue; }
-          printf 'rebased   %s/%s · the %s park predates the %s policy, so its plan evidence is taken afresh · the park stands and an edit made before now cannot be proved\n' \
-            "$1" "$err_m" "$err_class" "$(class_reread_policy "$err_class")"
+            || { render_failure err "baton: $1/$err_m the re-read baseline for the park raised at $err_at could not be written; the park stands"; continue; }
+          render_row out record 'rebased   %s/%s · the %s park predates the %s policy, so its plan evidence is taken afresh · the park stands and an edit made before now cannot be proved\n' \
+            "$(render_token out lane "$1")" "$(render_token out milestone "$err_m")" "$err_class" "$(class_reread_policy "$err_class")"
           continue
         fi
         err_changed=$(reread_changed "$(jq -nc --argjson a "$err_was" \
@@ -651,17 +651,17 @@ edit_reread_check() {
            else "the brief" end) | join(" and ")')
     resolve "$1" "$err_m" "$(printf '%s' "$err_e" | jq -r '.session // ""')" \
       "$(printf '%s' "$err_e" | jq -r '.attempt // ""')" "$err_at" edit \
-      || { echo "baton: $1/$err_m the unpark of the park raised at $err_at could not be written" >&2; continue; }
-    printf 'unparked  %s/%s · %s changed since the %s park · Baton acts on the lane again\n' \
-      "$1" "$err_m" "$err_what" "$err_class"
+      || { render_failure err "baton: $1/$err_m the unpark of the park raised at $err_at could not be written"; continue; }
+    render_row out record 'unparked  %s/%s · %s changed since the %s park · Baton acts on the lane again\n' \
+      "$(render_token out lane "$1")" "$(render_token out milestone "$err_m")" "$err_what" "$err_class"
     # A close-out done by hand leaves the session that stopped before it idle and still live: nothing
     # Baton does ends that process — only an `asking` consume stops a session — and while its row has a
     # pid its lane counts against the cap. The person who just finished its work is told which job it
     # is, once, on the line they read.
     if class_ends_on_done "$err_class" && [ -n "${3:-}" ]; then
       err_job=$(job_of_session "$3" "$(printf '%s' "$err_e" | jq -r '.session // ""')")
-      [ -z "$err_job" ] || printf 'idle      %s/%s · its session is still live as job %s and counts against the cap until it ends: claude stop %s\n' \
-        "$1" "$err_m" "$err_job" "$err_job"
+      [ -z "$err_job" ] || render_row out action 'idle      %s/%s · its session is still live as job %s and counts against the cap until it ends: %s\n' \
+        "$(render_token out lane "$1")" "$(render_token out milestone "$err_m")" "$(render_token out session "$err_job")" "$(render_hint out "claude stop $err_job")"
     fi
   done
 }
@@ -678,10 +678,10 @@ edit_reread_check() {
 # and can be answered on resume (D-016) — which is why the ruling that follows carries no
 # dropped-call sentence and why this is a notification and not a second park.
 question_resolve_check() {
-  qrc_parked=$(derive_parked "$1") || { echo "$qrc_parked" >&2; return 1; }
+  qrc_parked=$(derive_parked "$1") || { render_failure err "$qrc_parked"; return 1; }
   qrc_list=$(printf '%s' "$qrc_parked" | jq -c '[ .parked[] | select(.class == "question") ]')
   [ "$(printf '%s' "$qrc_list" | jq length)" -gt 0 ] || return 0
-  qrc_log=$(log_json) || { echo "$qrc_log" >&2; return 1; }
+  qrc_log=$(log_json) || { render_failure err "$qrc_log"; return 1; }
   qrc_n=$(printf '%s' "$qrc_list" | jq length); qrc_i=0
   while [ "$qrc_i" -lt "$qrc_n" ]; do
     qrc_e=$(printf '%s' "$qrc_list" | jq -c ".[$qrc_i]"); qrc_i=$((qrc_i + 1))
@@ -702,8 +702,9 @@ question_resolve_check() {
          | any($ev[]; .kind == "consumed" and .session == $s and .written_by == "session" and .i > $park)' \
          > /dev/null; then
       resolve "$1" "$qrc_m" "$qrc_s" "$qrc_a" "$qrc_at" "answered in place"
-      printf 'unparked  %s/%s · %s · the session wrote its own handover after the question, so it was answered in place\n' \
-        "$1" "$qrc_m" "$qrc_s"
+      render_row out record 'unparked  %s/%s · %s · the session wrote its own handover after the question, so it was answered in place\n' \
+        "$(render_token out lane "$1")" "$(render_token out milestone "$qrc_m")" \
+        "$(render_token out session "$qrc_s")"
       continue
     fi
     qrc_row=$(printf '%s' "$2" | jq -c --arg s "$qrc_s" \
@@ -711,13 +712,13 @@ question_resolve_check() {
     if [ "$(printf '%s' "$qrc_row" | jq 'length')" -gt 0 ]; then
       [ "$(printf '%s' "$qrc_row" | jq -r '.waitingFor // ""')" != "input needed" ] || continue
       resolve "$1" "$qrc_m" "$qrc_s" "$qrc_a" "$qrc_at" "answered in place"
-      printf 'unparked  %s/%s · %s · the question was answered in place\n' "$1" "$qrc_m" "$qrc_s"
+      render_row out record 'unparked  %s/%s · %s · the question was answered in place\n' "$(render_token out lane "$1")" "$(render_token out milestone "$qrc_m")" "$(render_token out session "$qrc_s")"
       continue
     fi
     # No live row: the session is stopped and the row transition can no longer unpark the lane.
     # Once per park, keyed on the escalation's own `at`, because a second park is a second question.
     qrc_spent=$(derive_key_spent "$1" "$qrc_m" "${qrc_a:-0}" prompt-lost "$qrc_at") \
-      || { echo "$qrc_spent" >&2; return 1; }
+      || { render_failure err "$qrc_spent"; return 1; }
     [ "$(printf '%s' "$qrc_spent" | jq -r .spent)" = false ] || continue
     # A notification's body is its detail alone — the three-part message with its verb last belongs
     # to a park — so the command goes in the sentence. This one is worth the words: the person is
@@ -725,8 +726,8 @@ question_resolve_check() {
     qrc_detail="the session stopped while the question was open, so answering it in the session can no longer unpark the lane; the call can still be answered on the resume, with baton answer $qrc_m \"<ruling>\""
     notification_write "$1" "$qrc_m" "$qrc_s" "$qrc_a" prompt-lost "$qrc_at" \
       "$(jq -nc --arg a "$qrc_at" --arg d "$qrc_detail" '{asked_at: $a, detail: $d}')"
-    printf 'prompt    %s/%s · %s · the question outlived its session; only a ruling reaches it now\n' \
-      "$1" "$qrc_m" "$qrc_s"
+    render_row out action 'prompt    %s/%s · %s · the question outlived its session; only a ruling reaches it now\n' \
+      "$(render_token out lane "$1")" "$(render_token out milestone "$qrc_m")" "$(render_token out session "$qrc_s")"
   done
 }
 
@@ -751,7 +752,7 @@ question_resolve_check() {
 # defect class D-134 exists to close. The rows are the only witness, and they are asked directly.
 fork_resolve_check() {
   [ -n "${2:-}" ] || return 0
-  frc_parked=$(derive_parked "$1") || { echo "$frc_parked" >&2; return 1; }
+  frc_parked=$(derive_parked "$1") || { render_failure err "$frc_parked"; return 1; }
   frc_list=$(printf '%s' "$frc_parked" | jq -c \
     '[ .parked[] | select(.class == "other" and .scope == "lane" and (.carries.original // "") != "") ]')
   frc_n=$(printf '%s' "$frc_list" | jq length); frc_i=0
@@ -768,8 +769,8 @@ fork_resolve_check() {
     frc_m=$(printf '%s' "$frc_e" | jq -r '.milestone // ""')
     resolve "$1" "$frc_m" "$(printf '%s' "$frc_e" | jq -r '.session // ""')" \
       "$(printf '%s' "$frc_e" | jq -r '.attempt // ""')" "$(printf '%s' "$frc_e" | jq -r .at)" edit \
-      || { echo "baton: $1/$frc_m the unpark of the fork park naming $frc_o could not be written" >&2; continue; }
-    printf 'unparked  %s/%s · no row carries the unstopped original %s any more · Baton acts on the lane again\n' \
-      "$1" "$frc_m" "$frc_o"
+      || { render_failure err "baton: $1/$frc_m the unpark of the fork park naming $frc_o could not be written"; continue; }
+    render_row out record 'unparked  %s/%s · no row carries the unstopped original %s any more · Baton acts on the lane again\n' \
+      "$(render_token out lane "$1")" "$(render_token out milestone "$frc_m")" "$(render_token out session "$frc_o")"
   done
 }

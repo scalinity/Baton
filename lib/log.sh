@@ -1,6 +1,11 @@
 #!/bin/sh
 # lib/log.sh — the dispatch log's one writer, the envelope, the one reader, the attempt derivation,
 # the rows listing, the prompt sidecar and its hash. Nothing else in Baton writes log.jsonl (INV-02).
+#
+# Its refusals are person-facing and go through `lib/render.sh`, so anything sourcing this file on
+# its own sources that one first, as `bin/baton`, `tests/lib-load.sh` and `tests/consume-once.sh`
+# do. There is one definition of a rendering primitive in Baton and this file does not carry a
+# second: a fallback copy is how two spellings of one refusal come to exist.
 set -eu
 
 # Baton's own clock: ISO 8601 with offset, 2026-09-11T23:14:02+01:00.
@@ -16,7 +21,7 @@ baton_now() {
 log_event() {
   ev_kind=$1; ev_project=$2; ev_milestone=$3; ev_session=$4; ev_attempt=$5; ev_fields=${6:-'{}'}
   if [ ! -d "$BATON_HOME/lock" ]; then
-    echo "log_event: refused, the lock is not held" >&2
+    render_failure err "log_event: refused, the lock is not held"
     return 1
   fi
   ev_line=$(jq -nc --arg at "$(baton_now)" --arg kind "$ev_kind" \
@@ -30,7 +35,7 @@ log_event() {
     | . + $f')
   ev_bytes=$(printf '%s\n' "$ev_line" | wc -c | tr -d ' ')
   if [ "$ev_bytes" -ge 4096 ]; then
-    echo "log_event: refused, the line is $ev_bytes bytes and the limit is 4 KB" >&2
+    render_failure err "log_event: refused, the line is $ev_bytes bytes and the limit is 4 KB"
     return 1
   fi
   printf '%s\n' "$ev_line" >> "$BATON_HOME/log.jsonl"

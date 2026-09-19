@@ -24,7 +24,7 @@ set -eu
 project_held() {
   # A park that cannot be read holds, because dispatching onto ground a person may have been asked to
   # fix is the mistake with no undo; the class it prints then says it is not known.
-  phd_parked=$(derive_parked "$1") || { echo "$phd_parked" >&2; echo "unknown: the parks could not be read"; return 0; }
+  phd_parked=$(derive_parked "$1") || { render_failure err "$phd_parked"; echo "unknown: the parks could not be read"; return 0; }
   phd_class=$(printf '%s' "$phd_parked" | jq -r 'first(.parked[] | select(.scope == "project") | .class) // empty')
   [ -n "$phd_class" ] || return 1
   printf '%s\n' "$phd_class"
@@ -169,7 +169,7 @@ intersect_verdicts() {
 # tick that wrote it again every sixty seconds would change the state on every run, which INV-05
 # forbids; and a dispatch starts a new decision, so the key re-arms there.
 plan_override_spent() {
-  pos_log=$(log_json) || { echo "$pos_log" >&2; return 0; }
+  pos_log=$(log_json) || { render_failure err "$pos_log"; return 0; }
   printf '%s' "$pos_log" | jq -e --arg p "$1" --arg m "$2" --arg d "$3" --arg g "$4" '
     [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
     | ([ $ev[] | select(.kind == "dispatch") ] | last | .i // -1) as $reset
@@ -190,7 +190,7 @@ plan_override_once() {
          + (if .gate then " by gate \"\(.gate)\"" else "" end) + " · withheld"
     else "override  \($p)/\($m) · the handover says held by \"\(.gate // "")\" and the plan does not hold it"
          + (if .cleared_by then ", cleared by \(.cleared_by)" else "" end) + " · dispatched" end')
-  printf '%s\n' "$poo_line"
+  render_row out record '%s\n' "$poo_line"
 }
 
 # dispositions_intersect <project> <plan json> <rows json>: step 6 for one project, acted on. Writes

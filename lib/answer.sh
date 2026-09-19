@@ -26,12 +26,23 @@ answer_resolve() {
   printf '%s\n' "$anr_c"
 }
 
-# answer_candidates_print <candidates json>: the refusal a person reads when a milestone name is
+# answer_candidates_print <candidates json> <out|err>: the refusal a person reads when a milestone
 # parked in more than one project. The long form is printed as a command rather than as a list,
 # because the next thing that happens is one of these lines being run.
+#
+# Its stream is an argument because both callers print it on stderr, beneath their own refusal, and
+# a helper that guessed would guess for the stream the refusal did not use.
 answer_candidates_print() {
-  printf '%s' "$1" | jq -r '.[] | "  baton answer \(.project)/\(.milestone) · \(.class // "?") · "
-                                  + ((.carries.question // .carries.detail // "") | split("\n")[0])'
+  acp_stream=$2
+  acp_n=$(printf '%s' "$1" | jq length); acp_i=0
+  while [ "$acp_i" -lt "$acp_n" ]; do
+    acp_c=$(printf '%s' "$1" | jq -c --argjson i "$acp_i" '.[$i]'); acp_i=$((acp_i + 1))
+    render_row "$acp_stream" plain '  %s · %s · %s\n' \
+      "$(render_hint "$acp_stream" \
+         "baton answer $(printf '%s' "$acp_c" | jq -r .project)/$(printf '%s' "$acp_c" | jq -r .milestone)")" \
+      "$(printf '%s' "$acp_c" | jq -r '.class // "?"')" \
+      "$(printf '%s' "$acp_c" | jq -r '(.carries.question // .carries.detail // "") | split("\n")[0]')"
+  done
 }
 
 # answer_options <project> <milestone> <session> <carries json>: the options an `asking` artifact
@@ -80,14 +91,15 @@ answer_deliver() {
     if [ "$and_class" = dispatch-failed ] && [ -z "$and_s" ] && [ -n "$and_p" ] && [ -n "$and_m" ] \
        && [ "$(printf '%s' "$1" | jq -r '.scope // ""')" = lane ]; then
       if [ -z "$2" ]; then
-        echo "baton: a hand-back ruling must not be empty" >&2
+        render_failure err "baton: a hand-back ruling must not be empty"
         return 1
       fi
       resolve "$and_p" "$and_m" "" "" "$and_at" ruling || return 1
-      printf 'retry     %s/%s · the dispatch-failed park is released; the next tick may dispatch when eligible\n' "$and_p" "$and_m"
+      render_row out record 'retry     %s/%s · the dispatch-failed park is released; the next tick may dispatch when eligible\n' \
+        "$(render_token out lane "$and_p")" "$(render_token out milestone "$and_m")"
       return 0
     fi
-    echo "baton: the $and_class park on $and_p/$and_m names no session Baton dispatched, so there is nothing a ruling can reach; the way out is an edit to the plan or the brief" >&2
+    render_failure err "baton: the $and_class park on $and_p/$and_m names no session Baton dispatched, so there is nothing a ruling can reach; the way out is an edit to the plan or the brief"
     return 1
   fi
 
@@ -96,15 +108,22 @@ answer_deliver() {
     ''|*[!0-9]*) ;;
     *)
       and_opts=$(answer_options "$and_p" "$and_m" "$and_s" "$and_carries") \
-        || { echo "baton: $and_opts" >&2; return 1; }
+        || { render_failure err "baton: $and_opts"; return 1; }
       and_n=$(printf '%s' "$and_opts" | jq length)
       if [ "$and_n" -eq 0 ]; then
-        echo "baton: $and_p/$and_m offered no options, so $2 is not a choice; give the ruling as text" >&2
+        render_failure err "baton: $and_p/$and_m offered no options, so $2 is not a choice; give the ruling as text"
         return 1
       fi
       if [ "$2" -lt 1 ] || [ "$2" -gt "$and_n" ]; then
-        echo "baton: $and_p/$and_m offered $and_n options and $2 is not one of them:" >&2
-        printf '%s' "$and_opts" | jq -r 'to_entries[] | "  \(.key + 1) \(.value)"' >&2
+        render_failure err "baton: $and_p/$and_m offered $and_n options and $2 is not one of them:"
+        # The numbers are what the next command will carry, so they are rendered as the identity
+        # of each option rather than left as part of its text.
+        and_i=0
+        while [ "$and_i" -lt "$and_n" ]; do
+          and_i=$((and_i + 1))
+          render_row err plain '  %s %s\n' "$(render_token err milestone "$and_i")" \
+            "$(printf '%s' "$and_opts" | jq -r --argjson n "$and_i" '.[$n - 1]')"
+        done
         return 1
       fi
       and_text=$(printf '%s' "$and_opts" | jq -r --argjson n "$2" '.[$n - 1]')
@@ -130,13 +149,15 @@ answer_deliver() {
   # Both numbers from one reading, so the label and the event it is logged beside cannot disagree.
   # The attempt is the derived count and not the park's stamp: a park written for a session Baton
   # never dispatched carries none, and the count is the authority in any case.
-  and_n=$(resume_count_next "$and_p" "$and_m" "$and_a") || { echo "$and_n" >&2; return 1; }
+  and_n=$(resume_count_next "$and_p" "$and_m" "$and_a") || { render_failure err "$and_n"; return 1; }
   and_label=$(template_ruling "$and_m" "${and_n% *}" "${and_n#* }" "$and_at" "$and_q" "$and_text")
 
   and_out=$(resume_session "$and_p" "$and_m" "$and_a" "$and_s" \
-    "$(job_of_session "$3" "$and_s")" ruling "$and_class" "$and_label") || { echo "$and_out" >&2; return 1; }
+    "$(job_of_session "$3" "$and_s")" ruling "$and_class" "$and_label") || { render_failure err "$and_out"; return 1; }
   and_outcome=$(printf '%s' "$and_out" | jq -r .outcome)
-  printf 'ruling    %s/%s · %s · %s · %s\n' "$and_p" "$and_m" "$and_s" "$and_class" "$and_outcome"
+  render_row out record 'ruling    %s/%s · %s · %s · %s\n' \
+    "$(render_token out lane "$and_p")" "$(render_token out milestone "$and_m")" \
+    "$(render_token out session "$and_s")" "$and_class" "$and_outcome"
   case "$and_outcome" in
     delivered|forked)
       resolve "$and_p" "$and_m" "$and_s" "$and_a" "$and_at" ruling
@@ -146,7 +167,7 @@ answer_deliver() {
         main_broken_cascade "$and_p" "$2" "$3" "$and_at" "$and_m" || return 1
       fi ;;
     *)
-      echo "baton: the ruling did not reach $and_p/$and_m, so the park stands; run the same answer again once the resume can go through" >&2
+      render_failure err "baton: the ruling did not reach $and_p/$and_m, so the park stands; run the same answer again once the resume can go through"
       return 1 ;;
   esac
 }
@@ -163,7 +184,7 @@ answer_deliver() {
 # no escalation time to quote — and because what the session needs to hear is exactly what that
 # template says: carry on from where the last turn ended, and the handover is still owed.
 answer_handback() {
-  ahb_over=$(derive_taken_over "${2:-}" "$3") || { echo "$ahb_over" >&2; return 1; }
+  ahb_over=$(derive_taken_over "${2:-}" "$3") || { render_failure err "$ahb_over"; return 1; }
   ahb_list=$(printf '%s' "$ahb_over" | jq -c --arg m "$1" '[ .taken_over[] | select(.milestone == $m) ]')
   printf '%s\n' "$ahb_list"
 }
@@ -172,13 +193,13 @@ answer_handback() {
 verb_answer() {
   # An empty ruling would still arrive under the label, telling the session a decision had been made
   # and giving it nothing; and it would close the park, so the person could not send the real one.
-  [ -n "$2" ] || { echo "baton: a ruling is words or an option number, and this one is empty" >&2; return 1; }
+  [ -n "$2" ] || { render_failure err "baton: a ruling is words or an option number, and this one is empty"; return 1; }
   case "$1" in
     */*) vba_p=${1%%/*}; vba_m=${1#*/} ;;
     *)   vba_p=''; vba_m=$1 ;;
   esac
   vba_rows=$(rows_json)
-  vba_c=$(answer_resolve "$vba_m" "$vba_p") || { echo "baton: $vba_c" >&2; return 1; }
+  vba_c=$(answer_resolve "$vba_m" "$vba_p") || { render_failure err "baton: $vba_c"; return 1; }
   vba_n=$(printf '%s' "$vba_c" | jq -r .count)
 
   if [ "$vba_n" -gt 1 ]; then
@@ -187,11 +208,11 @@ verb_answer() {
     # a way through that leads back here.
     vba_pn=$(printf '%s' "$vba_c" | jq '[ .candidates[] | .project ] | unique | length')
     if [ "$vba_pn" -gt 1 ]; then
-      echo "baton: $vba_m is parked in $vba_pn projects; name one:" >&2
+      render_failure err "baton: $vba_m is parked in $vba_pn projects; name one:"
     else
-      echo "baton: $1 carries $vba_n open parks at once, which one lane should never do; Baton will not guess which the ruling answers. They are:" >&2
+      render_failure err "baton: $1 carries $vba_n open parks at once, which one lane should never do; Baton will not guess which the ruling answers. They are:"
     fi
-    answer_candidates_print "$(printf '%s' "$vba_c" | jq -c .candidates)" >&2
+    answer_candidates_print "$(printf '%s' "$vba_c" | jq -c .candidates)" err
     return 1
   fi
 
@@ -206,13 +227,18 @@ verb_answer() {
   vba_over=$(answer_handback "$vba_m" "$vba_p" "$vba_rows") || return 1
   vba_on=$(printf '%s' "$vba_over" | jq length)
   if [ "$vba_on" -gt 1 ]; then
-    echo "baton: $vba_m is taken over in $vba_on projects; name one:" >&2
-    printf '%s' "$vba_over" | jq -r '.[] | "  baton answer \(.project)/\(.milestone) \"continue\""' >&2
+    render_failure err "baton: $vba_m is taken over in $vba_on projects; name one:"
+    vba_i=0
+    while [ "$vba_i" -lt "$vba_on" ]; do
+      vba_c=$(printf '%s' "$vba_over" | jq -c --argjson i "$vba_i" '.[$i]'); vba_i=$((vba_i + 1))
+      render_row err plain '  %s\n' "$(render_hint err \
+        "baton answer $(printf '%s' "$vba_c" | jq -r .project)/$(printf '%s' "$vba_c" | jq -r .milestone) \"continue\"")"
+    done
     return 1
   fi
   if [ "$vba_on" -eq 1 ]; then
     if [ "$2" != continue ]; then
-      echo "baton: $vba_m is taken over, not parked; nothing is waiting on a ruling. Hand it back with baton answer $vba_m \"continue\" and it is Baton's again" >&2
+      render_failure err "baton: $vba_m is taken over, not parked; nothing is waiting on a ruling. Hand it back with baton answer $vba_m \"continue\" and it is Baton's again"
       return 1
     fi
     vba_l=$(printf '%s' "$vba_over" | jq -c '.[0]')
@@ -220,15 +246,17 @@ verb_answer() {
     vba_out=$(resume_session "$(printf '%s' "$vba_l" | jq -r .project)" "$vba_m" \
       "$(printf '%s' "$vba_l" | jq -r '.attempt // ""')" "$vba_ls" \
       "$(job_of_session "$vba_rows" "$vba_ls")" continue 'handed back') \
-      || { echo "$vba_out" >&2; return 1; }
-    printf 'handed back  %s/%s · %s · %s\n' "$(printf '%s' "$vba_l" | jq -r .project)" "$vba_m" \
-      "$vba_ls" "$(printf '%s' "$vba_out" | jq -r .outcome)"
+      || { render_failure err "$vba_out"; return 1; }
+    render_row out record 'handed back  %s/%s · %s · %s\n' \
+      "$(render_token out lane "$(printf '%s' "$vba_l" | jq -r .project)")" \
+      "$(render_token out milestone "$vba_m")" \
+      "$(render_token out session "$vba_ls")" "$(printf '%s' "$vba_out" | jq -r .outcome)"
     return 0
   fi
 
   # The target as the person typed it, long form and all: they named a lane, and being told that
   # nothing is waiting on the bare milestone would read as though the project half was ignored.
-  echo "baton: nothing is waiting on $1" >&2
+  render_failure err "baton: nothing is waiting on $1"
   return 1
 }
 
@@ -274,9 +302,9 @@ allow_lane() {
 allow_write() {
   alw_rule=$3
   case "$alw_rule" in
-    '') echo "baton: the rule is empty" >&2; return 1 ;;
+    '') render_failure err "baton: the rule is empty"; return 1 ;;
     ask|ask:*|'ask '*|Ask|Ask:*|'Ask '*)
-      echo "baton: refusing to write an ask rule. What a permissions.ask rule does under bypassPermissions is unknown (live item 42, unrun), and Baton does not write a rule whose effect it cannot state; the dispatched settings file carries no ask rules at all (INV-09)" >&2
+      render_failure err "baton: refusing to write an ask rule. What a permissions.ask rule does under bypassPermissions is unknown (live item 42, unrun), and Baton does not write a rule whose effect it cannot state; the dispatched settings file carries no ask rules at all (INV-09)"
       return 1 ;;
   esac
   # The newline is a literal in the pattern and never `$(printf '\n')`: command substitution strips
@@ -284,73 +312,73 @@ allow_write() {
   alw_nl='
 '
   case "$alw_rule" in
-    *"$alw_nl"*) echo "baton: a rule is one line; this one has more than one" >&2; return 1 ;;
+    *"$alw_nl"*) render_failure err "baton: a rule is one line; this one has more than one"; return 1 ;;
   esac
   # A rule is `Tool` or `Tool(pattern)`, which is never valid JSON; anything that parses — an
   # object, a list, a quoted string, a number — is a settings fragment or a paste gone wrong, and
   # written as given it would sit in the allowlist matching nothing while looking like a rule.
   if printf '%s' "$alw_rule" | jq -e . > /dev/null 2>&1; then
-    echo "baton: a rule is written as it appears in the allowlist, such as Bash(xcodebuild:*), and this one is JSON" >&2
+    render_failure err "baton: a rule is written as it appears in the allowlist, such as Bash(xcodebuild:*), and this one is JSON"
     return 1
   fi
   # Bounded like every other field a writer carries into the log: the rule goes onto the `widening`
   # line whole, and a rule the log refused would leave two widened files and no provenance for them.
   if [ "$(printf '%s' "$alw_rule" | wc -c | tr -d ' ')" -gt 1024 ]; then
-    echo "baton: the rule is over 1 KB, which no permission rule needs; it is refused rather than written without its record" >&2
+    render_failure err "baton: the rule is over 1 KB, which no permission rule needs; it is refused rather than written without its record"
     return 1
   fi
 
   alw_perm=$BATON_HOME/projects/$1/permissions.json
   alw_set=$BATON_HOME/settings/$1-$2.json
   if [ ! -f "$alw_perm" ]; then
-    echo "baton: $alw_perm does not exist, so project $1 has no allowlist to widen" >&2
+    render_failure err "baton: $alw_perm does not exist, so project $1 has no allowlist to widen"
     return 1
   fi
   # Both files are read before either is written. Found out after the first write, a settings file
   # that does not parse would leave the allowlist widened with no `widening` event beside it, and
   # `baton plan`'s provenance would then disagree with the file it describes.
-  jq -e . "$alw_perm" > /dev/null 2>&1 || { echo "baton: $alw_perm does not parse; nothing was written" >&2; return 1; }
+  jq -e . "$alw_perm" > /dev/null 2>&1 || { render_failure err "baton: $alw_perm does not parse; nothing was written"; return 1; }
   if [ -f "$alw_set" ] && ! jq -e . "$alw_set" > /dev/null 2>&1; then
-    echo "baton: $alw_set does not parse; nothing was written" >&2
+    render_failure err "baton: $alw_set does not parse; nothing was written"
     return 1
   fi
   # Written as given, because Baton never judges a rule — but not in silence when the deny list
   # names the same one: deny wins at run time, so the widening would change nothing, and "allowed"
   # would be the wrong word for it.
-  alw_word=allowed
+  alw_word=allowed; alw_kind=record
   if jq -e --arg r "$alw_rule" '((.permissions.deny // []) | index($r)) != null' "$alw_perm" > /dev/null 2>&1; then
-    alw_word='denied'
-    echo "baton: $alw_rule is also in the deny list of $alw_perm, and deny wins, so this widens nothing a session can use" >&2
+    alw_word='denied'; alw_kind=action
+    render_failure err "baton: $alw_rule is also in the deny list of $alw_perm, and deny wins, so this widens nothing a session can use"
   fi
   alw_add='if ((.permissions.allow // []) | index($r)) == null
            then .permissions.allow = ((.permissions.allow // []) + [$r]) else . end'
   alw_wrote=no
-  alw_new=$(jq --arg r "$alw_rule" "$alw_add" "$alw_perm") || { echo "baton: $alw_perm does not parse" >&2; return 1; }
+  alw_new=$(jq --arg r "$alw_rule" "$alw_add" "$alw_perm") || { render_failure err "baton: $alw_perm does not parse"; return 1; }
   if [ "$alw_new" != "$(jq . "$alw_perm")" ]; then
     printf '%s\n' "$alw_new" > "$alw_perm.tmp"
     mv "$alw_perm.tmp" "$alw_perm"
     alw_wrote=yes
-    printf '%-9s %s · %s · %s\n' "$alw_word" "$1" "$alw_rule" "$alw_perm"
+    render_row out "$alw_kind" '%-9s %s · %s · %s\n' "$alw_word" "$(render_token out lane "$1")" "$alw_rule" "$(render_token out path "$alw_perm")"
   else
-    printf 'already   %s · %s is in %s\n' "$1" "$alw_rule" "$alw_perm"
+    render_row out record 'already   %s · %s is in %s\n' "$(render_token out lane "$1")" "$alw_rule" "$(render_token out path "$alw_perm")"
   fi
 
   if [ -f "$alw_set" ]; then
     alw_new=$(jq --arg r "$alw_rule" "$alw_add" "$alw_set") \
-      || { echo "baton: $alw_set does not parse" >&2; return 1; }
+      || { render_failure err "baton: $alw_set does not parse"; return 1; }
     if [ "$alw_new" != "$(jq . "$alw_set")" ]; then
       printf '%s\n' "$alw_new" > "$alw_set.tmp"
       mv "$alw_set.tmp" "$alw_set"
       alw_wrote=yes
-      printf '%-9s %s · %s · %s\n' "$alw_word" "$2" "$alw_rule" "$alw_set"
+      render_row out "$alw_kind" '%-9s %s · %s · %s\n' "$alw_word" "$(render_token out milestone "$2")" "$alw_rule" "$(render_token out path "$alw_set")"
     else
-      printf 'already   %s · %s is in %s\n' "$2" "$alw_rule" "$alw_set"
+      render_row out record 'already   %s · %s is in %s\n' "$(render_token out milestone "$2")" "$alw_rule" "$(render_token out path "$alw_set")"
     fi
   else
     # Said rather than swallowed: the rule is in the project's allowlist and will reach the next
     # dispatch, but the session running now is reading a file that no longer exists, so a resume
     # would not pick the rule up either.
-    echo "baton: $alw_set does not exist, so only the project's allowlist was widened" >&2
+    render_failure err "baton: $alw_set does not exist, so only the project's allowlist was widened"
   fi
 
   # The event records a widening and not an attempt at one. A rule both files already carry widens
@@ -367,15 +395,20 @@ verb_allow() {
     */*) vbl_p=${1%%/*}; vbl_m=${1#*/} ;;
     *)   vbl_p=''; vbl_m=$1 ;;
   esac
-  vbl_lane=$(allow_lane "$vbl_m" "$vbl_p") || { echo "baton: $vbl_lane" >&2; return 1; }
+  vbl_lane=$(allow_lane "$vbl_m" "$vbl_p") || { render_failure err "baton: $vbl_lane"; return 1; }
   vbl_n=$(printf '%s' "$vbl_lane" | jq -r .count)
   if [ "$vbl_n" -eq 0 ]; then
-    echo "baton: Baton has dispatched no $vbl_m, so there is no allowlist it has earned; widen a project's permissions.json by hand instead" >&2
+    render_failure err "baton: Baton has dispatched no $vbl_m, so there is no allowlist it has earned; widen a project's permissions.json by hand instead"
     return 1
   fi
   if [ "$vbl_n" -gt 1 ]; then
-    echo "baton: $vbl_m has run in $vbl_n projects; name one:" >&2
-    printf '%s' "$vbl_lane" | jq -r --arg r "$2" '.candidates[] | "  baton allow \(.project)/\(.milestone) \($r | @sh)"' >&2
+    render_failure err "baton: $vbl_m has run in $vbl_n projects; name one:"
+    vbl_i=0
+    while [ "$vbl_i" -lt "$vbl_n" ]; do
+      vbl_c=$(printf '%s' "$vbl_lane" | jq -c --argjson i "$vbl_i" '.candidates[$i]'); vbl_i=$((vbl_i + 1))
+      render_row err plain '  %s\n' "$(render_hint err "$(printf '%s' "$vbl_c" | jq -r --arg r "$2" \
+        '"baton allow \(.project)/\(.milestone) \($r | @sh)"')")"
+    done
     return 1
   fi
   vbl_l=$(printf '%s' "$vbl_lane" | jq -c '.candidates[0]')
@@ -398,26 +431,26 @@ verb_allow() {
     # because widening a finished milestone's allowlist costs nothing; only the resume is refused,
     # and before anything is written (D-132).
     if printf '%s' "$vbl_l" | jq -e '.closed' > /dev/null; then
-      echo "baton: $vbl_pj/$vbl_m completed attempt $(printf '%s' "$vbl_l" | jq -r '.attempt // "?"'), so there is no open lane to resume and its session is a person's to continue by hand; run baton allow $vbl_pj/$vbl_m with the rule alone to widen without resuming" >&2
+      render_failure err "baton: $vbl_pj/$vbl_m completed attempt $(printf '%s' "$vbl_l" | jq -r '.attempt // "?"'), so there is no open lane to resume and its session is a person's to continue by hand; run baton allow $vbl_pj/$vbl_m with the rule alone to widen without resuming"
       return 1
     fi
-    vbl_park=$(derive_parked "$vbl_pj") || { echo "baton: $vbl_park" >&2; return 1; }
+    vbl_park=$(derive_parked "$vbl_pj") || { render_failure err "baton: $vbl_park"; return 1; }
     vbl_class=$(printf '%s' "$vbl_park" | jq -r --arg m "$vbl_m" \
       '[ .parked[] | select(.milestone == $m and .scope == "lane") ] | first | .class // empty')
     if [ -n "$vbl_class" ]; then
-      echo "baton: $vbl_pj/$vbl_m is parked ($vbl_class), so --resume would wake it behind its own park; run baton allow $vbl_pj/$vbl_m with the rule alone, then baton answer $vbl_pj/$vbl_m \"<ruling>\", which resumes it and closes the park" >&2
+      render_failure err "baton: $vbl_pj/$vbl_m is parked ($vbl_class), so --resume would wake it behind its own park; run baton allow $vbl_pj/$vbl_m with the rule alone, then baton answer $vbl_pj/$vbl_m \"<ruling>\", which resumes it and closes the park"
       return 1
     fi
-    vbl_rows=$(rows_read) || { echo "baton: the session rows could not be read; --resume refused before widening" >&2; return 1; }
-    vbl_over=$(derive_taken_over "$vbl_pj" "$vbl_rows") || { echo "baton: $vbl_over" >&2; return 1; }
+    vbl_rows=$(rows_read) || { render_failure err "baton: the session rows could not be read; --resume refused before widening"; return 1; }
+    vbl_over=$(derive_taken_over "$vbl_pj" "$vbl_rows") || { render_failure err "baton: $vbl_over"; return 1; }
     if printf '%s' "$vbl_over" | jq -e --arg m "$vbl_m" \
          'any(.taken_over[]; .milestone == $m)' > /dev/null; then
-      echo "baton: $vbl_pj/$vbl_m is taken over; --resume would interrupt the person. Use the rule alone to widen without resuming, or baton answer $vbl_pj/$vbl_m \"continue\" to hand the lane back" >&2
+      render_failure err "baton: $vbl_pj/$vbl_m is taken over; --resume would interrupt the person. Use the rule alone to widen without resuming, or baton answer $vbl_pj/$vbl_m \"continue\" to hand the lane back"
       return 1
     fi
     if printf '%s' "$vbl_over" | jq -e --arg m "$vbl_m" \
          'any((.orphaned + .unreadable)[]; .milestone == $m)' > /dev/null; then
-      echo "baton: $vbl_pj/$vbl_m could not be checked for takeover; --resume refused before widening" >&2
+      render_failure err "baton: $vbl_pj/$vbl_m could not be checked for takeover; --resume refused before widening"
       return 1
     fi
   fi
@@ -428,19 +461,21 @@ verb_allow() {
   # the call the refusal dropped is repeated by the continue template's own interrupted-tool
   # sentence. One path serves a live prompt and a lost one alike.
   vbl_a=$(printf '%s' "$vbl_l" | jq -r '.attempt // ""')
-  vbl_s=$(current_session "$vbl_pj" "$vbl_m" "$vbl_a") || { echo "baton: $vbl_s" >&2; return 1; }
+  vbl_s=$(current_session "$vbl_pj" "$vbl_m" "$vbl_a") || { render_failure err "baton: $vbl_s"; return 1; }
   if [ -z "$vbl_s" ]; then
-    echo "baton: no session carries $vbl_pj/$vbl_m attempt $vbl_a, so there is nothing to resume" >&2
+    render_failure err "baton: no session carries $vbl_pj/$vbl_m attempt $vbl_a, so there is nothing to resume"
     return 1
   fi
   vbl_out=$(resume_session "$vbl_pj" "$vbl_m" "$vbl_a" "$vbl_s" \
     "$(job_of_session "$vbl_rows" "$vbl_s")" continue 'the allowlist was widened') \
-    || { echo "$vbl_out" >&2; return 1; }
+    || { render_failure err "$vbl_out"; return 1; }
   # A resume that forked and could not confirm the original stopped is not a plain success, whatever
   # the classifier called it: the lane has moved to the copy and another worker may be running under
   # an id nothing tracks. The park `resume_session` wrote says so durably; this says so here, where
   # the person who typed the command is reading (D-132).
-  printf 'resumed   %s/%s · %s · %s%s\n' "$vbl_pj" "$vbl_m" "$vbl_s" \
+  render_row out record 'resumed   %s/%s · %s · %s%s\n' \
+    "$(render_token out lane "$vbl_pj")" "$(render_token out milestone "$vbl_m")" \
+    "$(render_token out session "$vbl_s")" \
     "$(printf '%s' "$vbl_out" | jq -r .outcome)" \
     "$(printf '%s' "$vbl_out" | jq -r 'if has("unresolved_original") then " · the original may still be running: " + .unresolved_original else "" end')"
 }

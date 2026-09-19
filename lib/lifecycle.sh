@@ -57,7 +57,7 @@ lifecycle_finished() {
 # tick is not repeated, because an `offline` event for the session no older than its transcript already
 # stands.
 offline_check() {
-  oc_log=$(log_json) || { echo "$oc_log" >&2; return 1; }
+  oc_log=$(log_json) || { render_failure err "$oc_log"; return 1; }
   oc_fin=$(lifecycle_finished "$oc_log" "$1")
   oc_keep=$(config_num keepFinished 3)
   oc_idle=$(config_num idleStopMinutes 60)
@@ -97,15 +97,17 @@ offline_check() {
     # refused stop is said and tried again next tick, which the rank and idle tests bound to the
     # sessions that still qualify.
     if ! oc_err=$("$BATON_CLAUDE" stop "$oc_job" 2>&1 > /dev/null); then
-      printf 'offline     %s/%s · %s · the stop was refused, so it is tried again next tick: %s\n' \
-        "$oc_p" "$oc_m" "$oc_s" "$(printf '%s' "$oc_err" | cli_plain | head -1)"
+      render_row out action 'offline     %s/%s · %s · the stop was refused, so it is tried again next tick: %s\n' \
+        "$(render_token out lane "$oc_p")" "$(render_token out milestone "$oc_m")" \
+        "$(render_token out session "$oc_s")" "$(printf '%s' "$oc_err" | cli_plain | head -1)"
       continue
     fi
     log_event offline "$oc_p" "$oc_m" "$oc_s" "$oc_a" "$(jq -nc --arg j "$oc_job" \
       --argjson idle $((oc_age / 60)) --argjson rank "$oc_i" --argjson keep "$oc_keep" \
       '{job: $j, idle_minutes: $idle, rank: $rank, kept: $keep}')"
-    printf 'offline     %s/%s · %s · idle %s, not among the %s most recently active\n' \
-      "$oc_p" "$oc_m" "$oc_s" "$(duration "$oc_age")" "$oc_keep"
+    render_row out record 'offline     %s/%s · %s · idle %s, not among the %s most recently active\n' \
+      "$(render_token out lane "$oc_p")" "$(render_token out milestone "$oc_m")" \
+      "$(render_token out session "$oc_s")" "$(duration "$oc_age")" "$oc_keep"
   done
 }
 
@@ -163,7 +165,7 @@ Do nothing else: read no files, edit nothing, run no other command and start no 
 # fresh when it has never been started or its last resume was refused. At most one attempt per
 # retryMinutes, so a cause that will not clear costs a line a quarter of an hour, not a minute.
 wake_session_ensure() {
-  wse_log=$(log_json) || { echo "$wse_log" >&2; return 1; }
+  wse_log=$(log_json) || { render_failure err "$wse_log"; return 1; }
   printf '%s' "$wse_log" | jq -e 'any(.[]; .kind == "offline")' > /dev/null || return 0
   wse_last=$(printf '%s' "$wse_log" | jq -c '[ .[] | select(.kind == "wake" and .milestone == null) ] | last // {}')
   wse_cur=$(printf '%s' "$wse_log" | jq -r '[ .[] | select(.kind == "wake" and .milestone == null
@@ -189,7 +191,7 @@ wake_session_ensure() {
   if [ -n "$wse_refusal" ]; then
     log_event wake "" "" "" "" "$(jq -nc --arg n "$WAKE_SESSION_NAME" --arg d "$wse_refusal" \
       '{how: "started", name: $n, outcome: "refused", note: $d}')"
-    printf 'wake        %s · not started: %s\n' "$WAKE_SESSION_NAME" "$wse_refusal"
+    render_row out action 'wake        %s · not started: %s\n' "$(render_token out session "$WAKE_SESSION_NAME")" "$wse_refusal"
     return 0
   fi
   wse_text=$(wake_session_prompt)
@@ -225,7 +227,7 @@ wake_session_ensure() {
       --arg f "$wse_cur" --arg s "$wse_s" --arg pp "${wse_side% *}" --arg sha "${wse_side##* }" \
       '{how: "resumed", name: $n, outcome, note} + (if $s != $f then {from_session: $f} else {} end)
        + {prompt_path: $pp, prompt_sha256: $sha}')"
-    printf 'wake        %s · resumed · %s\n' "$WAKE_SESSION_NAME" "$wse_o"
+    render_row out record 'wake        %s · resumed · %s\n' "$(render_token out session "$WAKE_SESSION_NAME")" "$wse_o"
     return 0
   fi
 
@@ -252,7 +254,7 @@ wake_session_ensure() {
     wse_detail=$(printf '%s' "$wse_detail" | head -c 500)
     log_event wake "" "" "" "" "$(jq -nc --arg n "$WAKE_SESSION_NAME" --arg d "$wse_detail" \
       '{how: "started", name: $n, outcome: "refused", note: $d}')"
-    printf 'wake        %s · could not be started: %s\n' "$WAKE_SESSION_NAME" "$wse_detail"
+    render_row out action 'wake        %s · could not be started: %s\n' "$(render_token out session "$WAKE_SESSION_NAME")" "$wse_detail"
     return 0
   fi
   wse_s=$(printf '%s' "$wse_row" | jq -r .sessionId)
@@ -260,7 +262,7 @@ wake_session_ensure() {
   log_event wake "" "" "$wse_s" "" "$(jq -nc --arg n "$WAKE_SESSION_NAME" --arg j "$bg_id" \
     --arg pp "${wse_side% *}" --arg sha "${wse_side##* }" \
     '{how: "started", name: $n, job: $j, outcome: "delivered", prompt_path: $pp, prompt_sha256: $sha}')"
-  printf 'wake        %s · started · %s\n' "$WAKE_SESSION_NAME" "$wse_s"
+  render_row out record 'wake        %s · started · %s\n' "$(render_token out session "$WAKE_SESSION_NAME")" "$(render_token out session "$wse_s")"
 }
 
 # verb_wake [<milestone | project/milestone>] [<text>]: brings a finished session back on the person's
@@ -270,13 +272,13 @@ wake_session_ensure() {
 # is delivered as the resume's prompt, labelled as the person's; the session answers it in its own
 # thread, which the resume makes active again in Claude.app even after the stop archived it.
 verb_wake() {
-  vw_rows=$(rows_read) || { echo "baton: claude agents --json could not be read, so whether a session is running cannot be told; nothing woken" >&2; exit 1; }
-  vw_log=$(log_json) || { echo "baton: $vw_log" >&2; exit 1; }
+  vw_rows=$(rows_read) || { render_failure err "baton: claude agents --json could not be read, so whether a session is running cannot be told; nothing woken"; exit 1; }
+  vw_log=$(log_json) || { render_failure err "baton: $vw_log"; exit 1; }
   vw_fin=$(lifecycle_finished "$vw_log" "$vw_rows")
 
   if [ -z "${1:-}" ]; then
     vw_n=$(printf '%s' "$vw_fin" | jq length)
-    [ "$vw_n" -gt 0 ] || { echo "nothing has finished yet"; return 0; }
+    [ "$vw_n" -gt 0 ] || { render_row out record 'nothing has finished yet\n'; return 0; }
     vw_now=$(now_epoch); vw_i=0
     while [ "$vw_i" -lt "$vw_n" ]; do
       vw_f=$(printf '%s' "$vw_fin" | jq -c --argjson i "$vw_i" '.[$i]'); vw_i=$((vw_i + 1))
@@ -285,8 +287,10 @@ verb_wake() {
       vw_active=''
       vw_mt=$(transcript_mtime "$(printf '%s' "$vw_f" | jq -r .session)") \
         && vw_active=" · active $(duration $((vw_now - vw_mt))) ago"
-      printf '%s' "$vw_f" | jq -r --arg st "$vw_state" --arg a "$vw_active" \
-        '"\(.project)/\(.milestone) · \($st)\($a)"'
+      render_row out plain '%s/%s · %s%s\n' \
+        "$(render_token out lane "$(printf '%s' "$vw_f" | jq -r .project)")" \
+        "$(render_token out milestone "$(printf '%s' "$vw_f" | jq -r .milestone)")" \
+        "$vw_state" "$vw_active"
     done
     return 0
   fi
@@ -299,12 +303,17 @@ verb_wake() {
     'map(select(.milestone == $m and ($p == "" or .project == $p)))')
   vw_count=$(printf '%s' "$vw_match" | jq length)
   if [ "$vw_count" -eq 0 ]; then
-    echo "baton: nothing finished is named $1" >&2
+    render_failure err "baton: nothing finished is named $1"
     exit 2
   fi
   if [ "$vw_count" -gt 1 ]; then
-    echo "baton: $vw_m finished in more than one project; name one:" >&2
-    printf '%s' "$vw_match" | jq -r '.[] | "  baton wake \(.project)/\(.milestone)"' >&2
+    render_failure err "baton: $vw_m finished in more than one project; name one:"
+    vw_n=$(printf '%s' "$vw_match" | jq length); vw_i=0
+    while [ "$vw_i" -lt "$vw_n" ]; do
+      vw_c=$(printf '%s' "$vw_match" | jq -c --argjson i "$vw_i" '.[$i]'); vw_i=$((vw_i + 1))
+      render_row err plain '  %s\n' "$(render_hint err \
+        "baton wake $(printf '%s' "$vw_c" | jq -r .project)/$(printf '%s' "$vw_c" | jq -r .milestone)")"
+    done
     exit 2
   fi
   vw_f=$(printf '%s' "$vw_match" | jq -c '.[0]')
@@ -315,9 +324,11 @@ verb_wake() {
     # A stop the offline rule issued takes a few seconds to land, and the row keeps its pid meanwhile;
     # pointing the person at a thread that is being archived would send their message nowhere.
     if vw_mt=$(transcript_mtime "$vw_s") && offline_after "$vw_log" "$vw_s" "$vw_mt"; then
-      echo "$vw_p/$vw_m is being taken offline this minute; send the message again in a minute"
+      render_row out plain '%s/%s is being taken offline this minute; send the message again in a minute\n' \
+        "$(render_token out lane "$vw_p")" "$(render_token out milestone "$vw_m")"
     else
-      echo "$vw_p/$vw_m is running; message it in its own thread in Claude.app"
+      render_row out plain '%s/%s is running; message it in its own thread in Claude.app\n' \
+        "$(render_token out lane "$vw_p")" "$(render_token out milestone "$vw_m")"
     fi
     return 0
   fi
@@ -354,8 +365,10 @@ $vw_words"
     fi
   fi
   case "$vw_o" in
-    delivered) echo "woke $vw_p/$vw_m; its answer will be in its own thread in Claude.app" ;;
-    forked)    echo "woke $vw_p/$vw_m in a copy of its session, which answers in its own thread in Claude.app" ;;
-    *)         echo "baton: $vw_p/$vw_m could not be woken: $(printf '%s' "$vw_r" | jq -r .note)" >&2; exit 1 ;;
+    delivered) render_row out record 'woke %s/%s; its answer will be in its own thread in Claude.app\n' \
+                 "$(render_token out lane "$vw_p")" "$(render_token out milestone "$vw_m")" ;;
+    forked)    render_row out record 'woke %s/%s in a copy of its session, which answers in its own thread in Claude.app\n' \
+                 "$(render_token out lane "$vw_p")" "$(render_token out milestone "$vw_m")" ;;
+    *)         render_failure err "baton: $vw_p/$vw_m could not be woken: $(printf '%s' "$vw_r" | jq -r .note)"; exit 1 ;;
   esac
 }

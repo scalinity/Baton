@@ -287,7 +287,7 @@ dispatch_failed() {
   fi
   log_event dispatch_failed "$1" "$2" "" "" "$(jq -nc --arg s "$3" --arg d "$df_detail" --argjson t "$df_truncated" \
     '{stage: $s, detail: $d} | if $t then . + {detail_truncated: true} else . end')"
-  echo "baton: dispatch of $1 $2 failed at $3: $df_detail" >&2
+  render_failure err "baton: dispatch of $1 $2 failed at $3: $df_detail"
 }
 
 # dispatch_stop_jobs <job>...: stop the admitted cleanup's jobs, then settle all successful
@@ -348,7 +348,7 @@ dispatch_one() {
   do_model=$(printf '%s' "$do_row" | jq -r .model)
   do_effort=$(printf '%s' "$do_row" | jq -r .effort)
   do_remote=$(printf '%s' "$do_row" | jq -r .remote)
-  do_attempt=$(attempt_of "$do_project" "$do_id") || { echo "baton: $do_attempt" >&2; return 1; }
+  do_attempt=$(attempt_of "$do_project" "$do_id") || { render_failure err "baton: $do_attempt"; return 1; }
   do_attempt=$((do_attempt + 1))
   do_name=$(session_name "$do_project" "$do_id")
 
@@ -375,7 +375,7 @@ dispatch_one() {
     dispatch_failed "$do_project" "$do_id" worktree "Baton needs $do_id's brief $do_brief readable in its own worktree. The preconditions found the branch carrying the brief's commit, and the file was not readable in $do_wt_path a moment later. Look at the worktree yourself, then dispatch again: git -C \"$do_wt_path\" status"
     return 1
   fi
-  do_inflight=$(derive_in_flight "$do_project" "$do_rows") || { echo "baton: $do_inflight" >&2; return 1; }
+  do_inflight=$(derive_in_flight "$do_project" "$do_rows") || { render_failure err "baton: $do_inflight"; return 1; }
   do_inflight=$(printf '%s' "$do_inflight" | jq -c .in_flight)
   do_also=$(printf '%s' "$do_inflight" | jq -r --arg me "$do_id" --argjson plan "$do_plan" '
     ($plan.milestones | map(select(.status == "done") | .id)) as $done
@@ -476,33 +476,42 @@ dispatch_one() {
     | if $reused then . + {worktree_commit: $commit} else . end
     | . + {settings: $settings, prompt_path: $pp, prompt_sha256: $sha}')"
 
-  echo "backgrounded · $bg_id · $do_name"
-  echo "session   $do_session (attempt $do_attempt)"
+  # The five lines a dispatch leaves behind, on stdout: a person's own `baton dispatch` reads them
+  # at the terminal and the tick's go to launchd.out, where they are the record of what it started.
+  render_row out record 'backgrounded · %s · %s\n' "$(render_token out session "$bg_id")" "$do_name"
+  render_row out record 'session   %s (attempt %s)\n' \
+    "$(render_token out session "$do_session")" "$do_attempt"
   if [ "$do_reused" = true ]; then
-    echo "worktree  $do_wt_path (branch $do_branch, reused at $do_commit)"
+    render_row out record 'worktree  %s (branch %s, reused at %s)\n' \
+      "$(render_token out path "$do_wt_path")" "$do_branch" "$(render_token out session "$do_commit")"
   else
-    echo "worktree  $do_wt_path (branch $do_branch)"
+    render_row out record 'worktree  %s (branch %s)\n' \
+      "$(render_token out path "$do_wt_path")" "$do_branch"
   fi
-  echo "settings  $do_settings"
-  echo "prompt    $do_prompt_path"
+  render_row out record 'settings  %s\n' "$(render_token out path "$do_settings")"
+  render_row out record 'prompt    %s\n' "$(render_token out path "$do_prompt_path")"
 }
 
 # verb_dispatch <project> <milestone>: refuse unless the plan makes the milestone eligible;
 # refuse if a live row already carries its name; then dispatch_one. Rows are read once here.
 verb_dispatch() {
-  vd_plan=$(plan_of_project "$1") || { vd_st=$?; echo "$vd_plan" >&2; exit $vd_st; }
-  printf '%s' "$vd_plan" | plan_row "$2" > /dev/null 2>&1 || { echo "baton: $2 is not in $1's plan" >&2; exit 2; }
+  vd_plan=$(plan_of_project "$1") || { vd_st=$?; render_failure err "$vd_plan"; exit $vd_st; }
+  printf '%s' "$vd_plan" | plan_row "$2" > /dev/null 2>&1 || { render_failure err "baton: $2 is not in $1's plan"; exit 2; }
   vd_rows=$(rows_json)
   if ! printf '%s' "$vd_plan" | plan_eligible | grep -Fqx "$2"; then
-    vd_inflight=$(derive_in_flight "$1" "$vd_rows") || { echo "baton: $vd_inflight" >&2; exit 1; }
+    vd_inflight=$(derive_in_flight "$1" "$vd_rows") || { render_failure err "baton: $vd_inflight"; exit 1; }
     vd_inflight=$(printf '%s' "$vd_inflight" | jq -c .in_flight)
-    echo "baton: $2 is not eligible; the plan reads:" >&2
-    printf '%s' "$vd_plan" | plan_render "$1" "$vd_inflight" | awk -v id="$2" '$1 == id' >&2
+    render_failure err "baton: $2 is not eligible; the plan reads:"
+    # The row is found by its first field, so `plan_render` is asked for the plain form here and
+    # the row it hands back is rendered afterwards. Colour in that field would match nothing and
+    # the refusal would name no row at all — the failure would be silent, which is the worst kind.
+    vd_row=$(printf '%s' "$vd_plan" | plan_render "$1" "$vd_inflight" | awk -v id="$2" '$1 == id')
+    [ -z "$vd_row" ] || render_row err plain '%s\n' "$vd_row"
     exit 2
   fi
   vd_name=$(session_name "$1" "$2")
   if printf '%s' "$vd_rows" | jq -e --arg n "$vd_name" 'any(.[]; .name == $n and .pid != null)' > /dev/null; then
-    echo "baton: a live session named \"$vd_name\" already exists; nothing dispatched" >&2
+    render_failure err "baton: a live session named \"$vd_name\" already exists; nothing dispatched"
     exit 2
   fi
   dispatch_one "$1" "$2" "$vd_plan" "$vd_rows"

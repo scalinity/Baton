@@ -1,0 +1,228 @@
+== tty, COLUMNS=40 ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m
+      · omitted
+      · the plan no longer makes M04 eligible
+      · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m
+      · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m
+      · opus
+      · attempt 1
+      · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m
+      · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m
+      · the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== tty, COLUMNS=59 ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m
+      · omitted
+      · the plan no longer makes M04 eligible
+      · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m
+      · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m
+      · opus
+      · attempt 1
+      · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m
+      · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m
+      · the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== tty, COLUMNS=60 ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m · omitted · the plan no longer makes M04 eligible · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m · opus · attempt 1 · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m · the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== tty, COLUMNS=80 ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m · omitted · the plan no longer makes M04 eligible · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m · opus · attempt 1 · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m · the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== tty, COLUMNS=120 ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m · omitted · the plan no longer makes M04 eligible · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m · opus · attempt 1 · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m · the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== tty, COLUMNS=40, C locale ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m
+        omitted
+        the plan no longer makes M04 eligible
+        [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m
+        [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m
+        opus
+        attempt 1
+        4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m
+        message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m
+        the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== tty, NO_COLOR empty ==
+plan Fixture: /tmp/Fixture/docs/MILESTONES.md
+parked  Fixture/M04 · omitted · the plan no longer makes M04 eligible · edit the plan or the brief; the next tick re-reads it
+in flight  Fixture/M02 · 0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0 · opus · attempt 1 · 4 m
+offline  Fixture/M01 · message Baton · wake, or baton wake Fixture/M01
+  M02  eligible  model opus  effort high  remote no
+hold  fable · the window reads 82% and a backslash \ survives
+baton: dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+baton: the plan file cannot be read; git -C /tmp/Fixture checkout -- docs/MILESTONES.md
+
+== tty, NO_COLOR=1 ==
+plan Fixture: /tmp/Fixture/docs/MILESTONES.md
+parked  Fixture/M04 · omitted · the plan no longer makes M04 eligible · edit the plan or the brief; the next tick re-reads it
+in flight  Fixture/M02 · 0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0 · opus · attempt 1 · 4 m
+offline  Fixture/M01 · message Baton · wake, or baton wake Fixture/M01
+  M02  eligible  model opus  effort high  remote no
+hold  fable · the window reads 82% and a backslash \ survives
+baton: dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+baton: the plan file cannot be read; git -C /tmp/Fixture checkout -- docs/MILESTONES.md
+
+== tty, TERM=dumb ==
+plan Fixture: /tmp/Fixture/docs/MILESTONES.md
+parked  Fixture/M04 · omitted · the plan no longer makes M04 eligible · edit the plan or the brief; the next tick re-reads it
+in flight  Fixture/M02 · 0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0 · opus · attempt 1 · 4 m
+offline  Fixture/M01 · message Baton · wake, or baton wake Fixture/M01
+  M02  eligible  model opus  effort high  remote no
+hold  fable · the window reads 82% and a backslash \ survives
+baton: dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+baton: the plan file cannot be read; git -C /tmp/Fixture checkout -- docs/MILESTONES.md
+
+== tty, TERM unset ==
+plan Fixture: /tmp/Fixture/docs/MILESTONES.md
+parked  Fixture/M04 · omitted · the plan no longer makes M04 eligible · edit the plan or the brief; the next tick re-reads it
+in flight  Fixture/M02 · 0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0 · opus · attempt 1 · 4 m
+offline  Fixture/M01 · message Baton · wake, or baton wake Fixture/M01
+  M02  eligible  model opus  effort high  remote no
+hold  fable · the window reads 82% and a backslash \ survives
+baton: dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+baton: the plan file cannot be read; git -C /tmp/Fixture checkout -- docs/MILESTONES.md
+
+== tty, FORCE_COLOR ignored under NO_COLOR ==
+plan Fixture: /tmp/Fixture/docs/MILESTONES.md
+parked  Fixture/M04 · omitted · the plan no longer makes M04 eligible · edit the plan or the brief; the next tick re-reads it
+in flight  Fixture/M02 · 0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0 · opus · attempt 1 · 4 m
+offline  Fixture/M01 · message Baton · wake, or baton wake Fixture/M01
+  M02  eligible  model opus  effort high  remote no
+hold  fable · the window reads 82% and a backslash \ survives
+baton: dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+baton: the plan file cannot be read; git -C /tmp/Fixture checkout -- docs/MILESTONES.md
+
+== tty, COLUMNS=0 is not a width ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m · omitted · the plan no longer makes M04 eligible · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m · opus · attempt 1 · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m · the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== tty, COLUMNS=-1 is not a width ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m · omitted · the plan no longer makes M04 eligible · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m · opus · attempt 1 · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m · the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== tty, COLUMNS=1e9 is not a width ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m · omitted · the plan no longer makes M04 eligible · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m · opus · attempt 1 · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m · the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== tty, COLUMNS=abc is not a width ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m · omitted · the plan no longer makes M04 eligible · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m · opus · attempt 1 · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m · the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== tty, COLUMNS=999999 is not a width ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m · omitted · the plan no longer makes M04 eligible · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m · opus · attempt 1 · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m · the window reads 82% and a backslash \ survives
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== pipe, FORCE_COLOR set ==
+plan Fixture: /tmp/Fixture/docs/MILESTONES.md
+parked  Fixture/M04 · omitted · the plan no longer makes M04 eligible · edit the plan or the brief; the next tick re-reads it
+in flight  Fixture/M02 · 0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0 · opus · attempt 1 · 4 m
+offline  Fixture/M01 · message Baton · wake, or baton wake Fixture/M01
+  M02  eligible  model opus  effort high  remote no
+hold  fable · the window reads 82% and a backslash \ survives
+baton: dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+baton: the plan file cannot be read; git -C /tmp/Fixture checkout -- docs/MILESTONES.md
+
+== stdout to a pipe, stderr to the terminal ==
+[33mbaton:[0m dispatch of Fixture M02 failed at prompt: the brief has no fenced block
+[33mbaton:[0m the plan file cannot be read
+    [33mgit -C /tmp/Fixture checkout -- docs/MILESTONES.md[0m
+
+== stderr to a pipe, stdout to the terminal ==
+[36mplan Fixture: /tmp/Fixture/docs/MILESTONES.md[0m
+[33mparked[0m  [36mFixture[0m/[36mM04[0m · omitted · the plan no longer makes M04 eligible · [33medit the plan or the brief; the next tick re-reads it[0m
+[36min flight[0m  [36mFixture[0m/[36mM02[0m · [2m0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0[0m · opus · attempt 1 · 4 m
+[33moffline[0m  [36mFixture[0m/[36mM01[0m · message [33mBaton · wake[0m, or [33mbaton wake Fixture/M01[0m
+  [36mM02[0m  [33meligible[0m  model opus  effort high  remote no
+[36mhold[0m  [33mfable[0m · the window reads 82% and a backslash \ survives
+
+== a terminal at eighty columns, with only the escapes removed, against the pipe ==
+the plain-mode joins of a separate repair, and nothing else:
+8c8,9
+< baton: the plan file cannot be read; git -C /tmp/Fixture checkout -- docs/MILESTONES.md
+---
+> baton: the plan file cannot be read
+>     git -C /tmp/Fixture checkout -- docs/MILESTONES.md

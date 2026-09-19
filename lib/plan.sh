@@ -197,13 +197,20 @@ plan_eligible() {
     | .id'
 }
 
-# plan_render <project> <inflight json>: the graph, one line per milestone, on stdin.
+# plan_render <project> <inflight json> [<out|err>]: the graph, one line per milestone, on stdin.
+#
+# The third argument is how a caller says the lines are going to a terminal. Without it the rows
+# are printed plain, because this function has a machine caller as well as a person's: the
+# ineligible-dispatch refusal pipes it through `awk '$1 == id'` to show the one row it refused, and
+# a first field carrying colour would match nothing (D-050 is the same shape, found in the CLI's
+# own output). Nothing here asks the terminal for itself; only the caller knows which use this is.
 plan_render() {
-  jq -r --argjson inflight "$2" '
+  pr_stream=${3:-}
+  pr_rows=$(jq -c --argjson inflight "$2" '
     ($inflight | map(.milestone)) as $flying
     | (.milestones | map(select(.status == "done") | .id)) as $done
     | (.gates | map(select(.cleared == ""))) as $open
-    | .milestones[]
+    | [ .milestones[]
     | .id as $i
     | ( if .status == "done" then "done"
         elif ($flying | index($i)) != null then "in flight"
@@ -213,7 +220,33 @@ plan_render() {
         elif all(.depends[]; . as $d | ($done | index($d)) != null) then "eligible"
         else "waits on " + ([.depends[] | select(. as $d | ($done | index($d)) == null)] | join(", "))
         end ) as $state
-    | "\(.id)  \($state)  model \(.model)  effort \(if .effort == "" then "-" else .effort end)  remote \(if .remote then "yes" else "no" end)"'
+    | {id: .id, state: $state, model: .model,
+       effort: (if .effort == "" then "-" else .effort end),
+       remote: (if .remote then "yes" else "no" end)} ]')
+  pr_n=$(printf '%s' "$pr_rows" | jq length); pr_i=0
+  while [ "$pr_i" -lt "$pr_n" ]; do
+    pr_r=$(printf '%s' "$pr_rows" | jq -c --argjson n "$pr_i" '.[$n]'); pr_i=$((pr_i + 1))
+    pr_id=$(printf '%s' "$pr_r" | jq -r .id)
+    pr_state=$(printf '%s' "$pr_r" | jq -r .state)
+    pr_model=$(printf '%s' "$pr_r" | jq -r .model)
+    pr_effort=$(printf '%s' "$pr_r" | jq -r .effort)
+    pr_remote=$(printf '%s' "$pr_r" | jq -r .remote)
+    if [ -z "$pr_stream" ]; then
+      render_plain '%s  %s  model %s  effort %s  remote %s\n' \
+        "$pr_id" "$pr_state" "$pr_model" "$pr_effort" "$pr_remote"
+      continue
+    fi
+    # One state in this column is a thing a person can act on now, and it is the column's whole
+    # use: scanning a twenty-row graph for what may be dispatched. The rest report, so they read
+    # as ordinary text and the eligible rows stand out without a legend.
+    case "$pr_state" in
+      eligible) pr_shown=$(render_token "$pr_stream" state "$pr_state") ;;
+      *)        pr_shown=$pr_state ;;
+    esac
+    render_row "$pr_stream" plain '%s  %s  model %s  effort %s  remote %s\n' \
+      "$(render_token "$pr_stream" milestone "$pr_id")" "$pr_shown" \
+      "$pr_model" "$pr_effort" "$pr_remote"
+  done
 }
 
 # project_path <project>: the registered canonical checkout.
@@ -249,18 +282,23 @@ plan_of_project() {
 # decide admission in their own callers, and a milestone reported ready here is one no *knowable*
 # precondition refuses. Prints the count line first; returns 1 if anything is unmet.
 plan_preconditions_report() {
+  # The stream, so that the report reads the same way as the graph above it. The count line is a
+  # heading and has to be printed before the lines it counts, so the lines are rendered as they are
+  # collected and held as text; the rendering happens once, here, either way.
+  ppr_stream=${3:-out}
   ppr_eligible=$(printf '%s' "$2" | plan_eligible)
   if [ -z "$ppr_eligible" ]; then
-    echo "preconditions: no eligible milestone"
+    render_heading "$ppr_stream" 'preconditions: no eligible milestone\n'
     return 0
   fi
   ppr_lines=
   ppr_n=0; ppr_unmet=0
   for ppr_id in $ppr_eligible; do
     ppr_n=$((ppr_n + 1))
+    ppr_shown=$(render_token "$ppr_stream" milestone "$ppr_id")
     if ! ppr_res=$(dispatch_preconditions "$1" "$ppr_id"); then
       ppr_unmet=$((ppr_unmet + 1))
-      ppr_lines="$ppr_lines  $ppr_id  not inspected  $ppr_res
+      ppr_lines="$ppr_lines$(render_row "$ppr_stream" plain '  %s  not inspected  %s\n' "$ppr_shown" "$ppr_res")
 "
       continue
     fi
@@ -269,28 +307,47 @@ plan_preconditions_report() {
     # result would put the report and the refusal back out of step, which is what sharing it avoids.
     if ! printf '%s' "$ppr_res" | jq -e '(.failures | type) == "array"' > /dev/null 2>&1; then
       ppr_unmet=$((ppr_unmet + 1))
-      ppr_lines="$ppr_lines  $ppr_id  not inspected  the precondition result carried no failures array
+      ppr_lines="$ppr_lines$(render_row "$ppr_stream" plain '  %s  not inspected  %s\n' "$ppr_shown" \
+        'the precondition result carried no failures array')
 "
       continue
     fi
     ppr_count=$(printf '%s' "$ppr_res" | jq -r '.failures | length')
     if [ "$ppr_count" -eq 0 ]; then
-      ppr_lines="$ppr_lines  $ppr_id  ready
+      ppr_lines="$ppr_lines$(render_row "$ppr_stream" plain '  %s  ready\n' "$ppr_shown")
 "
       continue
     fi
     ppr_unmet=$((ppr_unmet + 1))
-    ppr_lines="$ppr_lines$(printf '%s' "$ppr_res" | jq -r --arg id "$ppr_id" \
-      '.failures[] | "  \($id)  \(.stage)/\(.check)  \(.path)  \(.detail)"')
+    ppr_f=$(printf '%s' "$ppr_res" | jq -c .failures)
+    ppr_fi=0
+    while [ "$ppr_fi" -lt "$ppr_count" ]; do
+      ppr_one=$(printf '%s' "$ppr_f" | jq -c --argjson n "$ppr_fi" '.[$n]'); ppr_fi=$((ppr_fi + 1))
+      ppr_detail=$(printf '%s' "$ppr_one" | jq -r .detail)
+      ppr_repair=$(printf '%s' "$ppr_one" | jq -r '.repair // ""')
+      # The repair is the command the detail already ends with, so marking it is a matter of
+      # finding that suffix rather than of rebuilding the sentence. A detail that does not end
+      # with its repair — which `not-a-worktree` has none of — is left exactly as it came.
+      if [ -n "$ppr_repair" ]; then
+        ppr_lead=${ppr_detail%"$ppr_repair"}
+        if [ "$ppr_lead" != "$ppr_detail" ]; then
+          ppr_detail="$ppr_lead$(render_hint "$ppr_stream" "$ppr_repair")"
+        fi
+      fi
+      ppr_lines="$ppr_lines$(render_row "$ppr_stream" plain '  %s  %s/%s  %s  %s\n' "$ppr_shown" \
+        "$(printf '%s' "$ppr_one" | jq -r .stage)" "$(printf '%s' "$ppr_one" | jq -r .check)" \
+        "$(render_token "$ppr_stream" path "$(printf '%s' "$ppr_one" | jq -r .path)")" "$ppr_detail")
 "
+    done
     # Said once, not as a guess per filename: a prompt that could not be read is a prompt whose
     # references nothing can inspect, and inventing the documents it might have named would be
     # reporting defects Baton has not seen.
     printf '%s' "$ppr_res" | jq -e .references_inspected > /dev/null \
-      || ppr_lines="$ppr_lines  $ppr_id  note  the kickoff prompt could not be read, so the documents it names were not inspected
+      || ppr_lines="$ppr_lines$(render_row "$ppr_stream" plain '  %s  note  %s\n' "$ppr_shown" \
+           'the kickoff prompt could not be read, so the documents it names were not inspected')
 "
   done
-  echo "preconditions: $ppr_n eligible, $ppr_unmet with unmet preconditions"
+  render_heading "$ppr_stream" 'preconditions: %s eligible, %s with unmet preconditions\n' "$ppr_n" "$ppr_unmet"
   printf '%s' "$ppr_lines"
   [ "$ppr_unmet" -eq 0 ] || return 1
 }
@@ -300,20 +357,38 @@ plan_preconditions_report() {
 # preconditions. Writes nothing, and returns 1 when a precondition is unmet so that a script can
 # branch on a plan that cannot be dispatched from.
 verb_plan() {
-  vp_tables=$(plan_of_project "$1") || { vp_st=$?; echo "$vp_tables" >&2; exit $vp_st; }
-  echo "plan $1: $(project_path "$1")/$(jq -r .plan "$BATON_HOME/projects/$1/project.json")"
-  vp_inflight=$(derive_in_flight "$1" "$(rows_json)") || { echo "baton: $vp_inflight" >&2; exit 1; }
+  # `plan_of_project`'s failure is its returned detail, not a rendered line (D-030): it is printed
+  # here, where the stream is known, and carried whole into an event by its other caller.
+  vp_tables=$(plan_of_project "$1") || { vp_st=$?; render_failure err "$vp_tables"; exit $vp_st; }
+  render_heading out 'plan %s: %s/%s\n' "$1" "$(project_path "$1")" \
+    "$(jq -r .plan "$BATON_HOME/projects/$1/project.json")"
+  vp_inflight=$(derive_in_flight "$1" "$(rows_json)") || { render_failure err "baton: $vp_inflight"; exit 1; }
   vp_inflight=$(printf '%s' "$vp_inflight" | jq -c .in_flight)
-  printf '%s' "$vp_tables" | plan_render "$1" "$vp_inflight"
-  printf '%s' "$vp_tables" | jq -r '.gates[] | "gate \"\(.gate)\" holds \(.holds | join(", "))\(if .cleared == "" then "" else ", cleared by " + .cleared end)"'
-  vp_w=$(widenings_json "$1") || { echo "baton: $vp_w" >&2; exit 1; }
+  printf '%s' "$vp_tables" | plan_render "$1" "$vp_inflight" out
+  vp_gates=$(printf '%s' "$vp_tables" | jq -c .gates)
+  vp_n=$(printf '%s' "$vp_gates" | jq length); vp_i=0
+  while [ "$vp_i" -lt "$vp_n" ]; do
+    vp_g=$(printf '%s' "$vp_gates" | jq -c --argjson n "$vp_i" '.[$n]'); vp_i=$((vp_i + 1))
+    render_row out plain 'gate "%s" holds %s%s\n' \
+      "$(render_token out state "$(printf '%s' "$vp_g" | jq -r .gate)")" \
+      "$(render_token out milestone "$(printf '%s' "$vp_g" | jq -r '.holds | join(", ")')")" \
+      "$(printf '%s' "$vp_g" | jq -r 'if .cleared == "" then "" else ", cleared by " + .cleared end')"
+  done
+  vp_w=$(widenings_json "$1") || { render_failure err "baton: $vp_w"; exit 1; }
   if [ "$(printf '%s' "$vp_w" | jq length)" -eq 0 ]; then
-    echo "widenings: none"
+    render_heading out 'widenings: none\n'
   else
-    echo "widenings, newest first:"
-    printf '%s' "$vp_w" | jq -r '.[] | "  \(.at)  \(.milestone)  \(.rule)"'
+    render_heading out 'widenings, newest first:\n'
+    vp_n=$(printf '%s' "$vp_w" | jq length); vp_i=0
+    while [ "$vp_i" -lt "$vp_n" ]; do
+      vp_one=$(printf '%s' "$vp_w" | jq -c --argjson n "$vp_i" '.[$n]'); vp_i=$((vp_i + 1))
+      render_row out plain '  %s  %s  %s\n' \
+        "$(render_token out timestamp "$(printf '%s' "$vp_one" | jq -r .at)")" \
+        "$(render_token out milestone "$(printf '%s' "$vp_one" | jq -r .milestone)")" \
+        "$(printf '%s' "$vp_one" | jq -r .rule)"
+    done
   fi
   # Explicitly, rather than on `set -e`: the verb's other failures exit with a status they chose,
   # and a reader should not have to know which shell option carries this one.
-  plan_preconditions_report "$1" "$vp_tables" || exit 1
+  plan_preconditions_report "$1" "$vp_tables" out || exit 1
 }

@@ -1,0 +1,6 @@
+{"parentUuid":null,"type":"user","promptSource":"typed","uuid":"u-f2","timestamp":"2026-09-12T09:00:00.000Z","message":{"role":"user","content":"KICKOFF M02: implement the second milestone."}}
+{"parentUuid":"u-f2","isSidechain":false,"attachment":{"type":"remote_session_change","url":null},"type":"attachment","uuid":"a1","timestamp":"2026-09-12T09:00:01.000Z"}
+{"parentUuid":"u-f2","isSidechain":false,"attachment":{"type":"remote_session_change","url":"https://claude.ai/code/session_01Older"},"type":"attachment","uuid":"a2","timestamp":"2026-09-12T09:01:00.000Z"}
+{"parentUuid":"u-f2","isSidechain":false,"attachment":{"type":"remote_session_change","url":"https://claude.ai/code/session_01Newest_x-Y"},"type":"attachment","uuid":"a3","timestamp":"2026-09-12T09:02:00.000Z"}
+{"parentUuid":"u-f2","isSidechain":false,"attachment":{"type":"remote_session_change","url":"https://evil.example/code/session_01Later"},"type":"attachment","uuid":"a4","timestamp":"2026-09-12T09:03:00.000Z"}
+{"parentUuid":"u-f2","isSidechain":false,"attachment":{"type":"remote_session_change","url":null},"type":"attachment","uuid":"a5","timestamp":"2026-09-12T09:04:00.000Z"}
