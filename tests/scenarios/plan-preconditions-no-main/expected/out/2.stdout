@@ -1,0 +1,6 @@
+preconditions: 2 eligible, 2 with unmet preconditions
+  M02  worktree/main  @TMP@/Fixture  Baton needs Fixture's checkout at @TMP@/Fixture to have a main branch: every brief is read from main and every milestone worktree is created from it. main does not resolve to a commit there. Repair the checkout yourself, then check it with: git -C '@TMP@/Fixture' rev-parse --verify main
+  M02  note  the kickoff prompt could not be read, so the documents it names were not inspected
+  M07  worktree/main  @TMP@/Fixture  Baton needs Fixture's checkout at @TMP@/Fixture to have a main branch: every brief is read from main and every milestone worktree is created from it. main does not resolve to a commit there. Repair the checkout yourself, then check it with: git -C '@TMP@/Fixture' rev-parse --verify main
+  M07  note  the kickoff prompt could not be read, so the documents it names were not inspected
+exit 1

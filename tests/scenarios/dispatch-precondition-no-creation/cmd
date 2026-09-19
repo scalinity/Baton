@@ -1,0 +1,39 @@
+set -eu
+# The whole point of the milestone, stated as a diff of the world either side of a refusal: no new
+# ref, no new worktree, nothing new beside the checkout, no settings file, no prompt sidecar, no
+# `claude --bg`, no `claude stop` and no caffeinate. The counts are taken from the shim's own call
+# log, so a launch that happened could not be missed by reading Baton's log alone.
+perm="$BATON_HOME/projects/Fixture/permissions.json"
+inventory() {
+  git -C Fixture for-each-ref --format='ref %(refname)' | sort
+  git -C Fixture worktree list --porcelain | sed -n 's|^worktree .*/\([^/]*\)$|worktree \1|p' | sort
+  ls -1 . | sed 's/^/beside /' | sort
+  printf 'settings %s\n' "$(ls -1 "$BATON_HOME/settings" 2>/dev/null | wc -l | tr -d ' ')"
+  printf 'sidecars %s\n' "$(ls -1 "$BATON_HOME/prompts" 2>/dev/null | wc -l | tr -d ' ')"
+  printf 'bg launches %s\n' "$(grep -c -- ' --bg ' "$SHIM/calls.log" || true)"
+  printf 'claude stops %s\n' "$(grep -c ' claude stop ' "$SHIM/calls.log" || true)"
+  printf 'caffeinate calls %s\n' "$(grep -c '^caffeinate ' "$SHIM/calls.log" || true)"
+}
+# Both runs start from rules that parse and carry a deny rule, so the second run sees the same two
+# states in the same order as the first however the first one left the file.
+printf '%s\n' '{ "permissions": { "allow": ["Bash(jq:*)"], "deny": ["Bash(sudo:*)"] } }' > "$perm"
+
+echo '--- before'
+inventory
+status=0; "$BATON" dispatch Fixture M03 || status=$?
+echo "--- after a prompt-stage refusal (exit $status)"
+inventory
+test "$status" -eq 1
+
+echo '--- the deny rules are emptied, and M07 is refused at the settings stage'
+printf '%s\n' '{ "permissions": { "allow": ["Bash(jq:*)"], "deny": [] } }' > "$perm"
+status=0; "$BATON" dispatch Fixture M07 || status=$?
+echo "--- after a settings-stage refusal (exit $status)"
+inventory
+test "$status" -eq 1
+
+# The lock is the one thing a refusal still takes, and the failure record is the one thing it still
+# writes; neither is creation in the sense this milestone refuses.
+jq -se 'all(.[]; .kind == "dispatch_failed") and ([.[] | .stage] | unique) == ["prompt", "settings"]' \
+  "$BATON_HOME/log.jsonl" > /dev/null
+echo 'two refusals, two failure records, nothing created'

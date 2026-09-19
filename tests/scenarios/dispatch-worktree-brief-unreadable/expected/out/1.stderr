@@ -1,0 +1,1 @@
+baton: dispatch of Fixture M03 failed at worktree: Baton needs M03's brief docs/milestones/M03.md readable in its own worktree @TMP@/Fixture-M03, because that is the copy the session reads. The worktree has no readable copy of it. The branch already carries that commit, so put back the one path yourself: git -C '@TMP@/Fixture-M03' checkout HEAD -- 'docs/milestones/M03.md'

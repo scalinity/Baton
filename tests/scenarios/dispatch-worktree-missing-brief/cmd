@@ -14,7 +14,12 @@ status=0
 test "$status" -eq 1
 jq -se 'last | .kind == "dispatch_failed" and .stage == "worktree"' "$BATON_HOME/log.jsonl" > /dev/null
 test "$(git -C Fixture rev-parse m03)" = "$before"
-test -z "$(git -C Fixture-M03 status --porcelain)"
-test ! -e Fixture-M03/docs/milestones/M03.md
-printf '%s\n' 'Guard refused dispatch; branch and worktree unchanged.'
+# The refusal now precedes worktree_ensure, so the stronger statement holds: the worktree that was
+# absent before the dispatch is still absent after it. The older assertion — that Fixture-M03 was
+# created, stood clean and simply lacked the brief — recorded the defect this milestone removes,
+# creation before the knowable refusal, and could not have caught its return.
+test ! -e Fixture-M03
+test -z "$(git -C Fixture worktree list --porcelain | awk '/^worktree .*Fixture-M03$/')"
+test ! -e "$BATON_HOME/settings/Fixture-M03.json"
+printf '%s\n' 'Guard refused dispatch; branch unchanged and no worktree created.'
 exit "$status"

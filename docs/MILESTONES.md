@@ -68,8 +68,8 @@ The gate is cleared by the D-number of the entry that records the migration comm
 | REQ-TICK | 01–09 | M01 (08: the seams; 09: the installed relay), **M03** (01–07) |
 | REQ-STOP | 01–14 | M03 (08, 09, 10, 14), **M04** (01–07, 13), **M05** (11, 14 hand-back), M06 (12), M07-b (14: Remote Control messages) |
 | REQ-ESC | 01–11 | M02 (11: `status`), M03 (02: the Mac message; 10: the gap), **M05** (01, 03–07, 09), M06 (04 project scope), M07 (08) |
-| REQ-PLAN | 01–08 | **M01** (01–05, 06 for Baton, 07, 08), M08 (06 for Reclaim) |
-| REQ-DISPATCH | 01–10 | **M01** (03–06, 08, 10), M03 (03 prune reserved), **M06** (01, 02, 09), **M07** (03 worktrees kept, 07) |
+| REQ-PLAN | 01–08 | **M01** (01–05, 06 for Baton, 07, 08), M08 (06 for Reclaim), M17 (08: the precondition report) |
+| REQ-DISPATCH | 01–11 | **M01** (03–06, 08, 10), M03 (03 prune reserved), **M06** (01, 02, 09), **M07** (03 worktrees kept, 07), **M17** (11) |
 | REQ-PERM | 01–05 | **M01** (01–04), M05 (02: `allow` as writer), M06 (05) |
 | REQ-LOG | 01–08 | **M01** (01–03, 05, 08), **M02** (04, 06, 07) |
 | REQ-VERB | 01–08 | **M01** (01, 05, 06), M02 (04), M03 (02), M05 (03, 07), M07-b (08) |

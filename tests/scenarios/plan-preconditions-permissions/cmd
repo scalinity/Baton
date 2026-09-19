@@ -1,0 +1,29 @@
+set -eu
+# A defect in the permission rules belongs to no one milestone: every eligible milestone would be
+# refused by it, so the report names every one of them rather than the first. The three readings the
+# settings stage can fail on are walked in turn, each rewriting the file from a literal, so the two
+# runs of this scenario see the same three states in the same order however the first one left it.
+perm="$BATON_HOME/projects/Fixture/permissions.json"
+# The verb's own exit status is the point of the check, so it is captured rather than piped away.
+report() {
+  rp_status=0
+  rp_out=$("$BATON" plan Fixture) || rp_status=$?
+  printf '%s\n' "$rp_out" | sed -n '/^preconditions/,$p'
+  echo "exit $rp_status"
+}
+
+echo '=== deny rules present: nothing to report'
+printf '%s\n' '{ "permissions": { "allow": ["Bash(jq:*)"], "deny": ["Bash(sudo:*)"] } }' > "$perm"
+report
+
+echo '=== deny empty'
+printf '%s\n' '{ "permissions": { "allow": ["Bash(jq:*)"], "deny": [] } }' > "$perm"
+report
+
+echo '=== the file does not parse'
+printf '%s\n' '{ "permissions": ' > "$perm"
+report
+
+echo '=== the file is missing'
+rm -f "$perm"
+report

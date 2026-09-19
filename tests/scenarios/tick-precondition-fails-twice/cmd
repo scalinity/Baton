@@ -1,0 +1,12 @@
+set -eu
+# A precondition failure is a dispatch failure like any other, and it climbs the same ladder: the
+# first one retries on the next tick and the second parks the lane. M17 deliberately left that bound
+# alone — first-occurrence escalation is M15's classification work — so this fixture is what would
+# notice if the earlier refusal had quietly turned one failure into a park. The harness's two runs
+# are the two ticks.
+"$BATON" tick
+# Whichever tick this is, nothing was created for the lane.
+test ! -e Fixture-M02
+test ! -e "$BATON_HOME/settings/Fixture-M02.json"
+test ! -e "$BATON_HOME/prompts"
+test "$(grep -c -- ' --bg ' "$SHIM/calls.log" || true)" = 0

@@ -1,0 +1,40 @@
+set -eu
+# Ancestry and readability answer different questions, and this is the case where the second says
+# yes and the first says no: the milestone's worktree already exists, already stands on its own
+# branch, and already holds a readable copy of the brief — an older one, written on the branch
+# before main's copy was committed. A check that only opened the file would call this ready and
+# dispatch a session against a brief nobody wrote.
+commit() {
+  GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@example GIT_AUTHOR_DATE=2026-09-01T00:00:00+0000 \
+  GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example GIT_COMMITTER_DATE=2026-09-01T00:00:00+0000 \
+    git -C "$1" commit -q -m "$2"
+}
+if ! git -C Fixture show-ref --verify --quiet refs/heads/m03; then
+  git -C Fixture branch m03
+  git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M03 m03
+  sed 's/M02/M03/g; s/One line that never changes./An older copy, written on the branch./' \
+    "$ROOT/tests/project/docs/milestones/M02.md" > Fixture-M03/docs/milestones/M03.md
+  git -C Fixture-M03 add -- docs/milestones/M03.md
+  commit Fixture-M03 'Record an older M03 brief on the branch'
+  # Only then does main get the brief a dispatch would read.
+  sed 's/M02/M03/g' "$ROOT/tests/project/docs/milestones/M02.md" > Fixture/docs/milestones/M03.md
+  git -C Fixture add -- docs/milestones/M03.md
+  commit Fixture 'Record M03 brief'
+fi
+branch_before=$(git -C Fixture rev-parse m03)
+head_before=$(git -C Fixture-M03 rev-parse HEAD)
+status=0
+"$BATON" dispatch Fixture M03 || status=$?
+test "$status" -eq 1
+jq -se 'last | .kind == "dispatch_failed" and .stage == "worktree"' "$BATON_HOME/log.jsonl" > /dev/null
+# The old copy was readable throughout, so readability alone did not clear the check.
+test -r Fixture-M03/docs/milestones/M03.md
+grep -q 'An older copy, written on the branch.' Fixture-M03/docs/milestones/M03.md
+# Nothing was moved, merged, reset or composed on the milestone's behalf.
+test "$(git -C Fixture rev-parse m03)" = "$branch_before"
+test "$(git -C Fixture-M03 rev-parse HEAD)" = "$head_before"
+test -z "$(git -C Fixture-M03 status --porcelain)"
+test ! -e "$BATON_HOME/settings/Fixture-M03.json"
+test ! -e "$BATON_HOME/prompts"
+printf '%s\n' 'A readable old brief did not stand in for the commit; branch, worktree and settings untouched.'
+exit "$status"

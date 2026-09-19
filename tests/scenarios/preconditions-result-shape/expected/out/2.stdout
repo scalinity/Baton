@@ -1,0 +1,37 @@
+=== a milestone with every precondition met
+{
+  "branch": "m02",
+  "brief": "docs/milestones/M02.md",
+  "failures": [],
+  "milestone": "M02",
+  "project": "Fixture",
+  "references_inspected": true,
+  "worktree": "@TMP@/Fixture-M02"
+}
+=== a milestone with unmet preconditions, in the order they are checked
+{
+  "failures": [
+    {
+      "check": "slot",
+      "path": "docs/milestones/M04.md",
+      "stage": "prompt"
+    },
+    {
+      "check": "reference",
+      "path": "docs/nowhere.md",
+      "stage": "prompt"
+    },
+    {
+      "check": "reference-ambiguous",
+      "path": "docs/milestones/M04.md",
+      "stage": "prompt"
+    }
+  ],
+  "milestone": "M04",
+  "project": "Fixture",
+  "references_inspected": true
+}
+=== a result that could not be collected at all: status, and no JSON to mistake for success
+exit 1
+@TMP@/home/projects/Nosuch/project.json does not name a checkout
+not JSON

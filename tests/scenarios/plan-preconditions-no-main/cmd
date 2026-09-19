@@ -1,0 +1,10 @@
+set -eu
+# Every brief is read from main and every milestone worktree is created from main, so a checkout
+# without one is the ground failing under all of them rather than a defect in any one brief. The
+# report says that once per eligible milestone and does not go on to read what it cannot read: a
+# guessed list of missing documents would be reporting defects Baton has not seen.
+if git -C Fixture show-ref --verify --quiet refs/heads/main; then git -C Fixture branch -m main trunk; fi
+status=0
+out=$("$BATON" plan Fixture) || status=$?
+printf '%s\n' "$out" | sed -n '/^preconditions/,$p'
+echo "exit $status"

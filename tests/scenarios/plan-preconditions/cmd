@@ -1,0 +1,18 @@
+set -eu
+# M10's brief is written into the working tree and never committed, which is the one brief state
+# the fixture repository cannot hold for itself: the harness commits everything under docs/. The
+# same bytes are written on both runs, so both see the same uncommitted file.
+cat > Fixture/docs/milestones/M10.md <<'BRIEF'
+# M10 — A brief on disk and not on main
+
+## Completion evidence
+
+## Copy-ready session prompt
+
+```
+You are implementing milestone M10 of Fixture. Written, and not yet committed.
+
+WHAT ELSE IS IN FLIGHT. Runs alone unless the dispatch says otherwise.
+```
+BRIEF
+"$BATON" plan Fixture

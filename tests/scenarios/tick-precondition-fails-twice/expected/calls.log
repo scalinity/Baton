@@ -1,0 +1,6 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "no archived handover of Fixture lists M07, though the plan makes it eligible · edit the plan or the brief; the next tick re-reads it" with title "Baton · Fixture/M07 · omitted"'
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "2 dispatches in a row produced no session, the last at the prompt stage: Baton needs every document M02's kickoff prompt names to be on main, because the session is told to read the… · fix what the prompt stage names, then baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · dispatch-failed"'
