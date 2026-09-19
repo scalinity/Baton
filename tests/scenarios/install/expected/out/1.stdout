@@ -49,7 +49,7 @@ pinned: @BUNDLE@
   "plan": "docs/MILESTONES.md",
   "check": {
     "command": "sh tests/run.sh",
-    "deadline_seconds": 1800
+    "deadline_seconds": 21600
   }
 }
 --- LaunchAgents ---
