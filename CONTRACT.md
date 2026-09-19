@@ -99,8 +99,9 @@ standing down once the session's `complete` handover is archived; verifies `merg
 chain — the baseline is an ancestor of the attempt's branch tip, that tip is an ancestor of
 `merged_as`, `merged_as` is on `main`, and the branch changed at least one path inside the
 milestone's declared scope — then checks out the merge commit into a tree of its own, establishes
-that the tree is that commit, runs the project's registered standing check in it under a deadline,
-and records the result; a check that did not pass parks the project as `main-broken`, and a
+that the tree is that commit, runs the project's registered standing check in it under a deadline
+across ticks — a pending check leaves the artifact and completes the tick; a later tick collects
+the done-marker — and records the result; a check that did not pass parks the project as `main-broken`, and a
 handover Baton has no baseline for — one of a milestone it did not dispatch, or one whose attempt
 was dispatched before the baseline was recorded — is consumed and recorded as unproved rather than
 rejected, since there is nothing to bind it to and nothing honest to recover after the merge; computes eligibility from the plan file, dispatches only the

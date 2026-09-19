@@ -1,1 +1,2 @@
 == M02 dispatched at the baseline, its branch merged into main with an in-scope change: the chain holds, Baton runs the standing check on the merge commit, and the record carries what it found ==
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json (complete, merged_as @MERGE@, 1 path changed, check passed)

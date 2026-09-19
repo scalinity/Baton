@@ -1,0 +1,29 @@
+echo "== a standing check that has not finished is pending: the artifact stays in the inbox, the consume is not a failure, and nothing is restarted =="
+sh "$ROOT/tests/completion-fixture.sh" check-slow
+sh "$ROOT/tests/consume-once.sh"
+dir=$BATON_HOME/checks/Fixture/M02-1
+if [ -f "$BATON_HOME/inbox/M02-11111111-2222-4333-8444-555555555555.json" ]; then
+  echo "artifact unconsumed"
+else
+  echo "artifact consumed"
+fi
+if [ -f "$dir/output.txt.exit" ]; then echo "done-marker present"; else echo "no done-marker"; fi
+pid=$(cat "$dir/pid" 2>/dev/null || true)
+if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+  echo "check still running"
+else
+  echo "check not running"
+fi
+# The tree is a detached checkout the snapshot cannot freeze, and a pid moves every run.
+# What this scenario asserts is already on the stream and in the inbox; reap so the
+# second run observes a dead producer with no marker and still returns pending.
+if [ -n "$pid" ]; then
+  pkill -TERM -P "$pid" 2>/dev/null || true
+  kill -TERM "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+fi
+if [ -d "$dir/tree" ]; then
+  git -C "$PWD/Fixture" worktree remove --force "$dir/tree" >/dev/null 2>&1 || true
+  rm -rf "$dir/tree"
+fi
+rm -f "$dir/pid"
