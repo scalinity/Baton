@@ -1,6 +1,6 @@
 == one slot left: Fixture has M07 in flight and Other has none, so Other/M05 goes, though Fixture/M02 is the earlier plan row ==
 backgrounded · 0badc0d1 · Baton · Other · M05
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
-worktree  @TMP@/Other-M05 (branch m05)
+worktree  @TMP@/home/worktrees/Other/M05 (branch m05)
 settings  @TMP@/home/settings/Other-M05.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

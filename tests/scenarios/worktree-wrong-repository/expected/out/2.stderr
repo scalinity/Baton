@@ -1,0 +1,1 @@
+baton: dispatch of Fixture M02 failed at worktree: @TMP@/home/worktrees/Fixture/M02 is not a worktree of @TMP@/Fixture: its repository is @TMP@/home/worktrees/Fixture/M02/.git and the checkout's is @TMP@/Fixture/.git. Baton reuses only the project's own worktree, so move that directory aside yourself: mv '@TMP@/home/worktrees/Fixture/M02' '@TMP@/home/worktrees/Fixture/M02.aside'

@@ -1,0 +1,1 @@
+baton: dispatch of Fixture M02 failed at worktree: @TMP@/home/worktrees/Fixture/M02 is on refs/heads/sidetrack and M02's branch is refs/heads/m02. Baton reuses a worktree only on the milestone's own branch, so check it out there yourself: git -C '@TMP@/home/worktrees/Fixture/M02' checkout 'm02'

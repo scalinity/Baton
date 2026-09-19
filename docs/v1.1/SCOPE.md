@@ -102,12 +102,34 @@ If disk pressure ever becomes real — a Swift target with DerivedData per workt
 `baton prune` a person runs deliberately, never an automatic one, and record why D-078 no longer
 holds for deletion as well.
 
+**The grouping criterion is settled by measurement, and it is not a property of the path.** M09
+measured it on Claude Code 2.1.278 and Claude.app 2.2553.1, live, with the owner reading the
+sidebar. Two readings, and the second is a controlled pair: Baton's own five dispatched sessions,
+every one of them in a `~/Documents/Apps/Baton-M<nn>` sibling, appear under a single heading
+**Baton** — so D-086's "both under Other" no longer describes this host; and two sessions of one
+disposable repository, dispatched from one settings composition and differing only in where their
+worktree sat — one under a managed root, one at a legacy sibling beside the checkout — appear
+**both under Other**. One repository, two locations, one answer. The working directory therefore
+does not decide the heading, and the managed root can neither earn the grouping nor lose it.
+
+This is the explicit amendment §10 of `docs/milestones/M09.md` requires for separating the two
+facts. **Filesystem acceptance is M09's and is met by the managed root.** **Grouping is satisfied
+as observed** — a dispatched Baton session does appear under its project today — and M09 claims no
+credit for it and no mechanism over it: nothing in the CLI exposes one (`claude --help` on 2.1.278
+still has no project designation, `claude project` offers only `purge`, and `-w/--worktree` would
+hand worktree creation, placement and reaping to the CLI, which D-078 forbids). What M09 could not
+observe is the same repository at a managed path, because Baton's own grouped sessions are the ones
+the move guard holds. The inference is that the move changes nothing, and its falsifier is cheap and
+immediate: the first milestone dispatched after the migration runs from the managed root, and if it
+appears under Other the worktrees move back. M11's entry conditions carry that check.
+
 **Done when:** new worktrees use the managed root; every legacy sibling has moved there with its
-branch and dirty changes intact, or is named in the completion evidence as one of the two residuals
-that cannot move (M09's own worktree, and a sibling lane still live); the fixture's result is
-recorded either way; each migrated worktree's legacy absolute path is recorded beside its milestone,
-so its transcript directory is still findable by slug. A dispatched session appears in the desktop
-sidebar grouped under its project rather than under Other.
+branch and dirty changes intact, or is named in the completion evidence as a residual that cannot
+move — M09's own worktree, a sibling lane still live, and any finished session whose process the
+tick is still keeping, which the one guard holds exactly as it holds a running one; the fixture's
+result is recorded either way; each migrated worktree's legacy absolute path is recorded beside its
+milestone, so its transcript directory is still findable by slug. The sidebar reading above is
+recorded with what was observed and what was inferred, and neither is reported as the other.
 
 ### M10 — Completion that proves the work
 
@@ -425,9 +447,13 @@ restoration can then admit M17 automatically. This operational fact is recorded,
    confirmation.
 2. New Baton artifacts stay under `$BATON_HOME` and the target repository, and the legacy sibling
    worktrees have moved there too, with branches and dirty changes intact — superseding the earlier
-   grandfathering criterion under D-137. The only paths left outside are the two residuals M09 names
-   and cannot move: its own worktree, and a sibling lane still live. Dispatched sessions
-   group under their project in the desktop sidebar rather than under Other.
+   grandfathering criterion under D-137. The only paths left outside are the residuals the one guard
+   holds: a worktree a live row is working in, which includes the running session's own and any
+   finished session whose process the tick is still keeping. Each is named in M09's completion
+   evidence, and each moves on the tick after its row goes, without anyone doing anything.
+   Dispatched sessions group under their project in the desktop sidebar rather than under Other —
+   which they do on this host, and which §6 M09 records is not a property of the worktree's path,
+   so it is not a thing the managed root either delivers or costs.
 3. A completion claim that did not do the work is rejected.
 4. A run pauses on budget and resumes without help.
 5. Two independent milestones run concurrently.

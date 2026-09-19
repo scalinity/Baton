@@ -1,9 +1,9 @@
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
-[cwd @TMP@/Other-M02] claude --bg -n 'Baton · Other · M02' --model opus --permission-mode bypassPermissions --settings @TMP@/home/settings/Other-M02.json <prompt>
+[cwd @TMP@/home/worktrees/Other/M02] claude --bg -n 'Baton · Other · M02' --model opus --permission-mode bypassPermissions --settings @TMP@/home/settings/Other-M02.json <prompt>
 [cwd @TMP@] claude agents --json
 caffeinate -i -w 4241
-[cwd @TMP@/Fixture-M07] claude --bg -n 'Baton · Fixture · M07' --model opus --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M07.json <prompt>
+[cwd @TMP@/home/worktrees/Fixture/M07] claude --bg -n 'Baton · Fixture · M07' --model opus --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M07.json <prompt>
 [cwd @TMP@] claude agents --json
 caffeinate -i -w 4242
 [cwd @TMP@] claude agents --json

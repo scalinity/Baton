@@ -6,6 +6,6 @@ unparked  Fixture/M02 · the effective model changed since the model_not_found p
 redispatch Fixture/M02 · the effective model changed since the model was refused, so attempt 2 runs on it
 backgrounded · 0badc0d1 · Baton · Fixture · M02
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
-worktree  @TMP@/Fixture-M02 (branch m02)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
 settings  @TMP@/home/settings/Fixture-M02.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

@@ -7,7 +7,7 @@
   "milestone": "M02",
   "project": "Fixture",
   "references_inspected": true,
-  "worktree": "@TMP@/Fixture-M02"
+  "worktree": "@TMP@/home/worktrees/Fixture/M02"
 }
 === a milestone with unmet preconditions, in the order they are checked
 {
