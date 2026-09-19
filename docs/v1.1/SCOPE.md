@@ -49,9 +49,11 @@ Additive only. No existing field changes meaning.
 
 | Location | Field | Purpose |
 |---|---|---|
-| `projects/<key>/project.json` | `goal` | The confirmed intent statement. The scope guard's only input. |
+| `projects/<key>/project.json` | `goal`, `done`, `constraints`, `non_goals` | The confirmed intent record, which the scope guard receives whole. `goal` alone is not the guard's input: one goal admits both a permitted extension and a forbidden replacement of the controller (§8 item 6). |
 | | `plan_format` | `native`, `adapted`, or `generated`. How the plan was obtained. |
-| | `onboarded_at` | Provenance. |
+| | `onboarded_at`, `cli` | Provenance: when, and which CLI version the judgment role was checked against. |
+| | `adaptation` | For an `adapted` plan: the columns defaulted, the source `Status` words and the native token each reads as, and whether the plan has a gates table. Baton's state, so the target repository is unchanged (M11, D-155). |
+| | `start` | The starting handover: every milestone the plan makes eligible, with a disposition and a brief pointer, in `eligible[]`'s own shape. Replaced by `plan_owed` for a `generated` plan. |
 | `projects/<key>/budget.json` | `window_start`, `sessions_used`, `tier` | Self-pacing against the plan allowance. |
 | completion artifact | `baseline` | The dispatch commit. Makes ancestry meaningful. |
 | | `changed_paths` | What the branch actually touched. |
@@ -164,7 +166,15 @@ permissions file and a starting artifact. `install.sh:48–76` already generates
 Register the project, derive its permission list from the detected toolchain, and parse an existing
 plan tolerantly. L1's recorded symptom is a Reclaim parse that failed on a missing Model column;
 column presence must not be load-bearing. M08 also records registration writes that a dispatched
-session's own deny rules forbid — onboarding runs from the tick, outside those rules.
+session's own deny rules forbid — onboarding runs from the relay's own verb, outside those rules.
+
+**The tolerance is in the reader and the record, not in the target repository.** M11 writes nothing
+in the project it onboards: what the plan needs in order to be read is stored as the registration's
+`adaptation` and applied by `plan_tables`, and a project registered `native` is still read strictly,
+so a misspelt cell in it parks as before. This is what makes the criterion below — the plan parses
+"without a human editing anything in that repository first" — true of Baton as well as of the person,
+and it is why the standing check and the permission rail are derived beside each other rather than
+committed anywhere (D-155, D-156).
 
 **Status vocabulary.** The native plan has exactly three Status tokens: `done`, `held`, or blank.
 It cannot express retirement, so a retired milestone such as M08 must borrow `held`, with its

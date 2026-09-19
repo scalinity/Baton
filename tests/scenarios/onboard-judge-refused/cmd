@@ -1,0 +1,8 @@
+set -eu
+# The judgment request failed. There is then no statement to confirm, so no question is put and
+# nothing is written: a goal Baton guessed at would be confirmed by a person who was never shown it.
+# Its stdin carries a yes that is never read, which is what proves the question was not asked.
+status=0
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture" || status=$?
+printf 'exit %s\n' "$status"
+printf 'registrations: %snone\n' "$(ls "$BATON_HOME/projects" 2>/dev/null | tr '\n' ' ')"

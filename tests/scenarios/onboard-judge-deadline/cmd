@@ -1,0 +1,13 @@
+set -eu
+# A judgment request that never answers. The verb holds Baton's lock while it waits, so an unbounded
+# wait would stop the relay for as long as the request hung — the one failure that costs a whole
+# night. The deadline ends it, the outcome is terminal, and running the verb again is the restart:
+# there is no resume, no attempt count and no ladder, because a request is not a session.
+ONBOARD_JUDGE_DEADLINE=2
+export ONBOARD_JUDGE_DEADLINE
+status=0
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture" || status=$?
+printf 'exit %s\n' "$status"
+printf 'registrations: %snone\n' "$(ls "$BATON_HOME/projects" 2>/dev/null | tr '\n' ' ')"
+printf 'lock left behind: %s\n' "$([ -d "$BATON_HOME/lock" ] && echo yes || echo no)"
+printf 'scratch left behind: %s\n' "$(ls -d "$BATON_HOME"/.judge.* 2>/dev/null | wc -l | tr -d ' ')"

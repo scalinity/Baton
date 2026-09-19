@@ -1,0 +1,18 @@
+Fixture is already onboarded · the confirmed goal stands, nothing was asked again and nothing was seeded twice
+registered Fixture
+  checkout    @TMP@/Fixture
+  plan        docs/MILESTONES.md (native)
+  check       cargo test
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  starting    M01 · run · docs/milestones/M01.md
+--- what was derived ---
+{"command":"cargo test","deadline_seconds":1800}
+["Bash(jq:*)","Bash(cargo:*)","Bash(make:*)"]
+--- and the two deny classes are the same rail install.sh writes ---
+47
+Edit(/@TMP@/home/projects/**)
+Write(/@TMP@/home/projects/**)
+Bash(*.baton/projects*)

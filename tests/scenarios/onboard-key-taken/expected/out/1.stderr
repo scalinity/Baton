@@ -1,0 +1,1 @@
+baton: project key Fixture is already registered at @TMP@/Fixture, and @TMP@/elsewhere/Fixture would share its state; register it under a differently named checkout, or remove @TMP@/home/projects/Fixture first

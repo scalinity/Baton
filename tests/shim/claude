@@ -11,6 +11,9 @@
 # bg.cursor (a cursor-control prefix that cli_plain does not strip), bg.hidden-reads (hide a newly
 # started worker from this many listings while keeping its live row internally, so stop can reach it)
 # and env.claude (each call also records the names of the CLAUDE* variables it carried).
+# The onboarding roles: version (what --version prints) and version.fail (it refuses the flag);
+# judge.answer (what -p prints), judge.status and judge.stderr (it fails), judge.hang (it never
+# answers, so the judgment request's deadline is what ends it).
 set -eu
 S=${BATON_SHIM:?}
 
@@ -136,6 +139,26 @@ case "${1:-}" in
     if [ -f "$S/bg.settled" ]; then
       printf '[2026-09-12T00:00:00.100Z] [bg] bg settled %s (crashed): %s\n' "$id" "$(cat "$S/bg.settled")" >> "$S/daemon.log"
     fi
+    ;;
+  --version)
+    # M4's shape check: the one question the judgment role asks of the binary before it uses it.
+    # A scenario sets version.fail to make the binary answer nothing, which is what an installed CLI
+    # too old to be asked looks like.
+    record "$@"
+    if [ -f "$S/version.fail" ]; then echo 'claude: unknown option --version' >&2; exit 1; fi
+    cat "$S/version" 2>/dev/null || echo '2.1.278 (Claude Code)'
+    ;;
+  -p)
+    # The judgment request: a foreground print-mode call, whose whole answer is what the scenario's
+    # judge.answer holds. judge.status makes it exit non-zero and judge.hang makes it never answer,
+    # which are the two terminal outcomes besides an answer that the role has to have.
+    record "$@"
+    if [ -f "$S/judge.hang" ]; then sleep 600; exit 0; fi
+    if [ -f "$S/judge.status" ]; then
+      if [ -f "$S/judge.stderr" ]; then cat "$S/judge.stderr" >&2; else echo 'claude: the request failed' >&2; fi
+      exit "$(cat "$S/judge.status")"
+    fi
+    cat "$S/judge.answer" 2>/dev/null || printf 'GOAL: a fixture project.\nDONE: every milestone reads done.\nCONSTRAINTS: POSIX shell only.\nNON-GOALS: a rewrite in another language.\n'
     ;;
   stop)
     record "$@"

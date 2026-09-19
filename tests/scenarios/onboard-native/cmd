@@ -1,0 +1,12 @@
+set -eu
+# An unprepared repository whose plan already parses under the contract's own rules: it is
+# registered as `native`, so it is read exactly as strictly afterwards as Baton's own plan is, and
+# the starting handover names every milestone the plan makes eligible with a disposition each.
+# Nothing in the repository is written — the whole point of adapting in the registration.
+before=$(git -C Fixture rev-parse HEAD)
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- the repository was not touched ---'
+printf 'HEAD unchanged: %s\n' "$([ "$before" = "$(git -C Fixture rev-parse HEAD)" ] && echo yes || echo no)"
+printf 'working tree clean: %s\n' "$([ -z "$(git -C Fixture status --short)" ] && echo yes || echo no)"
+printf '%s\n' '--- baton plan reads the same graph ---'
+"$BATON" plan Fixture || true

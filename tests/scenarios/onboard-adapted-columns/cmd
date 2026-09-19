@@ -1,0 +1,8 @@
+set -eu
+# L1's recorded symptom, and the columns beside it: no `Model`, no `Effort`, no `Remote`, and no
+# gates table at all. The plan parses as it stands, the registration records what was defaulted, and
+# `plan_format` says `adapted` so a reader knows which cells are Baton's and which are the plan's.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- the plan the tick now sees ---'
+"$BATON" plan Fixture || true
+printf 'working tree clean: %s\n' "$([ -z "$(git -C Fixture status --short)" ] && echo yes || echo no)"

@@ -27,6 +27,7 @@ lifecycle.sh
 lock.sh
 log.sh
 notify.sh
+onboard.sh
 plan.sh
 preconditions.sh
 render.sh

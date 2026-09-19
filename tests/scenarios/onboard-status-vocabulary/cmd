@@ -1,0 +1,10 @@
+set -eu
+# A source vocabulary the native three words cannot say. `complete` reads done, `in progress` reads
+# blank, and `retired` reads **held** — never done, which would let M04 inherit it as a satisfied
+# dependency, and never blank, which would make it runnable. No gate is invented for it, because a
+# gate is a hold a person clears and retirement is not waiting for anyone.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- the plan the tick now sees: M03 held, and M04 waiting on it for ever ---'
+"$BATON" plan Fixture || true
+printf '%s\n' '--- the starting handover does not name M03 or M04 as runnable ---'
+jq -c '[.start.eligible[] | {milestone, disposition}]' "$BATON_HOME/projects/Fixture/project.json"

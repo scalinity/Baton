@@ -1,0 +1,15 @@
+Fixture at @TMP@/Fixture — a fixture project.
+Done: every milestone reads done.
+Must hold: POSIX shell only. · Not this: a rewrite in another language.
+Plan: none readable — M12 must generate one. Standing check: none detected.
+Register this project and let Baton run it? [yes/no] onboarded Fixture with no usable plan
+  checkout    @TMP@/Fixture
+  goal        a fixture project.
+  plan        none readable; plan_format is generated and the plan is owed
+  next        M12 generates the plan from the confirmed goal; nothing is dispatched until one exists
+--- the registration ---
+{"plan_format":"generated","plan_owed":{"reason":"no readable milestone table was found in the repository","owner":"M12"},"has_start":false}
+--- the tick that follows ---
+self-check  Fixture · the plan file @TMP@/Fixture/docs/MILESTONES.md cannot be read: cat: @TMP@/Fixture/docs/MILESTONES.md: No such file or directory
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+project park  Fixture · plan-unreadable · the plan file cannot be read: cat: @TMP@/Fixture/docs/MILESTONES.md: No such file or directory · fix the plan file; the next tick re-reads it

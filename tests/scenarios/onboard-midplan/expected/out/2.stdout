@@ -1,0 +1,14 @@
+Fixture is already onboarded · the confirmed goal stands, nothing was asked again and nothing was seeded twice
+registered Fixture
+  checkout    @TMP@/Fixture
+  plan        docs/MILESTONES.md (native)
+  check       none detected
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  starting    M03 · run · docs/milestones/M03.md
+  starting    M04 · wait for M03 · docs/milestones/M04.md
+--- the tick after onboarding ---
+--- what was dispatched, and what was not ---
+dispatched Fixture/M03
