@@ -32,6 +32,12 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
    fails, else write `stopped` with reason `main-broken`. Read the run to completion and quote its
    scenario count and its failure count in the completion evidence: a run the harness moved to the
    background is not finished until its output has been read, and a check nobody read is unrun.
+   Run it by absolute path — `sh /Users/danny/Documents/Apps/Baton/tests/run.sh` for `main` — and
+   never `cd` out of the session's own worktree to do it: two full runs that began with a `cd` into
+   the canonical checkout ended in a signal with no failing line and no message, because the shell
+   is reset when a command leaves the session's directory and the reset took the run with it.
+   `tests/run.sh` reads nothing from the working directory, so the absolute path runs `main`'s copy
+   without leaving the worktree.
 3. On `main`: refresh the copy-ready prompt only of a listed milestone with neither an open lane nor an open park (parts 1 and
    3–7; part 4 additively; part 2 stays the slot line). Establish open lanes and open parks
    by `baton status` and the dispatch-log check in `CONTRACT.md` clause 3(c); absence from status
