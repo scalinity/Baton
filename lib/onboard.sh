@@ -393,9 +393,15 @@ onboard_has_table() { [ -n "$(onboard_header "$1" "${2-Depends on}")" ]; }
 # first. This asks the one question the new role depends on and records the answer, and it is
 # deliberately not a general sweep: a check on an interface this milestone does not consume would
 # be a check nothing keeps honest.
+# The message names what failed and quotes what it said, and does **not** name the binary's path.
+# `$BATON_CLAUDE` is a seam whose value is the machine's, so a message carrying it is a message that
+# differs between one checkout and another — which is a location-dependent person-facing string, and
+# an expectation that pins it fails the moment the suite is run somewhere else. No other message in
+# Baton names it, and this one does not either.
 onboard_cli_shape() {
   if ! ocs_v=$("$BATON_CLAUDE" --version 2>&1); then
-    jq -nc --arg d "$BATON_CLAUDE --version failed: $ocs_v" '{version: "", ok: false, detail: $d}'
+    jq -nc --arg d "the Claude CLI would not answer --version, so the judgment request cannot be made against a binary Baton could not interrogate: $ocs_v" \
+      '{version: "", ok: false, detail: $d}'
     return 0
   fi
   ocs_v=$(printf '%s' "$ocs_v" | head -1)
