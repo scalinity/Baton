@@ -290,7 +290,7 @@ record_only() {
 # `channel` is written here and not by `notification_write`. That asymmetry is deliberate and is the
 # smaller of two costs: a delivered notification has never carried the field, and backfilling
 # `["notification"]` onto it would move forty-nine events across thirty-six frozen expectations
-# without changing a single decision, since nothing reads the field (D-190). On a `notification`
+# without changing a single decision, since nothing reads the field (D-192). On a `notification`
 # event the field present and reading `["record"]` is the whole of what it says.
 #
 # The guard is `record_only`'s guard and is asked of the table rather than of the caller. It matters
