@@ -1,3 +1,2 @@
 == Baton runs the standing check on the merged tree itself and it fails: the handover is still consumed, because the work did merge, and the project is parked main-broken ==
-consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json (complete, merged_as @MERGE@, 1 path changed, check failed)
-check     M02 · the standing check failed at @MERGE@
+check     M02 · standing check pending

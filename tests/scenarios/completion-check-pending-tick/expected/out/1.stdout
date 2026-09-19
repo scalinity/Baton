@@ -1,0 +1,6 @@
+== pending consume is a completed tick: last-tick advances, the artifact stays, and an open lane with no row is not a crash ==
+check     M02 · standing check pending
+artifact unconsumed
+marker 2026-09-12T00:00:00+01:00
+no crash
+check still running

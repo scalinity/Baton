@@ -1,1 +1,2 @@
 == a real outage, reported from inside a tick whose own standing check then spends eleven minutes: the gap is the two hours Baton was actually not running, not those two hours plus the length of the check ==
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:11:00+01:00.json (complete, merged_as @MERGE@, 1 path changed, check passed)
