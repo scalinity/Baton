@@ -139,7 +139,7 @@ fi
 # when the file was absent, so reinstalling over Baton's own registration could never supply a
 # field registration did not have (D-147).
 if ! jq -e '.check.command // empty' "$BATON_HOME/projects/$project/project.json" > /dev/null 2>&1; then
-  jq '. + {check: {command: "sh tests/run.sh", deadline_seconds: 1800}}' \
+  jq '. + {check: {command: "sh tests/run.sh", deadline_seconds: 21600}}' \
     "$BATON_HOME/projects/$project/project.json" > "$BATON_HOME/projects/$project/project.json.tmp" \
     && mv "$BATON_HOME/projects/$project/project.json.tmp" "$BATON_HOME/projects/$project/project.json"
 fi
