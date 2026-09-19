@@ -1,0 +1,6 @@
+== the pair has both closed out. M02's handover said M04 waits on M03 and M03's said run; the newest word that names M04 decides, and the join is dispatched with no person in it ==
+backgrounded · 0badc0d1 · Baton · Fixture · M04
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M04 (branch m04)
+settings  @TMP@/home/settings/Fixture-M04.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

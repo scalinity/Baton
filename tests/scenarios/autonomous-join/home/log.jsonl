@@ -1,0 +1,2 @@
+{"at":"2026-09-19T11:00:05+01:00","kind":"consumed","project":"Fixture","milestone":"M02","session":"0badc0d1-0000-4000-8000-000000000000","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M02-0badc0d1-a.json"}
+{"at":"2026-09-19T11:30:05+01:00","kind":"consumed","project":"Fixture","milestone":"M03","session":"0badc0d2-0000-4000-8000-000000000000","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M03-0badc0d2-a.json"}
