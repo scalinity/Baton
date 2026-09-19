@@ -1,0 +1,5 @@
+== one handover names both halves of an independent pair and their join: the tick admits M02 and M03 in the same pass, and M04 waits on the plan ==
+== status: both in flight ==
+last tick 2026-09-19T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+in flight  Fixture/M03 · 0badc0d2-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s

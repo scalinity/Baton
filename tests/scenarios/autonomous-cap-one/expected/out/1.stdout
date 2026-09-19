@@ -1,0 +1,9 @@
+== the same pair under a cap of one: M02 takes the slot on its handover's own order and M03 waits for one, unparked and unescalated. The cap is a ceiling on what runs at once, never a verdict on what is eligible ==
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+== status: one in flight, and nothing says M03 is held ==
+last tick 2026-09-19T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s

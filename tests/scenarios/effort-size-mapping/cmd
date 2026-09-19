@@ -1,0 +1,6 @@
+echo "== the three Sizes a brief can declare, each dispatched by hand so nothing else is in the tick. Small asks for medium effort, Medium and Large for high, and the dispatch event records the one that ran =="
+"$BATON" dispatch Fixture M02
+"$BATON" dispatch Fixture M03
+"$BATON" dispatch Fixture M04
+echo "== what actually reached the CLI =="
+grep -o -- '--model [a-z]* \(--effort [a-z]* \)\?' "$SHIM/calls.log" || true

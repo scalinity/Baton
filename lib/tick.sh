@@ -298,8 +298,26 @@ dispatch_run() {
     drn_kept=$(printf '%s' "$drn_kept" | jq -c --argjson c "$drn_c" '. + [$c]')
   done
   drn_order=$(cap_order "$drn_kept" "$drn_counts") || { render_failure err "the cap order could not be computed"; return 1; }
+  drn_started=0
   drn_n=$(printf '%s' "$drn_order" | jq length); drn_i=0
   while [ "$drn_i" -lt "$drn_n" ] && [ "$((drn_total + do_unresolved))" -lt "$drn_cap" ]; do
+    # The listing again, once this pass has started a session of its own. `dispatch_one` reads it for
+    # one thing — the "also in flight" list its slot line carries — and against the listing taken
+    # above, a sibling admitted a moment ago in this same loop is not in it. Both halves of an
+    # independent pair were therefore told "Nothing else is in flight", each about the other, which is
+    # the one sentence part 2 exists to say. It is the defect D-130 names one level further in: there
+    # the listing went stale between the top of the tick and the cap, here between one dispatch and
+    # the next, and the answer is the same — read it where it is used (D-175).
+    #
+    # A listing that cannot be re-read stops the pass rather than falling back to the stale one. The
+    # fallback would be the cheaper mistake of the two — part 5 carries the standing parallel-run
+    # rules whether or not anything is named (CONTRACT clause 1), so a session loses the names and
+    # not the discipline — but this is the same listing the cap and `do_unresolved` are counted
+    # against, and a tick that cannot see what is running is not a tick that should start more of it.
+    # What it costs is a candidate waiting sixty seconds.
+    if [ "$drn_started" -gt 0 ]; then
+      drn_rows=$(rows_read) || { render_failure err "claude agents --json could not be re-read after a dispatch; nothing more is dispatched this tick"; return 1; }
+    fi
     drn_c=$(printf '%s' "$drn_order" | jq -c ".[$drn_i]"); drn_i=$((drn_i + 1))
     drn_p=$(printf '%s' "$drn_c" | jq -r .project)
     drn_m=$(printf '%s' "$drn_c" | jq -r .milestone)
@@ -309,6 +327,7 @@ dispatch_run() {
     drn_after=$(attempt_of "$drn_p" "$drn_m") || { render_failure err "$drn_after"; return 1; }
     [ "$drn_after" -gt "$drn_before" ] || continue
     drn_total=$((drn_total + 1))
+    drn_started=$((drn_started + 1))
     # The override follows the dispatch it records, so a dispatch that failed leaves no record of the
     # plan having overruled a `held` into a session that never started.
     if printf '%s' "$drn_c" | jq -e 'has("override")' > /dev/null; then
