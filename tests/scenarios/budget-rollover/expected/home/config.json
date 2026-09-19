@@ -1,0 +1,2 @@
+{ "cap": 2, "fableReserve": 80, "budgetCeiling": 100, "budgetSessions": 2, "budgetTier": "max20",
+  "models": { "fable": "fable", "opus": "opus", "sonnet": "sonnet", "haiku": "haiku" } }

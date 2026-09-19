@@ -1,0 +1,4 @@
+{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"f1","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M01-f1-a.json"}
+{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Other","milestone":"M01","session":"a1","attempt":1,"outcome":"complete","merged_as":"@OTHERCOMMIT@","written_by":"session","archive":"@TMP@/home/archive/M01-a1-a.json"}
+{"at":"2026-09-12T11:00:00+01:00","kind":"dispatch_failed","project":"Fixture","milestone":"M03","stage":"launch","detail":"the launch printed no backgrounded line"}
+{"at":"2026-09-12T11:30:00+01:00","kind":"dispatch_failed","project":"Other","milestone":"M03","stage":"launch","detail":"the launch printed no backgrounded line"}

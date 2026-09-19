@@ -56,6 +56,52 @@ iso_epoch() {
 # now_epoch: Baton's own clock, in seconds.
 now_epoch() { iso_epoch "$(baton_now)"; }
 
+# epoch_iso <epoch seconds>: the inverse of `iso_epoch` — an ISO 8601 timestamp of the same shape
+# Baton writes everywhere else, carrying the offset the clock itself reports. A boundary Baton
+# computed by arithmetic (a window's start, the instant a pause lifts) has to be written down and
+# read by a person, and the same reasoning that keeps `iso_epoch` in `awk` keeps this here: it is a
+# string Baton is writing, not a question about the outside, so it never goes near the date seam
+# and a fixture's frozen clock cannot make it disagree with the timestamps beside it.
+#
+# The offset is taken from `baton_now` rather than from the host's zone, so the value is the same
+# on any Mac a scenario runs on and a person reads a boundary in the same reckoning as the `at` of
+# the event that recorded it. `Z` and a bare offset are both accepted, as `iso_epoch` accepts them.
+epoch_iso() {
+  # Everything after `YYYY-MM-DDTHH:MM:SS`, which is where every timestamp Baton writes puts its
+  # offset. Cut by position rather than matched: `sed`'s basic expressions have no alternation, so
+  # one pattern cannot read both `Z` and `+01:00` and a pattern that read only one of them would
+  # silently call the other no offset at all.
+  ei_off=$(baton_now | cut -c20-)
+  [ -n "$ei_off" ] || ei_off=Z
+  if [ "$ei_off" = Z ]; then ei_shift=0; else
+    ei_shift=$(( $(iso_epoch "1970-01-01T00:00:00$ei_off") * -1 ))
+  fi
+  printf '%s\n' "$(( $1 + ei_shift ))" | awk -v off="$ei_off" '
+    # Howard Hinnant’s `civil_from_days`, the published inverse of the `days_from_civil` above,
+    # transcribed rather than derived. Its constants are days per 400-year era (146097), per
+    # century (36524) and per four years (1460), and the shift from the 1970 epoch to an era
+    # beginning on 0000-03-01 (719468). Named so a reader can check it against the original
+    # instead of taking four bare numbers on trust.
+    function civil_from_days(z,   era, doe, yoe, y, doy, mp, d, m) {
+      z += 719468
+      era = int((z >= 0 ? z : z - 146096) / 146097)
+      doe = z - era * 146097
+      yoe = int((doe - int(doe / 1460) + int(doe / 36524) - int(doe / 146096)) / 365)
+      y = yoe + era * 400
+      doy = doe - (365 * yoe + int(yoe / 4) - int(yoe / 100))
+      mp = int((5 * doy + 2) / 153)
+      d = doy - int((153 * mp + 2) / 5) + 1
+      m = mp + (mp < 10 ? 3 : -9)
+      return sprintf("%04d-%02d-%02d", y + (m <= 2 ? 1 : 0), m, d)
+    }
+    {
+      s = $0 + 0
+      days = int(s / 86400); rem = s - days * 86400
+      if (rem < 0) { days -= 1; rem += 86400 }
+      printf "%sT%02d:%02d:%02d%s\n", civil_from_days(days), int(rem / 3600), int((rem % 3600) / 60), rem % 60, off
+    }'
+}
+
 # session_id_ok <session>: a session id is hexadecimal and hyphens, nothing else. The provenance
 # check is an id match (REQ-ARTIFACT-05), so a string that is not an id cannot be one: `..` is not
 # a glob character, and without this an artifact naming `../<folder>/<other session>` would find a
@@ -341,7 +387,8 @@ derive_waits() {
 
 # 6. Each hold. Every hold with no later hold_lifted for the same model and cause. A rate_limit or
 # billing_error hold lifts when its wait clears; a fableReserve hold lifts when the freshest status
-# file's seven_day.used_percentage falls below the reserve.
+# file's seven_day.used_percentage falls below the reserve; a budget hold lifts when neither pacing
+# guard bites, which its `resumes_at` says Baton expects at the five-hour window's boundary.
 derive_holds() {
   dh_log=$(log_json) || { echo "$dh_log"; return 1; }
   printf '%s' "$dh_log" | jq -c '
@@ -350,7 +397,8 @@ derive_holds() {
                  | select(($ev | any(.kind == "hold_lifted" and .model == $h.model
                                      and .cause == $h.cause and .i > $h.i)) | not)
                  | {at: $h.at, project: $h.project, model: $h.model, cause: $h.cause,
-                    reading: $h.reading, status_file: $h.status_file}
+                    reading: $h.reading, status_file: $h.status_file, resumes_at: $h.resumes_at,
+                    reason: $h.reason}
                  | with_entries(select(.value != null)) ] }'
 }
 
@@ -444,13 +492,17 @@ derive_key_spent() {
 # 12. The dispatch hold: derivation 6, read for dispatch. No dispatch on a model with an active
 # rate_limit or billing_error hold; on every model once a second model is held. A fableReserve
 # hold holds its own model — every spelling of it, which `hold_bites` asks `is_fable` about — and
-# counts toward nothing else.
+# counts toward nothing else. A `budget` hold holds every model, because the allowance it paces
+# against is the account's and not any one model's: it is the same shape of answer as a shared
+# limit, and saying so here is what lets every caller of `hold_bites` — step 7's filter loop and a
+# redispatch alike — be paced without knowing pacing exists (M14).
 derive_dispatch_hold() {
   ddh_holds=$(derive_holds) || { echo "$ddh_holds"; return 1; }
   printf '%s' "$ddh_holds" | jq -c '
     ([ .holds[] | select(.cause == "rate_limit" or .cause == "billing_error") | .model ] | unique) as $limited
     | { held_models: ([ .holds[] | .model ] | unique),
-        all: (($limited | length) >= 2 or ($limited | index("all")) != null),
+        all: (($limited | length) >= 2 or ($limited | index("all")) != null
+              or any(.holds[]; .cause == "budget")),
         causes: [ .holds[] | {model, cause} ] }'
 }
 

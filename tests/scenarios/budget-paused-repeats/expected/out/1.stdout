@@ -1,0 +1,6 @@
+== the pause is written once however many ticks run under it: three here, and six across the two runs ==
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+hold  all · budget · the five-hour window reads 97%, at or above the ceiling of 90% · resumes at 2026-09-12T16:00:00+01:00 (in 4 h 0 m)
+-- one hold and no lift --
+-- and the record was not charged again by a tick that dispatched nothing --
+{"window_start":"2026-09-12T11:00:00+01:00","sessions_used":0,"tier":"max20"}

@@ -1,0 +1,27 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/home/worktrees/Fixture/M02] claude --bg -n 'Baton · Fixture · M02' --model opus --effort high --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M02.json <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/home/worktrees/Fixture/M07] claude --bg -n 'Baton · Fixture · M07' --model opus --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M07.json <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4242
+pmset -g log
+osascript -e 'display notification "no tick for 4 h 30 m; the last one completed at 2026-09-12T12:00:00+01:00, and a lane was open through it; the sleep history could not explain it (no-transitions), which is not a claim that the host stayed awake" with title "Baton · gap"'
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
+caffeinate -i -w 4242
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
+caffeinate -i -w 4242
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json

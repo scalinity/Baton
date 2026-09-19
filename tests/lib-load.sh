@@ -13,6 +13,7 @@
 . "$ROOT/lib/preconditions.sh"
 . "$ROOT/lib/candidates.sh"
 . "$ROOT/lib/derive.sh"
+. "$ROOT/lib/budget.sh"
 . "$ROOT/lib/completion.sh"
 . "$ROOT/lib/inbox.sh"
 . "$ROOT/lib/rows.sh"

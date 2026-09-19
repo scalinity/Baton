@@ -1,0 +1,7 @@
+== the pause holds every automatic route that starts a session, not only step 7: the two eligible milestones are withheld in the filter loop, and the ladder's redispatch of the stopped M05 is withheld by the same hold_bites ==
+hold      all · budget · the five-hour window reads 96%, at or above the ceiling of 90% · resumes at 2026-09-12T16:00:00+01:00
+held      Fixture/M05 · sonnet is held, so the redispatch waits until the hold lifts
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+hold  all · budget · the five-hour window reads 96%, at or above the ceiling of 90% · resumes at 2026-09-12T16:00:00+01:00 (in 4 h 0 m)
+-- nothing reached the CLI --
+-- and the redispatch spent no attempt: M05 is still on attempt 1 --

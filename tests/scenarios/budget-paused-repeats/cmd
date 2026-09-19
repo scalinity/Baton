@@ -1,0 +1,11 @@
+set -e
+echo "== the pause is written once however many ticks run under it: three here, and six across the two runs =="
+"$BATON" tick > /dev/null
+"$BATON" tick > /dev/null
+"$BATON" tick > /dev/null
+"$BATON" status
+echo "-- one hold and no lift --"
+[ "$(grep -c '"kind":"hold","model":"all","cause":"budget"' "$BATON_HOME/log.jsonl")" = 1 ]
+! grep -q '"kind":"hold_lifted"' "$BATON_HOME/log.jsonl"
+echo "-- and the record was not charged again by a tick that dispatched nothing --"
+jq -c . "$BATON_HOME/projects/Fixture/budget.json"

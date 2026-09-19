@@ -1,0 +1,8 @@
+set -e
+echo "== the pause holds every automatic route that starts a session, not only step 7: the two eligible milestones are withheld in the filter loop, and the ladder's redispatch of the stopped M05 is withheld by the same hold_bites =="
+"$BATON" tick
+"$BATON" status
+echo "-- nothing reached the CLI --"
+! grep -q -- '--bg' "$SHIM/calls.log"
+echo "-- and the redispatch spent no attempt: M05 is still on attempt 1 --"
+[ "$(jq -s '[ .[] | select(.kind == "dispatch" and .milestone == "M05") ] | length' "$BATON_HOME/log.jsonl")" = 1 ]

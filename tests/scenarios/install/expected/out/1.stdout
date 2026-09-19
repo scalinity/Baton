@@ -16,6 +16,7 @@ stop-failure
 stop-gate
 @BUNDLE@
 answer.sh
+budget.sh
 candidates.sh
 completion.sh
 declared.sh

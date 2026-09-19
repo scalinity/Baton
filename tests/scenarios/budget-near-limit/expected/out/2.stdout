@@ -1,0 +1,9 @@
+== one short of each guard — the window reads 89 against a ceiling of 90, and two starts stand against the three budgetSessions allows — so a near-limit tick still admits ==
+hold      all · budget · 3 session starts in this window, at or above the 3 budgetSessions allows · resumes at 2026-09-12T16:00:00+01:00
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+hold  all · budget · 3 session starts in this window, at or above the 3 budgetSessions allows · resumes at 2026-09-12T16:00:00+01:00 (in 4 h 0 m)
+in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+-- the record: two earlier starts and the one this tick had room for --
+{"window_start":"2026-09-12T11:00:00+01:00","sessions_used":3,"tier":"max20"}
+-- the near-limit tick admitted rather than pausing: a session was started --
+-- the guard is at-or-above and not near, which the second run below shows from the other side: the same configuration pauses once that third start is on the log --

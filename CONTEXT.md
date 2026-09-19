@@ -276,9 +276,32 @@ not.
 _Avoid_: concurrency limit, worker pool, slots
 
 **Hold**:
-Baton not dispatching on a model, or on every model, while a usage-limit wait is active. Not an
-escalation; it lifts when the wait clears.
-_Avoid_: pause, freeze, throttle
+Baton not dispatching on a model, or on every model, while some condition about the account stands
+— a usage-limit wait, the reserve, or the budget pause. Not an escalation; it lifts of itself when
+the condition does, and a lane it withholds is a lane still waiting rather than one that failed.
+_Avoid_: pause (except the budget pause, which is its own term), freeze, throttle
+
+**Budget pause**:
+The hold that stops a new session being started into a five-hour window that is nearly spent, so
+that an unattended night ends in a recorded pause with a resume time rather than a dispatch that
+fails on quota. Two things decide it: the account's own reading of the window, from the status
+feed, and Baton's count of the session starts it has made in the window. It holds every model,
+because the allowance is the account's, and it holds nothing already running.
+_Avoid_: throttle, rate limit (that is the provider's), quota
+
+**Window**:
+The five hours the subscription's allowance is measured over, as Baton paces against it: the span
+the feed's own `resets_at` ends, or — with no reading — the span ending one span after the oldest
+session start still inside it. It rolls by itself and the count rolls with it.
+_Avoid_: budget period, cycle
+
+**Session start**:
+What pacing counts: a dispatch that reached the CLI, whether Baton or a person began it. A resume
+is not one, and neither is a copy fork or the wake session; they spend allowance too, which is why
+the feed's reading and not the count is the guard that covers them. Counted and paced are separate:
+a person's hand-run dispatch is counted, because it started a session on the same subscription, and
+is never withheld, because it is a person's act.
+_Avoid_: dispatch (that is the act), launch, unit
 
 **Reserve**:
 The share of the account's seven-day usage window Baton leaves for the person's own sessions: at
