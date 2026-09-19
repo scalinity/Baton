@@ -1,0 +1,75 @@
+{
+  "path": "@TMP@/Fixture",
+  "plan": "docs/MILESTONES.md",
+  "goal": "carry a build from one Claude Code session to the next, unattended, on one Mac.",
+  "done": "a project chain runs overnight with one intent confirmation and no other human act.",
+  "constraints": [
+    "the controller stays POSIX shell with jq, awk and git",
+    "no third-party packages",
+    "every model call goes through the claude CLI on the subscription."
+  ],
+  "non_goals": [
+    "replacing the controller with Swift or a SQLite store",
+    "a direct API call",
+    "supporting non-Git projects."
+  ],
+  "plan_format": "native",
+  "onboarded_at": "2026-09-19T08:00:00+01:00",
+  "cli": {
+    "version": "2.1.278 (Claude Code)",
+    "checked_at": "2026-09-19T08:00:00+01:00"
+  },
+  "start": {
+    "at": "2026-09-19T08:00:00+01:00",
+    "eligible": [
+      {
+        "milestone": "M02",
+        "brief": {
+          "path": "docs/milestones/M02.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "run"
+      },
+      {
+        "milestone": "M03",
+        "brief": {
+          "path": "docs/milestones/M03.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "wait",
+        "wait_for": [
+          "M02"
+        ]
+      },
+      {
+        "milestone": "M04",
+        "brief": {
+          "path": "docs/milestones/M04.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "held",
+        "held_by": "v0.1 ships"
+      },
+      {
+        "milestone": "M06",
+        "brief": {
+          "path": "docs/milestones/M06.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "wait",
+        "wait_for": [
+          "M02",
+          "M05"
+        ]
+      },
+      {
+        "milestone": "M07",
+        "brief": {
+          "path": "docs/milestones/M07.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "run"
+      }
+    ]
+  }
+}

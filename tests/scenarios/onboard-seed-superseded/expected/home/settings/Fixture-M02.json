@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash(jq:*)"
+    ],
+    "deny": [
+      "Bash(sudo:*)"
+    ]
+  },
+  "remoteControlAtStartup": true,
+  "statusLine": {
+    "type": "command",
+    "command": "BATON_HOME='@TMP@/home' BATON_PROJECT='Fixture' BATON_MILESTONE='M02' '@TMP@/home/bin/statusline'"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BATON_HOME='@TMP@/home' BATON_PROJECT='Fixture' BATON_MILESTONE='M02' '@TMP@/home/bin/stop-gate'"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BATON_HOME='@TMP@/home' BATON_PROJECT='Fixture' BATON_MILESTONE='M02' '@TMP@/home/bin/stop-failure'"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+You are implementing M03 of the fixture project.
+
+WHAT ELSE IS IN FLIGHT. You are working in @TMP@/home/worktrees/Fixture/M03 on branch m03; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Nothing else is in flight. Stage only your own paths; never git add -A. Do not start the milestone after this one.
+
+STARTUP ORDER. Read CLAUDE.md.
+
+CONSTRAINTS. None.

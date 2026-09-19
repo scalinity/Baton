@@ -1,0 +1,21 @@
+--- before ---
+{"path":"@TMP@/Fixture","plan":"docs/MILESTONES.md","check":{"command":"make check","deadline_seconds":60},"set_by_hand":"a field no installer writes, kept across the migration"}
+Fixture at @TMP@/Fixture — a fixture project.
+Done: every milestone reads done.
+Must hold: POSIX shell only. · Not this: a rewrite in another language.
+Plan: read as it stands. Standing check: sh tests/run.sh.
+Register this project and let Baton run it? [yes/no] onboarded Fixture
+  checkout    @TMP@/Fixture
+  plan        docs/MILESTONES.md (native)
+  check       make check
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  starting    M03 · run · docs/milestones/M03.md
+  starting    M04 · wait for M03 · docs/milestones/M04.md
+preconditions: 1 eligible, 0 with unmet preconditions
+  M03  ready
+the next tick reads Fixture and dispatches what the starting handover says run
+--- after: the fields it lacked, and nothing it had ---
+{"path":"@TMP@/Fixture","plan":"docs/MILESTONES.md","check":{"command":"make check","deadline_seconds":60},"plan_format":"native","goal":"a fixture project.","kept":"a field no installer writes, kept across the migration","start":["M03","M04"]}

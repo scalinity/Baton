@@ -1,0 +1,15 @@
+set -eu
+# Two dispatches in a row produced no session and the lane is parked. The park is what stops the
+# retry — the rule `dispositions_intersect` applies to every milestone lane, which this lane never
+# reaches, because a project that owes a plan fails the self-check and is skipped for the rest of
+# the tick. Without it the tick would dispatch over the park every minute, fail at the same stage
+# every minute, and escalate again every minute: `dispatch_try` has no once-key and `escalate`
+# de-duplicates nothing, so a person would get a Mac message a minute about something they have
+# already been told. The attempt bound does not catch it either — a dispatch that produced no
+# session writes dispatch_failed and not dispatch, so the count never moves.
+"$BATON" tick || true
+"$BATON" tick || true
+printf '%s\n' '--- nothing was dispatched and nothing was escalated again ---'
+jq -c 'select(.kind == "dispatch" or .kind == "dispatch_failed" or .kind == "escalation") | {kind, milestone, class, stage}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

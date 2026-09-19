@@ -334,9 +334,77 @@ _Avoid_: conflict, disagreement (that term is reserved for the two cases that es
 
 **Verb**:
 One of the things the `baton` script does when run by hand or by launchd: `tick`, `answer`,
-`status`, `plan`, `dispatch`, `allow`, `wake`. Every verb runs under the same lock and writes the log
-through the same code path.
+`status`, `plan`, `dispatch`, `allow`, `wake`, `onboard`. Every verb runs under the same lock and
+writes the log through the same code path.
 _Avoid_: command, subcommand, mode
+
+**Onboarding**:
+What `baton onboard <path>` does to an unfamiliar Git repository: registers it, derives its
+permission rail and standing check from the toolchain it finds, reads its existing plan as it
+already stands, takes one intent confirmation, and records the starting handover. The relay's own
+verb writes all of it; no session does, because the paths are ones a dispatched session's deny rules
+forbid. The target repository is not written — the plan is adapted in the registration.
+_Avoid_: import, migration (that was the manual path M11 replaced), setup
+
+**Confirmed intent record**:
+What the one confirmation stores: the project's `goal`, the `constraints` it has committed to and
+the `non_goals` it has ruled out, in `projects/<key>/project.json`. Three lines and a yes, and the
+only routine human touchpoint. A goal alone is not it: one goal admits both a permitted extension
+and a forbidden rewrite of the controller, and the scope guard is given the whole record.
+_Avoid_: approval, sign-off, plan review
+
+**Plan format**:
+How a project's plan was obtained, as its registration records it: `native` (it parses under the
+contract's own rules and is read as strictly as Baton's own), `adapted` (it parses with the
+registration's defaults and status map, and the repository is unchanged), or `generated` (there is
+none yet and one is owed).
+_Avoid_: schema, version
+
+**Adaptation**:
+The registration's record of what a plan needed in order to be read as it stands: the columns
+defaulted, the source status words and the native token each reads as, and whether the plan has a
+gates table. It is Baton's state, never the project's document, so deleting it undoes the whole of
+it. Tolerance is a thing a person confirmed once, per project — a `native` plan still parks on a
+misspelt cell.
+_Avoid_: migration, transform, normalisation
+
+**Starting handover**:
+The word in force for a project that has handed nothing over yet: every milestone its plan makes
+eligible, with a disposition and a brief pointer, written by onboarding into the registration's
+`start`. Without it a newly registered project dispatches nothing and escalates nothing, because
+the tick intersects the plan with a handover and there is none. The first real handover supersedes
+it entry by entry.
+_Avoid_: seed artifact, bootstrap handover
+
+**Judgment request**:
+A model call Baton makes in the foreground of a verb, bounded by a deadline: `claude -p` against the
+subscription, with no name, no row, no attempt and no artifact. It takes no admission slot and opens
+no lane, which is what keeps it from deadlocking the cap. Its outcomes are all terminal — answered,
+unparseable, refused, timed out, unavailable — and the restart is running the verb again. Onboarding's
+intent statement is the only one.
+_Avoid_: judgment session (that is the other role), API call, inference
+
+**Judgment session**:
+A session Baton dispatches to make a judgement rather than to work a milestone — plan generation and
+the scope guard. It is a lane like any other: a name, an attempt, a dispatch event, an injected Stop
+gate and an owed artifact, and it spends an admission slot. Nothing waits on its result inside a verb
+or a tick, because a slot held while its own answer is awaited is a lane nothing closes.
+_Avoid_: judgment request (that is the other role), helper session, subagent
+
+**Planning lane**:
+The judgment session that writes a project's plan, on the reserved milestone id `M00-plan`. It runs
+for a project whose registration owes a plan, reads the repository and the confirmed goal, and writes
+the plan document and one brief per milestone as the project's own documents. The lane is the ordinary
+kind: the same worktree, settings, launch and dispatch event, and its completion proved the same way
+against a declared scope that is Baton's own text rather than a brief's.
+_Avoid_: planner, plan session, generator session
+
+**Generated plan**:
+A plan the planning lane wrote, adopted only once it parses strictly and its graph and briefs hold.
+Until then it is a plan **owed**: the defects Baton measured are recorded with their repairs, they
+travel into the next attempt's prompt, and what is already right stays in the repository for that
+attempt to build on rather than replace.
+_Avoid_: draft plan, proposed plan
 
 **Prompt sidecar**:
 The file holding the exact text of one prompt Baton delivered, at `~/.baton/prompts/<session>/<n>.txt`,

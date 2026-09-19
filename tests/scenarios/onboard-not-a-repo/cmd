@@ -1,0 +1,12 @@
+set -eu
+# Not a Git repository. Refused before anything is read, because Baton's worktrees, branches and
+# merge verification are all git's, and a directory with an outside writer was V2's hardest finding
+# and is a stated non-goal (SCOPE §3).
+mkdir -p plain/docs
+status=0
+printf 'yes\n' | "$BATON" onboard "$PWD/plain" || status=$?
+printf 'exit %s\n' "$status"
+status=0
+printf 'yes\n' | "$BATON" onboard "$PWD/nowhere" || status=$?
+printf 'exit %s\n' "$status"
+printf 'registrations: %snone\n' "$(ls "$BATON_HOME/projects" 2>/dev/null | tr '\n' ' ')"

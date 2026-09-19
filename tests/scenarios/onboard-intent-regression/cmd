@@ -1,0 +1,30 @@
+set -eu
+# F10's regression, and the thing it is actually about: whether the stored record carries enough to
+# decide a case the goal alone cannot. One goal, two proposals — a permitted extension and the
+# forbidden controller replacement — and the record's constraints and non-goals are what separate
+# them.
+#
+# The check is on the record's **content**, not on a verdict, because the thing that decides is
+# M15-c's independent guard and does not exist yet. What M11 owes is the input: SCOPE §8 item 6 says
+# the guard is given goal, constraints and non-goals, and that a goal-only check does not meet the
+# item. The two lines below are that claim, measured — for each proposal, which of the goal's words
+# bear on it and which of the record's constraints and non-goals do.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture" > /dev/null
+jq -c '{goal, constraints, non_goals}' "$BATON_HOME/projects/Fixture/project.json" > record.json
+printf 'the record: %s\n' "$(/bin/cat record.json)"
+for proposal in 'add a second plan reader so two plan formats parse' \
+                'replace the shell controller with a Swift binary backed by SQLite'; do
+  printf '\nproposal: %s\n' "$proposal"
+  jq -r --arg p "$proposal" '
+    [($p | ascii_downcase | splits("[^a-z]+")) | select(length > 4)] as $words
+    | (.goal | ascii_downcase) as $goal
+    | [ (.constraints + .non_goals)[] | ascii_downcase ] as $bounds
+    | [ $words[] | select(. as $t | $goal | test($t)) ] as $in_goal
+    | [ $words[] | select(. as $t | any($bounds[]; test($t))) ] as $in_bounds
+    | "  the goal alone bears on it: "
+      + (if ($in_goal | length) > 0 then "yes, on " + ($in_goal | join(", ")) else "no" end),
+      "  the constraints and non-goals bear on it: "
+      + (if ($in_bounds | length) > 0 then "yes, on " + ($in_bounds | join(", ")) else "no" end)
+  ' record.json
+done
+rm -f record.json

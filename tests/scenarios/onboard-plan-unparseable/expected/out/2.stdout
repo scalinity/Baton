@@ -1,0 +1,13 @@
+  plan        docs/MILESTONES.md does not parse even with defaults: the milestones table, row M01, cell Model: "gpt-9" is not a model alias in config.json or a full model id
+Fixture is already onboarded · the confirmed goal stands, nothing was asked again and nothing was seeded twice
+registered Fixture
+  checkout    @TMP@/Fixture
+  plan        docs/MILESTONES.md (generated)
+  check       none detected
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  starting    the plan makes nothing eligible yet
+--- what M12 is told ---
+{"plan":"docs/MILESTONES.md","plan_format":"generated","plan_owed":{"reason":"docs/MILESTONES.md does not parse even with defaults: the milestones table, row M01, cell Model: \"gpt-9\" is not a model alias in config.json or a full model id","owner":"M12"}}

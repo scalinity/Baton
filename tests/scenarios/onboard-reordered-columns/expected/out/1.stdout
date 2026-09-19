@@ -1,0 +1,23 @@
+Fixture at @TMP@/Fixture — a fixture project.
+Done: every milestone reads done.
+Must hold: POSIX shell only. · Not this: a rewrite in another language.
+Plan: read as it stands. Standing check: none detected.
+Register this project and let Baton run it? [yes/no] onboarded Fixture
+  checkout    @TMP@/Fixture
+  plan        docs/MILESTONES.md (native)
+  check       none detected
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  starting    M02 · run · docs/milestones/M02.md
+preconditions: 1 eligible, 0 with unmet preconditions
+  M02  ready
+the next tick reads Fixture and dispatches what the starting handover says run
+--- the plan the tick now sees ---
+plan Fixture: @TMP@/Fixture/docs/MILESTONES.md
+M01  done  model opus  effort -  remote no
+M02  eligible  model sonnet  effort high  remote yes
+widenings: none
+preconditions: 1 eligible, 0 with unmet preconditions
+  M02  ready

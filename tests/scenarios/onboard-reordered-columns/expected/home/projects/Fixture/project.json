@@ -1,0 +1,31 @@
+{
+  "path": "@TMP@/Fixture",
+  "plan": "docs/MILESTONES.md",
+  "goal": "a fixture project.",
+  "done": "every milestone reads done.",
+  "constraints": [
+    "POSIX shell only."
+  ],
+  "non_goals": [
+    "a rewrite in another language."
+  ],
+  "plan_format": "native",
+  "onboarded_at": "2026-09-19T08:00:00+01:00",
+  "cli": {
+    "version": "2.1.278 (Claude Code)",
+    "checked_at": "2026-09-19T08:00:00+01:00"
+  },
+  "start": {
+    "at": "2026-09-19T08:00:00+01:00",
+    "eligible": [
+      {
+        "milestone": "M02",
+        "brief": {
+          "path": "docs/milestones/M02.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "run"
+      }
+    ]
+  }
+}

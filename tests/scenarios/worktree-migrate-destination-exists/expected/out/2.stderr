@@ -1,0 +1,1 @@
+baton: Fixture/M03's worktree stays at @TMP@/Fixture-M03, because @TMP@/home/worktrees/Fixture/M03 already exists and Baton never writes over a directory it did not put there. If that is this worktree, moved by hand, register it where it now stands; otherwise move it aside.; git -C '@TMP@/Fixture' worktree repair '@TMP@/home/worktrees/Fixture/M03'

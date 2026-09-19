@@ -1,0 +1,9 @@
+set -eu
+# The plan is at neither `docs/MILESTONES.md` nor any other conventional name, and two decoys are in
+# range: a root `CHANGELOG.md`, which sorts before `docs/`, and a dependency's bundled README under
+# `node_modules/`, which holds a table that would parse. The search prunes `node_modules` and looks
+# under `docs/` first, so what is registered is the project's own roadmap.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- the plan pointer, and where the brief pointers go from it ---'
+jq -c '{plan, start: [.start.eligible[] | {milestone, brief: .brief.path}]}' "$BATON_HOME/projects/Fixture/project.json"
+"$BATON" plan Fixture || true

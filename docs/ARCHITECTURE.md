@@ -31,6 +31,7 @@ hundred lines, means a Swift command-line tool for that piece.
 ├── bin/baton                 the script: verb dispatch only; every verb lives in lib/
 ├── lib/
 │   ├── render.sh             the one layer between what Baton decides and what a person reads; sourced first
+│   ├── permissions.sh        the two deny classes, once, for every caller; install.sh sources this file alone
 │   ├── lock.sh               the mkdir lock; every verb enters through it
 │   ├── log.sh                the one append function; the envelope; attempt derivation
 │   ├── derive.sh             the fifteen recovery derivations, one function each
@@ -50,7 +51,8 @@ hundred lines, means a Swift command-line tool for that piece.
 │   ├── answer.sh             the verbs a person runs: answer and allow
 │   ├── status.sh             the one view
 │   ├── templates.sh          the continue, finish and ruling texts; the slot line
-│   └── lifecycle.sh          a finished session: the offline rule, the wake verb, the wake session
+│   ├── lifecycle.sh          a finished session: the offline rule, the wake verb, the wake session
+│   └── onboard.sh            the onboard verb: the repository, the toolchain, the plan as it stands, one confirmation
 ├── launchd/
 │   └── com.baton.tick.plist  the one agent; install.sh copies it, a person loads it
 ├── hooks/
@@ -121,12 +123,13 @@ neither re-signed nor replaced by the publish (D-038), and the launchd agent's f
 ├── notify/target                         the newest posted message's target, which a click opens (claude://claude.ai/code/session_<id>, or empty)
 ├── config.json              Baton's numbers (below)
 ├── projects/<project>/
-│   ├── project.json         {"path": "…/Reclaim", "plan": "docs/MILESTONES.md", "check": {"command": "sh tests/run.sh", "deadline_seconds": 1800}}
+│   ├── project.json         {"path": "…/Reclaim", "plan": "docs/MILESTONES.md", "check": {"command": "sh tests/run.sh", "deadline_seconds": 1800}} plus what onboarding adds (below)
 │   └── permissions.json     {"permissions": {"allow": [...], "deny": [...]}}
 ├── checks/<project>/<milestone>-<attempt>/
 │   ├── tree/                the detached checkout of the claimed merge commit, while the standing check runs there; removed when it ends
 │   ├── output.txt           that run's combined output, which the consumed event points at
 │   └── result.json          the completion evidence in full, written before the artifact moves so a lost receipt can be reconciled from it
+├── checks/judge/            a judgment request in progress: its settings file, its answer, its stderr and its done marker; one directory, swept at the start of the next request, because the verb holds the lock and anything there is an orphan (§4.5)
 ├── settings/<project>-<milestone>.json   the composed --settings file (below)
 ├── settings/wake.json                    the wake session's settings: Remote Control on, the deny list, no hooks; it runs in ~/.baton-wake/
 ├── worktrees/<project>/<milestone>       the managed root: a milestone worktree Baton created, on branch m<nn>
@@ -150,7 +153,55 @@ neither re-signed nor replaced by the publish (D-038), and the launchd agent's f
 ```
 
 Three more numbers default in code and are left out of the file an install writes: `keepFinished` 3,
-`idleStopMinutes` 60 and `wakeModel` `haiku` (REQ-LIFE-02, REQ-LIFE-04).
+`idleStopMinutes` 60 and `wakeModel` `haiku` (REQ-LIFE-02, REQ-LIFE-04). Three more again for the
+planning lane: `planningAttempts` 3, `planningModel` `opus` and `planningEffort` `high`
+(REQ-GENERATE-01, REQ-GENERATE-10). Planning is the work every later milestone of that project
+inherits, which is why its defaults are the capable model at high effort rather than a plan row's.
+
+**`projects/<project>/project.json`, as onboarding leaves it.** `path`, `plan` and `check` are what
+the tick and the completion check read; everything else is what the one confirmation recorded and
+what the plan needed in order to be read as it stands. A project registered before onboarding
+existed carries only the first two and is read exactly as strictly as it was.
+
+```json
+{
+  "path": "/Users/danny/Documents/Apps/Reclaim",
+  "plan": "docs/MILESTONES.md",
+  "check": { "command": "sh tests/run.sh", "deadline_seconds": 1800 },
+  "goal": "one sentence saying what the project is for",
+  "done": "one sentence saying what finished looks like",
+  "constraints": ["the controller stays POSIX shell"],
+  "non_goals": ["replacing the controller with Swift or a SQLite store"],
+  "plan_format": "adapted",
+  "onboarded_at": "2026-09-19T08:00:00+01:00",
+  "cli": { "version": "2.1.278 (Claude Code)", "checked_at": "2026-09-19T08:00:00+01:00" },
+  "adaptation": {
+    "defaults": { "Model": "opus", "Effort": "", "Remote": "" },
+    "status_map": { "complete": { "status": "done" },
+                    "retired": { "status": "held", "why": "…it never runs and never satisfies a dependency…" } },
+    "gates": "absent"
+  },
+  "start": {
+    "at": "2026-09-19T08:00:00+01:00",
+    "eligible": [ { "milestone": "M03", "brief": { "path": "docs/milestones/M03.md", "heading": "Copy-ready session prompt" },
+                    "disposition": "run" },
+                  { "milestone": "M04", "brief": { "path": "docs/milestones/M04.md", "heading": "Copy-ready session prompt" },
+                    "disposition": "wait", "wait_for": ["M03"] } ]
+  }
+}
+```
+
+`adaptation` is present only for `plan_format: "adapted"`, and `plan_owed` (`reason`, `owner`)
+replaces `start` for `"generated"`, where there is no milestone to name. `start` is the **starting
+handover**: `dispositions_in_force` reads it after every archived handover, so the first real one
+supersedes it entry by entry and nothing has to remove it (REQ-ONBOARD-07). It is not a completion
+claim — it names no merge and is checked as none.
+
+`plan_owed` gains a third field once a generation attempt has run: `defects`, each `{what, repair}`,
+which is what the next attempt's prompt is composed from and what a person reads when the bound is
+spent. It is Baton's own state, so removing the whole object is what undoes generation's record of
+where it got to; the plan and the briefs an attempt wrote stay in the repository, because that is
+what the next attempt repairs rather than replaces (REQ-GENERATE-07).
 
 **The composed settings file**, `~/.baton/settings/<project>-<milestone>.json`. The mode rides the
 flag (`--permission-mode bypassPermissions`); `defaultMode` is repeated as documentation. Allow and
@@ -247,6 +298,15 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    and parse both tables; run `git -C <path> rev-parse HEAD`. Either failing parks the project
    (project scope, `plan-unreadable` or `plan-unparseable`, the path and what failed) and skips it
    for the rest of the tick. A stale lock is reported before this, and one past the interval whose pid answers no signal is cleared by the tick, which then writes the `baton-unhealthy` escalation under the lock it takes (D-039).
+   **Before each project's self-check, the generation pass** (`planning_pass`, REQ-GENERATE), for a
+   project whose registration carries `plan_owed`. Before, because a project that owes a plan is
+   exactly a project this step fails and skips, so nothing later in the tick would ever reach it. It
+   measures a plan a planning session has since written and, where it holds, adopts it through
+   `onboard_commit`'s own seeding path — after which the self-check on the same project reads the
+   plan and the park it raised is closed by the ordinary `park_resolve` below, in the one tick.
+   Where no plan holds yet, it produces one candidate, `M00-plan`, which joins step 7's list and is
+   admitted under the same cap as any other. It runs only on a tick that could read the rows, for
+   the reason step 2's guard gives, and nothing in the tick waits on the session it asks for.
 2. **Consume the inbox.** First the reconciliation, before any inbox file is looked at: each file
    in `archive/` that derivation 4 names under `unrecorded` is a consumption a tick was killed in
    the middle of, and it gets the `consumed` event it never got, carrying `reconciled: true`, plus
@@ -408,8 +468,12 @@ reading still uses the last completed tick (D-115). A handled self-check park is
 | `baton allow <milestone \| project/milestone> '<rule>' [--resume]` | writes the rule as typed to `permissions.json` and the dispatched settings file in place, both parsed before either is written; refuses an `ask` form, JSON, a rule over 1 KB or with a newline, and `--resume` on a parked lane; reports a rule the deny list also names as `denied`; `--resume` stops and flaglessly resumes | `widening` event when a file changed; a `resume` event |
 
 | `baton wake [<milestone \| project/milestone> [<text>]]` | with no milestone, lists every finished session as running or offline with its last activity; with one, refuses a milestone that has not finished, names a running session's thread rather than resuming it, and otherwise resumes the session flaglessly with the text labelled as the person's — the command the wake session runs for each message it receives | a `wake` event with `how: verb` and the prompt sidecar |
+| `baton onboard <path>` | resolves the canonical checkout and the project key; detects the toolchain, and from it the standing check and the allow rules; finds and classifies the plan (`native`, `adapted`, `generated`); makes one judgment request for the intent statement; prints three lines and reads a yes or no; on yes writes the registration, the rail and the starting handover, and reports the plan and its dispatch preconditions through `plan_render` and `plan_preconditions_report`. Refuses a path that is not a Git repository, a key already registered elsewhere, and a `Status` word it will not map. On anything but a yes it writes nothing and returns 1 | `projects/<key>/{project.json,permissions.json}`, one `onboarded` event |
 
-Every verb enters through the lock. `status` and `plan` write nothing.
+Every verb enters through the lock. `status` and `plan` write nothing. `onboard` writes nothing
+before the yes, and everything after it in this process — the relay's own, under the lock — because
+the paths it writes are ones a dispatched session's deny rules forbid and nothing is widened to let
+one write them (REQ-ONBOARD-01).
 
 ### 4.3 The texts
 
@@ -528,6 +592,52 @@ and the captured payloads under `obs/` are their fixtures.
   (`.tmp` then rename) and prints `baton <milestone>` for the status line.
 
 Hooks never write the log. Each writes a per-session file.
+
+
+### 4.5 The two session roles
+
+Baton dispatches sessions to work milestones. From M11 it also needs judgement that is not a
+milestone's — what a project is for, whether a plan still serves it — and there are two shapes that
+can take, with different consequences for the cap. Both are written down here **before the first of
+either runs**, because the failure they can cause is not one an implementation discovers gently: a
+role that holds an admission slot while its own result is awaited is a lane nothing will close, and
+`do_unresolved` counts a launch that could not be proved to have started nothing, so the count stays
+open (D-130).
+
+**A judgment request** is a foreground `claude -p` inside a verb.
+
+| | |
+|---|---|
+| Identity | the project, the role (`intent` is the only one) and the moment; nothing persists it but the `onboarded` event |
+| Where it runs | inside the verb, under the verb's own lock, against the subscription like every other call Baton makes |
+| Admission slot | **none.** It has no session name, no row, no attempt and no artifact, so derivation 1 cannot see it and the cap is untouched. This is the whole of why the role cannot deadlock the cap: there is no slot to hold |
+| Terminal outcomes | `answered`, `unparseable` (no labelled line to read), `refused` (a non-zero exit, whose stderr is quoted), `timed-out` (the deadline, which exists because the verb holds Baton's lock), `unavailable` (the binary will not answer `--version`). Every one is terminal |
+| Restart | running the verb again. There is no resume, no attempt count and no ladder: a request is not a session, and nothing owes it a handover |
+| Failure posture | nothing is written. A goal Baton guessed at is never put to a person as a statement to confirm |
+
+**A judgment session** is a session Baton dispatches, like a milestone's: plan generation (M12) and
+the independent scope guard (M15-c) are the two the plan has.
+
+| | |
+|---|---|
+| Identity | `(project, role, attempt)`, with a session name, a `dispatch` event and a baseline, exactly as a milestone's attempt has |
+| Admission slot | **one**, counted by derivation 1 like any lane, because it is one |
+| Terminal outcome | an artifact, with the Stop gate injected to insist on one, and the ladder behind it |
+| The rule that keeps the cap honest | **nothing waits on its result inside a verb or a tick.** The verb that needs one records the request and returns; the tick dispatches it; its handover closes the lane and the next tick reads the answer. A verb that blocked on a session it had just dispatched would hold the lock while the session it was waiting for could not be admitted |
+
+Onboarding's intent statement is a request, and deliberately: it is three lines and takes seconds,
+and a person is at the terminal waiting for it. Plan generation reads a whole repository and writes
+a plan and its briefs, which is a session's work and has a session's cost.
+
+**Plan generation is the first judgment session, and `lib/planning.sh` is it.** Its lane carries the
+reserved milestone id `M00-plan` — reserved because a generated plan naming it as a row is refused,
+and an id rather than a role name because `artifact_ids` recovers a handover's identity from its
+filename through `parse_id`, and a name that function refuses is a handover that can never be
+rejected. It is dispatched through `dispatch_one` like every milestone and differs in three places:
+its model and effort come from `config.json` rather than a plan row, its preconditions are the
+checkout and the rail rather than a brief on `main`, and its prompt is Baton's own text rather than
+a brief's fenced block. Its declared scope is Baton's own too — the two paths its prompt named — so
+its completion is proved exactly as a milestone's is (REQ-GENERATE-01, 09).
 
 ---
 
@@ -658,11 +768,11 @@ named. And **the session currently carrying an attempt** is the newest of that a
 
 ### 6.2 The event table
 
-Twenty-two kinds. Fields listed are those beyond the envelope.
+Twenty-three kinds. Fields listed are those beyond the envelope.
 
 | Kind | Fields | Which rule reads it | Once-only key |
 |---|---|---|---|
-| `dispatch` | `name`, `model`, `effort`, `remote`, `worktree`, `branch`, `worktree_reused`, `baseline` (the commit the worktree stands at, on every dispatch; it was `worktree_commit` and was written only for a reused worktree — D-145), `settings`, `prompt_path`, `prompt_sha256` | the attempt count; the ladder's reset point; in flight; the long-running clock; the takeover candidate set; the cap; **the model actually run**, for grading after the fact; **the baseline a completion claim has to descend from** (REQ-ARTIFACT-10) | — |
+| `dispatch` | `name`, `model`, `effort`, `remote`, `worktree`, `branch`, `worktree_reused`, `role` (`planning`, on the planning lane alone; absent elsewhere, because a field an event has no value for is absent from it), `baseline` (the commit the worktree stands at, on every dispatch; it was `worktree_commit` and was written only for a reused worktree — D-145), `settings`, `prompt_path`, `prompt_sha256` | the attempt count; the ladder's reset point; in flight; the long-running clock; the takeover candidate set; the cap; **the model actually run**, for grading after the fact; **the baseline a completion claim has to descend from** (REQ-ARTIFACT-10) | — |
 | `dispatch_failed` | `stage` (`worktree`\|`settings`\|`prompt`\|`launch`\|`service`), `detail`; no `session` | the second consecutive since the pair's newest `dispatch` escalates, lane scope, and that park is then what stops the retry (D-049); `stage: service` escalates, project scope, which is M06's | — |
 | `consumed` | `outcome`, `reason` or `error`, `written_by` (`session`\|`stop-gate`\|`stop-failure`), `merged_as`, `blocked_by`, `archive`, `completion` (for a `complete` outcome: `proved`, and when proved `attempt`, `baseline`, `candidate`, `branch`, `integration`, `changed_paths` (the first ten), `changed_count`, `check`, `evidence`), `reconciled` (true when the receipt was written by a later inbox pass rather than by the consumption itself) | every ending's routing; the ladder's reset; the notification keys' reset; the terminal test for in flight; the wait's start before its first retry; the completion evidence a person reads and derivation 4 joins on | — |
 | `repeated` | `outcome`, `archive` (where the file came to rest), `repeats` (the `archive` of the `consumed` handover it repeats); the envelope is that handover's | derivation 4's join, which claims the archived file; no rule acts on it, so a repeat routes, parks, resets and ranks nothing (D-095) | — |
@@ -684,6 +794,8 @@ Twenty-two kinds. Fields listed are those beyond the envelope.
 | `offline` | `job`, `idle_minutes`, `rank` (the session's place among the finished sessions with a live process, newest transcript first), `kept` (`keepFinished` as read) | the offline rule's once-only test: no second stop while an `offline` event for the session is no older than its transcript (REQ-LIFE-01) | per session and transcript |
 | `wake` | `how` (`verb`\|`started`\|`resumed`) and `outcome` (`delivered`\|`forked`\|`refused`) always; `note` — the CLI's line on a resume, the reason on a refusal, absent on a start that produced a session; `prompt_path` and `prompt_sha256` on every wake that delivered a prompt, absent on a refused start; `copy` on a verb wake that forked (the copy's session id); `from_session` on a wake-session resume that forked; `name` for the wake session, and `job` on its start. A milestone's wake carries its project, milestone, session and attempt; the wake session's carries a session only, and a start that produced none carries neither | which session is the wake session (the newest without a milestone that was `delivered` or `forked`); which session a milestone's later wake addresses (the newest `copy`); its retry bound, one attempt per `retryMinutes` (REQ-LIFE-03, REQ-LIFE-04) | — |
 | `worktree_moved` | `from`, `to`, `branch`; no `session` and no `attempt`, because a move belongs to the worktree rather than to any run of the milestone | nothing: the migration re-reads git every tick and is idempotent without it, so this is the record a person reads to find where a worktree went and to pair a transcript directory with its new path | — |
+| `onboarded` | `checkout`, `plan`, `plan_format`, `toolchain`, `check`, `cli_version`, `start` (one `{milestone, disposition}` per starting-handover entry) or `plan_owed`; no `milestone`, `session` or `attempt`, because onboarding belongs to the project and not to a run of anything | nothing reads it to decide: the registration is the state and this is the record of who wrote it and when, which is the answer to M08's recorded question of whether a session or the relay wrote the protected paths | one per project for the confirmation, and one more for a run that seeded a starting handover the registration did not have — which is a second `baton onboard` over a project whose plan has since arrived, and the tick adopting a generated plan (REQ-ONBOARD-08, REQ-GENERATE-08). A run that changed nothing material writes none, and an adoption writes no `cli_version`, because nothing asked the binary anything |
+| `plan_generation` | `outcome` (`adopted`\|`refused`\|`exhausted`), `attempts` (the planning lane's dispatches so far), and for `adopted` the `plan` and the number of `milestones`, for `refused` the count of `defects` and the `first` of them, for `exhausted` the `max` and the standing `reason`; the milestone is `M00-plan` | nothing reads it to decide — `plan_owed` in the registration is the state — and it is the record of what generation did with each attempt, which is the answer to "why is this project still parked" | `refused` and `exhausted` once each since the planning lane's newest dispatch, which re-arms both: each is a state, and a tick that wrote one per sighting would write one a minute (REQ-GENERATE-07, 10) |
 
 **Escalation classes.** Lane: `asking`, `question`, `ladder-end`, `unfinished-twice`, `blocked`,
 `merge-failed`, `other`, `disagreement`, `omitted`, `model_not_found`, `dispatch-failed`. Project:
@@ -732,7 +844,7 @@ value the gap was measured against, so one outage reports once.
   hold one.
 
 - **The gap report is a derivation, not an event.** The gap is the reading instant minus
-  `~/.baton/last-tick` — the tick's own start when the tick reads it, `now` for everyone else (D-155);
+  `~/.baton/last-tick` — the tick's own start when the tick reads it, `now` for everyone else (D-174);
   whether it is *reported* is the log's question — only when a lane was in flight, waiting or
   parked during it, which the log knows because it knows what was in flight. The report itself is a
   `notification` with class `gap`.
@@ -856,7 +968,7 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
 8. **The last tick.** `~/.baton/last-tick`, read as a file, not derived from the log. Its
    `age_seconds` is the marker's age as of `now`, which is what `status` prints; derivation 15's
    `gap_seconds` is measured as of the reading instant instead, so inside a tick the two differ by
-   the length of the work that tick has done (D-155).
+   the length of the work that tick has done (D-174).
 9. **The ladder's position.** For a `(project, milestone, attempt)`, the count of failure endings
    since the newest reset point, where a **failure ending** is a `consumed` with `reason:
    no-handover`, the second `crash_sighting` of a confirmed crash, or a `resume` with `outcome:
@@ -900,7 +1012,7 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
     offsets cannot reverse the comparison and an equal instant does not count as later (D-116).
     **The tick measures against its own start**, `tr_now`, when it reads the gap after its lanes;
     every other reader measures against `now`, as does the tick's own early reading on a run that
-    could not list the rows, which returns before step 2 and so has spent nothing (D-155). Step 2 runs a target project's standing check under the tick lock (D-148), which is
+    could not list the rows, which returns before step 2 and so has spent nothing (D-174). Step 2 runs a target project's standing check under the tick lock (D-148), which is
     minutes for a suite of any size, and the marker is the *previous* tick's: measured from the end
     of that work the age is past the threshold, while the `consumed` event the same tick just wrote
     is itself a lane closed after the marker, so the first completion Baton proved with its own
@@ -1064,4 +1176,6 @@ edit, or by typing into a session, and `status` is the view.
 | M17-b | `lib/render.sh`, the one layer between what Baton decides and what a person reads, sourced first by `bin/baton`, `tests/lib-load.sh` and `tests/consume-once.sh`. `render_init` (read once at the verb boundary, before any pipeline; sets `RENDER_TTY_OUT`, `RENDER_TTY_ERR`, `RENDER_STYLE_OUT`, `RENDER_STYLE_ERR`, `RENDER_COLUMNS`, `RENDER_UTF8`, `RENDER_ESC`, `RENDER_READY`); `render_ready` (lazy init, which inside a capture reads "not a terminal"); `render_styled <out\|err>`; `render_width_ok <text>` (a positive decimal of at most five digits, 1 to 10000, validated as text before any arithmetic); `render_token <out\|err> <kind> <text>` (kinds `lane`, `milestone`, `verb`, `state`, `path`, `timestamp`, `session`; returns the text, styled, for the caller to pass as an argument; empty in, empty out); `render_hint <out\|err> <text>`; `render_heading <out\|err> <format> [args…]`; `render_row <out\|err> <kind> <format> [args…]` with kind `action`, `record` or `plain`; `render_lines <json array> [<kind>]`; `render_failure <out\|err> <message> [<repair>]`; `render_plain <format> [args…]`, the explicit never-styled context for a Mac message and for human lines returned inside JSON; and internally `render_emit`, `render_record`, `render_field`, `render_count`, `render_paint`. Colours are ANSI 16 plus dim: cyan identity, amber for what needs an act, dim for a timestamp, path or session id. `COLUMNS` first, then `stty size < /dev/tty` and only with a TTY, else 80; the effective `LC_ALL`, `LC_CTYPE`, `LANG` decides UTF-8 or ASCII continuation. **Changes** the sixteen person-facing libraries and `bin/baton` to print through it, `plan_render` to take an optional third `<out\|err>` argument and stay plain without one, `answer_candidates_print` to take its stream, `usage` to take its stream, and `lib/log.sh` and `lib/lock.sh` to carry the note that anything sourcing them alone sources `lib/render.sh` first. Three scenarios: `render-matrix`, `verbs-tty`, `notify-tty-plain`, each driving a real pseudo-terminal through the base system's `script` (D-141, D-142, D-143). | M17 |
 | M09 | `lib/dispatch.sh`: `worktree_entries <path>` (this repository's registered worktrees, one `<path>\t<branch ref>` line each, from `git worktree list --porcelain`, empty and status 0 for a path that is not a repository); `worktree_registered <path> <branch>`; `worktree_managed <path> <milestone>` (`$BATON_HOME/worktrees/<project key>/<milestone>`); `worktree_legacy_id <checkout> <path>` (the milestone a `<dirname>/<basename>-<id>` sibling names, or empty); `worktree_migrate <project> <rows json>` (the per-project move pass, one guard, silent refusal, one `worktree_moved` event and one line per move). **Changes** `worktree_of` to resolve the path from git's registration and fall back to the managed root, so a moved worktree is found where it now is rather than where its name would put it; and `worktree_ensure` to `mkdir -p` the managed parent, and to refuse a reuse whose `--git-common-dir` is not the checkout's or whose `symbolic-ref HEAD` is not the milestone's branch, each with the repair command. `lib/tick.sh`: the migration pass between steps 6 and 7, per project, before `offline_check`. `tests/run.sh`: `home/worktrees` is dropped from the snapshot as `home/lock` is, because a dispatch now creates a whole worktree inside the scenario's home. Six scenarios: `worktree-managed-new`, `worktree-legacy-reuse`, `worktree-wrong-repository`, `worktree-wrong-branch`, `worktree-migrate`, `worktree-migrate-live-row`. Event `worktree_moved`; REQ-DISPATCH-12; the managed root under `~/.baton/` (D-153). | M17-b |
 | M10 | `lib/completion.sh`, what a completion claim has to prove and the evidence Baton produces itself: `completion_baseline <project> <milestone> <attempt>` (prints `{baseline, branch, worktree}`; the baseline is the earliest recorded for the milestone on that attempt's branch, at or before it, so a redispatch is not asked to redo work already on the branch — D-152); `completion_scope_patterns <repo> <milestone>` (the declared scope, one pattern per line, from the brief's `## 5.` on `main` — backticked spans that name a path, `{a,b}` expanded, `$VARIABLE` and prose dropped; status 1 when there is no such section); `completion_in_scope <patterns> <path>` (equality, directory prefix, or the pattern as a glob); `completion_chain <repo> <baseline> <branch> <merged_as>` (prints `{baseline, candidate, integration, branch, changed_paths}`; resolves `T` once and requires `B` ancestor-of `T`, `T` ancestor-of `M`; it takes the baseline already resolved and derives none, because after the merge the branch's merge-base with `main` is the branch tip); `completion_scope_check <repo> <milestone> <changed paths json>` (at least one path inside the scope; the refusal names the patterns); `completion_check_dir <project> <milestone> <attempt>`; `completion_check_command <project>` (prints `{command, deadline}` from `project.json`'s `.check`); `completion_check_run <repo> <project> <milestone> <attempt> <revision>` (detached checkout under `$BATON_HOME`, the tree asked what it stands at and whether it is clean, the command run under a done-marker deadline whose marker is renamed into place, the tree removed; prints `{revision, command, outcome, exit, output}` — no duration, because it is the one number the machine decides rather than the repository and a frozen expectation holding it would fail on a loaded Mac); `completion_summary <full document> <evidence path>` (the document as the event carries it, every unbounded field cut in bytes); `completion_park_carries <completion json> <archive>`; `completion_park_owed <project>` (the completions whose failing check earned a `main-broken` park that was never written); `completion_evidence_write <project> <milestone> <attempt> <document>` (writes `result.json` by rename and prints its path, for a proved completion and an unproved one alike, so a receipt reconciled later says what this one says); `completion_verify <repo> <project> <milestone> <session> <merged_as>` (the whole of it, writing `checks/<project>/<milestone>-<attempt>/result.json` before the artifact moves; prints the document, or `{rule, detail}` with status 1 for a rejection); `completion_reserved_check <artifact>`. `lib/inbox.sh`: `artifact_check` gains the `reserved-field` rule and the `completion` key; `consume_settle <archive> <artifact> <project> <written_by> <rows> <completion> [<from>]`, everything a consumption decides once the file has moved, split out of `consume_one` so the reconciliation can do exactly it; `inbox_reconcile <rows>`, the inbox pass's first act, which runs the repeat test and then either writes the `repeated` event an interrupted repeat never wrote or the `consumed` event an interrupted consumption never wrote, applying in the second case the ending it owed (D-152); `reconciled_completion <project> <artifact>`, which reads that evidence file back rather than deriving it again; `inbox_consume` calls the reconciliation before its loop. `lib/dispatch.sh`: the `dispatch` event's `worktree_commit` becomes `baseline` and is written on every dispatch. `install.sh` adds `.check` to a registration that lacks one, additively. `~/.baton/checks/<project>/<milestone>-<attempt>/{tree,output.txt,result.json}`; `CONTRACT.md` clauses 1 and 4 and Baton's side; `REQ-ARTIFACT-10`, `REQ-ARTIFACT-11`, amended `REQ-ARTIFACT-06`, `REQ-LOG-07` and `REQ-DISPATCH-09`. Fixtures `completion-*`. **No new event kind and no new escalation class:** the evidence rides on `consumed` and a check that did not pass is the existing `main-broken` park, found by Baton's own run (D-145 to D-151) | M17-b |
-| M10-b | The tick's own clock while it is working. `derive_gap <rows> [<as-of>]` and `gap_check <rows json> [<as-of>]` take an optional as-of that defaults to `now`, and `tick_run` passes `tr_now`, the clock it captured at its top, to step 7's reading; the early reading on the path where the rows could not be read stays on the default, because nothing long has run before it. The closed-lane test stays on the marker. `lock_stale_report` asks the recorded pid `kill -0` and prints `lock held` with the age and no removal advice when it answers, keeping `stale lock` for a holder that cannot be found. `REQ-ESC-10` and `REQ-TICK-03` amended; derivation 15 amended; scenarios `gap-long-check` (a completion whose standing check carries the clock past two intervals, reporting no gap and raising no Mac message), `gap-reported-long-check` (a real outage read from inside such a tick, reported at its own length and not the check’s — D-156), the as-of boundaries in `derive-gap`, and the live-holder arms of `tick-stale-lock-live` and `lock-incomplete-metadata`. **No new seam, event kind or escalation class** (D-155, D-156) | M10 |
+| M10-b | The tick's own clock while it is working. `derive_gap <rows> [<as-of>]` and `gap_check <rows json> [<as-of>]` take an optional as-of that defaults to `now`, and `tick_run` passes `tr_now`, the clock it captured at its top, to step 7's reading; the early reading on the path where the rows could not be read stays on the default, because nothing long has run before it. The closed-lane test stays on the marker. `lock_stale_report` asks the recorded pid `kill -0` and prints `lock held` with the age and no removal advice when it answers, keeping `stale lock` for a holder that cannot be found. `REQ-ESC-10` and `REQ-TICK-03` amended; derivation 15 amended; scenarios `gap-long-check` (a completion whose standing check carries the clock past two intervals, reporting no gap and raising no Mac message), `gap-reported-long-check` (a real outage read from inside such a tick, reported at its own length and not the check’s — D-175), the as-of boundaries in `derive-gap`, and the live-holder arms of `tick-stale-lock-live` and `lock-incomplete-metadata`. **No new seam, event kind or escalation class** (D-174, D-175) | M10 |
+| M11 | `lib/permissions.sh`, the two deny classes of REQ-PERM-04 once for every caller: `permissions_deny_rules` (the rules for this home, as a JSON array). It is a file of its own because `install.sh` sources it, so the dependency reads installer → rail and verb → rail rather than installer → onboarding verb. `lib/onboard.sh`, the verb that makes an unfamiliar Git repository a registered target project: `onboard_repo <path>` (`{checkout, key}` from git's first worktree, or the detail with status 1); `onboard_toolchain <checkout>` (`{toolchain, check: {command, deadline_seconds}, allow}` from the files present, a project-specific runner naming the check over a language's canonical command, the allow list in `install.sh`'s own order); `onboard_plan_find <checkout> [<registered plan>]` (the repository-relative path of a file holding a milestone table: the registered one first, then the conventional names, then a pruned search under `docs/` and then the rest to depth three, a header with both cells before one with only `ID`); `onboard_status_native <token>`; `onboard_status_propose <token>` (`{status, why}`, retirement borrowing `held`, status 1 for a word it will not guess at); `onboard_adaptation <file>` (`{defaults, status_map, gates, unmapped}`); `onboard_cells <file> <column> [<companion>] [<locator>]` (that column's body cells, or the header joined on a tab for the column name `--header`, locating the table as `plan_extract` does); `onboard_header <file> [<companion>]`; `onboard_has_table <file> [<companion>]`; `onboard_has_column <header> <name>`; `onboard_cli_shape` (`{version, ok, detail}` — M4's check on what the judgment role consumes); `onboard_evidence <checkout> <plan>`; `onboard_judge <checkout> <plan> <toolchain>` (the judgment request: `claude -p` in the foreground under the verb's lock, with the project's deny rules in a settings file of its own, the target as its working directory and `/dev/null` as its stdin, bounded by `ONBOARD_JUDGE_DEADLINE`, printing `{goal, done, constraints, non_goals}` or the detail with status 1; §4.5); `onboard_classify <checkout> <plan>` (`{plan_format, adaptation, tables}`, or `plan_format: "unmapped"` with the words it will not guess at); `onboard_start <key> <plan> <tables>` (the starting handover's `eligible[]`, with the contract's brief path); `onboard_confirm <lines>`; `onboard_intent_lines`; `onboard_permissions_write <key> <allow>` (the derived rules plus the ones already there, so `baton allow`'s survive); `onboard_registration_write`; `onboard_commit <key> <checkout> <plan> <toolchain> <intent> <classification> <cli> <seed>` (the rail, then the registration, then the event, in that order, once for every path); `onboard_report <key> <doc> [<heading>]` (ending in `plan_preconditions_report`, so contract material Baton cannot author is named with its repair); `verb_onboard <path>`. `lib/plan.sh`: `plan_adaptation <project>` (the registered adaptation, `{}` for a project without one); `plan_default <defaults> <column> <cell>`; `plan_tables` gains `[<project>] [<adaptation json>]` and `plan_extract` an optional-columns argument; both tables are now located by a header carrying their locating cell **and** their companion column (`has_cell`, `locates`), which is also what stops a plan document's other tables being chosen; `parse_status` gains the status map and fails a mapped value of `null`. `lib/candidates.sh`: `dispositions_in_force` reads the registration's `start.eligible` after every archived handover, ranked at the list's length, marked `source: "start"` so a park names it as the starting handover. `lib/tick.sh`: `self_check` passes the project key to `plan_tables`. New event kind `onboarded`; `project.json` gains the confirmed intent record, `plan_format`, `onboarded_at`, `cli`, `adaptation`, `start` and `plan_owed` (§3); `checks/judge/` is new. `docs/SPEC.md` REQ-ONBOARD-01 to 10, REQ-PLAN-09, REQ-PLAN-10, REQ-VERB-10. No new escalation class. | M09, M10 |
+| M12 | `lib/planning.sh`, the generation path for a project that owes a plan. Constants: `PLANNING_ID` (`M00-plan`, the reserved lane id — one `parse_id` accepts, because `artifact_ids` recovers a handover's identity from its filename through it), `PLANNING_PLAN` (`docs/MILESTONES.md`) and `PLANNING_BRIEFS` (`docs/milestones`), which together are the role's declared scope. `planning_owed <key>` (the registration's `plan_owed`, or status 1); `planning_attempts <key>` and `planning_attempts_max`; `planning_scope_patterns` (the two paths, in `completion_scope_patterns`' one-per-line shape); `planning_model` and `planning_effort` (from `config.json`, the model resolved through `parse_model`); `planning_prompt <key> <checkout> <registration json> <defects json> <attempt>` (the whole text the session receives, with the slot paragraph at column 0 once); `planning_preconditions <key>` (the checkout and the rail, in `dispatch_preconditions`' `{failures: [...]}` shape); `planning_validate <key> <checkout>` (`{plan, plan_format, tables, defects: [{what, repair}]}`, every defect in one pass); `planning_brief_defects <checkout> <id> <successors>` (the four questions only a generated brief is asked, as `<what>\t<repair>` lines); `planning_adopt <key>` (`{adopted, lines}`, adopting through `onboard_commit` with the seed); `planning_record` and `planning_recorded_since <key> <outcome>` (the `plan_generation` event and its once-per-attempt key); `planning_pass <key> <rows json>` (`{candidates, lines}`, step 1's companion). `lib/dispatch.sh`: `dispatch_one` takes the planning lane through the same worktree, settings, launch, cleanup and event, branching only on model/effort, preconditions and prompt; the `dispatch` event gains `role`. `lib/completion.sh`: `completion_scope_patterns` answers `planning_scope_patterns` for that lane, and the standing check's deadline sweeps the half-written `output.txt.exit.tmp` its kill interrupted (D-172). `lib/tick.sh`: `tick_run` calls `planning_pass` before each project's self-check and collects its candidates. `planning_preconditions` filters `dispatch_preconditions`' own result to the `checkout` and `permissions` checks rather than writing a second copy of those two rules (D-170), and `planning_pass` withholds its candidate while a lane park stands on the lane and releases a `dispatch-failed` one when the preconditions hold again (D-169). `config.json`: `planningAttempts`, `planningModel`, `planningEffort`. Event `plan_generation`. The adopted-plan boundary for M15-c is `planning_adopt`, marked in the source at the line where the guard goes. Scenarios `plan-generate-*` and `planning-completion*`; `tests/completion-fixture.sh` gains the `planning` and `planning-out-of-scope` shapes and a per-shape branch | REQ-GENERATE-01 to 10 |

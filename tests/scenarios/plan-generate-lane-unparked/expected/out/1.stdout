@@ -1,0 +1,14 @@
+unparked  Fixture/M00-plan · the dispatch preconditions hold again · the park raised at 2026-09-19T07:51:00+01:00 is closed
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+backgrounded · 0badc0d1 · Baton · Fixture · M00-plan
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M00-plan (branch m00-plan)
+settings  @TMP@/home/settings/Fixture-M00-plan.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+--- the park is resolved and the lane is dispatched ---
+{"kind":"resolution","milestone":"M00-plan","how":"edit","role":null,"attempt":null}
+{"kind":"dispatch","milestone":"M00-plan","how":null,"role":"planning","attempt":1}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+project park  Fixture · plan-unreadable · the registration names no path and plan · fix the plan file; the next tick re-reads it
+in flight  Fixture/M00-plan · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s

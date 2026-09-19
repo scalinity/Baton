@@ -24,7 +24,10 @@ lifecycle.sh
 lock.sh
 log.sh
 notify.sh
+onboard.sh
+permissions.sh
 plan.sh
+planning.sh
 preconditions.sh
 render.sh
 rows.sh

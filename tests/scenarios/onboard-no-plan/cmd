@@ -1,0 +1,13 @@
+set -eu
+# A repository with no milestone table anywhere. This is neither a failure nor a successful
+# adaptation: the confirmed goal is stored, `plan_format` reads `generated` and `plan_owed` names
+# M12 as the owner, and nothing is seeded — there is no milestone to name. The tick that follows
+# parks the project, which is accurate: a project whose plan file does not exist cannot be driven
+# until one does. It also dispatches the session that writes one (REQ-GENERATE-01), which is the
+# other half of the same fact: the park is the state, and generation is what clears it.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, plan_owed, has_start: (has("start"))}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- the tick that follows ---'
+"$BATON" tick || true
+"$BATON" status || true

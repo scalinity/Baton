@@ -156,6 +156,11 @@ worktree_ensure() {
 worktree_legacy_id() {
   wl_prefix=$(dirname "$1")/$(basename "$1")-
   case "$2" in
+    # A path with a further component below the sibling is not one of these, whatever its head
+    # spells: `<checkout>-x/y` would name the milestone `x/y`, whose managed parent nothing creates,
+    # and the move would then fail with git's own ENOENT once a minute. Outside the convention is
+    # passed over silently, which is what this function says of every other path.
+    "$wl_prefix"*/*) ;;
     "$wl_prefix"?*) printf '%s' "${2#"$wl_prefix"}" ;;
     *) ;;
   esac
@@ -168,26 +173,49 @@ worktree_legacy_id() {
 # the legacy convention, and one whose branch is not the milestone's own are all passed over, so the
 # pass is idempotent and touches nothing it did not itself name.
 #
-# **One guard, not D-075's three.** A move is refused while any live row's `cwd` is that worktree or
-# under it, and that is the whole of it. D-075 guarded a *delete* — `Status` reads `done`, and a
-# verified `merged_as` with no newer ending — because a delete is irreversible and a question it
-# could not answer had to fail safe. A move loses no bytes, so neither is required here; both are
-# named so that a later reader does not restore them by analogy. The one guard that remains is the
-# one whose failure is real: the harness resolves a session by id and restores the working directory
-# it recorded, so moving the ground under a running one strands it. A guard that cannot be answered
-# — rows that will not parse — refuses like a guard that answered yes.
+# **One guard, not D-075's three — and the guard is "a session Baton may still resume".** D-075
+# guarded a *delete* with `Status` reads `done` and a verified `merged_as` with no newer ending,
+# because a delete is irreversible and a question it could not answer had to fail safe. A move loses
+# no bytes, so neither of those is restored here, and both are named so that a later reader does not
+# restore them by analogy: they read the *plan*, and the plan is not what is at risk.
 #
-# A refusal says nothing. A worktree is guarded precisely while its session is live, which `status`
-# already shows as a lane in flight, and a line per guarded worktree per minute would bury the moves
-# that did happen. A move and a failure to move each say so once.
+# What is at risk is one thing only. The harness resolves a session by its id and restores the
+# working directory it recorded, so moving the ground under a session it can still be asked to
+# resume strands it — `bg settled … (crashed): working directory no longer exists`. A live row is
+# therefore not the whole of that set, which is the correction D-155 records: Baton resumes sessions
+# **by id whose rows carry no pid** — the crash ladder after two sightings, `baton answer` into a
+# lane whose `asking` consume stopped the session, `baton allow --resume`, and a wait retry. A
+# reboot makes every row `pid`-less at once. So the guard is asked twice, and refuses if either says
+# yes: any row whose `cwd` is the worktree or under it, live or not; and any **open lane** for that
+# milestone in the log — a dispatch with no later `complete` consumption, which is exactly the set
+# `status` shows and exactly the set something may still resume. A guard that cannot be answered —
+# rows that will not parse, a log that will not read — refuses like a guard that answered yes.
+#
+# A refusal says nothing, because a guarded worktree is one `status` already shows, and a line per
+# guarded worktree per sixty seconds would bury the moves that did happen. A move says so once.
+#
+# **No refusal fails the pass, and that is deliberate.** A destination already occupied and a move
+# git will not make — a locked worktree, a cross-volume rename — are facts about one directory that
+# stand until a person acts, not a tick that did not complete. The pass's status decides the tick's
+# marker, and a marker withheld every minute would have `status` report the relay as down while it
+# runs. Only a failure that is the tick's own — a checkout whose registration will not read —
+# returns non-zero (D-155).
 worktree_migrate() {
   wm_project=$1; wm_rows=$2
   wm_status=0
   wm_path=$(project_path "$wm_project") || {
-    render_failure err "baton: $wm_project's checkout could not be read; no worktree was migrated"
+    render_failure err "baton: $wm_project's checkout could not be read; no worktree was migrated: $wm_path"
     return 1
   }
-  wm_root=$BATON_HOME/worktrees/$(basename "$wm_path")
+  # Resolved, as `worktree_ensure` resolves the two repository paths it compares: git prints the
+  # registration canonicalised, so a checkout registered through a symlink would match no sibling at
+  # all and the pass would do nothing while saying nothing.
+  wm_path=$(cd "$wm_path" 2>/dev/null && pwd -P) || wm_path=$(project_path "$wm_project")
+  # The open lanes, once per project rather than once per worktree. A log that will not read leaves
+  # this empty and every move is refused below, which is the guard failing closed.
+  wm_lanes=''
+  wm_log=$(log_json 2>/dev/null) && wm_lanes=$(lanes_open "$wm_project" "$wm_log" 2>/dev/null) || wm_lanes=''
+  wm_root=$(dirname "$(worktree_managed "$wm_path" x)")
   # A repository git cannot read here answers with no entries and this pass does nothing, which is
   # right rather than lax: step 1's self-check has already parked a project whose git check failed,
   # so a project reaching this point has been asked that question and answered it.
@@ -200,25 +228,32 @@ worktree_migrate() {
     # has it on, rather than being read back out of the branch: `m07-b` uppercased is `M07-B`, which
     # is not the milestone `M07-b` and would name a worktree nothing else in Baton can find.
     [ "$wm_ref" = "refs/heads/$(printf '%s' "$wm_id" | tr 'A-Z' 'a-z')" ] || continue
-    wm_to=$wm_root/$wm_id
+    wm_to=$(worktree_managed "$wm_path" "$wm_id")
     [ "$wm_wt" != "$wm_to" ] || continue
     # Something already at the destination is a state rather than an error: the worktree keeps
     # working where it is, nothing is at risk, and Baton never writes over a directory it did not
-    # put there. It is said out loud because Baton's own operation cannot produce it — a worktree it
-    # created at the managed path would be registered there, and the legacy sibling could not then
-    # hold the same branch — so it means a person's directory is in the way. It does not fail the
-    # pass, because the pass's status is what decides the tick's marker: a condition that stands
-    # until somebody moves a directory would otherwise freeze the clock `status` reads and have the
-    # relay report itself as not running while it runs every minute.
+    # put there. The check is load-bearing rather than belt-and-braces — `git worktree move` onto an
+    # existing *directory* moves the worktree *inside* it rather than refusing — and the likeliest
+    # cause is not a stray directory but this worktree itself, moved by hand or by a rename that
+    # landed before git rewrote its two administrative files, leaving the registration on the old
+    # path. So the repair named is the one that fixes that: `worktree repair` rewrites both files
+    # from whichever side is right.
     [ ! -e "$wm_to" ] || {
-      render_failure err "baton: $wm_project/$wm_id's worktree stays at $wm_wt: $wm_to already exists and Baton never writes over one"
+      render_failure err \
+        "baton: $wm_project/$wm_id's worktree stays at $wm_wt, because $wm_to already exists and Baton never writes over a directory it did not put there. If that is this worktree, moved by hand, register it where it now stands; otherwise move it aside." \
+        "git -C $(shell_word "$wm_path") worktree repair $(shell_word "$wm_to")"
       continue
     }
-    wm_live=$(printf '%s' "$wm_rows" | jq -r --arg w "$wm_wt" '
-      [ .[] | select(.pid != null) | (.cwd // "")
-        | select(. == $w or startswith($w + "/")) ] | length' 2>/dev/null) || wm_live=
-    case "$wm_live" in ''|*[!0-9]*) continue ;; esac
-    [ "$wm_live" -eq 0 ] || continue
+    # Any row in this worktree, live or not, and any open lane for the milestone. Both readings must
+    # be a number; neither being answerable refuses the move.
+    wm_rowsin=$(printf '%s' "$wm_rows" | jq -r --arg w "$wm_wt" '
+      [ .[] | (.cwd // "") | select(. == $w or startswith($w + "/")) ] | length' 2>/dev/null) || wm_rowsin=
+    case "$wm_rowsin" in ''|*[!0-9]*) continue ;; esac
+    [ "$wm_rowsin" -eq 0 ] || continue
+    wm_open=$(printf '%s' "$wm_lanes" | jq -r --arg m "$wm_id" \
+      '[ .[] | select(.milestone == $m) ] | length' 2>/dev/null) || wm_open=
+    case "$wm_open" in ''|*[!0-9]*) continue ;; esac
+    [ "$wm_open" -eq 0 ] || continue
     mkdir -p "$wm_root"
     if wm_out=$(git -C "$wm_path" worktree move "$wm_wt" "$wm_to" 2>&1); then
       log_event worktree_moved "$wm_project" "$wm_id" "" "" \
@@ -227,8 +262,7 @@ worktree_migrate() {
       render_row out record 'worktree    %s · moved to %s\n' \
         "$(render_token out lane "$wm_project/$wm_id")" "$(render_token out path "$wm_to")"
     else
-      render_failure err "baton: $wm_project/$wm_id's worktree could not be moved from $wm_wt to $wm_to: $(printf '%s' "$wm_out" | head -1)"
-      wm_status=1
+      render_failure err "baton: $wm_project/$wm_id's worktree stays at $wm_wt: git would not move it to $wm_to: $(printf '%s' "$wm_out" | head -1)"
     fi
   done <<MIGRATE
 $wm_entries
@@ -465,10 +499,27 @@ dispatch_stop_jobs() {
   return 1
 }
 
-# dispatch_one <project> <milestone> <plan json> <rows json>: step 8 for one milestone.
+# dispatch_one <project> <milestone> <plan json> <rows json>: step 8 for one milestone, or for the
+# planning lane, which is dispatched exactly as a milestone is and differs in three places only.
+#
+# The planning lane (`lib/planning.sh`) has no row in the plan — there is no plan, which is what it
+# is for — so its model and effort come from config.json, its preconditions are the ground and the
+# rail rather than a brief on `main`, and its prompt is Baton's own text rather than a brief's fenced
+# block. Everything after that is the same code: the same worktree, the same settings file, the same
+# launch, the same cleanup budget, the same `dispatch` event and the same five lines. Writing it a
+# second time would give the planning lane its own launch failure handling, and the cap's
+# conservative count of a launch that could not be proved to have started nothing (D-130) is
+# precisely the code that must not exist twice.
 dispatch_one() {
   do_project=$1; do_id=$2; do_plan=$3; do_rows=$4
   do_path=$(project_path "$do_project")
+  do_planning=false
+  if [ "$do_id" = "$PLANNING_ID" ]; then
+    do_planning=true
+    # The "also in flight" list below reads this document, and the planning lane is dispatched for a
+    # project whose plan is exactly what does not parse. An empty table is the truth about it.
+    do_plan='{"milestones":[]}'
+  fi
 
   # Before anything is created. Every defect `dispatch_preconditions` can see is knowable from the
   # plan, the checkout and Baton's own state, so seeing one after a branch, a worktree and a
@@ -477,7 +528,11 @@ dispatch_one() {
   # result's fixed order, which makes it deterministic rather than whichever check happened to run.
   # A result that could not be collected is not an absence of defects: it is refused in its own
   # right, because reading it as success is exactly the mistake this check exists to prevent.
-  do_pre=$(dispatch_preconditions "$do_project" "$do_id") || {
+  if [ "$do_planning" = true ]; then
+    do_pre=$(planning_preconditions "$do_project")
+  else
+    do_pre=$(dispatch_preconditions "$do_project" "$do_id")
+  fi || {
     dispatch_failed "$do_project" "$do_id" worktree "the dispatch preconditions for $do_id could not be read: $do_pre"
     return 1
   }
@@ -492,10 +547,18 @@ dispatch_one() {
     return 1
   fi
 
-  do_row=$(printf '%s' "$do_plan" | plan_row "$do_id")
-  do_model=$(printf '%s' "$do_row" | jq -r .model)
-  do_effort=$(printf '%s' "$do_row" | jq -r .effort)
-  do_remote=$(printf '%s' "$do_row" | jq -r .remote)
+  if [ "$do_planning" = true ]; then
+    # config.json's, because there is no row to read them from. Never `Remote: yes`: a planning
+    # session is not one whose questions a person answers from the phone — it is told not to ask.
+    do_model=$(planning_model)
+    do_effort=$(planning_effort)
+    do_remote=false
+  else
+    do_row=$(printf '%s' "$do_plan" | plan_row "$do_id")
+    do_model=$(printf '%s' "$do_row" | jq -r .model)
+    do_effort=$(printf '%s' "$do_row" | jq -r .effort)
+    do_remote=$(printf '%s' "$do_row" | jq -r .remote)
+  fi
   do_attempt=$(attempt_of "$do_project" "$do_id") || { render_failure err "baton: $do_attempt"; return 1; }
   do_attempt=$((do_attempt + 1))
   do_name=$(session_name "$do_project" "$do_id")
@@ -508,20 +571,32 @@ dispatch_one() {
 
   do_settings=$(settings_compose "$do_project" "$do_id") || { dispatch_failed "$do_project" "$do_id" settings "$do_settings"; return 1; }
 
-  do_brief=docs/milestones/$do_id.md
-  do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
-  # The same readability the preconditions already inspected, asked again of the worktree that now
-  # exists. It is kept as the final race check: the preconditions read a worktree that may not have
-  # existed yet, and between that reading and this one `worktree_ensure` created or reused one. Its
-  # removal would need proof that no such window exists, not the observation that it usually agrees.
-  #
-  # Its message no longer names a branch behind the brief's commit as the cause. That cause is what
-  # the `behind-brief` precondition now refuses before this point, so a dispatch reaching here has
-  # already been told the branch carries the commit: what is left is the file going between the two
-  # readings, and a message naming a cause already ruled out would send a person the wrong way.
-  if [ ! -r "$do_wt_path/$do_brief" ]; then
-    dispatch_failed "$do_project" "$do_id" worktree "Baton needs $do_id's brief $do_brief readable in its own worktree. The preconditions found the branch carrying the brief's commit, and the file was not readable in $do_wt_path a moment later. Look at the worktree yourself, then dispatch again: git -C \"$do_wt_path\" status"
-    return 1
+  if [ "$do_planning" = true ]; then
+    # Baton's own text, composed from the registration the confirmation wrote and the defects the
+    # last attempt left. There is no brief to read and none to be readable in the worktree, so the
+    # two checks below are the milestone lane's alone.
+    do_reg=$(jq -c . "$BATON_HOME/projects/$do_project/project.json" 2>/dev/null) \
+      || { dispatch_failed "$do_project" "$do_id" prompt "$BATON_HOME/projects/$do_project/project.json does not parse, so the planning prompt cannot be composed"; return 1; }
+    do_owed=$(planning_owed "$do_project") || do_owed='{}'
+    do_prompt=$(planning_prompt "$do_project" "$do_path" "$do_reg" \
+      "$(printf '%s' "$do_owed" | jq -c '.defects // []')" "$do_attempt") \
+      || { dispatch_failed "$do_project" "$do_id" prompt "the planning prompt could not be composed"; return 1; }
+  else
+    do_brief=docs/milestones/$do_id.md
+    do_prompt=$(prompt_from_brief "$do_path" "$do_brief" "Copy-ready session prompt") || { dispatch_failed "$do_project" "$do_id" prompt "$do_prompt"; return 1; }
+    # The same readability the preconditions already inspected, asked again of the worktree that now
+    # exists. It is kept as the final race check: the preconditions read a worktree that may not have
+    # existed yet, and between that reading and this one `worktree_ensure` created or reused one. Its
+    # removal would need proof that no such window exists, not the observation that it usually agrees.
+    #
+    # Its message no longer names a branch behind the brief's commit as the cause. That cause is what
+    # the `behind-brief` precondition now refuses before this point, so a dispatch reaching here has
+    # already been told the branch carries the commit: what is left is the file going between the two
+    # readings, and a message naming a cause already ruled out would send a person the wrong way.
+    if [ ! -r "$do_wt_path/$do_brief" ]; then
+      dispatch_failed "$do_project" "$do_id" worktree "Baton needs $do_id's brief $do_brief readable in its own worktree. The preconditions found the branch carrying the brief's commit, and the file was not readable in $do_wt_path a moment later. Look at the worktree yourself, then dispatch again: git -C \"$do_wt_path\" status"
+      return 1
+    fi
   fi
   do_inflight=$(derive_in_flight "$do_project" "$do_rows") || { render_failure err "baton: $do_inflight"; return 1; }
   do_inflight=$(printf '%s' "$do_inflight" | jq -c .in_flight)
@@ -617,8 +692,13 @@ dispatch_one() {
   log_event dispatch "$do_project" "$do_id" "$do_session" "$do_attempt" "$(jq -nc \
     --arg name "$do_name" --arg model "$do_model" --arg effort "$do_effort" \
     --arg wt "$do_wt_path" --arg branch "$do_branch" --argjson reused "$do_reused" --arg commit "$do_commit" \
-    --arg settings "$do_settings" --arg pp "$do_prompt_path" --arg sha "$do_prompt_sha" --argjson remote "$do_remote" '
+    --arg settings "$do_settings" --arg pp "$do_prompt_path" --arg sha "$do_prompt_sha" --argjson remote "$do_remote" \
+    --argjson planning "$do_planning" '
     {name: $name, model: $model}
+    # The role, on the one lane that is not a milestone. It is absent from every other dispatch
+    # rather than written as `milestone`, because a field an event has no value for is absent from
+    # it (§6.1), and every dispatch before this one had no role to name.
+    | if $planning then . + {role: "planning"} else . end
     | if $effort != "" then . + {effort: $effort} else . end
     | . + {remote: $remote, worktree: $wt, branch: $branch, worktree_reused: $reused}
     # The baseline, on every dispatch and not only on a reused worktree. It was `worktree_commit`

@@ -7,3 +7,11 @@ osascript -e 'display notification "3 failure endings in a row on this attempt, 
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json

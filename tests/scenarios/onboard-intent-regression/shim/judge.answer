@@ -1,0 +1,4 @@
+GOAL: carry a build from one Claude Code session to the next, unattended, on one Mac.
+DONE: a project chain runs overnight with one intent confirmation and no other human act.
+CONSTRAINTS: the controller stays POSIX shell with jq, awk and git; no third-party packages; every model call goes through the claude CLI on the subscription.
+NON-GOALS: replacing the controller with Swift or a SQLite store; a direct API call; supporting non-Git projects.

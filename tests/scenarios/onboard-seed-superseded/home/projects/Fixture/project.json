@@ -1,0 +1,8 @@
+{"path": "@TMP@/Fixture", "plan": "docs/MILESTONES.md",
+ "check": {"command": "sh tests/run.sh", "deadline_seconds": 1800},
+ "goal": "a fixture project", "done": "every milestone reads done",
+ "constraints": ["POSIX shell only"], "non_goals": ["a rewrite"],
+ "plan_format": "native", "onboarded_at": "2026-09-19T07:00:00+01:00",
+ "start": {"at": "2026-09-19T07:00:00+01:00",
+   "eligible": [{"milestone": "M03", "brief": {"path": "docs/milestones/M03.md", "heading": "Copy-ready session prompt"}, "disposition": "run"},
+                {"milestone": "M02", "brief": {"path": "docs/milestones/M02.md", "heading": "Copy-ready session prompt"}, "disposition": "run"}]}}

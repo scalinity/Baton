@@ -1,0 +1,257 @@
+You are writing the milestone plan for Fixture, the Git repository at @TMP@/Fixture, and you are implementing none of it.
+
+WHAT ELSE IS IN FLIGHT. You are working in @TMP@/home/worktrees/Fixture/M00-plan on branch m00-plan; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Nothing else is in flight. Stage only your own paths; never git add -A. This is attempt 2 at this milestone; a previous attempt left work on this branch at @COMMIT@, and the brief may hold completion evidence, which the recovery clause covers. Do not start the milestone after this one.
+
+WHO IS ASKING. Baton is a relay on one Mac: every sixty seconds it reads a project's plan file, its
+own dispatch log and a mailbox, and starts one Claude Code session per milestone with the kickoff
+prompt that milestone's brief carries. It embeds no model call and makes no judgement of its own.
+This project is registered with Baton and has no plan Baton can read, so nothing of it can be
+dispatched until you write one. Everything you write here is read by sessions that have no memory
+of you and no memory of each other.
+
+THE CONFIRMED INTENT, which is the authority and is not yours to revise.
+  Goal:      a fixture project.
+  Done:      every milestone reads done.
+  Must hold: POSIX shell only.
+  Not this:  a rewrite in another language.
+The repository's owner confirmed those four lines. Plan the work that gets the repository from where
+it is now to Done, inside Must hold, and with none of Not this. Do not ask for them again, do not
+widen them, and do not add a milestone whose purpose is to have somebody approve the plan: the goal
+was already confirmed, and re-approving its consequences is the review that gets rubber-stamped.
+
+WHAT IS WRONG WITH THE PLAN THAT IS ALREADY THERE. This is attempt 2. A previous session wrote a
+plan and Baton refused it. Repair exactly these, keep everything that is already right, and do not
+start a second graph.
+  * docs/MILESTONES.md parses only with Baton's own defaults for Model, and a plan Baton asked for is read strictly
+    Repair: give the milestone table in docs/MILESTONES.md every column the generation prompt names — ID, Depends on, Model, Effort, Remote, Status — and commit it on main
+
+STARTUP ORDER.
+1. Read README, CLAUDE.md and AGENTS.md where they exist, then the source tree, the tests and
+   whatever build or test command the repository ships. Establish what is already built before you
+   plan anything: a milestone that re-does finished work is the expensive kind of wrong, and you
+   cannot ask anybody which parts are done.
+2. Read the recent history and the working tree — git log --oneline -30 and git status — so the plan
+   starts from the repository as it is rather than as a document describes it.
+3. If the plan document named below already exists on this branch, it is a previous attempt at this
+   same work. Repair it in place — against the defects above where this prompt carries any — and
+   keep every milestone and brief that is already right. Do not start a second graph and do not
+   renumber what is there.
+
+WHAT YOU WRITE, in @TMP@/Fixture, on this branch.
+1. docs/MILESTONES.md — the plan document, holding the milestone table and the gates table below.
+2. docs/milestones/<ID>.md — one brief per milestone, in MILESTONE FORMAT below. The path is fixed:
+   Baton constructs docs/milestones/<ID>.md whatever any pointer says, so a brief anywhere else is a
+   brief Baton will not read.
+3. CLAUDE.md — it must name docs/MILESTONES.md as this project's plan file. If it does not, add a short
+   section that does and that tells a session to follow its brief's close-out; leave the rest of
+   the file alone.
+Write nothing under @TMP@/home except the one handover artifact named in CLOSE-OUT, and change no
+source file and no test: this session plans, and other sessions build.
+
+WHAT THE PLAN MUST SATISFY. Baton measures every one of these and refuses the plan whole when one
+fails, so they are requirements and not advice.
+
+The milestone table, in the plan document:
+
+    | ID | Title | Depends on | Model | Effort | Remote | Status |
+    |---|---|---|---|---|---|---|
+    | M01 | Read the configuration file | – | opus | high | | |
+    | M02 | Validate it against the schema | M01 | opus | medium | | |
+
+  * The header must carry both an ID cell and a Depends on cell. That pair is how Baton finds this
+    table among the document's others, and a table without Depends on is not a table at all to it.
+  * ID is M, then digits, then optionally a hyphen and one run of lowercase letters and digits:
+    M01, M02, M07-b. M00-plan is reserved for this session and must not appear as a row.
+  * Depends on holds ids and ranges only — M05, M06 or M01-M13 — or an en dash for none. Every id
+    named must be a row in this same table. Prose is not a token and fails the read.
+  * Model is one of the aliases this Baton knows — fable, opus, sonnet, haiku — or a full model id beginning
+    claude-. Effort is blank or one of low, medium, high, xhigh, max. Remote is blank or yes.
+  * Status is blank on every row. Nothing is done yet, and a row that is not blank is a row Baton
+    will never dispatch.
+  * Columns beyond those six are ignored by Baton and are for people to read; a Title is worth having.
+  * At least one row must have no dependency, or the first tick has nothing it can start.
+
+The gates table, after it:
+
+    | Gate | Holds | Cleared |
+    |---|---|---|
+
+  * The header must carry both a Gate cell and a Holds cell. The table may have no rows, and
+    normally should: a gate is a hold only a person clears, so a plan that invents one stops itself
+    on the first night. Write one only if the work genuinely waits on an act outside the repository,
+    and then it must already be cleared, or Baton refuses the plan.
+
+Each milestone:
+  * is one fresh session of work — roughly two to seven hours — with an objective a session can
+    finish and acceptance a session can check for itself;
+  * depends only on the milestones that really must precede it. Every edge you add that is not a
+    real dependency is a night spent one session at a time that could have been spent two or three
+    at a time.
+  * names in its section 5, between backticks, at least one repository path its work will change.
+    That section is how Baton proves the milestone was done: it checks that the branch changed at
+    least one path inside it, so a section 5 that names its paths in prose rather than between
+    backticks declares a narrower scope than it means and an honest completion is refused.
+
+MILESTONE FORMAT. Every brief carries exactly these headings, in this order: eleven numbered H2
+sections, then three unnumbered ones.
+
+    # M<nn> — <title>
+
+    ## 1. Identity
+    - **ID:** M<nn>. **Objective:** <what this milestone is for, bounded>.
+    - **User-visible result:** <what is observably true afterwards>.
+    - **Size:** <Small|Medium|Large, about <n> hours>; <effort> effort.
+
+    ## 2. Dependencies and entry conditions
+    <the predecessor milestones, and the state that must hold before this one starts>
+
+    ## 3. Required reading
+    <the exact files and sections a fresh session reads first, by path>
+
+    ## 4. Requirements, scope, non-goals
+    - **Scope:** <the work this milestone contains>.
+    - **Non-goals:** <the work it does not, and which milestone owns it>.
+
+    ## 5. Expected files (proposed)
+    <every path the work will add or change, each between backticks>
+
+    ## 6. Interfaces
+    - **Introduces:** <the functions, commands or shapes it adds>.
+    - **Consumes:** <what it builds on>.
+
+    ## 7. Implementation checklist (ordered)
+    1. <the first concrete act>
+    <the last item is verification, review and close-out>
+
+    ## 8. Fixtures, verification, acceptance
+    - **Verification:** <the checks to run, by command>.
+    - **Acceptance:** <the conditions that must hold, each observable>.
+
+    ## 9. Definition of done and evidence
+    <what the completing session records, and where>
+
+    ## 10. Risks and decisions this milestone settles
+    - **<the risk or open question>.** <its evidence and who owns it>
+
+    ## 11. Handoff and next milestone
+    <every milestone whose Depends on names this one, by id, or "none">
+
+    ## Recovery procedure
+    <what a fresh session inspects to find out how far the work got, and the rule that it resumes
+    the first unfinished item rather than starting over; no completion claim without section 8>
+
+    ## Completion evidence
+
+    ## Copy-ready session prompt
+
+    ```
+    <the seven parts below>
+    ```
+
+The Completion evidence section is left empty. The session that does the milestone appends to it,
+and the recovery clause reads it: a brief that arrives with anything under that heading tells the
+first session to resume work nobody did.
+
+The Copy-ready session prompt section holds exactly one fenced code block, and that block is the
+whole prompt Baton hands the session. Seven parts, in this order:
+  1. Identity and scope: the milestone, the absolute path of the repository, one line saying what
+     the project is, and the Size.
+  2. Exactly this paragraph, alone on its own line, with nothing before or after it on that line:
+       WHAT ELSE IS IN FLIGHT. Runs alone unless the dispatch says otherwise.
+     Baton replaces that paragraph whole at dispatch with what is really in flight. A prompt
+     without it is refused before anything is created.
+  3. STARTUP ORDER: what to read, in what order, what to inspect before writing, and the recovery
+     clause — if the brief's Completion evidence is not empty, follow the Recovery procedure and
+     resume only the unfinished part.
+  4. WHAT TO SETTLE RATHER THAN INHERIT: the open questions this milestone owns, each carrying the
+     evidence a fresh session needs to settle it — a path, a measurement, an identifier. Carry the
+     evidence and not the topic: "X is wrong because Y matches on the name" lets the next session
+     decide, while "look into X" makes it rediscover.
+  5. CONSTRAINTS: the language, the packages, the standing check, what not to touch, and how to
+     stage and commit.
+  6. VERIFICATION: a pointer to the brief's section 8, and the rule that every check is reported as
+     passed, failed or unrun with its output, and an unrun check is never reported as passed.
+  7. CLOSE-OUT, numbered, ending with the handover artifact written and printed.
+
+Every document a prompt names by a docs/… path must exist on main when you are finished: Baton looks
+each one up before it dispatches and refuses a prompt naming one that is not there. A prompt you
+write is run by a session that remembers nothing of you — no "as discussed", no "the file we
+changed", no "continue the previous plan". Absolute paths and real identifiers only, second person,
+imperative, and every instruction that is not self-evident carrying its reason, because a rule whose
+reason travels with it survives a session that would otherwise talk itself out of it.
+
+THE CLOSE-OUT EACH GENERATED PROMPT MUST CARRY, as its part 7, because this is what keeps the
+chain running after you. Write it into every brief, with the milestone's own id in it:
+  1. the milestone's own checks, then its review and its fixes;
+  2. completion evidence appended under ## Completion evidence in its own brief; commit on the
+     branch, staging paths by name and never with git add -A;
+  3. merge the branch into main in @TMP@/Fixture, keeping the branch and its commits — Baton verifies
+     that the branch tip is an ancestor of the commit the artifact names, and a squash merge leaves
+     a tip that is not. If the merge fails, write a stopped artifact with reason merge-failed and go
+     no further;
+  4. run the standing check — (none detected; say so rather than inventing one) — on main; fix main if it fails, or write a stopped artifact
+     with reason main-broken;
+  5. on main, write done in that milestone's Status cell in docs/MILESTONES.md and commit;
+  6. write @TMP@/home/inbox/<ID>-$CLAUDE_CODE_SESSION_ID.json, as a .tmp first and then renamed,
+     holding:
+       {"baton": 1, "project": "@TMP@/Fixture", "milestone": "<ID>",
+        "session": "<the value of CLAUDE_CODE_SESSION_ID>", "outcome": "complete",
+        "merged_as": "<the merge commit on main>", "written_at": "<now, ISO 8601>",
+        "eligible": [ {"milestone": "<OTHER ID>",
+                       "brief": {"path": "docs/milestones/<OTHER ID>.md",
+                                 "heading": "Copy-ready session prompt"},
+                       "disposition": "run"} ]}
+     where <ID> is the milestone just finished and each <OTHER ID> is a *different* milestone: one
+     entry per milestone the plan then makes eligible, never the finished one itself. Disposition
+     run when every dependency of that milestone reads done, wait with wait_for naming the ones
+     that do not, and held with held_by naming the gate when an uncleared gate holds it. The
+     artifact must never carry baseline, changed_paths or check_result: those three are Baton's
+     own, and an artifact carrying one is rejected.
+  7. print that file verbatim, last, in a fenced block whose info-string is baton.
+Section 11 of each brief names that milestone's direct successors — every milestone whose Depends on
+names it. Baton dispatches only what a handover lists, so a close-out that omits a successor stops
+the chain there, and section 11 is where the session writing that close-out reads it.
+
+CONSTRAINTS FOR THIS SESSION.
+  * You write the plan document, the briefs and at most one section of CLAUDE.md. You implement no
+    milestone, you write no source file and you change no test.
+  * The intent record above is settled and there is nobody at the terminal. Do not ask a question:
+    it would end this session with the plan unwritten. Where the repository leaves something
+    genuinely undecided, decide it, write down what you decided and why in the brief that owns it,
+    and carry on.
+  * Stay inside the confirmed constraints and non-goals when you choose what the milestones are.
+  * Between eight and twenty milestones is the usual shape of a plan this size. Fewer means
+    milestones too big for one session; more means a graph nobody can hold.
+
+VERIFICATION, before you close out. Check each of these yourself and report it as passed, failed
+or unrun with its output; an unrun check is never reported as passed.
+  * Every id in every Depends on cell is a row in the milestone table, and every Status cell is
+    blank.
+  * docs/milestones/<ID>.md exists for every id, with the eleven numbered sections, the three unnumbered
+    headings, an empty Completion evidence section, and one complete fenced block under
+    ## Copy-ready session prompt whose part 2 is the slot paragraph verbatim.
+  * Every docs/… path any of those prompts names exists in the repository.
+  * Section 5 of every brief names at least one repository path between backticks.
+  * The standing check — (none detected; say so rather than inventing one) — passes on main after the merge.
+
+CLOSE-OUT, in this order.
+1. Commit the plan document, the briefs and any CLAUDE.md change on this branch, staging your
+   paths by name. Never git add -A.
+2. Merge this branch into main in @TMP@/Fixture. Keep the branch and its commits: do not squash and do
+   not delete the branch, because Baton verifies that the branch tip is an ancestor of the commit
+   you name below. If the merge fails, write a stopped artifact with reason merge-failed and go no
+   further.
+3. Run the standing check — (none detected; say so rather than inventing one) — on main. If it fails, fix main; if that cannot be done,
+   write a stopped artifact with reason main-broken.
+4. Write @TMP@/home/inbox/M00-plan-$CLAUDE_CODE_SESSION_ID.json, as a .tmp first and then renamed, holding:
+     {"baton": 1, "project": "@TMP@/Fixture", "milestone": "M00-plan",
+      "session": "<the value of CLAUDE_CODE_SESSION_ID>", "outcome": "complete",
+      "merged_as": "<the merge commit on main>", "written_at": "<now, ISO 8601>",
+      "eligible": []}
+   The eligible array is empty on purpose: Baton derives the first runnable milestones from the plan
+   you have just written, so a list here would be a second answer to a question the plan already
+   answers, and the two could disagree. If you could not write the plan, write outcome stopped
+   instead, with a reason from unfinished, blocked (with blocked_by) or other, and a detail saying
+   what stopped you.
+5. Print that file verbatim, last, in a fenced block whose info-string is baton. If anything lands
+   after it, deal with that and print it again.

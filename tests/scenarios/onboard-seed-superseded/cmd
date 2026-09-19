@@ -1,0 +1,15 @@
+set -eu
+. "$ROOT/tests/lib-load.sh"
+# The starting handover is the word in force only until a session writes one. Here it says run M03
+# and a handover since says M03 waits for M02, and the handover wins — the seed is ranked one past
+# the highest rank any archived handover can hold, so it decides only what nothing has decided.
+#
+# The rank is printed, and that is what it asserts: the seed sits at a rank past every archived
+# handover, so a session's word decides and the seed decides only what nothing has decided. The narrow
+# case the rank formula guards — an archive file moved away between the derivation and this read, so
+# that a count of the files read is lower than the highest rank assigned — is a race this fixture does
+# not stage; what it pins is the formula and the precedence.
+dispositions_in_force Fixture | jq -c '{has_handover, in_force: [.in_force[] | {milestone, disposition, rank, from: (.archive | sub("^.*/"; ""))}] | sort_by(.milestone)}'
+printf '%s\n' '--- and the tick dispatches what the handover says, not what the seed says ---'
+"$BATON" tick || true
+jq -r 'select(.kind == "dispatch") | "dispatched \(.project)/\(.milestone)"' "$BATON_HOME/log.jsonl"

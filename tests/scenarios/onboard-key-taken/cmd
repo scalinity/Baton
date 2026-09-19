@@ -1,0 +1,13 @@
+set -eu
+# Two checkouts whose basenames are the same word. The project key is that word everywhere in Baton
+# — the session name, the log's `project`, `projects/<key>/` — so admitting the second would give
+# two projects one set of state, and there is no repair for that but a rename. Refused before
+# anything is read.
+mkdir -p elsewhere
+cp -R Fixture elsewhere/Fixture
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- and now a different checkout with the same basename ---'
+status=0
+printf 'yes\n' | "$BATON" onboard "$PWD/elsewhere/Fixture" || status=$?
+printf 'exit %s\n' "$status"
+jq -r .path "$BATON_HOME/projects/Fixture/project.json"

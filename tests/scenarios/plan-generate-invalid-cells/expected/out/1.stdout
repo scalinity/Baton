@@ -1,0 +1,25 @@
+generate  Fixture · attempt 1 left a plan with 1 thing to repair · the next attempt carries them
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+backgrounded · 0badc0d1 · Baton · Fixture · M00-plan
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
+worktree  @TMP@/home/worktrees/Fixture/M00-plan (branch m00-plan)
+settings  @TMP@/home/settings/Fixture-M00-plan.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+--- what the plan owes now ---
+  * docs/MILESTONES.md does not parse even with defaults: the milestones table, row M02, cell Depends on: "after M01 has landed" is not ids, ranges or – for none
+    repair: repair the cell the reader named in docs/MILESTONES.md and commit it on main
+--- nothing was adopted and nothing was seeded ---
+{"plan":"none","plan_format":"generated","has_start":false}
+--- the second attempt carries the defect and is told not to start a second graph ---
+WHAT IS WRONG WITH THE PLAN THAT IS ALREADY THERE. This is attempt 2. A previous session wrote a
+plan and Baton refused it. Repair exactly these, keep everything that is already right, and do not
+start a second graph.
+  * docs/MILESTONES.md does not parse even with defaults: the milestones table, row M02, cell Depends on: "after M01 has landed" is not ids, ranges or – for none
+    Repair: repair the cell the reader named in docs/MILESTONES.md and commit it on main
+
+STARTUP ORDER.
+3. If the plan document named below already exists on this branch, it is a previous attempt at this
+   same work. Repair it in place — against the defects above where this prompt carries any — and
+   keep every milestone and brief that is already right. Do not start a second graph and do not
+   renumber what is there.
+

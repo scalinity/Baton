@@ -1,0 +1,17 @@
+Fixture is already onboarded · the confirmed goal stands, nothing was asked again and nothing was seeded twice
+registered Fixture
+  checkout    @TMP@/Fixture
+  plan        null (generated)
+  check       none detected
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  starting    the plan makes nothing eligible yet
+--- the registration ---
+{"plan_format":"generated","plan_owed":{"reason":"no readable milestone table was found in the repository","owner":"M12"},"has_start":false}
+--- the tick that follows ---
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+project park  Fixture · plan-unreadable · the registration names no path and plan · fix the plan file; the next tick re-reads it
+in flight  Fixture/M00-plan · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s

@@ -1,0 +1,20 @@
+Fixture is already onboarded · the confirmed goal stands, nothing was asked again and nothing was seeded twice
+registered Fixture
+  checkout    @TMP@/Fixture
+  plan        docs/MILESTONES.md (native)
+  check       none detected
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  starting    M02 · run · docs/milestones/M02.md
+  starting    M03 · wait for M02 · docs/milestones/M03.md
+  starting    M04 · held by "v0.1 ships" · docs/milestones/M04.md
+  starting    M06 · wait for M02, M05 · docs/milestones/M06.md
+  starting    M07 · run · docs/milestones/M07.md
+preconditions: 2 eligible, 0 with unmet preconditions
+  M02  ready
+  M07  ready
+--- and now a different checkout with the same basename ---
+exit 1
+@TMP@/Fixture

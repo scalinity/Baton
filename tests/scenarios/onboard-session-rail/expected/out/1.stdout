@@ -1,0 +1,7 @@
+--- the rules the dispatched session runs under still deny the registration ---
+Edit(/@TMP@/home/projects/**)
+Write(/@TMP@/home/projects/**)
+Bash(*.baton/projects*)
+--- and the registration exists, written by the verb, with the event to say so ---
+registration: present
+{"kind":"onboarded","project":"Fixture","plan_format":"native"}

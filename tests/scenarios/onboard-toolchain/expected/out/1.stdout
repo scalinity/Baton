@@ -1,0 +1,24 @@
+Fixture at @TMP@/Fixture — a fixture project.
+Done: every milestone reads done.
+Must hold: POSIX shell only. · Not this: a rewrite in another language.
+Plan: read as it stands. Standing check: cargo test.
+Register this project and let Baton run it? [yes/no] onboarded Fixture
+  checkout    @TMP@/Fixture
+  plan        docs/MILESTONES.md (native)
+  check       cargo test
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  starting    M01 · run · docs/milestones/M01.md
+preconditions: 1 eligible, 0 with unmet preconditions
+  M01  ready
+the next tick reads Fixture and dispatches what the starting handover says run
+--- what was derived ---
+{"command":"cargo test","deadline_seconds":1800}
+["Bash(jq:*)","Bash(cargo:*)","Bash(make:*)"]
+--- and the two deny classes are the same rail install.sh writes ---
+47
+Edit(/@TMP@/home/projects/**)
+Write(/@TMP@/home/projects/**)
+Bash(*.baton/projects*)

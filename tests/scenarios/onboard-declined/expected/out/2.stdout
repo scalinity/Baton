@@ -1,0 +1,8 @@
+Fixture at @TMP@/Fixture — a fixture project.
+Done: every milestone reads done.
+Must hold: POSIX shell only. · Not this: a rewrite in another language.
+Plan: read as it stands. Standing check: none detected.
+Register this project and let Baton run it? [yes/no] baton: not confirmed, so Fixture is not registered and nothing is dispatched; run baton onboard @TMP@/Fixture again when the statement above is right
+exit 1
+registrations: none
+log written: no

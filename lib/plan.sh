@@ -15,7 +15,8 @@ plan_fail() {
   return 1
 }
 
-# plan_extract <file>: the awk pass. One line per body row, fields on \037:
+# plan_extract <file> [<optional columns, comma-separated>]: the awk pass. One line per body row,
+# fields on \037:
 #   M <row> <ID> <Depends on> <Model> <Effort> <Remote> <Status>
 #   G <row> <Gate> <Holds> <Cleared>
 #   T <table>                      the table was found
@@ -23,8 +24,19 @@ plan_fail() {
 # Extra columns are ignored; \| inside a cell is an escaped pipe; a row without a trailing pipe
 # still counts its last part as a cell; a body row with fewer cells than the header fails; the
 # first table with each header cell wins.
+#
+# A column named in the second argument may be absent from the header, and a row's value for it is
+# then empty — which `plan_tables` reads as "take the registered default" and nothing else reads at
+# all. `ID` and `Depends on` are never optional whatever is passed, because a plan without them is
+# not a graph: there is nothing to default an identity or an edge to.
 plan_extract() {
-  awk -v OFS="$plan_us" '
+  awk -v OFS="$plan_us" -v optional="${2:-}" '
+    function optional_col(name,    i, o, n) {
+      if (name == "ID" || name == "Depends on") return 0
+      n = split(optional, o, ",")
+      for (i = 1; i <= n; i++) if (o[i] == name) return 1
+      return 0
+    }
     function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
     function cells(line,    n, i, c, parts) {
       split("", C)
@@ -35,11 +47,29 @@ plan_extract() {
       for (i = 2; i < n; i++) { c = trim(parts[i]); gsub(/\001/, "|", c); C[++nc] = c }
       return nc
     }
+    # The table is located **by** its header cell and not by that cell being first, which is what
+    # REQ-PLAN-01 says and what a plan Baton did not author needs: a project whose own table opens
+    # with `Owner` or `Title` has an `ID` column all the same, and reading columns by name is
+    # pointless if finding the table does not.
+    #
+    # The companion column is what keeps that from stealing the table. A plan document may hold other
+    # tables — a traceability table, a ticket list — and one of those may have a column called `ID`;
+    # under "the first header with an ID cell" it would be chosen, fail on the missing `Depends on`,
+    # and park a project whose plan had been read for months. So a candidate header must carry both
+    # the locating cell and the one column the table cannot be without: `Depends on` for the
+    # milestones, `Holds` for the gates. A header with neither is not that table and is skipped, and
+    # a header with the locating cell and a *misspelt* companion still fails the read, because then it
+    # is that table and the failure is the point.
+    function has_cell(name,    i) {
+      for (i = 1; i <= nc; i++) if (C[i] == name) return 1
+      return 0
+    }
+    function locates(name, companion) { return has_cell(name) && has_cell(companion) }
     function header(table, names,    k, i, want) {
       split("", col)
       for (i = 1; i <= nc; i++) col[C[i]] = i
       k = split(names, want, ",")
-      for (i = 1; i <= k; i++) if (!(want[i] in col)) {
+      for (i = 1; i <= k; i++) if (!(want[i] in col) && !optional_col(want[i])) {
         print "E", table, "header", want[i], "column \"" want[i] "\" is missing from the header"
         exit 0
       }
@@ -49,8 +79,8 @@ plan_extract() {
     /^[ \t]*\|/ {
       cells($0)
       if (state == "") {
-        if (nc >= 1 && C[1] == "ID" && !seen_m) { seen_m = 1; header("milestones", "ID,Depends on,Model,Effort,Remote,Status"); state = "m-sep"; next }
-        if (nc >= 1 && C[1] == "Gate" && !seen_g) { seen_g = 1; header("gates", "Gate,Holds,Cleared"); state = "g-sep"; next }
+        if (locates("ID", "Depends on") && !seen_m) { seen_m = 1; header("milestones", "ID,Depends on,Model,Effort,Remote,Status"); state = "m-sep"; next }
+        if (locates("Gate", "Holds") && !seen_g) { seen_g = 1; header("gates", "Gate,Holds,Cleared"); state = "g-sep"; next }
         next
       }
       if (state == "m-sep") { state = "m"; row = 0; next }
@@ -67,6 +97,21 @@ plan_extract() {
     }
     { state = "" }
   ' "$1"
+}
+
+# plan_adaptation <project>: the adaptation the project is registered with, as the document
+# `lib/onboard.sh` writes — `{defaults, status_map, gates}` — or `{}` for a project registered
+# without one.
+#
+# A project registered `native` has no adaptation and is therefore read exactly as strictly as
+# before: a misspelt `Model` cell in Baton's own plan still parks the project rather than quietly
+# taking a default. Tolerance is a thing a person confirmed once, per project, not a property of the
+# reader (SCOPE §6 M11's "tolerance can erase intent").
+plan_adaptation() {
+  [ -n "${1:-}" ] || { echo '{}'; return 0; }
+  pa_pj=$BATON_HOME/projects/$1/project.json
+  [ -f "$pa_pj" ] || { echo '{}'; return 0; }
+  jq -c '.adaptation // {}' "$pa_pj" 2>/dev/null || echo '{}'
 }
 
 # parse_id <token>: an id is M followed by digits, with an optional -suffix (M01-b).
@@ -123,9 +168,24 @@ parse_remote() {
   case "$1" in '') echo false ;; yes) echo true ;; *) return 1 ;; esac
 }
 
-# parse_status <cell>: blank, done or held.
+# parse_status <cell> [<status map json>]: blank, done or held — or, for a project registered with a
+# status map, one of that map's source words read as the native token it stands for.
+#
+# The native vocabulary is three words and cannot say "retired", so a richer source vocabulary needs
+# the map rather than a wider enum: a word the map does not name still fails, because a status
+# guessed at is how tolerance erases intent. What the map may not do is make retired work runnable
+# or let it satisfy a dependency, and it cannot: `held` and blank are the only non-`done` tokens it
+# can produce, and `plan_eligible` and the `$done` set both key on the native word (SCOPE §6 M11).
 parse_status() {
-  case "$1" in ''|done|held) printf '%s\n' "$1" ;; *) return 1 ;; esac
+  case "$1" in ''|done|held) printf '%s\n' "$1"; return 0 ;; esac
+  [ -n "${2:-}" ] || return 1
+  # `-e` on the lookup, so a key whose value is `null` — which a hand edit leaves behind — fails
+  # rather than reading as blank and making the row runnable. `// empty` alone would swallow it, and
+  # `has($t)` would then say the map named the word.
+  ps_mapped=$(printf '%s' "$2" | jq -er --arg t "$1" '
+    (.[$t] // .[$t | ascii_downcase]) | if type == "object" then .status else . end' 2>/dev/null) || return 1
+  case "$ps_mapped" in ''|done|held) ;; *) return 1 ;; esac
+  printf '%s\n' "$ps_mapped"
 }
 
 # parse_cleared <cell>: blank or a D-number.
@@ -133,17 +193,42 @@ parse_cleared() {
   case "$1" in '') echo ;; *) printf '%s' "$1" | grep -Eq '^D-[0-9]+$' || return 1; printf '%s\n' "$1" ;; esac
 }
 
+# plan_default <defaults json> <column> <cell>: the cell, or the column's registered default where
+# the cell is empty and the column has one. A column with no default is returned untouched, so a
+# blank `Effort` in a plan that really has an `Effort` column stays the blank the person wrote.
+plan_default() {
+  [ -z "$3" ] || { printf '%s' "$3"; return 0; }
+  printf '%s' "$1" | jq -r --arg c "$2" 'if has($c) then .[$c] else "" end' 2>/dev/null || printf ''
+}
+
 # ids_json: lines of ids on stdin to a JSON array.
 ids_json() {
   jq -Rn '[inputs | select(length > 0)]' | jq -c .
 }
 
-# plan_tables <file>: the parsed plan as one JSON document,
+# plan_tables <file> [<project>] [<adaptation json>]: the parsed plan as one JSON document,
 #   {"milestones": [{row, id, depends[], model, effort, remote, status}], "gates": [{row, gate, holds[], cleared}]}
 # or, on the first cell that does not parse, plan_fail's object with status 1.
+#
+# With neither optional argument the read is the strict one the contract describes, and that is what
+# every caller got before onboarding existed. A project key makes it read that project's registered
+# adaptation; an explicit adaptation document is for onboarding itself, which has to know whether a
+# plan is readable *before* there is a registration to read it from.
+#
+# The adaptation does three things and no more: it makes the columns it names optional and supplies
+# their value where the column is absent or its cell is empty; it lets `Status` carry a source
+# vocabulary through its map; and it says whether the plan has a gates table at all. Everything else
+# — the ids, the edges, every cell that is present and not blank — is parsed exactly as strictly as
+# before, so tolerance cannot turn a person's prose into a token.
 plan_tables() {
   pt_models=$(jq -c '.models // {}' "$BATON_HOME/config.json" 2>/dev/null || echo '{}')
-  pt_raw=$(plan_extract "$1")
+  pt_adapt=${3:-}
+  [ -n "$pt_adapt" ] || pt_adapt=$(plan_adaptation "${2:-}")
+  pt_defaults=$(printf '%s' "$pt_adapt" | jq -c '.defaults // {}' 2>/dev/null) || pt_defaults='{}'
+  pt_map=$(printf '%s' "$pt_adapt" | jq -c '.status_map // {}' 2>/dev/null) || pt_map='{}'
+  pt_gates_optional=$(printf '%s' "$pt_adapt" | jq -r 'if (.gates // "") == "absent" then "yes" else "no" end' 2>/dev/null) || pt_gates_optional=no
+  pt_optional=$(printf '%s' "$pt_defaults" | jq -r 'keys_unsorted | join(",")')
+  pt_raw=$(plan_extract "$1" "$pt_optional")
   pt_ms='[]'; pt_gs='[]'; pt_seen_m=no; pt_seen_g=no
   while IFS="$plan_us" read -r pt_k pt_a pt_b pt_c pt_d pt_e pt_f pt_g; do
     case "$pt_k" in
@@ -154,10 +239,18 @@ plan_tables() {
         parse_id "$pt_b" >/dev/null || { plan_fail milestones "$pt_rowname" ID "\"$pt_b\" is not a milestone id"; return 1; }
         pt_dep=$(parse_depends "$pt_c") || { plan_fail milestones "$pt_rowname" "Depends on" "\"$pt_c\" is not ids, ranges or – for none"; return 1; }
         pt_dep=$(printf '%s\n' "$pt_dep" | ids_json)
+        # An empty cell in a defaulted column takes the default, which is the same answer an absent
+        # column gets: the two are one omission wearing two hats — a plan with no `Model` column and
+        # a plan whose `Model` column is blank on some rows are both L1's recorded symptom.
+        pt_d=$(plan_default "$pt_defaults" Model "$pt_d")
+        pt_e=$(plan_default "$pt_defaults" Effort "$pt_e")
+        pt_f=$(plan_default "$pt_defaults" Remote "$pt_f")
+        pt_g=$(plan_default "$pt_defaults" Status "$pt_g")
         pt_model=$(parse_model "$pt_d" "$pt_models") || { plan_fail milestones "$pt_rowname" Model "\"$pt_d\" is not a model alias in config.json or a full model id"; return 1; }
         pt_effort=$(parse_effort "$pt_e") || { plan_fail milestones "$pt_rowname" Effort "\"$pt_e\" is not blank or low|medium|high|xhigh|max"; return 1; }
         pt_remote=$(parse_remote "$pt_f") || { plan_fail milestones "$pt_rowname" Remote "\"$pt_f\" is not blank or yes"; return 1; }
-        pt_status=$(parse_status "$pt_g") || { plan_fail milestones "$pt_rowname" Status "\"$pt_g\" is not blank, done or held"; return 1; }
+        pt_status=$(parse_status "$pt_g" "$pt_map") \
+          || { plan_fail milestones "$pt_rowname" Status "\"$pt_g\" is not blank, done or held, and the project's registered status map does not name it"; return 1; }
         printf '%s' "$pt_ms" | jq -e --arg id "$pt_b" 'any(.[]; .id == $id) | not' > /dev/null \
           || { plan_fail milestones "$pt_rowname" ID "\"$pt_b\" appears twice"; return 1; }
         pt_ms=$(printf '%s' "$pt_ms" | jq -c --arg row "$pt_a" --arg id "$pt_b" --argjson dep "$pt_dep" \
@@ -178,7 +271,12 @@ plan_tables() {
 $pt_raw
 RAW
   [ "$pt_seen_m" = yes ] || { plan_fail milestones - ID "no table has an ID header cell"; return 1; }
-  [ "$pt_seen_g" = yes ] || { plan_fail gates - Gate "no table has a Gate header cell"; return 1; }
+  # A plan with no gates table is an ordinary plan: a gate is a hold a person adds when they want
+  # one, and most projects never do. It is tolerated only where the registration says the plan has
+  # none, so a gates table that disappears from a project that had one still stops dispatch.
+  if [ "$pt_seen_g" != yes ] && [ "$pt_gates_optional" != yes ]; then
+    plan_fail gates - Gate "no table has a Gate header cell"; return 1
+  fi
   jq -nc --argjson m "$pt_ms" --argjson g "$pt_gs" '{milestones: $m, gates: $g}'
 }
 
@@ -263,7 +361,7 @@ plan_of_project() {
     || { echo "baton: $pp_pj lacks path or plan"; return 2; }
   pp_file=$pp_path/$pp_plan
   [ -r "$pp_file" ] || { echo "baton: plan file $pp_file cannot be read"; return 1; }
-  if ! pp_tables=$(plan_tables "$pp_file"); then
+  if ! pp_tables=$(plan_tables "$pp_file" "$1"); then
     printf '%s' "$pp_tables" | jq -r '"baton: plan \(.table) table, row \(.row), cell \(.cell): \(.detail)"'
     return 1
   fi

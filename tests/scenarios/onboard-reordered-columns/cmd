@@ -1,0 +1,7 @@
+set -eu
+# Columns are read by name, so a plan carrying all six in another order with two extra columns of
+# its own is `native` and needs no adaptation. Recorded because "reordered columns" is an import
+# case the milestone owes, and a reader should be able to see that it costs nothing.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- the plan the tick now sees ---'
+"$BATON" plan Fixture || true

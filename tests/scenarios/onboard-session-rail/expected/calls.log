@@ -1,0 +1,7 @@
+[cwd @TMP@] claude --version
+[cwd @TMP@/Fixture] claude -p --settings @TMP@/home/checks/judge/settings.json <prompt>
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/home/worktrees/Fixture/M02] claude --bg -n 'Baton · Fixture · M02' --model opus --effort high --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M02.json <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
+[cwd @TMP@] claude agents --json

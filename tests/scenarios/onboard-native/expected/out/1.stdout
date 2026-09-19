@@ -1,0 +1,39 @@
+Fixture at @TMP@/Fixture — a fixture project.
+Done: every milestone reads done.
+Must hold: POSIX shell only. · Not this: a rewrite in another language.
+Plan: read as it stands. Standing check: none detected.
+Register this project and let Baton run it? [yes/no] onboarded Fixture
+  checkout    @TMP@/Fixture
+  plan        docs/MILESTONES.md (native)
+  check       none detected
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  starting    M02 · run · docs/milestones/M02.md
+  starting    M03 · wait for M02 · docs/milestones/M03.md
+  starting    M04 · held by "v0.1 ships" · docs/milestones/M04.md
+  starting    M06 · wait for M02, M05 · docs/milestones/M06.md
+  starting    M07 · run · docs/milestones/M07.md
+preconditions: 2 eligible, 0 with unmet preconditions
+  M02  ready
+  M07  ready
+the next tick reads Fixture and dispatches what the starting handover says run
+--- the repository was not touched ---
+HEAD unchanged: yes
+working tree clean: yes
+--- baton plan reads the same graph ---
+plan Fixture: @TMP@/Fixture/docs/MILESTONES.md
+M01  done  model opus  effort -  remote no
+M02  eligible  model opus  effort high  remote no
+M03  waits on M02  model claude-opus-5  effort -  remote no
+M04  held by gate "v0.1 ships"  model fable  effort max  remote no
+M05  held  model sonnet  effort -  remote no
+M06  waits on M02, M05  model haiku  effort low  remote yes
+M07  eligible  model opus  effort -  remote no
+gate "v0.1 ships" holds M04
+gate "cleared gate" holds M07, cleared by D-003
+widenings: none
+preconditions: 2 eligible, 0 with unmet preconditions
+  M02  ready
+  M07  ready
