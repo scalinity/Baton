@@ -1,3 +1,5 @@
 [cwd @TMP@] claude agents --json
 osascript -e 'display notification "the milestones table, row M03, cell Model: \"opsu\" is not a model alias in config.json or a full model id · fix the plan file; the next tick re-reads it" with title "Baton · Fixture · plan-unparseable"'
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json

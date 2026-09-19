@@ -2,4 +2,6 @@
 osascript -e 'display notification "M02 ended with invalid_request twice in a row; the newest says: the fresh context overflowed in the same place · the previous says: the first attempt overflowed while reading the derivatio… · edit the brief or the plan, or baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · ladder-end"'
 caffeinate -i -t 120
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 caffeinate -i -t 120
+[cwd @TMP@] claude agents --json

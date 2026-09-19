@@ -52,7 +52,7 @@ Additive only. No existing field changes meaning.
 | `projects/<key>/project.json` | `goal`, `done`, `constraints`, `non_goals` | The confirmed intent record, which the scope guard receives whole. `goal` alone is not the guard's input: one goal admits both a permitted extension and a forbidden replacement of the controller (§8 item 6). |
 | | `plan_format` | `native`, `adapted`, or `generated`. How the plan was obtained. |
 | | `onboarded_at`, `cli` | Provenance: when, and which CLI version the judgment role was checked against. |
-| | `adaptation` | For an `adapted` plan: the columns defaulted, the source `Status` words and the native token each reads as, and whether the plan has a gates table. Baton's state, so the target repository is unchanged (M11, D-155). |
+| | `adaptation` | For an `adapted` plan: the columns defaulted, the source `Status` words and the native token each reads as, and whether the plan has a gates table. Baton's state, so the target repository is unchanged (M11, D-156). |
 | | `start` | The starting handover: every milestone the plan makes eligible, with a disposition and a brief pointer, in `eligible[]`'s own shape. Replaced by `plan_owed` for a `generated` plan. |
 | `projects/<key>/budget.json` | `window_start`, `sessions_used`, `tier` | Self-pacing against the plan allowance. |
 | completion artifact | `baseline` | The dispatch commit. Makes ancestry meaningful. |
@@ -174,7 +174,7 @@ in the project it onboards: what the plan needs in order to be read is stored as
 so a misspelt cell in it parks as before. This is what makes the criterion below — the plan parses
 "without a human editing anything in that repository first" — true of Baton as well as of the person,
 and it is why the standing check and the permission rail are derived beside each other rather than
-committed anywhere (D-155, D-156).
+committed anywhere (D-156, D-157).
 
 **Status vocabulary.** The native plan has exactly three Status tokens: `done`, `held`, or blank.
 It cannot express retirement, so a retired milestone such as M08 must borrow `held`, with its

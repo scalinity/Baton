@@ -1,5 +1,6 @@
 worktree    Fixture/M03 · moved to @TMP@/home/worktrees/Fixture/M03
 worktree    Fixture/M07-b · moved to @TMP@/home/worktrees/Fixture/M07-b
  M CLAUDE.md
+?? .gitignore
 ?? dirty.txt
-both moved with their branches; M03 kept its head, its tracked edit and its untracked file
+both moved with their branches; M03 kept its head, its tracked edit, its untracked file and its ignored build product

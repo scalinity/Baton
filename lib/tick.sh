@@ -434,11 +434,26 @@ tick_run() {
   # A project whose migration fails stops neither the others nor the dispatch. Nothing downstream
   # reads a worktree's location except through `worktree_of`, which asks git every time, so a
   # worktree that stayed where it was is a worktree that still works.
-  tr_n=$(printf '%s' "$tr_keys" | jq length); tr_i=0
-  while [ "$tr_i" -lt "$tr_n" ]; do
-    tr_key=$(printf '%s' "$tr_keys" | jq -r ".[$tr_i]"); tr_i=$((tr_i + 1))
-    worktree_migrate "$tr_key" "$tr_rows" || tr_status=3
-  done
+  #
+  # **The listing is re-read here and never carried down from the top of the tick**, for the reason
+  # `dispatch_run` already gives about the cap (D-130), and it is worse here than there. The loop
+  # above can put a session *into* a legacy worktree: the ladder's redispatch rung reaches
+  # `worktree_ensure`, which now resolves the registration and so reuses the sibling where it
+  # stands, and its resume rung and a wait retry each wake a session whose row was `pid`-less when
+  # `tr_rows` was taken. Against that listing the guard sees nothing there, moves the directory, and
+  # strands the session Baton itself had just started — the `working directory no longer exists`
+  # ending D-153 is written to prevent. A listing that cannot be re-read refuses the whole pass,
+  # because a guard that cannot be answered refuses (D-155).
+  if tr_mrows=$(rows_read); then
+    tr_n=$(printf '%s' "$tr_keys" | jq length); tr_i=0
+    while [ "$tr_i" -lt "$tr_n" ]; do
+      tr_key=$(printf '%s' "$tr_keys" | jq -r ".[$tr_i]"); tr_i=$((tr_i + 1))
+      worktree_migrate "$tr_key" "$tr_mrows" || tr_status=3
+    done
+  else
+    render_failure err "baton: claude agents --json could not be re-read after the per-project passes; no worktree was migrated this tick"
+    tr_status=3
+  fi
 
   # A finished session's process, once across every project: its ranking bounds memory, which is the
   # Mac's, as the cap is. Before the dispatch, so a process taken offline is gone before a new one

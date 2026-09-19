@@ -1,3 +1,5 @@
 [cwd @TMP@] claude agents --json
 osascript -e 'display notification "M02 ended unfinished twice in a row; the newest says: the split this session proposes, spelled out at the length a real one runs to; the split this session proposes, spelled out at the length a real one runs t… · edit the plan; a split is a plan edit" with title "Baton · Fixture/M02 · unfinished-twice"'
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
