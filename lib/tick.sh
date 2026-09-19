@@ -13,8 +13,15 @@ set -eu
 
 # lock_stale_report: one line when the lock exists and is older than the interval, printed before
 # anything else by every verb (REQ-TICK-03). A verb runs for seconds and launchd fires every sixty,
-# so a lock past the interval is a tick that died holding it, and the person reads why the verb is
-# about to refuse rather than a bare "lock held".
+# so a lock past the interval used to be a tick that died holding it, and the person reads why the
+# verb is about to refuse rather than a bare "lock held".
+#
+# Since D-148 a long hold is also the ordinary case: step 2 runs a target project's standing check
+# under the lock, which is minutes for a suite of any size. So the age alone no longer says the
+# holder is gone, and the pid is asked. A holder that answers `kill -0` is running, and the line
+# says so and offers nothing to remove: `lock_stale_break` is safe because it asks the same
+# question, but a person acting on advice to remove a live verb's lock is not. Only a holder that
+# cannot be found — no pid recorded, or a pid nothing answers for — is called stale.
 lock_stale_report() {
   [ -d "$BATON_HOME/lock" ] || return 0
   ls_at=$(cat "$BATON_HOME/lock/at" 2>/dev/null || true)
@@ -24,8 +31,15 @@ lock_stale_report() {
   fi
   ls_age=$(( $(now_epoch) - ls_epoch ))
   [ "$ls_age" -ge "$BATON_TICK_SECONDS" ] || return 0
+  ls_pid=$(cat "$BATON_HOME/lock/pid" 2>/dev/null || true)
+  if [ -n "$ls_pid" ] && kill -0 "$ls_pid" 2>/dev/null; then
+    render_row out action 'lock held   %s held by pid %s since %s (%s ago); its holder is running, so nothing here is stale\n' \
+      "$(render_token out path "$BATON_HOME/lock")" "$ls_pid" \
+      "$(render_token out timestamp "$ls_at")" "$(duration "$ls_age")"
+    return 0
+  fi
   render_row out action 'stale lock  %s held by pid %s since %s (%s ago); if no verb is running, remove it\n' \
-    "$(render_token out path "$BATON_HOME/lock")" "$(cat "$BATON_HOME/lock/pid" 2>/dev/null || echo '?')" \
+    "$(render_token out path "$BATON_HOME/lock")" "${ls_pid:-?}" \
     "$(render_token out timestamp "$ls_at")" "$(duration "$ls_age")"
 }
 
@@ -361,6 +375,9 @@ tick_run() {
   # sight every lane, and a dispatch would be a dispatch over something already running. A handover
   # waiting one more minute costs nothing; `status` line 9 shows it waiting. The status says the
   # tick did not complete, so the marker is not written and the gap report is what tells the person.
+  # This reading stays on `now` where the one after the lanes passes `tr_now` (D-153): it returns
+  # before step 2, the only pass that can spend minutes, so the two instants are the same second and
+  # `now` is the one that stays honest if anything is ever added above it.
   [ "$tr_rows_ok" = yes ] || { gap_check "$tr_rows"; return 3; }
 
   # 2. Consume the inbox. Moving the call is all this is: inbox_consume is M02's, it takes the lock
@@ -436,8 +453,12 @@ tick_run() {
     tr_status=3
   }
 
-  # The gap belongs to Baton and not to a project, so it is read once, after every lane.
-  gap_check "$tr_rows" || tr_status=3
+  # The gap belongs to Baton and not to a project, so it is read once, after every lane. It is
+  # measured against `tr_now`, the clock this tick started with, and not against the wall clock
+  # here: the passes above can spend minutes — step 2 runs a project's standing check under this
+  # lock (D-148) — and a tick that measured from the end of its own work would report the length of
+  # that work as a stretch during which Baton was not running.
+  gap_check "$tr_rows" "$tr_now" || tr_status=3
   # Other projects may have progressed, but a skipped step cannot certify a completed tick.
   # Keep the last honest marker so the gap continues to be measured against it (D-115).
   return "$tr_status"

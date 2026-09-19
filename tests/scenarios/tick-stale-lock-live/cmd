@@ -1,6 +1,8 @@
-# A lock older than the interval whose holder is this very shell: alive, so it must not be broken.
-# The pid is this shell's and differs between runs, so it is masked before the diff; the age line
-# and the refusal are what the scenario asserts.
+# A lock older than the interval whose holder is this very shell: alive, so it must not be broken,
+# and must not be called stale either — a hold of minutes is the ordinary case since the tick runs a
+# project's standing check under the lock (D-148, D-153). The pid is this shell's and differs
+# between runs, so it is masked before the diff; the held line, its age and the refusal are what the
+# scenario asserts.
 mkdir -p "$BATON_HOME/lock"
 printf '%s\n' "$$" > "$BATON_HOME/lock/pid"
 printf '2026-09-12T11:50:00+01:00\n' > "$BATON_HOME/lock/at"

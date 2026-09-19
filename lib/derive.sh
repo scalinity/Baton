@@ -472,9 +472,18 @@ derive_widenings() {
                                             | with_entries(select(.value != null)) ]}'
 }
 
-# 15. The gap: now minus the marker. Reported only when open lanes, parks or waits show work
-# during it, including a lane whose process died — a gap with nothing to do is not one — keyed on the
-# marker value it was measured against, so one outage reports once.
+# 15. The gap: the as-of minus the marker, the as-of defaulting to now. Reported only when open
+# lanes, parks or waits show work during it, including a lane whose process died — a gap with
+# nothing to do is not one — keyed on the marker value it was measured against, so one outage
+# reports once.
+#
+# The as-of exists because a tick can now spend minutes inside its own step 2: it runs the target
+# project's standing check on the commit a completion claims, under the lock (D-148), measured at
+# 652 s for Baton's own suite. Measured against the wall clock at the end of that, the marker — the
+# previous tick's, already an interval old — is past the threshold, and the `consumed` event the
+# same tick just wrote counts as a lane closed after it, so the tick reports itself as an outage
+# for the length of the work it was doing. The gap means "Baton was not running", not "the marker
+# is old", and the tick's own start is the instant at which those are the same sentence.
 #
 # The threshold is two intervals, not one. The marker holds the at of the tick that completed and
 # is written after the lock is released, so at the next tick it is already a full interval old
@@ -486,6 +495,7 @@ derive_widenings() {
 # read still means Baton was not running while something needed it. So the window counts lanes open
 # now, plus anything that closed after the marker.
 derive_gap() {
+  dg_as_of=${2:-$(baton_now)}
   dg_tick=$(derive_last_tick) || { echo "$dg_tick"; return 1; }
   if [ "$(printf '%s' "$dg_tick" | jq -r .present)" != true ]; then
     echo '{"present":false,"report":false}'
@@ -500,6 +510,10 @@ derive_gap() {
             + $(printf '%s' "$dg_p" | jq '.parked | length') \
             + $(printf '%s' "$dg_w" | jq '.waits | length') ))
   dg_marker_epoch=$(iso_epoch "$dg_marker") || { echo "$dg_marker_epoch"; return 1; }
+  dg_as_of_epoch=$(iso_epoch "$dg_as_of") || { echo "$dg_as_of_epoch"; return 1; }
+  dg_age=$((dg_as_of_epoch - dg_marker_epoch))
+  # The closed-lane test stays on the marker and not on the as-of: a lane that closed between them
+  # is still a lane the gap would have covered, which is the whole of "during it is not now".
   dg_closed_ats=$(printf '%s' "$dg_log" | jq -r '
     .[] | select((.kind == "consumed" and (.outcome == "complete" or .written_by == "session"))
                   or .kind == "resolution") | .at') || return 1
@@ -509,7 +523,7 @@ derive_gap() {
     [ "$dg_epoch" -le "$dg_marker_epoch" ] || dg_closed=$((dg_closed + 1))
   done
   printf '%s' "$dg_tick" | jq -c --argjson interval "$BATON_TICK_SECONDS" \
-    --argjson lanes "$((dg_open + dg_closed))" '
-    {present: true, marker: .last_tick, gap_seconds: .age_seconds, had_lane: ($lanes > 0),
-     report: (.age_seconds >= 2 * $interval and $lanes > 0)}'
+    --argjson lanes "$((dg_open + dg_closed))" --argjson age "$dg_age" '
+    {present: true, marker: .last_tick, gap_seconds: $age, had_lane: ($lanes > 0),
+     report: ($age >= 2 * $interval and $lanes > 0)}'
 }

@@ -422,13 +422,17 @@ question_check() {
   done
 }
 
-# gap_check <rows json>: REQ-ESC-10, derivation 15. now minus the marker, reported only when a lane
-# was in flight, waiting or parked during it, and keyed on the marker value so one outage reports
-# once. The gap belongs to no milestone, so the event carries no lane and the key alone is the
-# guard; the marker this tick is about to write changes the key, which is why the second run of a
-# scenario reports nothing.
+# gap_check <rows json> [<as-of>]: REQ-ESC-10, derivation 15. The as-of minus the marker, the as-of
+# defaulting to now, reported only when a lane was in flight, waiting or parked during it, and keyed
+# on the marker value so one outage reports once. The gap belongs to no milestone, so the event
+# carries no lane and the key alone is the guard; the marker this tick is about to write changes the
+# key, which is why the second run of a scenario reports nothing.
+#
+# The tick passes the clock it started with, because its own step 2 can run for minutes and a tick
+# is not an outage while it is working; every other caller reads the gap from outside a tick, where
+# now is the honest instant.
 gap_check() {
-  gc_gap=$(derive_gap "$1") || { render_failure err "$gc_gap"; return 1; }
+  gc_gap=$(derive_gap "$1" "${2:-}") || { render_failure err "$gc_gap"; return 1; }
   [ "$(printf '%s' "$gc_gap" | jq -r .report)" = true ] || return 0
   gc_marker=$(printf '%s' "$gc_gap" | jq -r .marker)
   gc_log=$(log_json) || { render_failure err "$gc_log"; return 1; }

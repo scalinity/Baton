@@ -99,9 +99,21 @@ set -eu
 sleep 30
 echo "this line is never reached"'
 
+CF_CHECK_CLOCK="$CF_CHECK_PASSES"'
+# …and then eleven minutes pass. The harness freezes the clock at the scenario'"'"'s `now`, so a
+# check cannot spend wall time the tick would see; it moves the shim forward instead, which is the
+# same fact — the clock says eleven minutes more than it did when the tick began — without
+# the run taking eleven minutes. The value is absolute rather than an increment because the harness
+# copies `now` into the shim once, before both of a scenario'"'"'s runs, and never resets it: run 2
+# begins at whatever run 1 left, so what run 1 leaves has to be the same on every machine. That also
+# holds for a scenario whose check runs on both runs, which this one'"'"'s does not — its artifact is
+# archived by the first.
+printf "%s\n" "2026-09-12T00:11:00+01:00" > "${BATON_SHIM:?}/now"'
+
 case "$shape" in
   check-fails) cf_check=$CF_CHECK_FAILS ;;
   check-slow)  cf_check=$CF_CHECK_SLOW ;;
+  check-clock) cf_check=$CF_CHECK_CLOCK ;;
   *)           cf_check=$CF_CHECK_PASSES ;;
 esac
 
@@ -112,7 +124,7 @@ candidate=''; merge=''; wrong=''; head=''
 
 case "$shape" in
   # The ordinary close-out: one in-scope commit on the branch, merged into main.
-  valid|forged-check|check-fails|check-slow|repeat)
+  valid|forged-check|check-fails|check-slow|check-clock|repeat)
     candidate=$(cf_commit "the milestone's work" docs/one.md "one" "$base")
     merge=$(cf_merge "merge m02" "$candidate" "$base" "$candidate")
     ;;

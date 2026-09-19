@@ -3,3 +3,12 @@ echo "== a lane was in flight through the gap =="
 derive_gap "$(rows_json)" | jq .
 echo "== no live row now, but M07 closed after the marker, so the gap still counts =="
 derive_gap '[]' | jq -c .
+echo "== the as-of, which the tick passes so its own work is not the outage it reports =="
+echo "-- two intervals exactly: the threshold is >=, so this reports --"
+derive_gap '[]' 2026-09-12T10:02:00+01:00 | jq -c .
+echo "-- one second short of it: it does not --"
+derive_gap '[]' 2026-09-12T10:01:59+01:00 | jq -c .
+echo "-- an as-of before the marker, which a clock set backwards would give: no outage to report --"
+derive_gap '[]' 2026-09-12T09:59:00+01:00 | jq -c .
+echo "-- an empty as-of is an absent one, which is how gap_check forwards a caller that passed none --"
+derive_gap '[]' '' | jq -c .

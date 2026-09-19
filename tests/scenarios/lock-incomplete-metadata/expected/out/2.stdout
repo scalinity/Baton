@@ -1,10 +1,10 @@
 stale lock  @TMP@/home/lock held by pid 999999 since directory mtime 1789210200 (10 m ago); if no verb is running, remove it
 missing timestamp: dead lock reclaimed and reported
-stale lock  @TMP@/home/lock held by pid <live> since directory mtime 1789210200 (10 m ago); if no verb is running, remove it
+lock held   @TMP@/home/lock held by pid <live> since directory mtime 1789210200 (10 m ago); its holder is running, so nothing here is stale
 missing timestamp: live lock and metadata unchanged
 stale lock  @TMP@/home/lock held by pid 999999 since directory mtime 1789210200 (10 m ago); if no verb is running, remove it
 invalid timestamp: dead lock reclaimed and reported
-stale lock  @TMP@/home/lock held by pid <live> since directory mtime 1789210200 (10 m ago); if no verb is running, remove it
+lock held   @TMP@/home/lock held by pid <live> since directory mtime 1789210200 (10 m ago); its holder is running, so nothing here is stale
 invalid timestamp: live lock and metadata unchanged
 missing pid and timestamp: aged directory reclaimed
 fresh incomplete lock retained without a stale report

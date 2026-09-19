@@ -8,3 +8,12 @@
 }
 == no live row now, but M07 closed after the marker, so the gap still counts ==
 {"present":true,"marker":"2026-09-12T10:00:00+01:00","gap_seconds":7200,"had_lane":true,"report":true}
+== the as-of, which the tick passes so its own work is not the outage it reports ==
+-- two intervals exactly: the threshold is >=, so this reports --
+{"present":true,"marker":"2026-09-12T10:00:00+01:00","gap_seconds":120,"had_lane":true,"report":true}
+-- one second short of it: it does not --
+{"present":true,"marker":"2026-09-12T10:00:00+01:00","gap_seconds":119,"had_lane":true,"report":false}
+-- an as-of before the marker, which a clock set backwards would give: no outage to report --
+{"present":true,"marker":"2026-09-12T10:00:00+01:00","gap_seconds":-60,"had_lane":true,"report":false}
+-- an empty as-of is an absent one, which is how gap_check forwards a caller that passed none --
+{"present":true,"marker":"2026-09-12T10:00:00+01:00","gap_seconds":7200,"had_lane":true,"report":true}

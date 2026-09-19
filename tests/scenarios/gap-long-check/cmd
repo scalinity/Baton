@@ -1,0 +1,3 @@
+echo "== the standing check Baton runs itself spends eleven minutes under the tick lock: the gap is measured against the clock the tick started with, so Baton does not report itself as an outage for the length of the check it was running =="
+sh "$ROOT/tests/completion-fixture.sh" check-clock
+"$BATON" tick
