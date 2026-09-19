@@ -7,15 +7,32 @@
   main-broken -> exit 1
   unfinished-twice -> exit 1
 
-=== gap is the class the fourth disposition was named for, and it is refused here too — but on
-=== the first guard and not the disposition, which is the honest reason and is shown rather than
-=== swallowed: there is no notification arm at all until docs/milestones/M15-b.md can say which
-=== gaps the host accounts for, so gap is not a class this writer takes in any disposition.
+=== gap is a notification and this writer takes escalations, so it is refused here on the first
+=== guard rather than on the disposition. The honest reason is the one shown, not swallowed.
   gap -> exit 1
-=== and the table is what says gap still reaches a person, which is the claim that matters:
-  gap is human-required
+
+=== the notification half. record_notification is the same act on the other channel, and its
+=== guard is the one that has to work hardest: gap is not HOST-EXPLAINED by its class, it is
+=== HOST-EXPLAINED for an event whose own evidence explains it — so this writer admits and
+=== refuses the same class, on the fields and nothing else.
+=== and every other reading of the same gap, each of which a person is owed
+  host {"assessed":"unexplained","sleep_seconds":0} -> exit 1
+  host {"assessed":"unknown","reason":"history-unreadable"} -> exit 1
+  host null -> exit 1
+=== a notification class that is never HOST-EXPLAINED, whatever is attached to it
+  stall -> exit 1
+  rate_limit -> exit 1
+  takeover-silent -> exit 1
+=== and the two refusals this writer inherits from the pair above: a class outside the list, and
+=== a carries that is not JSON
+  baton-unhealthy -> exit 1
+  carries not json -> exit 1
 
 === the refusals a person reads, on the stream they belong to
 
-=== what was written: one line, and the notifier was not called at all
-{"kind":"escalation","class":"baton-unhealthy","scope":"project","channel":["record"]}
+=== the refusals the notification writer prints, on the stream they belong to
+
+=== what was written: two lines, one per channel that is not a channel, and the notifier was
+=== not called at all — calls.log is empty
+{"kind":"escalation","class":"baton-unhealthy","scope":"project","key":null,"channel":["record"]}
+{"kind":"notification","class":"gap","scope":null,"key":"2026-09-12T10:00:00+01:00","channel":["record"]}

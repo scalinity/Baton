@@ -8,7 +8,8 @@
 #
 # A scenario holds: cmd (sourced twice; $BATON, $ROOT, $SCENARIO, $SHIM are set), home/ (the
 # BATON_HOME to start from; @TMP@ and @COMMIT@ in any file are replaced), rows.json (what agents --json answers
-# first), now (the clock), optional shim/ (the claude shim's knobs), optional project/ (a fixture
+# first), now (the clock), optional shim/ (the claude shim's knobs, and the pmset shim's pmset.log —
+# the host's sleep history — and pmset.status), optional project/ (a fixture
 # project; tests/project/ otherwise), optional other/ (a second fixture project at $tmp/Other, its
 # commit @OTHERCOMMIT@), optional transcripts/ (the tree BATON_TRANSCRIPTS points at), optional
 # jobs/ (the tree BATON_JOBS points at), optional
@@ -199,6 +200,7 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
              BATON_CAFFEINATE="$here/shim/caffeinate" BATON_OSASCRIPT="$here/shim/osascript" BATON_OPEN="$here/shim/open" \
              BATON_SHIM="$tmp/shim" BATON_DAEMON_LOG="$tmp/shim/daemon.log" \
              BATON_TRANSCRIPTS="$tmp/transcripts" BATON_JOBS="$tmp/jobs" BATON_INSTALL_TEST=1 \
+             BATON_PMSET="$here/shim/pmset" \
              BATON="$root/bin/baton" ROOT="$root" SCENARIO="$sc" SHIM="$tmp/shim"
       cd "$tmp"
       set +e

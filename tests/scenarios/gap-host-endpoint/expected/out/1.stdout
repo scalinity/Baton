@@ -1,0 +1,6 @@
+== the endpoint is the one the gap measured, not the one the event was written at. This tick starts at 00:00:00, runs a standing check that carries the clock to 00:11:00, and writes the gap event there; the gap itself is the two hours from 22:00 to 00:00. The host slept from 21:58 to 23:59:20, so the window the gap measured is covered with forty seconds awake and the event is recorded silently. Take the endpoint from the event at-time instead and the eleven minutes the check spent become eleven minutes the host has to account for and cannot: the same history would notify. calls.log carries no osascript line, which is the whole of the assertion ==
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:11:00+01:00.json (complete, merged_as @MERGE@, 1 path changed, check passed)
+gap       Baton was not running for 2 h 0 m, measured against 2026-09-11T22:00:00+01:00 · the host accounts for it · recorded, not sent
+
+last tick 2026-09-12T00:11:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+gap  recorded 2 h 0 m against 2026-09-11T22:00:00+01:00 · HOST-EXPLAINED · the host was asleep for 1 h 59 m of it

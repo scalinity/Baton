@@ -12,8 +12,9 @@ BATON_HOME=${BATON_HOME:-$HOME/.baton}
 BATON_DAEMON_LOG=${BATON_DAEMON_LOG:-$HOME/.claude/daemon.log}
 BATON_TRANSCRIPTS=${BATON_TRANSCRIPTS:-$HOME/.claude/projects}
 BATON_JOBS=${BATON_JOBS:-$HOME/.claude/jobs}
+BATON_PMSET=${BATON_PMSET:-/usr/bin/pmset}
 export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_OSASCRIPT BATON_OPEN BATON_HOME BATON_DAEMON_LOG \
-  BATON_TRANSCRIPTS BATON_JOBS
+  BATON_TRANSCRIPTS BATON_JOBS BATON_PMSET
 
 here=$(cd "$(dirname "$0")" && pwd)
 
@@ -57,6 +58,7 @@ fi
 . "$BATON_LIB/inbox.sh"
 . "$BATON_LIB/rows.sh"
 . "$BATON_LIB/status.sh"
+. "$BATON_LIB/host.sh"
 . "$BATON_LIB/escalate.sh"
 . "$BATON_LIB/disposition.sh"
 . "$BATON_LIB/answer.sh"

@@ -1,0 +1,14 @@
+#!/bin/sh
+# The pmset shim: the scenario's own sleep history, exactly as `pmset -g log` would have printed it.
+# `pmset.log` is the history and `pmset.status` an exit status to fail with; without either the
+# command succeeds and prints nothing, which is a host that answered and said nothing — the case §4
+# names as not proving no sleep.
+#
+# It records its argv like every other shim, and that line is load-bearing rather than incidental:
+# "the history is read once per needed tick" is a claim about how many times this runs, and
+# calls.log is where a scenario counts.
+set -eu
+S=${BATON_SHIM:?}
+printf 'pmset %s\n' "$*" >> "$S/calls.log"
+[ ! -f "$S/pmset.status" ] || exit "$(cat "$S/pmset.status")"
+[ ! -f "$S/pmset.log" ] || cat "$S/pmset.log"
