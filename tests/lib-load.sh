@@ -18,6 +18,7 @@
 . "$ROOT/lib/rows.sh"
 . "$ROOT/lib/status.sh"
 . "$ROOT/lib/escalate.sh"
+. "$ROOT/lib/disposition.sh"
 . "$ROOT/lib/answer.sh"
 . "$ROOT/lib/stops.sh"
 . "$ROOT/lib/declared.sh"

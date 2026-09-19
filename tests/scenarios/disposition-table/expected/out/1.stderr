@@ -1,0 +1,3 @@
+disposition_of: "permission" is not one of the escalation classes
+disposition_of: "gap-explained" is not one of the notification classes
+disposition_notifies: "asking" is not a disposition
