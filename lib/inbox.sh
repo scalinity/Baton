@@ -152,8 +152,11 @@ artifact_check() {
   ac_reason=''
   [ "$ac_outcome" != stopped ] || ac_reason=$(printf '%s' "$ac_a" | jq -r '.reason // ""')
   ac_dropped='[]'
+  ac_completion='{}'
   case "$ac_outcome" in
     complete)
+      ac_detail=$(completion_reserved_check "$ac_a") \
+        || { jq -nc --arg d "$ac_detail" '{rule: "reserved-field", detail: $d}'; return 1; }
       ac_merged=$(printf '%s' "$ac_a" | jq -r '.merged_as // ""')
       [ -n "$ac_merged" ] || { jq -nc '{rule: "missing-field", detail: "complete without merged_as"}'; return 1; }
       printf '%s' "$ac_a" | jq -e 'has("eligible") and (.eligible | type) == "array"' > /dev/null \
@@ -183,6 +186,16 @@ artifact_check() {
                  heading: ($e.brief?.heading? // null), detail: $d}
                 | with_entries(select(.value != null))]')
       done
+      # Last of the complete checks, because it is the only expensive one: it asks git four
+      # questions and then runs the project's standing check on a tree of its own. A file that
+      # fails a cheap rule never reaches it, and a file that reaches it is one whose every other
+      # rule has held. Its refusals are rejections; a check that ran and failed is not one, and
+      # arrives here as a result the consume records and parks on (M10 §7.4).
+      ac_completion=$(completion_verify "$ac_path" "$ac_key" \
+        "$(printf '%s' "$ac_a" | jq -r .milestone)" "$ac_session" "$ac_merged") || {
+        jq -nc --argjson c "$ac_completion" '$c'
+        return 1
+      }
       ;;
     asking)
       printf '%s' "$ac_a" | jq -e '(.question // "") != ""' > /dev/null \
@@ -208,7 +221,9 @@ artifact_check() {
   esac
 
   jq -nc --argjson a "$ac_a" --arg k "$ac_key" --arg w "$(written_by_of "$ac_reason")" \
-    --argjson d "$ac_dropped" '{artifact: $a, project: $k, written_by: $w, dropped: $d}'
+    --argjson d "$ac_dropped" --argjson c "$ac_completion" \
+    '{artifact: $a, project: $k, written_by: $w, dropped: $d}
+     | if ($c | length) > 0 then . + {completion: $c} else . end'
 }
 
 # escalate_rejection <project> <milestone> <session> <attempt> <rule> <path>: the lane escalation
@@ -355,6 +370,7 @@ repeat_one() {
 # checked again: a transcript since removed would otherwise reject it and park its lane.
 inbox_consume() {
   ic_status=0
+  inbox_reconcile "$1" || ic_status=1
   for ic_f in "$BATON_HOME"/inbox/*.json; do
     [ -f "$ic_f" ] || continue
     # Every branch that leaves work undone is counted, because the pass's status is what decides
@@ -409,69 +425,92 @@ inbox_consume() {
   return "$ic_status"
 }
 
-# consume_one <file> <artifact_check document> <rows json>: the decision for one checked artifact
-# — the stop an asking artifact earns, the routing a declared stop earns, the move, the consumed
-# event, and the entry rejections the brief pointers earned.
-consume_one() {
-  co_a=$(printf '%s' "$2" | jq -c .artifact)
-  co_project=$(printf '%s' "$2" | jq -r .project)
-  co_written_by=$(printf '%s' "$2" | jq -r .written_by)
-  co_milestone=$(printf '%s' "$co_a" | jq -r .milestone)
-  co_session=$(printf '%s' "$co_a" | jq -r .session)
-  co_outcome=$(printf '%s' "$co_a" | jq -r .outcome)
-  co_reason=$(printf '%s' "$co_a" | jq -r '.reason // ""')
-  co_attempt=$(attempt_for_session "$co_project" "$co_milestone" "$co_session") \
-    || { render_failure err "baton: $co_attempt"; return 1; }
-  co_note=$co_outcome
+# consume_settle <archived path> <artifact json> <project> <written_by> <rows json> <completion json>
+# <from>: everything a consumption decides once the artifact is in the archive — the stop an asking
+# artifact earns, the note, the `consumed` event, the line a person reads and the ending that needs
+# one. Split out because the reconciliation of a lost receipt has to do exactly this and nothing
+# else, and a second copy of it would be a second set of rules (D-146).
+#
+# <from> is the inbox name the file arrived under, for the line; an empty <from> is a reconciliation,
+# whose file has no inbox name any more. <completion json> is Baton's evidence for a `complete`
+# outcome, `{}` where there is none.
+consume_settle() {
+  cs_archive=$1; cs_a=$2; cs_project=$3; cs_written_by=$4; cs_rows=$5; cs_completion=$6; cs_from=${7:-}
+  cs_milestone=$(printf '%s' "$cs_a" | jq -r .milestone)
+  cs_session=$(printf '%s' "$cs_a" | jq -r .session)
+  cs_outcome=$(printf '%s' "$cs_a" | jq -r .outcome)
+  cs_reason=$(printf '%s' "$cs_a" | jq -r '.reason // ""')
+  cs_attempt=$(attempt_for_session "$cs_project" "$cs_milestone" "$cs_session") \
+    || { render_failure err "baton: $cs_attempt"; return 1; }
+  cs_note=$cs_outcome
 
-  # The event is composed before the move, and the three fields an outside process sizes — error,
-  # detail's neighbours blocked_by and merged_as — are cut the way dispatch_failed cuts its detail.
-  # log_event refuses a line at 4 KB, and a refusal after the move would leave an archived file
-  # with no consumed event, which derivation 1 then reads as a lane still open.
-  co_fields=$(printf '%s' "$co_a" | jq -c --arg w "$co_written_by" '
+  # The three fields an outside process sizes — error, detail's neighbours blocked_by and merged_as
+  # — are cut the way dispatch_failed cuts its detail, because log_event refuses a line at 4 KB and
+  # a refusal here would leave an archived file with no consumed event, which derivation 1 then
+  # reads as a lane still open. Baton's own completion evidence is bounded at its source.
+  cs_fields=$(printf '%s' "$cs_a" | jq -c --arg w "$cs_written_by" --argjson c "$cs_completion" '
     (if .outcome == "stopped" then {outcome, reason, error, blocked_by} else {outcome, merged_as} end)
     | with_entries(select(.value != null))
     | with_entries(if (.value | type) == "string" and (.value | length) > 500
                    then .value |= (.[0:500] + "…") else . end)
-    | . + {written_by: $w}')
-
-  # The move comes before anything the decision does: a move that fails leaves the file in the
-  # inbox for the next tick, and a session stopped ahead of it would be stopped again on every tick.
-  co_at=$(baton_now)
-  co_archive=$(archive_move "$1" "$co_at") || { render_failure err "baton: $co_archive"; return 1; }
+    | . + {written_by: $w}
+    | if ($c | length) > 0 then . + {completion: $c} else . end')
 
   # An asking session is stopped at once, so that the ruling M05 delivers resumes it under the
   # same id rather than racing a session that is still holding the prompt open. The verb takes the
   # background job's id, which only the row carries; a session with no live row is already stopped.
   # Only a session Baton dispatched is ever stopped: an empty attempt means no dispatch event names
   # this session, and Baton never stops what it did not start.
-  if [ "$co_outcome" = asking ]; then
-    co_job=''
-    [ -z "$co_attempt" ] || co_job=$(printf '%s' "$3" | jq -r --arg s "$co_session" \
+  if [ "$cs_outcome" = asking ]; then
+    cs_job=''
+    [ -z "$cs_attempt" ] || cs_job=$(printf '%s' "$cs_rows" | jq -r --arg s "$cs_session" \
       'map(select(.sessionId == $s and .pid != null)) | first | .id // empty')
-    if [ -n "$co_job" ]; then
-      "$BATON_CLAUDE" stop "$co_job" > /dev/null 2>&1 || true
-      co_note="asking, stopped $co_job"
+    if [ -n "$cs_job" ]; then
+      "$BATON_CLAUDE" stop "$cs_job" > /dev/null 2>&1 || true
+      cs_note="asking, stopped $cs_job"
     else
-      co_note="asking, no live row to stop"
+      cs_note="asking, no live row to stop"
     fi
   fi
-  if [ "$co_outcome" = stopped ]; then
-    co_note="stopped, $co_reason → $(stop_route "$co_reason")"
+  if [ "$cs_outcome" = stopped ]; then
+    cs_note="stopped, $cs_reason → $(stop_route "$cs_reason")"
   fi
-  if [ "$co_outcome" = complete ]; then
-    co_note="complete, merged_as $(printf '%s' "$co_a" | jq -r .merged_as)"
+  if [ "$cs_outcome" = complete ]; then
+    cs_note="complete, merged_as $(printf '%s' "$cs_a" | jq -r .merged_as)"
+    # `has`, not `//`: jq's alternative operator treats `false` as absent, so `.proved // empty`
+    # answers empty for exactly the case this line exists to name.
+    cs_proved=$(printf '%s' "$cs_completion" | jq -r 'if has("proved") then (.proved | tostring) else "" end' \
+      2>/dev/null || true)
+    case "$cs_proved" in
+      true) cs_note="$cs_note, $(printf '%s' "$cs_completion" | jq -r '
+              "\(.changed_count) path\(if .changed_count == 1 then "" else "s" end) changed, check \(.check.outcome)"')" ;;
+      false) cs_note="$cs_note, unproved" ;;
+    esac
   fi
   # REQ-ARTIFACT-03: a missing context on an asking artifact is a warning, not a rejection. This is
   # where the person hears it.
-  if [ "$co_outcome" = asking ] && ! printf '%s' "$co_a" | jq -e 'has("context")' > /dev/null; then
-    co_note="$co_note, no context"
+  if [ "$cs_outcome" = asking ] && ! printf '%s' "$cs_a" | jq -e 'has("context")' > /dev/null; then
+    cs_note="$cs_note, no context"
   fi
 
-  log_event consumed "$co_project" "$co_milestone" "$co_session" "$co_attempt" \
-    "$(printf '%s' "$co_fields" | jq -c --arg a "$co_archive" '. + {archive: $a}')"
-  render_row out record 'consumed  %s → %s (%s)\n' \
-    "$(render_token out path "$(basename "$1")")" "$(render_token out path "$co_archive")" "$co_note"
+  # The receipt is the thing everything after it assumes. A refused line — no lock, or a record past
+  # the 4 KB limit — used to be stepped over, and the function went on to park a project and print a
+  # line about a consumption the log does not hold; the next tick would then find the file
+  # unrecorded, reconcile it, and park the same project again, once a minute. Returning here leaves
+  # exactly one thing owed, which `inbox_reconcile` is what finishes (D-152).
+  log_event consumed "$cs_project" "$cs_milestone" "$cs_session" "$cs_attempt" \
+    "$(printf '%s' "$cs_fields" | jq -c --arg a "$cs_archive" --arg f "$cs_from" \
+       '. + {archive: $a} | if $f == "" then . + {reconciled: true} else . end')" || {
+    render_failure err "baton: $cs_project/$cs_milestone the consumed event was refused; the archived handover is left for a later tick to reconcile"
+    return 1
+  }
+  if [ -n "$cs_from" ]; then
+    render_row out record 'consumed  %s → %s (%s)\n' \
+      "$(render_token out path "$cs_from")" "$(render_token out path "$cs_archive")" "$cs_note"
+  else
+    render_row out action 'reconciled  %s (%s; its consumed event was lost after the move)\n' \
+      "$(render_token out path "$(basename "$cs_archive")")" "$cs_note"
+  fi
 
   # The endings that need a person, parked here because here is where the artifact is in hand: the
   # question with its options, or the sentence the session wrote about what it could not do. The
@@ -480,12 +519,182 @@ consume_one() {
   # and whose `park-project` action is `main-broken`. The consume is once by the move, so the park is
   # written once for the same reason (INV-06); everything else the table routes reads the log rather
   # than the file.
-  co_class=$(route_ending "$co_outcome" "$co_reason" | jq -r .class)
-  case "$co_class" in
+  cs_class=$(route_ending "$cs_outcome" "$cs_reason" | jq -r .class)
+  case "$cs_class" in
     asking|merge-failed|other|main-broken)
-      ending_escalate "$co_project" "$co_milestone" "$co_session" "$co_attempt" "$co_a" \
-        "$co_class" "$co_archive" ;;
+      ending_escalate "$cs_project" "$cs_milestone" "$cs_session" "$cs_attempt" "$cs_a" \
+        "$cs_class" "$cs_archive" ;;
   esac
+
+  # A standing check Baton ran and that did not pass is the broken-main ending, arrived at by
+  # Baton's own run rather than by the session's word for it. The class is `main-broken` and not a
+  # new one: what failed is the combined tree on `main` that every lane of the project stands on,
+  # which is the same fact, found a different way, and it releases through the same ruling and the
+  # same re-read. The handover is still consumed — the work really did merge, and leaving it in the
+  # inbox would have the next tick check it again — and the park is what stops the chain (D-151).
+  cs_check=$(printf '%s' "$cs_completion" | jq -r '.check.outcome // empty' 2>/dev/null || true)
+  case "$cs_check" in
+    ''|passed) ;;
+    *)
+      # Guarded, for `ending_escalate`'s reason: a park that could not be written is a chain that
+      # goes on running over a tree Baton has just established does not build, with nothing saying
+      # so. The carries is a command, a revision and a path, so only a missing lock refuses it.
+      escalate "$cs_project" "$cs_milestone" "$cs_session" "$cs_attempt" main-broken project \
+        "$(completion_park_carries "$cs_completion" "$cs_archive")" \
+        || render_failure err "baton: $cs_project/$cs_milestone the standing check did not pass and the project park could not be written; a later tick owes it"
+      render_row out action 'check     %s · %s\n' "$(render_token out milestone "$cs_milestone")" \
+        "$(printf '%s' "$cs_completion" | jq -r '"the standing check \(.check.outcome) at \(.check.revision)"')" ;;
+  esac
+}
+
+# inbox_reconcile <rows json>: the archived artifact whose `consumed` event is missing, finished.
+#
+# The inbox pass moves a file through `archive_move` before appending its event, because the move
+# is the consumption and a file rejected twice would escalate the same lane twice (INV-06). A tick
+# killed in that window leaves a file in the archive that no event claims: derivation 4 names it
+# under `unrecorded`, derivation 1 reads its lane as still open, and M03's crash rule sights a
+# session that ended properly. Nothing advanced and nothing said so (F07).
+#
+# The receipt is written here, on a later tick, with `reconciled` on the event so the record says
+# which consumptions were finished rather than made. This is a receipt write and not a second
+# verification: `archive_move` runs only after `artifact_check` passed, so an archived file is a
+# checked file by construction, and Baton's completion evidence was written to its own file before
+# the move and is read back from there (D-146).
+#
+# It is the inbox pass's first act, before any file in the inbox is looked at, because every rule
+# after that point — the repeat test, the attempt lookup, and outside this file the crash rule and
+# the ladder — reads the log this writes into. Finishing the older consumption before reading it is
+# what keeps a tick from deciding about a lane that closed minutes ago.
+inbox_reconcile() {
+  ir_status=0
+  # Its own words, not the derivation's verbatim: the repeat test reads the same log a moment later
+  # and reports the same failure, and two identical lines about one torn file read as a stutter
+  # rather than as two things that could not be done.
+  ir_doc=$(derive_consumed "") \
+    || { render_failure err "baton: no archived handover can be reconciled this tick: $ir_doc"; return 1; }
+  ir_n=$(printf '%s' "$ir_doc" | jq '[ .unrecorded[] | select(.where == "archive") ] | length')
+  ir_i=0
+  while [ "$ir_i" -lt "$ir_n" ]; do
+    ir_name=$(printf '%s' "$ir_doc" | jq -r "[ .unrecorded[] | select(.where == \"archive\") ][$ir_i].file")
+    ir_i=$((ir_i + 1))
+    ir_file=$BATON_HOME/archive/$ir_name
+    [ -f "$ir_file" ] || continue
+    # The archived file says what it is. A file that cannot be parsed back into an artifact is left
+    # where it is and named: it is already out of the inbox and harmless, and guessing a lane for it
+    # would write an event about a milestone nothing establishes.
+    ir_a=$(jq -ce 'if type == "object" then . else error("not an object") end' "$ir_file" 2>/dev/null) || ir_a=''
+    ir_key=''
+    [ -z "$ir_a" ] || ir_key=$(project_key_of "$(printf '%s' "$ir_a" | jq -r '.project // ""')" 2>/dev/null || echo '')
+    if [ -z "$ir_a" ] || [ -z "$ir_key" ] \
+       || ! printf '%s' "$ir_a" | jq -e '(.milestone | type) == "string" and (.session | type) == "string"
+                                          and (.outcome | type) == "string"' > /dev/null 2>&1; then
+      # Reported and not counted against the pass. A file that cannot be read back into a lane is
+      # left where it is and is harmless there — but counting it as work undone would make every
+      # later tick incomplete, so `last-tick` would freeze, `status` would show a gap growing
+      # without end, and the marker would never advance again over one stray file nobody has to act
+      # on (D-133 counts work that did not happen, and this is work there is none of). A
+      # `consume_settle` that failed still counts, because that is a receipt owed and not written.
+      render_failure err "baton: $ir_name sits in the archive with no event and cannot be read back into a lane; it is left as it is and nothing waits on it"
+      continue
+    fi
+    # Whose receipt was lost decides what is written. `repeat_one` moves a repeat into the archive
+    # before appending its `repeated` event, exactly as `consume_one` does, so the same crash window
+    # strands a repeat's copy too — and derivation 4 calls it `unrecorded` either way, because the
+    # claim it looks for is over both kinds of event. Settling that copy would write a *second*
+    # `consumed` event for a handover already acted on: a second ladder reset, a second park, a
+    # second stop of an asking session, the double action D-095 exists to forbid, reached through
+    # the very window this recovery was written to heal. So the repeat test comes first here for the
+    # same reason it comes first in the pass below, and a copy that repeats a consumed handover gets
+    # the `repeated` event it never got and nothing that acts on an ending (D-152).
+    ir_rc=0; ir_first=$(repeat_of "$ir_file") || ir_rc=$?
+    if [ "$ir_rc" -eq 2 ]; then
+      render_failure err "baton: $ir_name sits in the archive with no event and the log cannot be read: $ir_first"
+      ir_status=1
+      continue
+    fi
+    if [ "$ir_rc" -eq 0 ]; then
+      log_event repeated "$(printf '%s' "$ir_first" | jq -r '.project // ""')" \
+        "$(printf '%s' "$ir_first" | jq -r .milestone)" "$(printf '%s' "$ir_first" | jq -r .session)" \
+        "$(printf '%s' "$ir_first" | jq -r '.attempt // ""')" \
+        "$(printf '%s' "$ir_first" | jq -c --arg a "$ir_file" \
+           '{outcome, archive: $a, repeats: .archive, reconciled: true}
+            | with_entries(select(.value != null))')" || { ir_status=1; continue; }
+      render_row out action 'reconciled  %s (repeats %s, acted on once; its repeated event was lost after the move)\n' \
+        "$(render_token out path "$ir_name")" \
+        "$(render_token out path "$(basename "$(printf '%s' "$ir_first" | jq -r .archive)")")"
+      continue
+    fi
+    ir_reason=''
+    [ "$(printf '%s' "$ir_a" | jq -r .outcome)" != stopped ] || ir_reason=$(printf '%s' "$ir_a" | jq -r '.reason // ""')
+    consume_settle "$ir_file" "$ir_a" "$ir_key" "$(written_by_of "$ir_reason")" "$1" \
+      "$(reconciled_completion "$ir_key" "$ir_a")" '' || ir_status=1
+  done
+
+  # The other thing a killed tick leaves half-done. The `main-broken` park a failing check earns is
+  # a second append, a few statements after the `consumed` line that carries the failing result; a
+  # tick killed between them, or an `escalate` that refused, leaves a consumed completion whose
+  # record says the tree does not build and no park saying so. Nothing else re-derives it —
+  # `derive_parked` reads `escalation` events, and the sweep above only finishes files with no
+  # receipt at all — so the next tick would dispatch the next milestone onto a `main` Baton has
+  # already established is broken, which is the ending this milestone exists to stop (D-152).
+  for ir_pj in "$BATON_HOME"/projects/*/project.json; do
+    [ -f "$ir_pj" ] || continue
+    ir_project=$(basename "$(dirname "$ir_pj")")
+    ir_owed=$(completion_park_owed "$ir_project") || { render_failure err "baton: $ir_owed"; ir_status=1; continue; }
+    [ -n "$ir_owed" ] || continue
+    printf '%s\n' "$ir_owed" | while IFS= read -r ir_one; do
+      [ -n "$ir_one" ] || continue
+      escalate "$ir_project" "$(printf '%s' "$ir_one" | jq -r '.milestone // ""')" \
+        "$(printf '%s' "$ir_one" | jq -r '.session // ""')" \
+        "$(printf '%s' "$ir_one" | jq -r '.attempt // ""')" main-broken project \
+        "$(completion_park_carries "$(printf '%s' "$ir_one" | jq -c .completion)" \
+                                   "$(printf '%s' "$ir_one" | jq -r '.archive // ""')")" || continue
+      render_row out action 'reconciled  %s · the standing check did not pass and its project park was never written\n' \
+        "$(render_token out milestone "$(printf '%s' "$ir_one" | jq -r '.milestone // ""')")"
+    done
+  done
+  return "$ir_status"
+}
+
+# reconciled_completion <project> <artifact>: the completion evidence a reconciliation can still
+# read, which is the evidence file `completion_verify` wrote before the move, or `{}` when there is
+# none — a stopped or asking ending, a completion Baton did not dispatch, or an evidence file since
+# removed. It is read back rather than derived again, because deriving it again would check a
+# repository that has moved on since the consumption actually happened.
+reconciled_completion() {
+  [ "$(printf '%s' "$2" | jq -r .outcome)" = complete ] || { echo '{}'; return 0; }
+  rc_milestone=$(printf '%s' "$2" | jq -r .milestone)
+  rc_session=$(printf '%s' "$2" | jq -r .session)
+  rc_attempt=$(attempt_for_session "$1" "$rc_milestone" "$rc_session") || rc_attempt=''
+  [ -n "$rc_attempt" ] || { echo '{}'; return 0; }
+  rc_file=$(completion_check_dir "$1" "$rc_milestone" "$rc_attempt")/result.json
+  # An evidence file that is gone is said so, rather than left as an absent field: the line would
+  # otherwise read "complete, merged_as X" with neither "proved" nor "unproved" against it, and a
+  # receipt that says nothing about the thing it is a receipt for is the one shape this milestone
+  # is against (D-152).
+  [ -f "$rc_file" ] \
+    || { jq -nc '{proved: null, why: "the evidence file was not there to read back"}'; return 0; }
+  rc_full=$(jq -c . "$rc_file" 2>/dev/null) \
+    || { jq -nc '{proved: null, why: "the evidence file could not be read back"}'; return 0; }
+  completion_summary "$rc_full" "$rc_file"
+}
+
+# consume_one <file> <artifact_check document> <rows json>: the decision for one checked artifact
+# — the move, everything `consume_settle` decides once it has moved, and the entry rejections the
+# brief pointers earned.
+consume_one() {
+  co_a=$(printf '%s' "$2" | jq -c .artifact)
+  co_project=$(printf '%s' "$2" | jq -r .project)
+  co_written_by=$(printf '%s' "$2" | jq -r .written_by)
+  co_completion=$(printf '%s' "$2" | jq -c '.completion // {}')
+
+  # The move comes before anything the decision does: a move that fails leaves the file in the
+  # inbox for the next tick, and a session stopped ahead of it would be stopped again on every tick.
+  co_at=$(baton_now)
+  co_archive=$(archive_move "$1" "$co_at") || { render_failure err "baton: $co_archive"; return 1; }
+
+  consume_settle "$co_archive" "$co_a" "$co_project" "$co_written_by" "$3" "$co_completion" \
+    "$(basename "$1")" || return 1
 
   # A brief pointer that is not on main rejects that entry, not the file: the handover is still
   # the session's word about its own milestone, and only the entry it cannot support is dropped.

@@ -1,4 +1,5 @@
-{"count":44,"library":true,"plist":true,"notify":true}
-{"count":44,"library":true}
-48
+{"count":47,"library":true,"plist":true,"notify":true}
+{"path":"/somewhere/else/Baton","check":{"command":"sh tests/run.sh","deadline_seconds":1800}}
+{"count":47,"library":true}
+51
 unchanged permissions and wake settings retained; no temporary files

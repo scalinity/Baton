@@ -1,0 +1,3 @@
+echo "== the standing check outlasts its deadline: it is killed and recorded timed-out, which is not a pass, so the project is parked rather than the chain advancing on a check that never finished =="
+sh "$ROOT/tests/completion-fixture.sh" check-slow
+sh "$ROOT/tests/consume-once.sh"

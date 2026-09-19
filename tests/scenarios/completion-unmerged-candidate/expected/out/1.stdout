@@ -1,0 +1,2 @@
+== the claimed commit descends from the baseline and a separate branch holds scoped work, which is the ancestry that used to be enough; the candidate is not inside the claim, so it is refused ==
+rejected  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.json (completion-chain: m02 at @CANDIDATE@ is not an ancestor of @MERGE@, so the commit claimed as the merge does not carry the work)

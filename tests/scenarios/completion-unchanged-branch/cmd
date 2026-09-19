@@ -1,0 +1,3 @@
+echo "== the branch stands where it was dispatched: it changed nothing, so there is nothing in scope to prove =="
+sh "$ROOT/tests/completion-fixture.sh" unchanged-branch
+sh "$ROOT/tests/consume-once.sh"

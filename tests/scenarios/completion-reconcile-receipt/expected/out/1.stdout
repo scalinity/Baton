@@ -1,0 +1,2 @@
+== a tick was killed between the move and its event, so the archive holds a handover no event claims and the lane still reads as open: the inbox pass writes the receipt it never wrote, marked reconciled ==
+reconciled  M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json (complete, merged_as @MERGE@, 1 path changed, check passed; its consumed event was lost after the move)

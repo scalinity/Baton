@@ -1,0 +1,2 @@
+== the branch changed one file and M02's brief does not declare it, so no changed path is in scope ==
+rejected  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.json (completion-scope: the one path the branch changed is not inside M02's declared scope, which is docs/milestones/M02.md docs/one.md docs/two.md src/*.txt)

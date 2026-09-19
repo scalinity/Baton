@@ -1,0 +1,3 @@
+echo "== the artifact asserts its own check result, which only Baton writes =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+sh "$ROOT/tests/consume-once.sh"

@@ -1,0 +1,3 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "reserved-field · @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.json · baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · other"'
+[cwd @TMP@] claude agents --json

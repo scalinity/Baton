@@ -6,13 +6,18 @@ upgrade=$base/home2
 rm -rf "$upgrade"
 mkdir -p "$upgrade/projects/Baton"
 printf '%s\n' '{"permissions":{"allow":["Bash(sh tests/run.sh:*)","Bash(jq:*)"],"deny":["Bash(sudo:*)"]}}' > "$upgrade/projects/Baton/permissions.json"
+# A registration made before the standing check was part of one. install.sh writes {path, plan} only
+# when project.json is absent, so this is the case that could never gain a field registration
+# lacked (F11's shape, D-147): the check has to be added to it, and its existing path kept as it is.
+printf '%s\n' '{"path":"/somewhere/else/Baton","plan":"docs/MILESTONES.md"}' > "$upgrade/projects/Baton/project.json"
 install_upgrade() {
   HOME=$base BATON_HOME=$upgrade BATON_CLAUDE_ICON="$SCENARIO/../install/icon.icns" sh "$ROOT/install.sh" > "$base/install.out"
 }
 install_upgrade
 permissions=$upgrade/projects/Baton/permissions.json
 jq -ce '{count: (.permissions.deny | length), library: (.permissions.deny | index("Bash(*.baton/bin/lib*)") != null), plist: (.permissions.deny | index("Bash(*com.baton.tick*)") != null), notify: (.permissions.deny | index("Bash(*.baton/notify*)") != null)}' "$permissions"
-jq -e '.permissions.deny | length == 44' "$permissions" > /dev/null
+jq -e '.permissions.deny | length == 47' "$permissions" > /dev/null
+jq -ce '{path, check}' "$upgrade/projects/Baton/project.json"
 # Composition must carry the upgraded rail into the next dispatch, not just the registration.
 . "$ROOT/tests/lib-load.sh"
 saved_home=$BATON_HOME

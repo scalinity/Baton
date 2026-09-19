@@ -1,0 +1,3 @@
+echo "== the standing check failed and the consumed event says so, but the tick was killed before the project park was appended: the receipt exists, nothing re-derives the park, and the chain would run on over a tree Baton has already recorded as broken — so the reconciliation owes that park and writes it =="
+sh "$ROOT/tests/completion-fixture.sh" check-fails
+sh "$ROOT/tests/consume-once.sh"

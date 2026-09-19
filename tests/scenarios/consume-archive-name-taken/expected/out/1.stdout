@@ -1,1 +1,2 @@
 == the archived name this consume would take is already a file: it is not overwritten, nothing is recorded, and the handover stays in the inbox ==
+reconciled  M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json (stopped, unfinished → redispatch; its consumed event was lost after the move)

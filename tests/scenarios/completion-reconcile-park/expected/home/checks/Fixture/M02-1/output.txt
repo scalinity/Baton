@@ -1,0 +1,2 @@
+fixture check at @MERGE@
+one scenario failed

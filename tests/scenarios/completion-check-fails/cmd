@@ -1,0 +1,3 @@
+echo "== Baton runs the standing check on the merged tree itself and it fails: the handover is still consumed, because the work did merge, and the project is parked main-broken =="
+sh "$ROOT/tests/completion-fixture.sh" check-fails
+sh "$ROOT/tests/consume-once.sh"

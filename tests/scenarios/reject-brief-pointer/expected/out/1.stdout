@@ -1,3 +1,3 @@
-consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json (complete, merged_as @COMMIT@)
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json (complete, merged_as @COMMIT@, unproved)
 dropped   M99 entry of M02-11111111-2222-4333-8444-555555555555.json (docs/milestones/M99.md is not on main: fatal: path 'docs/milestones/M99.md' does not exist in 'main')
 dropped   M07 entry of M02-11111111-2222-4333-8444-555555555555.json (docs/milestones/M07.md on main has no heading "## No such heading")

@@ -1,0 +1,1 @@
+baton: M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json sits in the archive with no event and cannot be read back into a lane; it is left as it is and nothing waits on it

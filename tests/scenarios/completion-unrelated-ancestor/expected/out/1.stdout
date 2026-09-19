@@ -1,0 +1,2 @@
+== L13: the artifact names the repository's first commit, which is ancestral to main and passes merged_as verification; the branch it was dispatched on is not inside it, so the chain refuses it ==
+rejected  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.json (completion-chain: m02 at @CANDIDATE@ is not an ancestor of @COMMIT@, so the commit claimed as the merge does not carry the work)

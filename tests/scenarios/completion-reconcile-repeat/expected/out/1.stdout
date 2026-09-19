@@ -1,0 +1,2 @@
+== a repeat was moved into the archive and the tick was killed before its repeated event: the copy is claimed as a repeat of the handover already consumed, not settled as a second consumption, because a second consumed event would reset the ladder, park again and act twice on one handover ==
+reconciled  M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:05:00+01:00.json (repeats M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json, acted on once; its repeated event was lost after the move)

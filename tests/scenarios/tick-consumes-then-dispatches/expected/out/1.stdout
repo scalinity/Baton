@@ -1,4 +1,4 @@
-consumed  M01-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M01-11111111-2222-4333-8444-555555555555-2026-09-12T12:00:00+01:00.json (complete, merged_as @COMMIT@)
+consumed  M01-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M01-11111111-2222-4333-8444-555555555555-2026-09-12T12:00:00+01:00.json (complete, merged_as @COMMIT@, unproved)
 omitted  Fixture/M07 · no archived handover of Fixture lists M07, though the plan makes it eligible · the lane is parked
 backgrounded · 0badc0d1 · Baton · Fixture · M02
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)

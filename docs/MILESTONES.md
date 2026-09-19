@@ -40,6 +40,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M08 | Reclaim onboarding | M07-d | opus | | | held | Superseded by docs/v1.1/SCOPE.md M16, which carries its acceptance. Held permanently; the manual Reclaim migration it required is replaced by baton onboard. | No |
 | M09 | Where sessions live, and how they surface | M17-b | opus | medium | | | New worktrees live under BATON_HOME and the legacy siblings migrate there with git worktree move, losslessly if the fixture proves a mechanism and at D-137's accepted cost if not; branches, commits and dirty changes survive; each migrated worktree's legacy path is recorded; sessions group under their project | No (creates and moves worktrees; removes none) |
 | M10 | Completion that proves the work | M17-b | opus | medium | | | Completion proves dispatch ancestry and in-scope changes, with a standing-check result recorded by Baton; F07 (an archived artifact whose consumed receipt is missing) is recovered before F09 adds completion-result semantics | No |
+| M10-b | The tick's own clock, while it is working | M10 | opus | medium | | | A completion whose standing check takes minutes produces no "Baton was not running" message, and a person told about a lock during one is told its holder is alive | No |
 | M11 | baton onboard <path> | M09, M10 | opus | high | | | An unprepared or partly completed repository is registered and its existing plan adapted after one intent confirmation, which writes a confirmed intent record carrying goal, constraints and non-goals (F10); an existing registration migrates into it without resetting progress (F11); the planning/judgment session lifecycle is settled before the first judgment session (F03); CLI-shape checks cover what those roles consume (M4) | No |
 | M12 | Plan generation from a repository | M11 | opus | high | | | A repository without a usable plan generates conforming briefs and its first milestone dispatches and completes | No |
 | M13 | Autonomous handoff, and more than one at a time | M12 | opus | high | | | Newly eligible work runs up to the cap, an independent pair overlaps, and effort follows declared Size; co-dispatched sessions name each other in their slot lines, which closes the open half of docs/v2/01-findings.md finding 24 | No |
@@ -64,14 +65,14 @@ The gate is cleared by the D-number of the entry that records the migration comm
 | Requirement family | Requirements | Milestones (primary in bold) |
 |---|---|---|
 | REQ-CONTRACT | 01–06 | **M01** (03, 06: the slot line, Baton's own CLAUDE.md), **M02** (04), M06 (05), M08 (01, 02 for Reclaim) |
-| REQ-ARTIFACT | 01–09 | **M01** (09: the gate; 04: the api-error hook), **M02** (01–08) |
+| REQ-ARTIFACT | 01–11 | **M01** (09: the gate; 04: the api-error hook), **M02** (01–08), **M10** (10, 11: the completion chain and Baton's own fields; 06 amended) |
 | REQ-TICK | 01–09 | M01 (08: the seams; 09: the installed relay), **M03** (01–07) |
 | REQ-STOP | 01–14 | M03 (08, 09, 10, 14), **M04** (01–07, 13), **M05** (11, 14 hand-back), M06 (12), M07-b (14: Remote Control messages) |
 | REQ-ESC | 01–11 | M02 (11: `status`), M03 (02: the Mac message; 10: the gap), **M05** (01, 03–07, 09), M06 (04 project scope), M07 (08) |
 | REQ-PLAN | 01–08 | **M01** (01–05, 06 for Baton, 07, 08), M08 (06 for Reclaim), M17 (08: the precondition report) |
-| REQ-DISPATCH | 01–11 | **M01** (03–06, 08, 10), M03 (03 prune reserved), **M06** (01, 02, 09), **M07** (03 worktrees kept, 07), **M17** (11) |
+| REQ-DISPATCH | 01–11 | **M01** (03–06, 08, 10), M03 (03 prune reserved), **M06** (01, 02, 09), **M07** (03 worktrees kept, 07), **M17** (11), M10 (09 amended: the one read of a target's tree) |
 | REQ-PERM | 01–05 | **M01** (01–04), M05 (02: `allow` as writer), M06 (05) |
-| REQ-LOG | 01–08 | **M01** (01–03, 05, 08), **M02** (04, 06, 07) |
+| REQ-LOG | 01–08 | **M01** (01–03, 05, 08), **M02** (04, 06, 07), M10 (07 amended: the unrecorded archive reconciled) |
 | REQ-VERB | 01–08 | **M01** (01, 05, 06), M02 (04), M03 (02), M05 (03, 07), M07-b (08) |
 | REQ-SETUP | 01–08 | **M01** (05), **M03** (01, 04, 07, 08), M07 (06), M03 (02, 03: checked, recorded) |
 | REQ-LIFE | 01–04 | **M07-b** (01–04) |
@@ -94,6 +95,8 @@ except M07 and M08, which are acceptance and onboarding.
 | M17-b, M09 … M16 | Unattended; each close-out installs its own merge (D-079). The person answers a park when Baton asks, and nothing else. |
 
 ## Split rule
+
+M10-b was split off M10 on 2026-09-19, after implementation rather than before: the review found that M10's own change — a standing check running under the tick lock for minutes (D-148) — makes the gap rule report the check as an outage and the stale-lock line advise removing a live lock. Fixing either needs `lib/derive.sh`, `lib/rows.sh` and `lib/tick.sh`, three counted files against M10's budget of two, which is what the rule below triggers on. M10's own acceptance holds in full, so it is `done` and this is a separate, smaller piece of work rather than an unfinished remainder; no `stopped` artifact is written for it (D-152).
 
 M15 was split before implementation on 2026-09-17: taxonomy/L33/replan stays in M15,
 host-explained gaps and wake reconciliation move to M15-b, and the original natural remainder

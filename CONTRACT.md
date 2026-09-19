@@ -15,6 +15,14 @@ requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `do
    name, never `git add -A`) live in part 5, where they apply whether or not anything is in flight;
    the refusal to start the next milestone lives in part 7.
 
+   A brief's `## 5.` section is also the milestone's **declared scope**, which clause 3(b) reads: a
+   path named there between backticks, with `{a,b}` groups expanded and `*` read as a glob, is a
+   place the milestone's work is expected to show up. It is not an allowlist — the heading says
+   *proposed*, and a milestone may touch whatever it needs to — so the test is that at least one
+   changed path falls inside it, never that every one does. A path the section names only in prose
+   is not declared, so a §5 writing `SPEC, ARCHITECTURE, DECISIONS` without backticks declares a
+   narrower scope than it means.
+
 2. **Plan file.** `CLAUDE.md` names it. It is the milestone table in the project's plan document
    (`docs/MILESTONES.md`), found by its `ID` header cell, plus a gates table found by its `Gate`
    header cell. Columns are read by name — `ID`, `Depends on`, `Model`, `Effort`, `Remote`,
@@ -29,7 +37,12 @@ requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `do
    (a) completion evidence into the brief, the decision entry, commit on the branch;
    (b) merge into `main` — if the merge fails, write a `stopped` artifact with reason `merge-failed`
    and go no further; then run the project's standing check on `main`, the combined tree; if it
-   fails, fix it on `main`, and if that cannot be done, write `stopped` with reason `main-broken`;
+   fails, fix it on `main`, and if that cannot be done, write `stopped` with reason `main-broken`.
+   **The merge keeps the branch's commits and leaves the branch in place.** Baton verifies that the
+   branch's tip is an ancestor of the commit the handover names, so a squash merge, which makes a
+   new commit the branch tip is not inside, and a branch deleted after merging, which leaves no tip
+   to resolve, are both read as a chain that does not hold. Leaving the milestone's worktree in
+   place (clause 3(c)) keeps the branch by itself;
    (c) on `main`: refresh the prompt only of a listed milestone with neither an open lane nor an open park (parts 1 and
    3–7; part 4 additively, by thread; part 2 stays verbatim). Run `baton status` to identify
    in-flight lanes and open parks: an `in flight` line names a running milestone and a `parked`
@@ -53,6 +66,13 @@ requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `do
    `session` from `CLAUDE_CODE_SESSION_ID`; `project` is the canonical checkout, never a worktree;
    `baton: 1`. No prompt text, no model.
 
+   **`baseline`, `changed_paths` and `check_result` are Baton's, and an artifact carrying any of
+   them is rejected.** A session writing `"check_result": "passed"` is not reporting a test run, it
+   is asserting one, and the whole of this clause's companion in clause 3(b) is that a session's
+   word about its own work is what Baton is checking. Baton derives all three itself and records
+   them beside the consumption; the session's job is the merge and the standing check on `main`,
+   not the evidence for them.
+
 5. **Outcomes.** A question for the person is asked in the session itself, with the session's own
    question tool, so the session keeps running: Remote Control carries it to Claude.app and the phone,
    the answer arrives in place, and Baton parks the lane as `question` meanwhile. A session that cannot
@@ -69,16 +89,26 @@ requirements that restate them are `REQ-CONTRACT-01` to `REQ-CONTRACT-06` in `do
 ## Baton's side, recorded beside the contract
 
 Baton creates the milestone worktree from `main` under its own home, dispatches with it as `cwd`,
-and never removes it — it may move one, which loses nothing, and never while a session is working
-in it; a project's own record of where a worktree is is git's registration, so a session's recorded
-working directory and Baton's next dispatch cannot disagree;
-injects the Stop gate, the StopFailure hook and the status-feed command at dispatch, the first two
+and records on the dispatch event the commit it stands at — the attempt's **baseline**. It never
+removes a worktree. It may move one, which loses nothing, and never while a session is working in
+it; a project's own record of where a worktree is is git's registration, so a session's recorded
+working directory and Baton's next dispatch cannot disagree. It injects the Stop gate, the
+StopFailure hook and the status-feed command at dispatch, the first two
 standing down once the session's `complete` handover is archived; verifies `merged_as` before a
-`complete` handover is acted on; computes eligibility from the plan file, dispatches only the
+`complete` handover is acted on, and for a handover of a milestone it dispatched verifies the whole
+chain — the baseline is an ancestor of the attempt's branch tip, that tip is an ancestor of
+`merged_as`, `merged_as` is on `main`, and the branch changed at least one path inside the
+milestone's declared scope — then checks out the merge commit into a tree of its own, establishes
+that the tree is that commit, runs the project's registered standing check in it under a deadline,
+and records the result; a check that did not pass parks the project as `main-broken`, and a
+handover Baton has no baseline for — one of a milestone it did not dispatch, or one whose attempt
+was dispatched before the baseline was recorded — is consumed and recorded as unproved rather than
+rejected, since there is nothing to bind it to and nothing honest to recover after the merge; computes eligibility from the plan file, dispatches only the
 intersection with the handover's dispositions, honours the plan's gates even when a handover omits
 them, and escalates disagreement in both directions by milestone name; composes part 2 at dispatch
-from its log; archives a handover when it has acted on it; and records what actually ran, and why
-it differed from the plan, in the dispatch log.
+from its log; archives a handover when it has acted on it, finishing on a later tick any
+consumption whose receipt was lost between the move and the event; and records what actually ran,
+and why it differed from the plan, in the dispatch log.
 
 ## The artifact, by example
 

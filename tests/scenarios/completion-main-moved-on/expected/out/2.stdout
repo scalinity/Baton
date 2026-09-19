@@ -1,0 +1,1 @@
+== another lane's work landed on main after the merge: the changed paths are still the branch's own, and the check names the merge commit rather than whatever main now points at ==

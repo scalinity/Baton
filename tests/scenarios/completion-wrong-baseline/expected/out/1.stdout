@@ -1,0 +1,2 @@
+== the dispatch recorded a baseline the branch does not descend from, so the branch is not this attempt's ==
+rejected  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.json (completion-chain: the dispatch baseline @WRONG@ is not an ancestor of m02 at @CANDIDATE@, so the branch is not this attempt's)

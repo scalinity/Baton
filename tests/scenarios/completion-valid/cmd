@@ -1,0 +1,3 @@
+echo "== M02 dispatched at the baseline, its branch merged into main with an in-scope change: the chain holds, Baton runs the standing check on the merge commit, and the record carries what it found =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+sh "$ROOT/tests/consume-once.sh"

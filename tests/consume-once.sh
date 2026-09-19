@@ -26,6 +26,7 @@ export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_OSASCRIPT BATON_HOME BATON
 . "$root/lib/notify.sh"
 . "$root/lib/dispatch.sh"
 . "$root/lib/derive.sh"
+. "$root/lib/completion.sh"
 . "$root/lib/inbox.sh"
 . "$root/lib/status.sh"
 . "$root/lib/escalate.sh"

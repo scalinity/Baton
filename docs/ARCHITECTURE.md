@@ -30,11 +30,13 @@ hundred lines, means a Swift command-line tool for that piece.
 │   └── Baton.applescript     the notifier applet's source; install.sh compiles it into ~/.baton/bin/Baton.app
 ├── bin/baton                 the script: verb dispatch only; every verb lives in lib/
 ├── lib/
+│   ├── render.sh             the one layer between what Baton decides and what a person reads; sourced first
 │   ├── lock.sh               the mkdir lock; every verb enters through it
 │   ├── log.sh                the one append function; the envelope; attempt derivation
 │   ├── derive.sh             the fifteen recovery derivations, one function each
 │   ├── plan.sh               the plan-file reader: locate tables, read columns by name, parse tokens
-│   ├── inbox.sh              consume, provenance, merged_as, brief pointers, archive, reject
+│   ├── inbox.sh              consume, provenance, merged_as, brief pointers, archive, reject, reconcile
+│   ├── completion.sh         the chain a completion claim must hold, and the check Baton runs itself
 │   ├── rows.sh               claude agents --json: crash, stall, live prompts, takeover, the gap
 │   ├── tick.sh               the eight steps, the self-check, the marker, the stale lock
 │   ├── notify.sh             the Mac message, and the notification writer
@@ -58,6 +60,7 @@ hundred lines, means a Swift command-line tool for that piece.
 ├── tests/
 │   ├── run.sh                the standing check: every scenario, one line each
 │   ├── shim/claude           the claude shim; date, caffeinate, osascript and open shims beside it
+│   ├── completion-fixture.sh the baseline, candidate and merge commits a completion chain is judged against
 │   ├── payloads/             hook payloads copied from .scratch/baton/prototype/obs/
 │   └── scenarios/<name>/     a fixture project, an inbox, a log, a rows file, and expected/
 └── docs/
@@ -80,7 +83,7 @@ milestone can never break the tick that dispatched it, and a broken install is u
 reviewed earlier code on `main` and installing again (D-018, D-079, D-113). A launchd job cannot execute anything under `~/Documents`,
 which is the other reason the running copy lives under `~/.baton/`.
 
-**Nothing is read half-installed** (D-131). `bin/baton` sources twenty libraries before it reads
+**Nothing is read half-installed** (D-131). `bin/baton` sources its whole library set before it reads
 the verb and long before any `lock_take`, and launchd fires every sixty seconds, so a file-by-file
 copy could hand a starting tick some libraries from the old set and some from the new — and a lock
 in the installer could not have prevented it, because the sourcing is over before the tick takes
@@ -118,8 +121,12 @@ neither re-signed nor replaced by the publish (D-038), and the launchd agent's f
 ├── notify/target                         the newest posted message's target, which a click opens (claude://claude.ai/code/session_<id>, or empty)
 ├── config.json              Baton's numbers (below)
 ├── projects/<project>/
-│   ├── project.json         {"path": "/Users/danny/Documents/Apps/Reclaim", "plan": "docs/MILESTONES.md"}
+│   ├── project.json         {"path": "…/Reclaim", "plan": "docs/MILESTONES.md", "check": {"command": "sh tests/run.sh", "deadline_seconds": 1800}}
 │   └── permissions.json     {"permissions": {"allow": [...], "deny": [...]}}
+├── checks/<project>/<milestone>-<attempt>/
+│   ├── tree/                the detached checkout of the claimed merge commit, while the standing check runs there; removed when it ends
+│   ├── output.txt           that run's combined output, which the consumed event points at
+│   └── result.json          the completion evidence in full, written before the artifact moves so a lost receipt can be reconciled from it
 ├── settings/<project>-<milestone>.json   the composed --settings file (below)
 ├── settings/wake.json                    the wake session's settings: Remote Control on, the deny list, no hooks; it runs in ~/.baton-wake/
 ├── worktrees/<project>/<milestone>       the managed root: a milestone worktree Baton created, on branch m<nn>
@@ -210,7 +217,7 @@ named path is one rule, so a directory the list does not name (one a session cre
 `~/.baton/`) is not denied, and a Bash fragment is never complete, which is the stated limit of the
 class. `worktrees/` is one of the directories the list does not name, and must stay that way: it
 holds the session's own working directory, and a rule denying writes under it would deny the
-session its own repository (D-145). A `permissions.json` with no deny rules fails the `settings` stage rather than dispatching
+session its own repository (D-153). A `permissions.json` with no deny rules fails the `settings` stage rather than dispatching
 without the rail. Under `bypassPermissions` the allow rules allow nothing and cost nothing; they are kept
 so that a hand-started session under `default` passing the same file behaves as a dispatched one.
 
@@ -240,14 +247,30 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    and parse both tables; run `git -C <path> rev-parse HEAD`. Either failing parks the project
    (project scope, `plan-unreadable` or `plan-unparseable`, the path and what failed) and skips it
    for the rest of the tick. A stale lock is reported before this, and one past the interval whose pid answers no signal is cleared by the tick, which then writes the `baton-unhealthy` escalation under the lock it takes (D-039).
-2. **Consume the inbox.** For each `*.json` (never `.tmp`), first the repeat test: a file holding
+2. **Consume the inbox.** First the reconciliation, before any inbox file is looked at: each file
+   in `archive/` that derivation 4 names under `unrecorded` is a consumption a tick was killed in
+   the middle of, and it gets the `consumed` event it never got, carrying `reconciled: true`, plus
+   the ending escalation that consumption owed. It is a receipt write and not a second check —
+   the move only ever follows a passed check, and a completion's evidence was written to
+   `checks/<project>/<milestone>-<attempt>/result.json` before the move — and it comes first
+   because every rule after it reads the log it writes into (F07, D-146).
+   Then, for each `*.json` (never `.tmp`), first the repeat test: a file holding
    the same JSON value, `written_at` included, as an archived copy of a `consumed` handover for its
    milestone and session — its first file or an earlier repeat's — is moved to the archive with a
    `repeated` event naming the first file, and nothing else follows — no check, stop, route, park or
    `consumed` event (D-095, D-097); a log the test cannot read leaves the file in the inbox. Otherwise: parse; check provenance (the `session`
-   has a transcript found by glob, the `project` is a registered checkout); for `complete`, verify
-   `merged_as` is an ancestor of `main` in the canonical checkout; verify each `brief` pointer's
-   path and heading on `main`. Reject loudly to `~/.baton/rejected/` with a `rejected` event and a
+   has a transcript found by glob, the `project` is a registered checkout); for `complete`, refuse
+   the fields only Baton writes (`baseline`, `changed_paths`, `check_result` — `reserved-field`),
+   verify `merged_as` is an ancestor of `main` in the canonical checkout, and verify each `brief`
+   pointer's path and heading on `main`. Then, last because it is the only expensive one, the
+   completion chain of REQ-ARTIFACT-10: the attempt's baseline `B` is an ancestor of its branch tip
+   `T`, `T` is an ancestor of `merged_as`, the paths `B..T` changed touch the milestone's declared
+   scope, and the project's registered standing check, run by Baton on a detached checkout of
+   `merged_as` under `$BATON_HOME`, gives a result the record carries. A chain or scope that does
+   not hold is a rejection; a check that ran and did not pass is not — the handover is consumed and
+   the project is parked `main-broken` (D-151). A `complete` handover no `dispatch` event names is
+   recorded `proved: false`, because Baton proves what Baton dispatched (D-145).
+   Reject loudly to `~/.baton/rejected/` with a `rejected` event and a
    lane escalation; otherwise archive as `<milestone>-<session>-<consumed-at>.json` and log the
    `consumed` event. `asking` stops the session at once; `stopped` routes by reason.
    For rejection and the orphan sweep, JSON supplies identity first. Missing identity comes from
@@ -639,9 +662,9 @@ Twenty-two kinds. Fields listed are those beyond the envelope.
 
 | Kind | Fields | Which rule reads it | Once-only key |
 |---|---|---|---|
-| `dispatch` | `name`, `model`, `effort`, `remote`, `worktree`, `branch`, `worktree_reused`, `worktree_commit`, `settings`, `prompt_path`, `prompt_sha256` | the attempt count; the ladder's reset point; in flight; the long-running clock; the takeover candidate set; the cap; **the model actually run**, for grading after the fact | — |
+| `dispatch` | `name`, `model`, `effort`, `remote`, `worktree`, `branch`, `worktree_reused`, `baseline` (the commit the worktree stands at, on every dispatch; it was `worktree_commit` and was written only for a reused worktree — D-145), `settings`, `prompt_path`, `prompt_sha256` | the attempt count; the ladder's reset point; in flight; the long-running clock; the takeover candidate set; the cap; **the model actually run**, for grading after the fact; **the baseline a completion claim has to descend from** (REQ-ARTIFACT-10) | — |
 | `dispatch_failed` | `stage` (`worktree`\|`settings`\|`prompt`\|`launch`\|`service`), `detail`; no `session` | the second consecutive since the pair's newest `dispatch` escalates, lane scope, and that park is then what stops the retry (D-049); `stage: service` escalates, project scope, which is M06's | — |
-| `consumed` | `outcome`, `reason` or `error`, `written_by` (`session`\|`stop-gate`\|`stop-failure`), `merged_as`, `blocked_by`, `archive` | every ending's routing; the ladder's reset; the notification keys' reset; the terminal test for in flight; the wait's start before its first retry | — |
+| `consumed` | `outcome`, `reason` or `error`, `written_by` (`session`\|`stop-gate`\|`stop-failure`), `merged_as`, `blocked_by`, `archive`, `completion` (for a `complete` outcome: `proved`, and when proved `attempt`, `baseline`, `candidate`, `branch`, `integration`, `changed_paths` (the first ten), `changed_count`, `check`, `evidence`), `reconciled` (true when the receipt was written by a later inbox pass rather than by the consumption itself) | every ending's routing; the ladder's reset; the notification keys' reset; the terminal test for in flight; the wait's start before its first retry; the completion evidence a person reads and derivation 4 joins on | — |
 | `repeated` | `outcome`, `archive` (where the file came to rest), `repeats` (the `archive` of the `consumed` handover it repeats); the envelope is that handover's | derivation 4's join, which claims the archived file; no rule acts on it, so a repeat routes, parks, resets and ranks nothing (D-095) | — |
 | `rejected` | `path` (where the file came to rest: `~/.baton/rejected/` for a rejected file, `~/.baton/archive/` for a rejected `eligible[]` entry of a file that was consumed), `reason` (the rule's name) | the lane escalation that follows a rejection (the log is the record, so no sidecar) | — |
 | `resume` | `resume_kind` (`continue`\|`finish`\|`ruling`), `resume`, `class`, `outcome` (`delivered`\|`forked`\|`refused`), `prompt_path`, `prompt_sha256` | the resume count; the ladder (`refused` is a failure ending); the long-running clock; the takeover candidate set | — |
@@ -958,8 +981,8 @@ rows.json         what claude agents --json answers first
 now               the clock's reading
 shim/             optional: the claude shim's knobs (bg.stderr, bg.fail, bg.norow, bg.settled,
                   bg.color, resume.note, resume.stream, resume.status)
-project/          optional: a fixture project (CLAUDE.md, docs/MILESTONES.md, docs/milestones/M*.md);
-                  tests/project/ otherwise
+project/          optional: a fixture project (CLAUDE.md, docs/MILESTONES.md, docs/milestones/M*.md,
+                  check.sh — the standing check Baton runs itself); tests/project/ otherwise
 other/            optional: a second fixture project, committed at <tmp>/Other, its commit
                   written @OTHERCOMMIT@, for the rules asked across projects (D-076)
 jobs/             optional: the tree BATON_JOBS points at, <job>/state.json per background session
@@ -977,7 +1000,12 @@ fixed date and identity (so its hash is the same on every run), does the same fo
 `<tmp>/Other`, copies `home/`, points the seams at
 the shims, runs `cmd` twice, then diffs the state left behind — `home/` without the lock, both
 runs' streams and exit codes, and the shims' `calls.log` — against `expected/` with the temporary
-root written as `@TMP@`. A `dispatch` event's `prompt_sha256` is recomputed from its sidecar under
+root written as `@TMP@`. A scenario that builds commits of its own — `tests/completion-fixture.sh`
+does, because a completion chain needs a baseline, a candidate and a merge that the one fixture
+commit cannot supply — writes `<NAME> <value>` lines to `<tmp>/subs` and replaces `@NAME@` in its own
+`home/` with the value; those values are turned back into `@NAME@` in the result before the diff, so
+an expectation holds `@BASELINE@`, `@CANDIDATE@` and `@MERGE@` rather than hashes that would move
+whenever `tests/project/` changed. A `dispatch` event's `prompt_sha256` is recomputed from its sidecar under
 the one rule and replaced by `sha256-matches-sidecar` or a mismatch note before the diff, because
 the sidecar carries the temporary path. `BATON_TESTS_FREEZE=<name>` rewrites that scenario's
 `expected/` from the run, for a fixture whose output has been read and judged right, and `all` every
@@ -1020,4 +1048,5 @@ edit, or by typing into a session, and `status` is the view.
 | M08 | `projects/Reclaim/{project.json,permissions.json}`, the hand-written starting artifact, `baton plan Reclaim` green, item 38 against Reclaim's path | M07-d |
 | M17 | `lib/preconditions.sh`: `dispatch_preconditions <project> <milestone>` (read-only; prints `{project, milestone, checkout, brief, worktree, branch, references_inspected, failures: [{check, stage, path, detail, repair}]}` with status 0 whatever it found, a failure's `path` being checkout-relative for stage `prompt` and absolute otherwise, and the detail with status 1 when the inspection could not be made at all); `permissions_inspect <project>` (the deny-rule reading `settings_compose` refuses without, inspected without composing); `prompt_references` (a kickoff prompt on stdin, `path <p>` or `ambiguous <t>` per line, deduplicated in first-seen order). Checks, in the order `failures` carries them: `checkout` (stage `worktree`); then `brief`, or `slot` and one `reference` or `reference-ambiguous` per path the prompt names, in the order it names them (stage `prompt`); then `not-a-worktree`, or `behind-brief` and `worktree-brief` (stage `worktree`); then `permissions` (stage `settings`). `behind-brief` is named for what it checks: the branch carries the brief's own latest commit, not every unrelated commit on main. `lib/plan.sh`: `plan_preconditions_report <project> <plan json>` appends the report to `verb_plan`, which now returns 1 when a precondition is unmet. `lib/dispatch.sh`: `worktree_of <path> <milestone>` (prints `{worktree, branch}`, the naming `worktree_ensure` creates from and the preconditions inspect); `dispatch_one` calls `dispatch_preconditions` before `worktree_ensure` and records the first defect through the existing `dispatch_failed` with the defect's existing stage. No new verb, event kind or stage; `dispatch_try`'s retry-then-escalate bound is unchanged (D-138, D-139, D-140). | M07-d |
 | M17-b | `lib/render.sh`, the one layer between what Baton decides and what a person reads, sourced first by `bin/baton`, `tests/lib-load.sh` and `tests/consume-once.sh`. `render_init` (read once at the verb boundary, before any pipeline; sets `RENDER_TTY_OUT`, `RENDER_TTY_ERR`, `RENDER_STYLE_OUT`, `RENDER_STYLE_ERR`, `RENDER_COLUMNS`, `RENDER_UTF8`, `RENDER_ESC`, `RENDER_READY`); `render_ready` (lazy init, which inside a capture reads "not a terminal"); `render_styled <out\|err>`; `render_width_ok <text>` (a positive decimal of at most five digits, 1 to 10000, validated as text before any arithmetic); `render_token <out\|err> <kind> <text>` (kinds `lane`, `milestone`, `verb`, `state`, `path`, `timestamp`, `session`; returns the text, styled, for the caller to pass as an argument; empty in, empty out); `render_hint <out\|err> <text>`; `render_heading <out\|err> <format> [args…]`; `render_row <out\|err> <kind> <format> [args…]` with kind `action`, `record` or `plain`; `render_lines <json array> [<kind>]`; `render_failure <out\|err> <message> [<repair>]`; `render_plain <format> [args…]`, the explicit never-styled context for a Mac message and for human lines returned inside JSON; and internally `render_emit`, `render_record`, `render_field`, `render_count`, `render_paint`. Colours are ANSI 16 plus dim: cyan identity, amber for what needs an act, dim for a timestamp, path or session id. `COLUMNS` first, then `stty size < /dev/tty` and only with a TTY, else 80; the effective `LC_ALL`, `LC_CTYPE`, `LANG` decides UTF-8 or ASCII continuation. **Changes** the sixteen person-facing libraries and `bin/baton` to print through it, `plan_render` to take an optional third `<out\|err>` argument and stay plain without one, `answer_candidates_print` to take its stream, `usage` to take its stream, and `lib/log.sh` and `lib/lock.sh` to carry the note that anything sourcing them alone sources `lib/render.sh` first. Three scenarios: `render-matrix`, `verbs-tty`, `notify-tty-plain`, each driving a real pseudo-terminal through the base system's `script` (D-141, D-142, D-143). | M17 |
-| M09 | `lib/dispatch.sh`: `worktree_entries <path>` (this repository's registered worktrees, one `<path>\t<branch ref>` line each, from `git worktree list --porcelain`, empty and status 0 for a path that is not a repository); `worktree_registered <path> <branch>`; `worktree_managed <path> <milestone>` (`$BATON_HOME/worktrees/<project key>/<milestone>`); `worktree_legacy_id <checkout> <path>` (the milestone a `<dirname>/<basename>-<id>` sibling names, or empty); `worktree_migrate <project> <rows json>` (the per-project move pass, one guard, silent refusal, one `worktree_moved` event and one line per move). **Changes** `worktree_of` to resolve the path from git's registration and fall back to the managed root, so a moved worktree is found where it now is rather than where its name would put it; and `worktree_ensure` to `mkdir -p` the managed parent, and to refuse a reuse whose `--git-common-dir` is not the checkout's or whose `symbolic-ref HEAD` is not the milestone's branch, each with the repair command. `lib/tick.sh`: the migration pass between steps 6 and 7, per project, before `offline_check`. `tests/run.sh`: `home/worktrees` is dropped from the snapshot as `home/lock` is, because a dispatch now creates a whole worktree inside the scenario's home. Six scenarios: `worktree-managed-new`, `worktree-legacy-reuse`, `worktree-wrong-repository`, `worktree-wrong-branch`, `worktree-migrate`, `worktree-migrate-live-row`. Event `worktree_moved`; REQ-DISPATCH-12; the managed root under `~/.baton/` (D-145). | M17-b |
+| M09 | `lib/dispatch.sh`: `worktree_entries <path>` (this repository's registered worktrees, one `<path>\t<branch ref>` line each, from `git worktree list --porcelain`, empty and status 0 for a path that is not a repository); `worktree_registered <path> <branch>`; `worktree_managed <path> <milestone>` (`$BATON_HOME/worktrees/<project key>/<milestone>`); `worktree_legacy_id <checkout> <path>` (the milestone a `<dirname>/<basename>-<id>` sibling names, or empty); `worktree_migrate <project> <rows json>` (the per-project move pass, one guard, silent refusal, one `worktree_moved` event and one line per move). **Changes** `worktree_of` to resolve the path from git's registration and fall back to the managed root, so a moved worktree is found where it now is rather than where its name would put it; and `worktree_ensure` to `mkdir -p` the managed parent, and to refuse a reuse whose `--git-common-dir` is not the checkout's or whose `symbolic-ref HEAD` is not the milestone's branch, each with the repair command. `lib/tick.sh`: the migration pass between steps 6 and 7, per project, before `offline_check`. `tests/run.sh`: `home/worktrees` is dropped from the snapshot as `home/lock` is, because a dispatch now creates a whole worktree inside the scenario's home. Six scenarios: `worktree-managed-new`, `worktree-legacy-reuse`, `worktree-wrong-repository`, `worktree-wrong-branch`, `worktree-migrate`, `worktree-migrate-live-row`. Event `worktree_moved`; REQ-DISPATCH-12; the managed root under `~/.baton/` (D-153). | M17-b |
+| M10 | `lib/completion.sh`, what a completion claim has to prove and the evidence Baton produces itself: `completion_baseline <project> <milestone> <attempt>` (prints `{baseline, branch, worktree}`; the baseline is the earliest recorded for the milestone on that attempt's branch, at or before it, so a redispatch is not asked to redo work already on the branch — D-152); `completion_scope_patterns <repo> <milestone>` (the declared scope, one pattern per line, from the brief's `## 5.` on `main` — backticked spans that name a path, `{a,b}` expanded, `$VARIABLE` and prose dropped; status 1 when there is no such section); `completion_in_scope <patterns> <path>` (equality, directory prefix, or the pattern as a glob); `completion_chain <repo> <baseline> <branch> <merged_as>` (prints `{baseline, candidate, integration, branch, changed_paths}`; resolves `T` once and requires `B` ancestor-of `T`, `T` ancestor-of `M`; it takes the baseline already resolved and derives none, because after the merge the branch's merge-base with `main` is the branch tip); `completion_scope_check <repo> <milestone> <changed paths json>` (at least one path inside the scope; the refusal names the patterns); `completion_check_dir <project> <milestone> <attempt>`; `completion_check_command <project>` (prints `{command, deadline}` from `project.json`'s `.check`); `completion_check_run <repo> <project> <milestone> <attempt> <revision>` (detached checkout under `$BATON_HOME`, the tree asked what it stands at and whether it is clean, the command run under a done-marker deadline whose marker is renamed into place, the tree removed; prints `{revision, command, outcome, exit, output}` — no duration, because it is the one number the machine decides rather than the repository and a frozen expectation holding it would fail on a loaded Mac); `completion_summary <full document> <evidence path>` (the document as the event carries it, every unbounded field cut in bytes); `completion_park_carries <completion json> <archive>`; `completion_park_owed <project>` (the completions whose failing check earned a `main-broken` park that was never written); `completion_evidence_write <project> <milestone> <attempt> <document>` (writes `result.json` by rename and prints its path, for a proved completion and an unproved one alike, so a receipt reconciled later says what this one says); `completion_verify <repo> <project> <milestone> <session> <merged_as>` (the whole of it, writing `checks/<project>/<milestone>-<attempt>/result.json` before the artifact moves; prints the document, or `{rule, detail}` with status 1 for a rejection); `completion_reserved_check <artifact>`. `lib/inbox.sh`: `artifact_check` gains the `reserved-field` rule and the `completion` key; `consume_settle <archive> <artifact> <project> <written_by> <rows> <completion> [<from>]`, everything a consumption decides once the file has moved, split out of `consume_one` so the reconciliation can do exactly it; `inbox_reconcile <rows>`, the inbox pass's first act, which runs the repeat test and then either writes the `repeated` event an interrupted repeat never wrote or the `consumed` event an interrupted consumption never wrote, applying in the second case the ending it owed (D-152); `reconciled_completion <project> <artifact>`, which reads that evidence file back rather than deriving it again; `inbox_consume` calls the reconciliation before its loop. `lib/dispatch.sh`: the `dispatch` event's `worktree_commit` becomes `baseline` and is written on every dispatch. `install.sh` adds `.check` to a registration that lacks one, additively. `~/.baton/checks/<project>/<milestone>-<attempt>/{tree,output.txt,result.json}`; `CONTRACT.md` clauses 1 and 4 and Baton's side; `REQ-ARTIFACT-10`, `REQ-ARTIFACT-11`, amended `REQ-ARTIFACT-06`, `REQ-LOG-07` and `REQ-DISPATCH-09`. Fixtures `completion-*`. **No new event kind and no new escalation class:** the evidence rides on `consumed` and a check that did not pass is the existing `main-broken` park, found by Baton's own run (D-145 to D-151) | M17-b |

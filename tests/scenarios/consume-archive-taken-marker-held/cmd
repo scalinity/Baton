@@ -6,6 +6,11 @@ set -eu
 # its marker, and advanced the clock the gap is measured against over a handover still sitting in the
 # inbox with nothing in the log. The pass now carries the failure, the tick is incomplete, and the
 # marker it started with stands (D-133).
+#
+# The file already holding that name is itself a consumption no event claims, so the pass reconciles
+# it first and writes the receipt it never got (F07, D-146). That is a different handover's receipt:
+# what must still be true here is that *this* handover, the one in the inbox, was not recorded — so
+# the assertion below passes over any event the reconciliation wrote.
 marker=$(cat "$BATON_HOME/last-tick")
 echo "== the destination is taken by a different artifact, so the consume fails before it mutates =="
 "$BATON" tick || echo "tick status $?"
@@ -13,5 +18,6 @@ echo "== the marker the tick started with is unchanged =="
 [ "$marker" = "$(cat "$BATON_HOME/last-tick")" ]
 echo "== the handover is still in the inbox and nothing was recorded for it =="
 [ -f "$BATON_HOME/inbox/M02-11111111-2222-4333-8444-555555555555.json" ]
-jq -es '[.[] | select(.kind == "consumed" or .kind == "repeated")] | length == 0' "$BATON_HOME/log.jsonl" > /dev/null 2>&1 \
+jq -es '[.[] | select((.kind == "consumed" or .kind == "repeated") and (has("reconciled") | not))] | length == 0' \
+  "$BATON_HOME/log.jsonl" > /dev/null 2>&1 \
   || [ ! -s "$BATON_HOME/log.jsonl" ]

@@ -1,0 +1,3 @@
+echo "== a tick was killed between the move and its event, so the archive holds a handover no event claims and the lane still reads as open: the inbox pass writes the receipt it never wrote, marked reconciled =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+sh "$ROOT/tests/consume-once.sh"
