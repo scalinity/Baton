@@ -384,6 +384,15 @@ completion_check_run() {
   wait "$ccr_pid" 2>/dev/null || true
 
   if [ "$ccr_timedout" = yes ]; then
+    # The half-written marker the kill interrupted. `>` creates `.exit.tmp` before the status is in
+    # it and the rename is what publishes it, which is why the poll reads only the renamed name —
+    # but a kill landing between the two leaves the `.tmp` in the evidence directory, and whether it
+    # does depends on the timing of a signal. The next run sweeps it, so nothing read it; what it
+    # cost was a **non-deterministic standing check**, which is worse than it sounds, because the
+    # standing check is the thing every completion is proved against. `completion-timed-out` failed
+    # once under the load of two lanes and passed three times in a row alone, and a flake there
+    # parks a project `main-broken` for a milestone that did nothing wrong (D-172).
+    rm -f "$ccr_out.exit.tmp"
     ccr_exit=-1; ccr_outcome=timed-out
   else
     ccr_exit=$(cat "$ccr_out.exit" 2>/dev/null) || ccr_exit=''
