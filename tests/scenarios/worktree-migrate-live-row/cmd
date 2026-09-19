@@ -1,0 +1,12 @@
+set -eu
+# The one guard: a live row whose cwd is the worktree refuses the move. The harness resolves a
+# session by id and restores the working directory it recorded, so moving the ground under a
+# running one strands it. The refusal says nothing — a worktree is guarded exactly while its lane
+# is in flight, which `status` already shows, and a line a minute would bury the moves that happen.
+if [ ! -e Fixture-M03 ]; then
+  git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M03 -b m03 main
+fi
+"$BATON" tick
+test -d Fixture-M03
+test ! -e "$BATON_HOME/worktrees/Fixture/M03"
+printf '%s\n' 'the live row held the worktree at its recorded path, and said nothing'

@@ -48,18 +48,62 @@ row_for_id() {
   return 1
 }
 
-# worktree_of <path> <milestone>: the names a milestone's worktree would carry —
-# ../<Project>-<milestone> and the branch <milestone lowercased> — without touching either. Printed
-# as {"worktree","branch"}. `worktree_ensure` creates from these and `dispatch_preconditions`
-# inspects them, so the naming is written once and the two cannot drift apart.
-worktree_of() {
-  jq -nc --arg w "$(dirname "$1")/$(basename "$1")-$2" --arg b "$(printf '%s' "$2" | tr 'A-Z' 'a-z')" \
-    '{worktree: $w, branch: $b}'
+# worktree_entries <path>: this repository's registered worktrees, one "<path>\t<branch ref>" line
+# each, detached and bare entries left out. Read from `git worktree list --porcelain`, which is
+# git's own record and which `git worktree move` keeps correct — the only reading of a worktree's
+# location that survives one (D-153). Empty, with status 0, when the path is not a repository at
+# all: `dispatch_preconditions` asks for the names before it has established the checkout is
+# usable, and a missing repository is that check's answer to give, not this one's.
+worktree_entries() {
+  git -C "$1" worktree list --porcelain 2>/dev/null | awk '
+    /^worktree / { p = substr($0, 10); b = ""; next }
+    /^branch /   { b = substr($0, 8); next }
+    /^$/         { if (p != "" && b != "") print p "\t" b; p = ""; b = "" }
+    END          { if (p != "" && b != "") print p "\t" b }'
 }
 
-# worktree_ensure <path> <milestone>: ../<Project>-<milestone> on branch <milestone lowercased>,
-# created from main; reused if it exists, recording the commit it stands at. Prints
+# worktree_registered <path> <branch>: the absolute path of the worktree this repository has
+# registered on <branch>, or empty when it has none.
+worktree_registered() {
+  worktree_entries "$1" | awk -F '\t' -v b="refs/heads/$2" '$2 == b { print $1; exit }'
+}
+
+# worktree_managed <path> <milestone>: where a worktree this project does not have yet is created —
+# $BATON_HOME/worktrees/<project key>/<milestone>, the managed root. The project key is the
+# basename of the canonical checkout, as it is everywhere else in Baton.
+worktree_managed() {
+  printf '%s' "$BATON_HOME/worktrees/$(basename "$1")/$2"
+}
+
+# worktree_of <path> <milestone>: the names a milestone's worktree carries — the path git has
+# registered for the branch <milestone lowercased>, or the managed root when the project has no
+# worktree on that branch yet — without touching either. Printed as {"worktree","branch"}.
+# `worktree_ensure` creates from these and `dispatch_preconditions` inspects them, so the naming is
+# written once and the two cannot drift apart.
+#
+# The registration is asked rather than a sibling path derived, because the two answers part company
+# the moment a worktree is moved: the derived path finds no directory, `worktree add` is taken
+# instead, and git refuses the branch it is already holding elsewhere — `fatal: '<branch>' is
+# already used by worktree at '<new path>'`, exit 128, measured on git 2.54 — which reaches
+# `dispatch_failed … worktree` and parks the lane on the second try. Resolution is therefore not a
+# convenience beside the managed root but the thing that makes moving one safe at all (D-153).
+worktree_of() {
+  wo_branch=$(printf '%s' "$2" | tr 'A-Z' 'a-z')
+  wo_wt=$(worktree_registered "$1" "$wo_branch")
+  [ -n "$wo_wt" ] || wo_wt=$(worktree_managed "$1" "$2")
+  jq -nc --arg w "$wo_wt" --arg b "$wo_branch" '{worktree: $w, branch: $b}'
+}
+
+# worktree_ensure <path> <milestone>: the milestone's worktree on branch <milestone lowercased>,
+# created from main under the managed root when the project has none, reused where git has it
+# recorded — wherever that is — with the commit it stands at. Prints
 # {"worktree","branch","reused","commit"}.
+#
+# Reuse is verified rather than assumed. A path git handed back is this repository's worktree on
+# this branch by construction; the managed path is not, because a directory can be sitting there
+# that Baton did not put there. Both identities are therefore asked of the directory itself, and a
+# question that cannot be answered refuses: dispatching a session into another repository, or onto
+# another branch, would have it merge work into a place nobody is looking.
 worktree_ensure() {
   we_path=$1; we_id=$2
   we_names=$(worktree_of "$we_path" "$we_id")
@@ -68,8 +112,26 @@ worktree_ensure() {
   if [ -d "$we_wt" ]; then
     we_reused=true
     we_commit=$(git -C "$we_wt" rev-parse HEAD 2>&1) || { echo "$we_wt exists but is not a worktree: $we_commit"; return 1; }
+    # Both answers are resolved before they are compared. `--path-format=absolute` makes a path
+    # absolute; it does not make it canonical, so a project registered through a symlinked path
+    # would be told its own worktree belongs to somebody else. Measured on this Mac the two already
+    # agree, which is exactly why the resolution is written now rather than after it has bitten.
+    we_theirs=$(git -C "$we_wt" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || we_theirs=
+    [ -z "$we_theirs" ] || we_theirs=$(cd "$we_theirs" 2>/dev/null && pwd -P) || we_theirs=
+    we_ours=$(git -C "$we_path" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || we_ours=
+    [ -z "$we_ours" ] || we_ours=$(cd "$we_ours" 2>/dev/null && pwd -P) || we_ours=
+    if [ -z "$we_ours" ] || [ -z "$we_theirs" ] || [ "$we_ours" != "$we_theirs" ]; then
+      echo "$we_wt is not a worktree of $we_path: its repository is ${we_theirs:-unreadable} and the checkout's is ${we_ours:-unreadable}. Baton reuses only the project's own worktree, so move that directory aside yourself: mv $(shell_word "$we_wt") $(shell_word "$we_wt.aside")"
+      return 1
+    fi
+    we_on=$(git -C "$we_wt" symbolic-ref --quiet HEAD 2>/dev/null) || we_on=
+    if [ "$we_on" != "refs/heads/$we_branch" ]; then
+      echo "$we_wt is on ${we_on:-a detached HEAD} and $we_id's branch is refs/heads/$we_branch. Baton reuses a worktree only on the milestone's own branch, so check it out there yourself: git -C $(shell_word "$we_wt") checkout $(shell_word "$we_branch")"
+      return 1
+    fi
   else
     we_reused=false
+    mkdir -p "$(dirname "$we_wt")"
     # core.hooksPath is emptied because `worktree add` runs the repository's post-checkout hook, and
     # from M03 this call is made by a launchd job whose shell has Full Disk Access. A dispatched
     # session runs under bypassPermissions inside that checkout and the deny list does not cover a
@@ -86,6 +148,92 @@ worktree_ensure() {
   fi
   jq -nc --arg w "$we_wt" --arg b "$we_branch" --argjson r "$we_reused" --arg c "$we_commit" \
     '{worktree: $w, branch: $b, reused: $r, commit: $c}'
+}
+
+# worktree_legacy_id <checkout> <path>: the milestone named by a legacy sibling worktree path —
+# <dirname checkout>/<basename checkout>-<milestone>, the convention every worktree carried before
+# the managed root — or empty when the path is not one of those.
+worktree_legacy_id() {
+  wl_prefix=$(dirname "$1")/$(basename "$1")-
+  case "$2" in
+    "$wl_prefix"?*) printf '%s' "${2#"$wl_prefix"}" ;;
+    *) ;;
+  esac
+}
+
+# worktree_migrate <project> <rows json>: move this project's legacy sibling worktrees into the
+# managed root. Nothing is deleted, reset or recreated: `git worktree move` rewrites git's two
+# administrative files and leaves branches, commits, uncommitted changes and ignored build products
+# exactly as they were (D-137). A worktree already under the managed root, one whose path is not
+# the legacy convention, and one whose branch is not the milestone's own are all passed over, so the
+# pass is idempotent and touches nothing it did not itself name.
+#
+# **One guard, not D-075's three.** A move is refused while any live row's `cwd` is that worktree or
+# under it, and that is the whole of it. D-075 guarded a *delete* — `Status` reads `done`, and a
+# verified `merged_as` with no newer ending — because a delete is irreversible and a question it
+# could not answer had to fail safe. A move loses no bytes, so neither is required here; both are
+# named so that a later reader does not restore them by analogy. The one guard that remains is the
+# one whose failure is real: the harness resolves a session by id and restores the working directory
+# it recorded, so moving the ground under a running one strands it. A guard that cannot be answered
+# — rows that will not parse — refuses like a guard that answered yes.
+#
+# A refusal says nothing. A worktree is guarded precisely while its session is live, which `status`
+# already shows as a lane in flight, and a line per guarded worktree per minute would bury the moves
+# that did happen. A move and a failure to move each say so once.
+worktree_migrate() {
+  wm_project=$1; wm_rows=$2
+  wm_status=0
+  wm_path=$(project_path "$wm_project") || {
+    render_failure err "baton: $wm_project's checkout could not be read; no worktree was migrated"
+    return 1
+  }
+  wm_root=$BATON_HOME/worktrees/$(basename "$wm_path")
+  # A repository git cannot read here answers with no entries and this pass does nothing, which is
+  # right rather than lax: step 1's self-check has already parked a project whose git check failed,
+  # so a project reaching this point has been asked that question and answered it.
+  wm_entries=$(worktree_entries "$wm_path")
+  while IFS='	' read -r wm_wt wm_ref; do
+    [ -n "$wm_wt" ] || continue
+    wm_id=$(worktree_legacy_id "$wm_path" "$wm_wt")
+    [ -n "$wm_id" ] || continue
+    # The milestone comes from the directory's own name and is then checked against the branch git
+    # has it on, rather than being read back out of the branch: `m07-b` uppercased is `M07-B`, which
+    # is not the milestone `M07-b` and would name a worktree nothing else in Baton can find.
+    [ "$wm_ref" = "refs/heads/$(printf '%s' "$wm_id" | tr 'A-Z' 'a-z')" ] || continue
+    wm_to=$wm_root/$wm_id
+    [ "$wm_wt" != "$wm_to" ] || continue
+    # Something already at the destination is a state rather than an error: the worktree keeps
+    # working where it is, nothing is at risk, and Baton never writes over a directory it did not
+    # put there. It is said out loud because Baton's own operation cannot produce it — a worktree it
+    # created at the managed path would be registered there, and the legacy sibling could not then
+    # hold the same branch — so it means a person's directory is in the way. It does not fail the
+    # pass, because the pass's status is what decides the tick's marker: a condition that stands
+    # until somebody moves a directory would otherwise freeze the clock `status` reads and have the
+    # relay report itself as not running while it runs every minute.
+    [ ! -e "$wm_to" ] || {
+      render_failure err "baton: $wm_project/$wm_id's worktree stays at $wm_wt: $wm_to already exists and Baton never writes over one"
+      continue
+    }
+    wm_live=$(printf '%s' "$wm_rows" | jq -r --arg w "$wm_wt" '
+      [ .[] | select(.pid != null) | (.cwd // "")
+        | select(. == $w or startswith($w + "/")) ] | length' 2>/dev/null) || wm_live=
+    case "$wm_live" in ''|*[!0-9]*) continue ;; esac
+    [ "$wm_live" -eq 0 ] || continue
+    mkdir -p "$wm_root"
+    if wm_out=$(git -C "$wm_path" worktree move "$wm_wt" "$wm_to" 2>&1); then
+      log_event worktree_moved "$wm_project" "$wm_id" "" "" \
+        "$(jq -nc --arg f "$wm_wt" --arg t "$wm_to" --arg b "${wm_ref#refs/heads/}" \
+           '{from: $f, to: $t, branch: $b}')"
+      render_row out record 'worktree    %s · moved to %s\n' \
+        "$(render_token out lane "$wm_project/$wm_id")" "$(render_token out path "$wm_to")"
+    else
+      render_failure err "baton: $wm_project/$wm_id's worktree could not be moved from $wm_wt to $wm_to: $(printf '%s' "$wm_out" | head -1)"
+      wm_status=1
+    fi
+  done <<MIGRATE
+$wm_entries
+MIGRATE
+  return "$wm_status"
 }
 
 # shell_word <string>: the string as exactly one shell word, single-quoted, with any quote of its

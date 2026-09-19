@@ -3,7 +3,7 @@ crash     Fixture/M02 · f2 · confirmed on the second sighting
 redispatch Fixture/M02 · the resume did not bring it back, so attempt 2 starts from the brief
 backgrounded · 0badc0d1 · Baton · Fixture · M02
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 2)
-worktree  @TMP@/Fixture-M02 (branch m02)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
 settings  @TMP@/home/settings/Fixture-M02.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
 true

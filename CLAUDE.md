@@ -36,8 +36,9 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
    does not prove closure. Still name every eligible milestone with its correct disposition; write
    `done` in this milestone's `Status`
    cell in `docs/MILESTONES.md`; correct the plan file if this session learned it is wrong, with a
-   decision entry; leave the session's worktree (`../Baton-M<nn>`) in place, so the session can be
-   resumed later; commit. Then run `BATON_HOME=/Users/danny/.baton sh install.sh` from the canonical
+   decision entry; leave the session's worktree in place — its path is the one the
+   dispatch printed, not a path derived from the milestone's name — so the session can be resumed
+   later; commit. Then run `BATON_HOME=/Users/danny/.baton sh install.sh` from the canonical
    checkout, so the tick that consumes this handover and dispatches the next milestone runs the relay
    just merged (D-079); the home is named because a session inherits the background service's
    environment, which can carry another home's `BATON_HOME` (D-091). The
@@ -56,7 +57,9 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
 
 M01 is the one session started by hand, on `main`, with no worktree and no injected gate: the
 contract in this file alone makes it write the artifact. From M02 on, every session is dispatched
-by Baton into `../Baton-M<nn>` on branch `m<nn>`, with the Stop gate injected.
+by Baton into its milestone worktree on branch `m<nn>`, with the Stop gate injected. A new worktree
+is created at `~/.baton/worktrees/Baton/M<nn>`; one the milestone already has is used where git has
+it registered, which is what the dispatch's own `worktree` line names.
 
 ## What a kickoff prompt contains
 

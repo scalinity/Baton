@@ -1,0 +1,20 @@
+set -eu
+# A clone of this very repository at the managed path, on a branch of the right name, carrying the
+# brief at the right commit. Every check that reads the directory's *contents* says yes — the
+# ancestry, the readable brief, the branch — and it is still not Fixture's worktree: a session
+# dispatched there would commit and merge into a history nothing else in Baton is looking at, and
+# the close-out's merge would land nowhere. Identity is asked of the repository itself.
+wt=$BATON_HOME/worktrees/Fixture/M02
+if [ ! -d "$wt" ]; then
+  mkdir -p "$BATON_HOME/worktrees/Fixture"
+  git clone -q --no-hardlinks Fixture "$wt"
+  git -C "$wt" checkout -q -b m02
+fi
+status=0
+"$BATON" dispatch Fixture M02 || status=$?
+test "$status" -eq 1
+jq -se 'last | .kind == "dispatch_failed" and .stage == "worktree"' "$BATON_HOME/log.jsonl" > /dev/null
+test "$(git -C "$wt" symbolic-ref --short HEAD)" = m02
+test ! -e "$BATON_HOME/settings/Fixture-M02.json"
+test ! -e "$BATON_HOME/prompts"
+printf '%s\n' 'the clone was refused on identity; no settings file and no prompt were written'
