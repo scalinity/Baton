@@ -26,14 +26,24 @@ notification  prompt-lost       human-required  notifies
 notification  gap               human-required  notifies
 notification  takeover-silent   human-required  notifies
 
+=== and the other direction: no arm of disposition_of names a class class_or_fail does not.
+=== A dead arm is invisible to the listing above, and it is how a class removed from the log
+=== taxonomy would leave a disposition behind that nothing can ever ask for.
+  the two lists are the same, in both directions
+
 === the one arm that reads the carries: a bounded choice the session enumerated
 with options:    AI-resolvable
 one option:      AI-resolvable
-options a string, which a session may still write:
+a lone string, which a session may still write where the contract says a list:
                  AI-resolvable
+=== and the shapes a session writes when it had none, which must not look bounded
 empty options:   human-required
+empty string:    human-required
+an object:       human-required
+the number nil:  human-required
 no options:      human-required
 no carries:      human-required
+carries not json:human-required
 
 === a class neither list holds is refused, not defaulted
 exit 1

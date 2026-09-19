@@ -7,10 +7,13 @@
   main-broken -> exit 1
   unfinished-twice -> exit 1
 
-=== gap is the class the fourth disposition was named for, and it is refused here too: a gap is
-=== over when it is reported, but nothing yet explains it. There is no notification arm at all
-=== until docs/milestones/M15-b.md can say which gaps the host accounts for.
+=== gap is the class the fourth disposition was named for, and it is refused here too — but on
+=== the first guard and not the disposition, which is the honest reason and is shown rather than
+=== swallowed: there is no notification arm at all until docs/milestones/M15-b.md can say which
+=== gaps the host accounts for, so gap is not a class this writer takes in any disposition.
   gap -> exit 1
+=== and the table is what says gap still reaches a person, which is the claim that matters:
+  gap is human-required
 
 === the refusals a person reads, on the stream they belong to
 

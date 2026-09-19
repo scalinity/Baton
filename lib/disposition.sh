@@ -75,9 +75,14 @@ disposition_of() {
     # other. The disposition is recorded ahead of the route on purpose, because the route has to
     # know which parks are its own before it can be written.
     escalation:asking)
+      # A lone value becomes a list of one, the coercion `asking_carries` already makes for a session
+      # that wrote a string where the contract says a list — but only a value that is an option.
+      # `""`, `0` and `{}` are what a session writes when it had none, and wrapping those would make
+      # an open question look bounded, which is the one direction this arm must not err in.
       if [ -n "$dof_carries" ] \
-         && printf '%s' "$dof_carries" | jq -e '((.options // []) | if type == "array" then . else [.] end | length) > 0' \
-              > /dev/null 2>&1; then
+         && printf '%s' "$dof_carries" | jq -e '
+              ((.options // []) | if type == "array" then . elif type == "string" and . != "" then [.] else [] end
+               | length) > 0' > /dev/null 2>&1; then
         echo AI-resolvable
       else
         # No options is an open question, and an open question may be asking for a credential. The
@@ -183,9 +188,12 @@ disposition_of() {
 
 # disposition_notifies <disposition>: whether a condition carrying it reaches the Mac. Derived and
 # never a second opinion — `HOST-EXPLAINED` is the disposition that means "no act exists", and a
-# message with no act is the one this milestone exists to stop sending. Status 1 for anything that
-# is not one of the four, so a caller that passed a class where a disposition belongs fails here
-# rather than falling through to a silent write.
+# message with no act is the one this milestone exists to stop sending.
+#
+# Three answers and not two: 0 reaches a person, **1 is silent**, and 2 is a word that is not a
+# disposition at all. The third exists so that a caller testing only for 1 cannot mistake a class
+# name, an empty string or a typo for HOST-EXPLAINED and write it silently — which is why
+# `record_only` matches the 1 positively rather than testing for the absence of 0.
 disposition_notifies() {
   case "$1" in
     HOST-EXPLAINED) return 1 ;;
@@ -280,33 +288,63 @@ rejection_resolve_check() {
   rrc_n=$(printf '%s' "$rrc_list" | jq length); rrc_i=0
   [ "$rrc_n" -gt 0 ] || return 0
   rrc_log=$(log_json) || { render_failure err "$rrc_log"; return 1; }
+  rrc_status=0
+  rrc_done=''
   while [ "$rrc_i" -lt "$rrc_n" ]; do
     rrc_e=$(printf '%s' "$rrc_list" | jq -c ".[$rrc_i]"); rrc_i=$((rrc_i + 1))
     rrc_at=$(printf '%s' "$rrc_e" | jq -r .at)
     rrc_path=$(printf '%s' "$rrc_e" | jq -r '.carries.path // ""')
     rrc_s=$(printf '%s' "$rrc_e" | jq -r '.session // ""')
+    rrc_m=$(printf '%s' "$rrc_e" | jq -r '.milestone // ""')
+    # `derive_parked` keys a resolution on `(escalation_at, project, milestone)` and the parks were
+    # derived once, before any of them was closed. Two parks of one milestone raised in the same
+    # second are therefore indistinguishable to that join, and the first `resolve` closes both — so
+    # the second would write a redundant `resolution` for a park already closed. The pair is
+    # remembered rather than the log re-read, because re-deriving per park would read the whole log
+    # once per orphan for a case that is two lines to handle.
+    case "$rrc_done" in *"|$rrc_at $rrc_m|"*) continue ;; esac
     rrc_why=''
     # The file first, because it is the thing the park's own message names and the cheaper read.
+    # An absolute path under `$BATON_HOME`, as `reject_move` wrote it: moving the home would read as
+    # every orphan park's file being gone. Deliberate on one Mac, where the home does not move, and
+    # the alternative — re-deriving the path from the home and the basename — would invent a second
+    # opinion about where the file is when the park already carries the one Baton chose.
     if [ ! -e "$rrc_path" ]; then
       rrc_why="the file it names is gone"
-    elif [ -n "$rrc_s" ] && printf '%s' "$rrc_log" | jq -e --arg s "$rrc_s" --arg a "$rrc_at" '
+    elif [ -n "$rrc_s" ] && [ -n "$rrc_m" ] \
+         && printf '%s' "$rrc_log" | jq -e --arg s "$rrc_s" --arg a "$rrc_at" --arg m "$rrc_m" '
            [ to_entries[] | {i: .key} + .value ] as $ev
-           | ([ $ev[] | select(.kind == "escalation" and .at == $a) ] | last | .i // -1) as $park
-           | any($ev[]; .kind == "consumed" and .session == $s and .i > $park)' > /dev/null 2>&1; then
-      # The other correction: the session wrote an artifact Baton could read, and that handover has
-      # been acted on. "Since" is **log order and not the timestamp**, which is the rule CONTRACT
-      # clause 3(c) states for exactly this question and which `person_acted` and `derive_key_spent`
-      # already follow: `at` carries an offset, so two events an hour apart in different zones sort
-      # by their text the wrong way round, and a rejection is the case where that is likeliest —
-      # the artifact came from a session whose clock Baton does not own. The park's index is found
-      # from its `at`, which is its identity everywhere else.
+           | ([ $ev[] | select(.kind == "escalation" and .at == $a and .session == $s
+                               and .milestone == $m and (.project // "") == "") ] | last | .i // -1) as $park
+           | $park >= 0 and any($ev[]; .kind == "consumed" and .session == $s and .milestone == $m
+                                       and .i > $park)' > /dev/null 2>&1; then
+      # The other correction: the session wrote an artifact Baton could read *for this milestone*,
+      # and that handover has been acted on. The milestone is part of the test and not only the
+      # session, because one session can owe more than one artifact — a hand-run session whose bad
+      # `M02-<id>.json` was rejected and whose good `M01-<id>.json` was consumed has corrected
+      # nothing about M02, and the file the M02 park names is still sitting in `rejected/`.
+      #
+      # "Since" is **log order and not the timestamp**, the rule CONTRACT clause 3(c) states for
+      # exactly this question and which `person_acted` and `derive_key_spent` already follow: `at`
+      # carries an offset, so two events an hour apart in different zones sort by their text the
+      # wrong way round, and a rejection is where that is likeliest — the artifact came from a
+      # session whose clock Baton does not own. The park's own index is found by matching its
+      # whole identity and not its `at` alone, so an unrelated escalation in the same second cannot
+      # stand in for it.
       rrc_why="the session it names has had a handover consumed since"
     fi
     [ -n "$rrc_why" ] || continue
-    resolve "" "$(printf '%s' "$rrc_e" | jq -r '.milestone // ""')" "$rrc_s" "" "$rrc_at" edit \
-      || { render_failure err "baton: the rejection park raised at $rrc_at could not be resolved"; continue; }
+    if ! resolve "" "$rrc_m" "$rrc_s" "" "$rrc_at" edit; then
+      # The tick's own status, not a swallowed `continue`: the marker means "a tick completed"
+      # (INV-11), and a pass that could not write a resolution has not.
+      render_failure err "baton: the rejection park raised at $rrc_at could not be resolved"
+      rrc_status=1
+      continue
+    fi
+    rrc_done="$rrc_done|$rrc_at $rrc_m|"
     render_row out record 'settled   %s · the rejection park raised at %s is closed · %s\n' \
-      "$(render_token out milestone "$(printf '%s' "$rrc_e" | jq -r '.milestone // "an unnamed milestone"')")" \
+      "$(render_token out milestone "${rrc_m:-an unnamed milestone}")" \
       "$(render_token out timestamp "$rrc_at")" "$rrc_why"
   done
+  return "$rrc_status"
 }
