@@ -45,6 +45,26 @@ no options:      human-required
 no carries:      human-required
 carries not json:human-required
 
+=== the second arm that reads the carries, and the only disposition that is not a constant.
+=== The listing above asked about the class with no evidence at all and got human-required,
+=== which is what a gap nothing accounts for really needs. What moves it is one field, written
+=== by the parser in lib/host.sh and by nothing else.
+host explained it:   HOST-EXPLAINED
+=== and every other reading of the same field, each of which reaches a person
+complete, no sleep:  human-required
+not enough sleep:    human-required
+the read failed:     human-required
+a doubt inside:      human-required
+=== and the shapes that must not be read as an explanation, because unknown is not asleep
+no host object:      human-required
+host is null:        human-required
+assessed is empty:   human-required
+assessed is a list:  human-required
+no carries:          human-required
+carries not json:    human-required
+=== the answer this function wrote last time is not evidence, and cannot talk it into itself
+disposition only:    human-required
+
 === a class neither list holds is refused, not defaulted
 exit 1
 exit 1

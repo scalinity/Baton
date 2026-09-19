@@ -256,12 +256,31 @@ status_render() {
     silent_waits "$(basename "$(dirname "$sr_pj")")" "$sr_rows"
   done
 
-  # 8. An open gap, if one was reported and nothing has cleared it.
+  # 8. An open gap, if one was reported and nothing has cleared it; and beneath it the newest gap
+  #    already on record, with what the host said about it.
+  #
+  #    Two lines and not one, because they answer different questions. The first is derived live
+  #    from `last-tick` and says "a tick is overdue right now"; it goes when the next tick writes a
+  #    marker, and with it, before this, went every trace of the outage from the view. The second is
+  #    the record `gap_check` wrote, which outlives the marker — and has to, because a gap the host
+  #    explained raises no Mac message, so the log and this line are the only places it is ever
+  #    seen. The same marker is not printed twice: while an open gap is still the newest record, the
+  #    live line is the one that speaks for it.
+  #
+  #    Nothing here reads the host. The disposition was decided once, on evidence gathered once, and
+  #    a second reading of `pmset` at `status` time would be a second opinion about a window that
+  #    has already been assessed — and `status` writes nothing, so it would have nowhere to put it.
   sr_gap=$(derive_gap "$sr_rows") || { echo "$sr_gap"; return 1; }
+  sr_open_marker=''
   if [ "$(field "$sr_gap" .report)" = true ]; then
+    sr_open_marker=$(field "$sr_gap" .marker '?')
     render_row out action 'gap  Baton was not running for %s, measured against %s\n' \
       "$(duration "$(field "$sr_gap" .gap_seconds 0)")" \
-      "$(render_token out timestamp "$(field "$sr_gap" .marker '?')")"
+      "$(render_token out timestamp "$sr_open_marker")"
+  fi
+  sr_recorded=$(host_gap_recorded) || { echo "$sr_recorded"; return 1; }
+  if [ -n "$sr_recorded" ] && [ "$(field "$sr_recorded" .marker '?')" != "$sr_open_marker" ]; then
+    host_gap_status_line out "$sr_recorded"
   fi
 
   # 9. What is waiting in the inbox. The move is the consumption, so a file still here has not

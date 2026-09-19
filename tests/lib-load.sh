@@ -17,6 +17,7 @@
 . "$ROOT/lib/inbox.sh"
 . "$ROOT/lib/rows.sh"
 . "$ROOT/lib/status.sh"
+. "$ROOT/lib/host.sh"
 . "$ROOT/lib/escalate.sh"
 . "$ROOT/lib/disposition.sh"
 . "$ROOT/lib/answer.sh"

@@ -1,4 +1,5 @@
 [cwd @TMP@] claude agents --json
+pmset -g log
 open -g @TMP@/home/bin/Baton.app
   posted: Baton · Fixture/M02 · stall | no transcript change for 40 m; the row reads working · read it in Claude.app before touching it | claude://claude.ai/code/session_01StallThread
 caffeinate -i -w 502

@@ -44,13 +44,12 @@
 #
 # **A disposition is not a delivery.** This file says what a condition needs; what each producer
 # does today is the producers' own, and the two are deliberately allowed to differ while a
-# successor closes the gap. Only one delivery changes with this file — `baton-unhealthy`, whose own
-# verb already reads "nothing to do; Baton cleared it and carried on" — because a table that
-# described nothing measurable would be the rule-stated-but-not-measured drift D-171 exists to
-# avoid, and that is the one condition whose disposition can be honoured without new evidence.
-# `gap` is the other HOST-EXPLAINED candidate and is deliberately *not* assigned it here: a gap is
-# over when it is reported, but it is not yet explained, and the evidence that would explain it is
-# M15-b's to gather. An unexplained gap reaches a person.
+# successor closes the gap. Two deliveries turn on it. `baton-unhealthy`, whose own verb already
+# reads "nothing to do; Baton cleared it and carried on", is HOST-EXPLAINED by its class alone. The
+# `gap` notification is HOST-EXPLAINED **per event and not per class**: M15 left it `human-required`
+# because a gap was over when it was reported but nothing explained it, and `lib/host.sh` is the
+# evidence that completes the other half. Asked about the class with no evidence the table still
+# answers `human-required`, which is what a gap nothing accounts for really needs.
 set -eu
 
 # disposition_of <kind> <class> [<carries json>]: the table. Prints one of the four words; status 1
@@ -180,7 +179,32 @@ disposition_of() {
     notification:rate_limit|notification:billing_error|notification:unrecoverable) echo human-required ;;
     notification:transient|notification:stall|notification:long-running) echo human-required ;;
     notification:blocked_by|notification:distant_wait_for|notification:prompt-lost) echo human-required ;;
-    notification:gap|notification:takeover-silent) echo human-required ;;
+    notification:takeover-silent) echo human-required ;;
+
+    # The second arm that reads the carries, and the only one whose disposition is not a constant.
+    # It is a constant everywhere it can be: asked about the class in general — with no carries, as
+    # the table's own listing asks it — a gap is `human-required`, which is the true general answer,
+    # because a gap with nothing accounting for it is exactly what unloaded launchd, a stuck lock or
+    # a crashing tick look like and all three are a person's to look at.
+    #
+    # What moves it is evidence, and only one kind: `lib/host.sh` assessing the window the gap
+    # measured against the host's own sleep history and finding it covered. That is the second half
+    # of HOST-EXPLAINED which M15 could not supply — a gap was already over when it was reported,
+    # and now it can also be explained. `host.assessed` is the parser's word and the only field read
+    # here: `disposition` on the same event is this function's own answer written down, and reading
+    # it back would be the table taking its answer from the caller, which is the one thing
+    # `record_only` exists to stop.
+    #
+    # Anything short of `explained` reaches a person, and that includes `unknown` — an unreadable,
+    # truncated, ambiguous or discontinuous history is not a host that reported no sleep, and
+    # silence on evidence that was never established is the failure this whole milestone is against.
+    notification:gap)
+      if [ -n "$dof_carries" ] \
+         && printf '%s' "$dof_carries" | jq -e '(.host.assessed // "") == "explained"' > /dev/null 2>&1; then
+        echo HOST-EXPLAINED
+      else
+        echo human-required
+      fi ;;
 
     *) render_failure err "disposition_of: \"$2\" is not one of the $1 classes"; return 1 ;;
   esac
@@ -217,13 +241,11 @@ disposition_notifies() {
 # field is already on the event (REQ-ESC-07) and nothing decides on it, so this costs no new shape
 # and gives `status` and a person reading the log the distinction for free.
 #
-# **There is no notification arm, and that is the contract being honest about its own reach.** The
-# fourth disposition was named for the `gap` notification, but no notification class carries it yet
-# and none may until `docs/milestones/M15-b.md` can say which gaps the host explains — so an arm for
-# one would be a branch no caller could reach and no fixture could exercise, which is the
-# rule-stated-but-not-measured shape D-171 rejects. M15-b adds it beside this, in the milestone that
-# can test it; what is settled here and will not move is how a silent record is written and what
-# `channel` says about it.
+# **The notification half is `record_notification` below**, added beside this rather than as an arm
+# of it, because the two writers it mirrors take different arguments: `escalate` takes a scope and
+# `notification_write` takes a once-only key, and a function pretending both were one field would
+# read worse than two that each mirror their own. What M15 settled and this did not move is how a
+# silent record is written and what `channel` says about it.
 #
 # The guard is the point of the function. A class whose disposition is not HOST-EXPLAINED may not be
 # written silently, whatever the caller believes, because the failure mode of this whole file is a
@@ -250,6 +272,47 @@ record_only() {
   log_event escalation "$1" "$2" "$3" "$4" \
     "$(jq -nc --arg c "$rco_class" --arg s "$rco_scope" --argjson carries "$rco_carries" \
        '{class: $c, scope: $s, carries: $carries, channel: ["record"]}')"
+}
+
+# record_notification <project> <milestone> <session> <attempt> <class> <key> <fields json>: the
+# silent record's notification half — `notification_write`'s arguments in `notification_write`'s
+# order, minus the message. Everything `record_only`'s comment says about why this is a sibling
+# rather than a flag holds here for the same reason: `notification_write` guarantees that a message
+# implies a record by writing the event first (D-057), and a flag that skipped the message would
+# make that guarantee conditional on an argument.
+#
+# The event is the one the notifier would have raised, to the field, plus `channel: ["record"]` and
+# **the class's own once-only key**, which is what makes a recorded gap and a delivered one
+# interchangeable to the rule that spends the key: `gap_check` looks for a `notification` event of
+# class `gap` with the marker as its key and finds either, so one outage is assessed once whichever
+# way it went out.
+#
+# `channel` is written here and not by `notification_write`. That asymmetry is deliberate and is the
+# smaller of two costs: a delivered notification has never carried the field, and backfilling
+# `["notification"]` onto it would move forty-nine events across thirty-six frozen expectations
+# without changing a single decision, since nothing reads the field (D-190). On a `notification`
+# event the field present and reading `["record"]` is the whole of what it says.
+#
+# The guard is `record_only`'s guard and is asked of the table rather than of the caller. It matters
+# more here than there, because the notification classes are not one-per-disposition: `gap` is
+# HOST-EXPLAINED only for an event whose own evidence explains it, so this refuses the same class it
+# admits a moment later, on the fields and nothing else.
+record_notification() {
+  rcn_class=$5; rcn_key=$6; rcn_fields=$7
+  class_or_fail record_notification notification "$rcn_class" || return 1
+  fields_or_fail record_notification "$rcn_fields" || return 1
+  rcn_d=$(disposition_of notification "$rcn_class" "$rcn_fields") || return 1
+  # Matched positively, for the reason `record_only` gives: `disposition_notifies` answers 0 for a
+  # class that reaches a person and 2 for a word that is not a disposition at all, and a plain `if`
+  # would read that 2 as "does not notify" and write the line silently.
+  rcn_n=0; disposition_notifies "$rcn_d" || rcn_n=$?
+  [ "$rcn_n" -eq 1 ] || {
+    render_failure err "record_notification: this $rcn_class is $rcn_d, which reaches a person; it cannot be recorded silently"
+    return 1
+  }
+  log_event notification "$1" "$2" "$3" "$4" \
+    "$(jq -nc --arg c "$rcn_class" --arg k "$rcn_key" --argjson f "$rcn_fields" \
+       '{class: $c} | if $k != "" then . + {key: $k} else . end | . + $f + {channel: ["record"]}')"
 }
 
 # rejection_resolve_check: limitation 33's second half — the park a rejected artifact leaves when

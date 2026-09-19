@@ -1,0 +1,17 @@
+set -eu
+# The first tick after a night's sleep, which is what wake reconciliation actually is: not a second
+# walker and not a ladder of its own, but the ordinary tick meeting a ten-hour-old marker and a lane
+# whose row has lost its pid.
+#
+# Two rules meet here and neither is new. The gap is real, the host accounts for it — asleep from
+# 21:58 until twenty seconds before this tick — so it is recorded and no Mac message is raised. And
+# the crash rule sights the rowless lane for the **first** time, although a sighting from 22:00 is
+# sitting in the log: a first sighting expires after two intervals, and ten hours is not two
+# intervals, so the pair the night interrupted cannot be completed on the far side of it. Nothing is
+# resumed, nothing is redispatched, and nothing is escalated. Waking up is not evidence of death.
+#
+# The transcript is ten hours old and that is not a stall either, for the reason
+# `stall-sleep-not-a-stall` measures on its own; it is silent here because the age is the sleep.
+"$BATON" tick
+echo
+"$BATON" status

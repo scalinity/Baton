@@ -1,0 +1,3 @@
+2026-09-12 19:30:00 +0100 Wake                	Wake from Deep Idle [CDNP] : due to HID Activity Using AC (Charge:98%)
+2026-09-12 21:58:00 +0100 Sleep               	Entering Sleep state due to 'Clamshell Sleep':TCPKeepAlive=active Using Batt (Charge:96%) 36080 secs
+2026-09-13 07:59:20 +0100 Wake                	Wake from Deep Idle [CDNP] : due to HID Activity Using AC (Charge:41%)
