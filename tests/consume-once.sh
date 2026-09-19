@@ -31,6 +31,13 @@ export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_OSASCRIPT BATON_HOME BATON
 . "$root/lib/inbox.sh"
 . "$root/lib/status.sh"
 . "$root/lib/escalate.sh"
+# Two libraries for one constant and one two-line function: `completion_scope_patterns` answers the
+# planning lane's own declared scope, which needs `$PLANNING_ID` and `planning_scope_patterns`, and
+# `planning.sh` is read after `onboard.sh` because it documents itself against it. Nothing deeper in
+# either is called from here, and that is the whole of why this works — `planning.sh` names
+# `dispatch_preconditions`, `derive_parked` and `config_num`, none of which this harness loads. If
+# `completion.sh` ever reaches one line further into the planning library, this list is what has to
+# grow with it.
 . "$root/lib/onboard.sh"
 . "$root/lib/planning.sh"
 . "$root/lib/stops.sh"
