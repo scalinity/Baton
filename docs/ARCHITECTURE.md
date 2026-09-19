@@ -162,7 +162,7 @@ the five-hour `used_percentage` at or above which no new session is started, and
 `budgetWindowHours` is the window's length; `budgetSessions` is how many session starts one window
 may hold and **0 is off**, because no number of sessions is a guarantee any provider gives and
 Baton derives none; `budgetTier` is the person's word for the plan, carried on the record and the
-pause and read by nothing (D-194).
+pause and read by nothing (D-196).
 
 Three more numbers default in code and are left out of the file an install writes: `keepFinished` 3,
 `idleStopMinutes` 60 and `wakeModel` `haiku` (REQ-LIFE-02, REQ-LIFE-04). Three more again for the
@@ -406,7 +406,7 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    and writes `hold` with the resume time once either the reading reaches `budgetCeiling` or the
    count reaches `budgetSessions` — a fact about the account, so it holds every project and every
    model alike, and derivation 12 is where it bites so that `hold_bites` and its callers are
-   unchanged (REQ-BUDGET, D-195). Count in flight: derivation 1 across every project,
+   unchanged (REQ-BUDGET, D-197). Count in flight: derivation 1 across every project,
    which counts each open lane whose current session has a live row — a question park included, a
    stopped `asking` session not. The listing it joins against is read here and not carried down from
    the top of the tick: steps 3 and 4 create executions, and a lane a redispatch or a copy fork has
@@ -415,7 +415,7 @@ plan file, one git check) and the status feed; nothing is remembered between tic
    rather than reading as empty. Dispatch while the count is below `cap` and, where `budgetSessions`
    is set, while the window's remaining starts (`budget_room`) are unspent — read inside this loop
    and not only before the pass, because every session the pass starts is one no status feed reports
-   yet, so a guard consulted once would let a whole cap's worth through past the allowance (D-196) —
+   yet, so a guard consulted once would let a whole cap's worth through past the allowance (D-198) —
    in `cap_order`'s order:
    within a project, the handover's `eligible[]` order; each slot to the project with fewer in
    flight, counting the dispatches already ordered; then plan row order; then the project key
@@ -490,7 +490,7 @@ project, `.tmp` then renamed and only when it would change. After, because a rec
 the pause would describe the tick from before its own dispatches, and a person reading
 `sessions_used` a second after a tick started two sessions would be told about neither. It is
 derived from the log, the feed and the clock and read back by nothing, so a deleted one loses
-nothing and a project registered before M14 needs no migration (D-196).
+nothing and a project registered before M14 needs no migration (D-198).
 
 Then the marker, after the lock is released, only when every top-level pass completed. A failed
 pass is retained as status 3 through the remaining work; it withholds the marker so the next gap
@@ -1058,7 +1058,7 @@ wrote is not an outside thing, and the date seam answers the scenario's `now` wh
     its own model and counts toward nothing: the reserve is about one model's share of a window,
     not about the account being unable to answer. A `budget` hold holds every model, because the
     allowance it paces against is the account's and not any one model's — and saying so here is
-    what lets `hold_bites` and every caller of it be paced without knowing pacing exists (D-195).
+    what lets `hold_bites` and every caller of it be paced without knowing pacing exists (D-197).
 13. **`baton answer <milestone>`**: derivation 2, filtered by milestone across every project. Exactly
     one match acts; more than one refuses and prints `<project>/<milestone>`; none refuses with
     "nothing is waiting on `<milestone>`".
