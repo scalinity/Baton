@@ -16,5 +16,6 @@ gap       Baton was not running for 4 h 30 m, measured against 2026-09-12T12:00:
 last tick 2026-09-12T16:30:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
 hold  fable · fableReserve · reading 85
 in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+gap  recorded 4 h 30 m against 2026-09-12T12:00:00+01:00 · human-required · the sleep history could not account for it: no-transitions
 {"window_start":"2026-09-12T16:30:00+01:00","sessions_used":1,"tier":"max20"}
 -- one session started, not two: the cap bound after the budget lifted --
