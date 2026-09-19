@@ -1166,11 +1166,13 @@ the one rule and replaced by `sha256-matches-sidecar` or a mismatch note before 
 the sidecar carries the temporary path. `BATON_TESTS_FREEZE=<name>` rewrites that scenario's
 `expected/` from the run, for a fixture whose output has been read and judged right, and `all` every
 one; `BATON_TESTS_ONLY=<glob>` runs the matching scenarios alone. Before each scenario the run stops,
-exiting 3, when its parent process is pid 1 — launchd, where a run lands once the process that
-started it has gone; the test is that pid and nothing else, so a run detached on purpose stops too,
-and it never fires where `ps` cannot answer — or when the `BATON_TESTS_DEADLINE` whole seconds a
-caller named have elapsed since the run began, there being no default and so no bound unless one is
-asked for; a scenario already started finishes first. The run sets
+exiting 3, when `BATON_TESTS_OWNER` — a pid a caller names as the process that lives exactly as long
+as it wants the result — no longer answers `kill -0`; with no owner named nothing stops a run, so a
+run detached on purpose is never at risk, and with `BATON_TESTS_FREEZE` set the owner is ignored,
+because a freeze stopped midway leaves expectations partly rewritten. A value that is not a pid is
+ignored with a message. It stops likewise when the `BATON_TESTS_DEADLINE` whole seconds a caller
+named have elapsed since the run began, there being no default and so no bound unless one is asked
+for; a scenario already started finishes first. The run sets
 `LC_ALL=en_US.UTF-8` for itself, the locale the expectations were frozen under, and exits 3 before
 running anything where `locale -a` does not list it. Exit 3 is distinct from the 0 of a passing run
 and from the 1 a run ends with when a scenario fails or the harness itself errors. Hook scenarios

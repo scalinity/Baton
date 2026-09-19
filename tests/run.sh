@@ -25,17 +25,22 @@
 # has been read and judged right; BATON_TESTS_FREEZE=all does it for every scenario and is for a
 # harness change that moves every expectation at once. BATON_TESTS_ONLY=<glob> runs the scenarios
 # whose names match it and no others; the standing check is the run without it.
-# A run whose parent process is launchd stops on its own, and so does one that has reached the
+# A run whose BATON_TESTS_OWNER=<pid> has gone stops on its own, and so does one that has reached the
 # BATON_TESTS_DEADLINE=<seconds> a caller named, of which there is none by default; both exit 3,
 # before the next scenario begins. The run sets LC_ALL=en_US.UTF-8 for itself and refuses, exit 3,
 # where that locale is not installed.
 set -eu
 
-# A run is an orphan when the process that started it is gone: a session that moves the suite to the
-# background and then ends leaves it reparented to launchd (ppid 1), running every scenario twice
-# for nobody. The test is parentage and not elapsed time, so a slow run whose starter is alive is
-# never stopped by it. If ps is unavailable or blocked the substitution is empty, `[ "" = 1 ]` is
-# false, and the guard never fires rather than firing wrongly.
+# A run is abandoned when the caller that wanted its result has gone, and only that caller can say
+# who it is: BATON_TESTS_OWNER names a process that lives exactly as long as the caller wants the
+# run, and once `kill -0` says it is gone the run stops before its next scenario. No owner named
+# means no such stop, so a run detached on purpose is never at risk, because nothing claims to own
+# it. Parentage cannot stand in for this: a parent of launchd (ppid 1) says the starter has gone and
+# not that nobody is reading, and a live session reads a detached run's output from a file.
+# A run with BATON_TESTS_FREEZE set ignores the owner altogether, because stopping it midway leaves
+# the expectations frozen so far, which running it again does not repair.
+# The owner is a pid of the same user. `kill -0` also fails on another user's live process, and a
+# pid handed to a new process after its owner died reads as alive, which is the safe direction.
 # The deadline is the harness measuring itself: it reads the real clock with a bare `date` and
 # writes no event, so BATON_DATE, which governs the timestamps the log holds, has no part in it.
 # There is no default deadline. A constant cannot track a suite that has grown from 246 scenarios to
@@ -44,9 +49,16 @@ set -eu
 # caller that wants a bound names one.
 # Both stops exit 3, never 0 and never the 1 of a failed scenario, so an abort is not a pass and is
 # told apart from a scenario that failed.
-run_orphaned() {
-  [ "$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')" = 1 ]
-}
+run_owner=${BATON_TESTS_OWNER:-}
+case "$run_owner" in
+  '') ;;
+  *[!0-9]*) echo "run: BATON_TESTS_OWNER is not a pid ($run_owner); running without an owner" >&2
+            run_owner= ;;
+esac
+if [ -n "$run_owner" ] && [ -n "${BATON_TESTS_FREEZE:-}" ]; then
+  echo "run: BATON_TESTS_FREEZE is set, so BATON_TESTS_OWNER is not enforced" >&2
+  run_owner=
+fi
 run_started=$(date +%s)
 run_deadline=${BATON_TESTS_DEADLINE:-}
 
@@ -83,8 +95,8 @@ BATON_DATE=date
 . "$root/lib/derive.sh"
 
 for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
-  if run_orphaned; then
-    echo "run: the starting process is gone; this run is an orphan and stops here" >&2
+  if [ -n "$run_owner" ] && ! kill -0 "$run_owner" 2>/dev/null; then
+    echo "run: the owner, pid $run_owner, has gone; this run is abandoned and stops here" >&2
     exit 3
   fi
   if [ -n "$run_deadline" ] && [ "$(( $(date +%s) - run_started ))" -ge "$run_deadline" ]; then
