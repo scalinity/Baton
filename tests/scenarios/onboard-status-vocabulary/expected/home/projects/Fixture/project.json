@@ -1,0 +1,66 @@
+{
+  "path": "@TMP@/Fixture",
+  "plan": "docs/MILESTONES.md",
+  "goal": "a fixture project.",
+  "done": "every milestone reads done.",
+  "constraints": [
+    "POSIX shell only."
+  ],
+  "non_goals": [
+    "a rewrite in another language."
+  ],
+  "plan_format": "adapted",
+  "onboarded_at": "2026-09-19T08:00:00+01:00",
+  "cli": {
+    "version": "2.1.278 (Claude Code)",
+    "checked_at": "2026-09-19T08:00:00+01:00"
+  },
+  "start": {
+    "at": "2026-09-19T08:00:00+01:00",
+    "eligible": [
+      {
+        "milestone": "M02",
+        "brief": {
+          "path": "docs/milestones/M02.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "run"
+      },
+      {
+        "milestone": "M04",
+        "brief": {
+          "path": "docs/milestones/M04.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "wait",
+        "wait_for": [
+          "M03"
+        ]
+      },
+      {
+        "milestone": "M05",
+        "brief": {
+          "path": "docs/milestones/M05.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "run"
+      }
+    ]
+  },
+  "adaptation": {
+    "defaults": {},
+    "status_map": {
+      "complete": {
+        "status": "done"
+      },
+      "in progress": {
+        "status": ""
+      },
+      "retired": {
+        "status": "held",
+        "why": "\"retired\" is retirement, which the native vocabulary cannot say: it reads held, so it never runs and never satisfies a dependency, and no gate waits to clear it"
+      }
+    },
+    "gates": "absent"
+  }
+}

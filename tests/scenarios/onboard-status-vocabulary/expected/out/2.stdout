@@ -1,0 +1,28 @@
+Fixture is already onboarded · the confirmed goal stands, nothing was asked again and nothing was seeded twice
+registered Fixture
+  checkout    @TMP@/Fixture
+  plan        docs/MILESTONES.md (adapted)
+  check       none detected
+  goal        a fixture project.
+  constraints POSIX shell only.
+  non-goals   a rewrite in another language.
+  onboarded   2026-09-19T08:00:00+01:00
+  status      "complete" reads done
+  status      "in progress" reads blank
+  status      "retired" reads held · "retired" is retirement, which the native vocabulary cannot say: it reads held, so it never runs and never satisfies a dependency, and no gate waits to clear it
+  starting    M02 · run · docs/milestones/M02.md
+  starting    M04 · wait for M03 · docs/milestones/M04.md
+  starting    M05 · run · docs/milestones/M05.md
+--- the plan the tick now sees: M03 held, and M04 waiting on it for ever ---
+plan Fixture: @TMP@/Fixture/docs/MILESTONES.md
+M01  done  model opus  effort -  remote no
+M02  eligible  model opus  effort -  remote no
+M03  held  model opus  effort -  remote no
+M04  waits on M03  model opus  effort -  remote no
+M05  eligible  model opus  effort -  remote no
+widenings: none
+preconditions: 2 eligible, 0 with unmet preconditions
+  M02  ready
+  M05  ready
+--- the starting handover does not name M03 or M04 as runnable ---
+[{"milestone":"M02","disposition":"run"},{"milestone":"M04","disposition":"wait"},{"milestone":"M05","disposition":"run"}]

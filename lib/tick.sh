@@ -140,7 +140,10 @@ self_check() {
     self_check_failed_once "$1" read "$sck_file" "the plan file cannot be read: $sck_body"
     echo "the plan file $sck_file cannot be read: $sck_body"; return 1
   fi
-  if ! sck_tables=$(plan_tables "$sck_file"); then
+  # The project key, so that a project onboarding registered an adaptation for is read with it. A
+  # project without one — Baton's own, and any registered before onboarding existed — is read
+  # exactly as strictly as before, because `plan_adaptation` answers `{}` for it.
+  if ! sck_tables=$(plan_tables "$sck_file" "$1"); then
     sck_detail=$(printf '%s' "$sck_tables" | jq -r '"the \(.table) table, row \(.row), cell \(.cell): \(.detail)"')
     self_check_failed_once "$1" parse "$sck_file" "$sck_detail" \
       "$(printf '%s' "$sck_tables" | jq -c '{table, row, cell}')"

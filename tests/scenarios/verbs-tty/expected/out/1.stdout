@@ -82,6 +82,7 @@ gate "[33mcleared gate[0m" holds [36mM07[0m, cleared by D-003
   [36mdispatch <project> <milestone>     [0mstep 8 by hand: worktree, settings, prompt, claude --bg, one event
   [36mallow <milestone> '<rule>'         [0mwrite the rule into the project's allowlist and the live settings
   [36mwake [<milestone> [<text>]]        [0mbring a finished session back, carrying the text; with none, list them
+  [36monboard <path>                     [0mregister a Git repository, derive its rail and check, read its plan, confirm once
 
 == wrong argument count, the same rows on stderr ==
 [36musage: baton <verb> ...[0m
@@ -92,6 +93,7 @@ gate "[33mcleared gate[0m" holds [36mM07[0m, cleared by D-003
   [36mdispatch <project> <milestone>     [0mstep 8 by hand: worktree, settings, prompt, claude --bg, one event
   [36mallow <milestone> '<rule>'         [0mwrite the rule into the project's allowlist and the live settings
   [36mwake [<milestone> [<text>]]        [0mbring a finished session back, carrying the text; with none, list them
+  [36monboard <path>                     [0mregister a Git repository, derive its rail and check, read its plan, confirm once
 
 == a milestone the plan does not carry ==
 [33mbaton:[0m M99 is not in Fixture's plan

@@ -1,0 +1,12 @@
+set -eu
+# M08's recorded defect, and the shape of its repair. The registration paths are exactly the paths a
+# dispatched session's own deny rules forbid, and onboarding writes them anyway — because the writer
+# is the relay's verb under the lock, not a session's file tools, and the log says so. Nothing was
+# widened: the rules the session is dispatched with still name `projects/**`.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture" > /dev/null
+"$BATON" dispatch Fixture M02 > /dev/null
+printf '%s\n' '--- the rules the dispatched session runs under still deny the registration ---'
+jq -r '.permissions.deny[] | select(test("projects"))' "$BATON_HOME/settings/Fixture-M02.json"
+printf '%s\n' '--- and the registration exists, written by the verb, with the event to say so ---'
+printf 'registration: %s\n' "$([ -f "$BATON_HOME/projects/Fixture/project.json" ] && echo present || echo absent)"
+jq -c 'select(.kind == "onboarded") | {kind, project, plan_format}' "$BATON_HOME/log.jsonl"

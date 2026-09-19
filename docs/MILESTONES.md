@@ -11,7 +11,8 @@ hand-run `baton dispatch Baton M<nn>` until M03 lands the tick, and by the tick 
 order is fixed by one rule: what a milestone needs in order to be dispatched is already built.
 M01 to M03 are watched at the keyboard. M04 is the first milestone a tick dispatches, still
 watched. **M06 is the first that runs unattended overnight.** Baton drives only itself and fixture
-projects until every milestone is done; Reclaim comes after M08 (D-021).
+projects until every milestone is done; Reclaim comes after, at M16, which onboards it from scratch
+with no migration commit (SCOPE §9, superseding D-021's held M08 and its dropped gate).
 
 Rules for every session (also in `CLAUDE.md`):
 - Read `CLAUDE.md`, `CONTEXT.md`, the active brief, and the SPEC and ARCHITECTURE sections the brief names first; run `baton status` if the relay is installed.
@@ -21,7 +22,7 @@ Rules for every session (also in `CLAUDE.md`):
 - If the spec must change, update `docs/SPEC.md` or `docs/ARCHITECTURE.md` and add a `docs/DECISIONS.md` entry before ending the session; take the next free D-number at the moment it is written.
 - Close-out sequence, in order (`CONTRACT.md` clause 3): `/review-2` on the session's changes, then `/address` (local commits, no remote); completion evidence into the brief and the decision entry, committed on the branch; merge into `main`, then `sh tests/run.sh` on `main`; on `main`, refresh only listed milestones with neither an open lane nor an open park, established by baton status and the dispatch-log check in CONTRACT.md clause 3(c), while still naming every eligible milestone with its correct disposition, write `done` in this milestone's `Status` cell, leave the worktree in place, commit; run `sh install.sh` from the canonical checkout; write the handover artifact to `~/.baton/inbox/`; print it verbatim, last, in a `baton` fence. If anything lands after it, deal with that and print it again.
 - Hand over every milestone the dependency column now makes eligible with a disposition each; in this plan that is one milestone at a time, and the artifact says so.
-- Never use Python. No third-party packages. Never touch a target project's code; Reclaim is read, never written, and never dispatched before M08.
+- Never use Python. No third-party packages. Never touch a target project's code; Reclaim is read, never written, and never dispatched before M16, which onboards it (SCOPE §9 retired M08 and its gate).
 
 ## Order and dependencies
 
@@ -57,8 +58,11 @@ Rules for every session (also in `CLAUDE.md`):
 | Gate | Holds | Cleared |
 |---|---|---|
 
-The gate is cleared by the D-number of the entry that records the migration commit in Reclaim
-(D-021 says what that commit contains and that a person makes it, after M14 closes).
+No gate is open, and none holds M08. D-021's `Reclaim migrated` gate was dropped with the manual
+path it guarded: the migration commit it waited for — columns added to Reclaim's plan by hand, a
+hand-written registration and a hand-written seed artifact — is what `baton onboard` does instead,
+without a commit in Reclaim at all (D-155). M08 is `held` permanently and superseded by SCOPE §9,
+which gives its acceptance to M16; there is nothing for a person to clear.
 
 ## Traceability: requirements → milestones
 
@@ -69,13 +73,14 @@ The gate is cleared by the D-number of the entry that records the migration comm
 | REQ-TICK | 01–09 | M01 (08: the seams; 09: the installed relay), **M03** (01–07) |
 | REQ-STOP | 01–14 | M03 (08, 09, 10, 14), **M04** (01–07, 13), **M05** (11, 14 hand-back), M06 (12), M07-b (14: Remote Control messages) |
 | REQ-ESC | 01–11 | M02 (11: `status`), M03 (02: the Mac message; 10: the gap), **M05** (01, 03–07, 09), M06 (04 project scope), M07 (08) |
-| REQ-PLAN | 01–08 | **M01** (01–05, 06 for Baton, 07, 08), M08 (06 for Reclaim), M17 (08: the precondition report) |
+| REQ-PLAN | 01–10 | **M01** (01–05, 06 for Baton, 07, 08), M08 (06 for Reclaim, superseded), M17 (08: the precondition report), **M11** (06 extended, 09, 10: the registered adaptation and the table's location) |
 | REQ-DISPATCH | 01–11 | **M01** (03–06, 08, 10), M03 (03 prune reserved), **M06** (01, 02, 09), **M07** (03 worktrees kept, 07), **M17** (11), M10 (09 amended: the one read of a target's tree) |
-| REQ-PERM | 01–05 | **M01** (01–04), M05 (02: `allow` as writer), M06 (05) |
+| REQ-PERM | 01–05 | **M01** (01–04), M05 (02: `allow` as writer), M06 (05), M11 (02, 04: the rail derived for an arbitrary project from one recipe) |
 | REQ-LOG | 01–08 | **M01** (01–03, 05, 08), **M02** (04, 06, 07), M10 (07 amended: the unrecorded archive reconciled) |
-| REQ-VERB | 01–08 | **M01** (01, 05, 06), M02 (04), M03 (02), M05 (03, 07), M07-b (08) |
+| REQ-VERB | 01–10 | **M01** (01, 05, 06), M02 (04), M03 (02), M05 (03, 07), M07-b (08), M17-b (09), **M11** (01 amended, 10: `onboard`) |
 | REQ-SETUP | 01–08 | **M01** (05), **M03** (01, 04, 07, 08), M07 (06), M03 (02, 03: checked, recorded) |
 | REQ-LIFE | 01–04 | **M07-b** (01–04) |
+| REQ-ONBOARD | 01–10 | **M11** (01–10) |
 
 Every requirement in `docs/SPEC.md` §2 appears above; every milestone owns at least one in bold
 except M07 and M08, which are acceptance and onboarding.

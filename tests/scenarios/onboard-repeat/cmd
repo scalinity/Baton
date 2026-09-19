@@ -1,0 +1,10 @@
+set -eu
+# Onboarding twice. The second run reuses the confirmed goal rather than asking again, seeds no
+# second starting handover, and writes no second `onboarded` event — so a person who runs the verb
+# twice has not duplicated a registration or put a stale word back in force. Its stdin carries a yes
+# that is never read, which is the proof that no question was put.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- and again ---'
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf 'onboarded events: %s\n' "$(grep -c '"kind":"onboarded"' "$BATON_HOME/log.jsonl")"
+printf 'starting entries: %s\n' "$(jq '.start.eligible | length' "$BATON_HOME/projects/Fixture/project.json")"

@@ -1,0 +1,10 @@
+set -eu
+# Joining a project already partway through its plan. M01 and M02 read done, so the starting
+# handover names M03 and M04 and nothing else, and the tick that follows dispatches M03 alone —
+# the completed milestones are not replayed, because eligibility is the plan's and `done` is not
+# eligible.
+printf 'yes\n' | "$BATON" onboard "$PWD/Fixture"
+printf '%s\n' '--- the tick after onboarding ---'
+"$BATON" tick || true
+printf '%s\n' '--- what was dispatched, and what was not ---'
+jq -r 'select(.kind == "dispatch") | "dispatched \(.project)/\(.milestone)"' "$BATON_HOME/log.jsonl"
