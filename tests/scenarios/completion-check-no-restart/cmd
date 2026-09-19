@@ -1,0 +1,23 @@
+echo "== two observations of one pending check start it once: the directory is the interlock and started_at does not move =="
+sh "$ROOT/tests/completion-fixture.sh" check-slow
+dir=$BATON_HOME/checks/Fixture/M02-1
+sh "$ROOT/tests/consume-once.sh"
+if [ -f "$dir/started_at" ]; then echo "started_at $(cat "$dir/started_at")"; else echo "no started_at"; fi
+trees=$(find "$dir" -name tree -type d 2>/dev/null | wc -l | tr -d ' ')
+echo "trees $trees"
+if [ -f "$BATON_HOME/inbox/M02-11111111-2222-4333-8444-555555555555.json" ]; then
+  echo "artifact unconsumed"
+else
+  echo "artifact consumed"
+fi
+pid=$(cat "$dir/pid" 2>/dev/null || true)
+if [ -n "$pid" ]; then
+  pkill -TERM -P "$pid" 2>/dev/null || true
+  kill -TERM "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+fi
+if [ -d "$dir/tree" ]; then
+  git -C "$PWD/Fixture" worktree remove --force "$dir/tree" >/dev/null 2>&1 || true
+  rm -rf "$dir/tree"
+fi
+rm -f "$dir/pid"
