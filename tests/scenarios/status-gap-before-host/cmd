@@ -1,0 +1,37 @@
+set -eu
+# The four things `status` can say about a gap already in the log, frozen side by side, because the
+# fourth is the one that has no tick scenario: an event written before the host was ever consulted.
+# Every gap recorded before this milestone has no `host` object, they are all still in the log, and
+# the newest gap is the one `status` prints — so the arm that reads absence is the arm a person is
+# most likely to meet first. Defaulting it into the table's `unknown` would state that the sleep
+# history was read and came back unable to account for the outage, which is a claim about a reading
+# that never happened. The three assessed arms are frozen beside it so the distinction is legible:
+# a real `unknown` always carries one of the reason tokens, and absence can only ever default.
+. "$ROOT/tests/lib-load.sh"
+
+pre='{"kind":"notification","class":"gap","gap_seconds":4140,"marker":"2026-09-11T22:00:00+01:00",
+      "disposition":"human-required","channel":["mac"]}'
+exp='{"kind":"notification","class":"gap","gap_seconds":7200,"marker":"2026-09-11T22:00:00+01:00",
+      "disposition":"HOST-EXPLAINED","channel":["record"],
+      "host":{"assessed":"explained","sleep_seconds":7180}}'
+une='{"kind":"notification","class":"gap","gap_seconds":7200,"marker":"2026-09-11T22:00:00+01:00",
+      "disposition":"human-required","channel":["mac"],
+      "host":{"assessed":"unexplained","sleep_seconds":7080}}'
+unk='{"kind":"notification","class":"gap","gap_seconds":7200,"marker":"2026-09-11T22:00:00+01:00",
+      "disposition":"human-required","channel":["mac"],
+      "host":{"assessed":"unknown","reason":"history-unreadable"}}'
+
+echo '=== no host object: the host was never asked, and the line says only that'
+host_gap_status_line out "$pre"
+
+echo
+echo '=== explained: recorded rather than delivered, and the row kind comes from the channel'
+host_gap_status_line out "$exp"
+
+echo
+echo '=== unexplained: the history was read and does not cover the outage'
+host_gap_status_line out "$une"
+
+echo
+echo '=== unknown: the history was read and could not settle it, and the reason token says why'
+host_gap_status_line out "$unk"

@@ -1,0 +1,2 @@
+2026-09-11 21:58:00 +0100 Sleep               	Entering Sleep state due to 'Idle Sleep':TCPKeepAlive=active Using Batt (Charge:90%) 36100 secs
+2026-09-12 07:59:40 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to smc.sysState.Wake(0x70070000) wifibt Using BATT (Charge:72%) 50 secs

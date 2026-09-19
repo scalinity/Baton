@@ -1,0 +1,39 @@
+set -eu
+# A silent record does not close the marker for good, and this is the case that says why. The Mac
+# slept at 21:58 and woke at 07:59:40; the 08:00:10 tick could not list sessions, so step 1 failed,
+# the marker stayed at 22:00 and the only thing that ran was the gap report. Thirty seconds awake is
+# under two intervals, so the host accounts for the outage and the gap is recorded in silence —
+# correctly, because nobody could have ticked through a sleep.
+#
+# Then the listing keeps failing. The marker cannot move, so every later tick re-derives a gap
+# against the same 22:00, and if a recorded gap spent the key the way a delivered one does, that
+# first silent record would be the only thing ever said about an outage still going on — with
+# `lib/tick.sh` naming the gap report as the one thing that tells the person about a step-1 failure.
+# Three minutes on, the window has three and a half awake minutes at its end, which no history can
+# call explained: the gap goes out as `unexplained`, through the notifier, and that delivered event
+# spends the key for good. The third call is the proof of the second half — once a person has been
+# told, the marker is closed however long the outage runs.
+. "$ROOT/tests/lib-load.sh"
+lock_take
+
+rows=$(cat "$SCENARIO/rows.json")
+
+echo '=== 08:00:10, the first tick after the wake: explained, so recorded and not delivered'
+printf '2026-09-12T08:00:10+01:00\n' > "$SHIM/now"
+gap_check "$rows" 2026-09-12T08:00:10+01:00
+printf '  events: %s\n' "$(jq -sc '[ .[] | select(.kind == "notification" and .class == "gap")
+  | {disposition, channel, assessed: .host.assessed, endpoint: .host.endpoint} ]' "$BATON_HOME/log.jsonl")"
+
+echo
+echo '=== 08:03:10, the listing still failing: the window now holds 3 m 30 s awake, so a person is told'
+printf '2026-09-12T08:03:10+01:00\n' > "$SHIM/now"
+gap_check "$rows" 2026-09-12T08:03:10+01:00
+printf '  events: %s\n' "$(jq -sc '[ .[] | select(.kind == "notification" and .class == "gap")
+  | {disposition, channel, assessed: .host.assessed, endpoint: .host.endpoint} ]' "$BATON_HOME/log.jsonl")"
+
+echo
+echo '=== 08:06:10, still failing: the delivered event spends the key for good and nothing more is said'
+printf '2026-09-12T08:06:10+01:00\n' > "$SHIM/now"
+gap_check "$rows" 2026-09-12T08:06:10+01:00
+printf '  events: %s\n' "$(jq -sc '[ .[] | select(.kind == "notification" and .class == "gap")
+  | {disposition, channel, assessed: .host.assessed, endpoint: .host.endpoint} ]' "$BATON_HOME/log.jsonl")"

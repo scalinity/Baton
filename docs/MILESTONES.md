@@ -47,7 +47,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M13 | Autonomous handoff, and more than one at a time | M12 | opus | high | | done | Newly eligible work runs up to the cap, an independent pair overlaps, and effort follows declared Size; co-dispatched sessions name each other in their slot lines, which closes the open half of docs/v2/01-findings.md finding 24 | No |
 | M14 | Budget-aware pacing | M13 | opus | medium | | | Budget exhaustion produces a visible pause and resume time; work resumes automatically when the window rolls | No |
 | M15 | The escalation taxonomy | M12 | opus | high | | done | Four dispositions, including HOST-EXPLAINED; solvable parks resolve without notification; replan preserves the goal; the taxonomy owns whether a re-read rebaseline earns a notification class of its own (D-136) | No |
-| M15-b | Host-explained gaps and wake reconciliation | M15 | opus | high | | | Sleep-explained gaps stay recorded and visible without notifications; unexplained gaps notify; confirmed dead sessions use existing recovery | No |
+| M15-b | Host-explained gaps and wake reconciliation | M15 | opus | high | | done | Sleep-explained gaps stay recorded and visible without notifications; unexplained gaps notify; confirmed dead sessions use existing recovery | No |
 | M15-c | The independent scope guard | M15-b | opus | high | | | Goal-only checks at plan adoption and close-out; drift always reaches a person | No |
 | M15-d | Replan: when the plan is what is wrong | M15 | opus | high | | | A milestone that comes back unfinished twice, or blocked on a dependency nothing will deliver, is replanned from the confirmed goal instead of asking; every milestone Baton proved complete stays done | No |
 | M16 | Cold live trial on Reclaim | M14, M15-c | opus | medium | | | Unregistered Reclaim completes at least three cold milestones with one intent confirmation and a live budget pause/resume | No |
@@ -137,7 +137,7 @@ has decided to do into the dispatch queue by default, and measuring its cost was
 starting it a decision. M15's own acceptance holds in full for what it kept, so it is `done` and no
 `stopped` artifact is written, as with M10-b and M12 (D-152).
 
-M15-b **crossed the count at three and was not split** (D-191), measured before any code was
+M15-b **crossed the count at three and was not split** (D-193), measured before any code was
 written. `lib/host.sh` is introduced and uncounted; the three counted are `lib/disposition.sh`
 (the `gap` arm becomes a reading of the event's own evidence, plus `record_notification`),
 `lib/rows.sh` (`gap_check` routes on the disposition, `stall_check` subtracts proven sleep) and

@@ -363,11 +363,21 @@ host_gap_status_line() {
   hl_d=$(field "$2" .disposition human-required)
   if printf '%s' "$2" | jq -e '(.channel // []) | index("record")' > /dev/null 2>&1
   then hl_kind=record; else hl_kind=action; fi
-  case "$(field "$2" .host.assessed unknown)" in
-    explained)   hl_why="the host was asleep for $(duration "$(field "$2" .host.sleep_seconds 0)") of it" ;;
-    unexplained) hl_why="the sleep history does not account for it" ;;
-    *)           hl_why="the sleep history could not account for it: $(field "$2" .host.reason unknown)" ;;
-  esac
+  # A gap recorded before the host was ever consulted carries no `host` object at all, and every
+  # such event is still in the log. Defaulting its `assessed` to `unknown` would print "the sleep
+  # history could not account for it: unknown" about a reading that never happened — a claim, in
+  # the one file whose whole stance is that unknown is never one. Absence is its own arm, decided
+  # before the table is asked: the reason token is what tells a real `unknown` from this, because
+  # an assessment that returns `unknown` always carries one and an absent object can only default.
+  if ! printf '%s' "$2" | jq -e 'has("host")' > /dev/null 2>&1; then
+    hl_why="recorded before the host was consulted"
+  else
+    case "$(field "$2" .host.assessed unknown)" in
+      explained)   hl_why="the host was asleep for $(duration "$(field "$2" .host.sleep_seconds 0)") of it" ;;
+      unexplained) hl_why="the sleep history does not account for it" ;;
+      *)           hl_why="the sleep history could not account for it: $(field "$2" .host.reason unknown)" ;;
+    esac
+  fi
   render_row "$1" "$hl_kind" 'gap  recorded %s against %s · %s · %s\n' \
     "$(duration "$(field "$2" .gap_seconds 0)")" \
     "$(render_token "$1" timestamp "$(field "$2" .marker '?')")" \
