@@ -91,11 +91,16 @@ declared_step() {
     unfinished)
       dst_run=$(consecutive_run "$1" "$dst_m" unfinished) || { render_failure err "$dst_run"; return 1; }
       if [ "$(printf '%s' "$dst_run" | jq -r .count)" -ge 2 ]; then
-        # A split is a plan edit and the edit is the person's answer, so the next attempt starts
-        # from the plan as it now reads; a ruling was delivered to the session, which is working.
+        # A split is a plan edit and the edit is what ends the park, so the next attempt starts
+        # from the instructions as they now read; a ruling was delivered to the session, which is
+        # working. The line says which readings changed and never who changed them (D-134): what
+        # Baton has is two digests that differ, which is a fact about the brief and the work plan
+        # and not about anybody's hands. The `instructions` policy this park unparks under hashes
+        # exactly those two, so they are what the line names — the same register `lib/stops.sh`
+        # already uses for the ladder's own redispatch.
         case "$(person_acted "$1" "$dst_m" unfinished-twice)" in
           edit)
-            redispatch "$1" "$dst_m" "$3" "$4" "the plan was edited after two unfinished endings, so attempt $(( ${dst_a:-0} + 1 )) starts from it"
+            redispatch "$1" "$dst_m" "$3" "$4" "the brief or the work plan changed after two unfinished endings, so attempt $(( ${dst_a:-0} + 1 )) starts from it"
             return 0 ;;
           ruling) return 0 ;;
         esac
