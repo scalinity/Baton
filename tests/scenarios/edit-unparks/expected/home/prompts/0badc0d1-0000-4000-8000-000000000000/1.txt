@@ -1,6 +1,6 @@
 You are implementing milestone M07 of Fixture. One line that never changes.
 
-WHAT ELSE IS IN FLIGHT. You are working in @TMP@/Fixture-M07 on branch m07; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Nothing else is in flight. Stage only your own paths; never git add -A. This is attempt 2 at this milestone; a previous attempt left work on this branch at @COMMIT@, and the brief may hold completion evidence, which the recovery clause covers. Do not start the milestone after this one.
+WHAT ELSE IS IN FLIGHT. You are working in @TMP@/home/worktrees/Fixture/M07 on branch m07; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Nothing else is in flight. Stage only your own paths; never git add -A. This is attempt 2 at this milestone; a previous attempt left work on this branch at @COMMIT@, and the brief may hold completion evidence, which the recovery clause covers. Do not start the milestone after this one.
 
 STARTUP ORDER. Read CLAUDE.md, then the brief.
 

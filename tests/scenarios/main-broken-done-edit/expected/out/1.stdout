@@ -6,6 +6,6 @@ unparked  Fixture/M02 · its Status cell changed since the main-broken park · B
 idle      Fixture/M02 · its session is still live as job 0badb2 and counts against the cap until it ends: claude stop 0badb2
 backgrounded · 0badc0d1 · Baton · Fixture · M03
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
-worktree  @TMP@/Fixture-M03 (branch m03)
+worktree  @TMP@/home/worktrees/Fixture/M03 (branch m03)
 settings  @TMP@/home/settings/Fixture-M03.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

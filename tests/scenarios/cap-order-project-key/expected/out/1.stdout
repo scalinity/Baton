@@ -1,6 +1,6 @@
 == one slot, two projects with nothing in flight whose next candidates share a plan row: the project key decides, so Fixture/M02 goes and Other/M02 waits ==
 backgrounded · 0badc0d1 · Baton · Fixture · M02
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
-worktree  @TMP@/Fixture-M02 (branch m02)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
 settings  @TMP@/home/settings/Fixture-M02.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

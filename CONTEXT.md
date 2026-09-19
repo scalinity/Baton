@@ -287,11 +287,20 @@ unaffected.
 _Avoid_: budget, quota cap, rate limit
 
 **Milestone worktree**:
-The worktree Baton creates beside the canonical checkout for one milestone's session, on that
-milestone's branch from `main`. Every milestone has one; a redispatch reuses it. It outlives the
-milestone: the session merges from it and leaves it in place, because a session whose working
-directory is gone cannot be resumed.
+The worktree Baton creates for one milestone's session, on that milestone's branch from `main`.
+Every milestone has one; a redispatch reuses it. New ones are created under the *managed root*,
+`~/.baton/worktrees/<project>/<milestone>`, so a target project's parent directory collects
+nothing. Where a worktree *is* is git's own registration and never a path derived from the
+milestone's name, which is what lets one move. It outlives the milestone: the session merges from
+it and leaves it in place, because a session whose working directory is gone cannot be resumed.
 _Avoid_: sandbox, checkout (when the worktree is meant), isolation
+
+**Managed root**:
+`~/.baton/worktrees/<project>/`, where Baton creates a milestone worktree it does not already
+have. The legacy convention was a sibling of the canonical checkout, `../<Project>-<milestone>`;
+those are moved into the managed root by the tick, one at a time, never while a live session is
+working in one.
+_Avoid_: worktree directory, workspace
 
 **Remote Control**:
 Claude Code's link between a session running on this Mac and claude.ai: it is what lists the session

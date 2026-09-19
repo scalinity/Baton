@@ -9,6 +9,7 @@ set -eu
 inventory() {
   git -C Fixture for-each-ref --format='ref %(refname)' | sort
   ls -1 . | sed 's/^/beside /' | sort
+  ls -1 "$BATON_HOME/worktrees/Fixture" 2>/dev/null | sed 's/^/managed /' | sort
   printf 'settings %s\n' "$(ls -1 "$BATON_HOME/settings" 2>/dev/null | wc -l | tr -d ' ')"
   printf 'sidecars %s\n' "$(ls -1 "$BATON_HOME/prompts" 2>/dev/null | wc -l | tr -d ' ')"
   printf 'bg launches %s\n' "$(grep -c -- ' --bg ' "$SHIM/calls.log" || true)"
@@ -38,7 +39,7 @@ BRIEF
   status=0; "$BATON" dispatch Fixture M03 || status=$?
   test "$status" -eq 1
   echo '--- after the refusal'; inventory
-  test ! -e Fixture-M03
+  test ! -e "$BATON_HOME/worktrees/Fixture/M03"
   test ! -e "$BATON_HOME/settings/Fixture-M03.json"
 
   echo '--- the repair: the same brief, committed on main'
@@ -50,13 +51,13 @@ BRIEF
   echo '--- after the dispatch that was not refused'; inventory
 
   echo '--- a redispatch over uncommitted work in the reused worktree'
-  printf 'work in progress\n' > Fixture-M03/scratch.txt
+  printf 'work in progress\n' > "$BATON_HOME/worktrees/Fixture/M03/scratch.txt"
   jq 'map(.pid = null)' "$SHIM/rows.json" > "$SHIM/rows.json.tmp" && mv "$SHIM/rows.json.tmp" "$SHIM/rows.json"
   # The reuse line names the commit the branch stands at, which is the brief commit this scenario
   # made rather than the fixture commit the harness names, so it is given a name here too.
   reused=$("$BATON" dispatch Fixture M03)
   printf '%s\n' "$reused" | sed "s/$(git -C Fixture rev-parse m03)/@BRIEFCOMMIT@/"
-  test "$(cat Fixture-M03/scratch.txt)" = 'work in progress'
+  test "$(cat "$BATON_HOME/worktrees/Fixture/M03/scratch.txt")" = 'work in progress'
   echo 'the uncommitted file is still there'
 fi
 jq -se '([.[] | select(.kind == "dispatch" and .milestone == "M03")] | length) == 2

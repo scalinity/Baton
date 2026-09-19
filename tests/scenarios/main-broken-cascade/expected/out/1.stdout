@@ -7,6 +7,6 @@ ruling    Fixture/M03 · b3 · main-broken · delivered
 == the project is no longer held, and with the cap at three M04 dispatches beside the two resumed sessions ==
 backgrounded · 0badc0d1 · Baton · Fixture · M04
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
-worktree  @TMP@/Fixture-M04 (branch m04)
+worktree  @TMP@/home/worktrees/Fixture/M04 (branch m04)
 settings  @TMP@/home/settings/Fixture-M04.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt

@@ -3,11 +3,11 @@ consumed  M01-f1.json → @TMP@/home/archive/M01-f1-2026-09-12T12:00:00+01:00.js
 unparked  Fixture/M07 · the omitted no longer holds: a handover now lists it
 backgrounded · 0badc0d1 · Baton · Fixture · M07
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
-worktree  @TMP@/Fixture-M07 (branch m07)
+worktree  @TMP@/home/worktrees/Fixture/M07 (branch m07)
 settings  @TMP@/home/settings/Fixture-M07.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
 backgrounded · 0badc0d2 · Baton · Fixture · M02
 session   0badc0d2-0000-4000-8000-000000000000 (attempt 1)
-worktree  @TMP@/Fixture-M02 (branch m02)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
 settings  @TMP@/home/settings/Fixture-M02.json
 prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
