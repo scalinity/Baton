@@ -29,10 +29,10 @@ if [ "${BATON_INSTALL_TEST:-}" != 1 ]; then
 fi
 
 mkdir -p "$BATON_HOME/bin/lib" "$BATON_HOME/inbox" "$BATON_HOME/archive" "$BATON_HOME/rejected" \
-  "$BATON_HOME/status" "$BATON_HOME/settings" "$BATON_HOME/prompts" "$BATON_HOME/projects"
+  "$BATON_HOME/status" "$BATON_HOME/settings" "$BATON_HOME/prompts" "$BATON_HOME/projects" "$BATON_HOME/checks"
 
-# The relay is published, not copied over (D-131). `bin/baton` sources twenty libraries before it
-# takes any lock, so a file-by-file copy landing while a tick starts gave that tick a mixture of two
+# The relay is published, not copied over (D-131). `bin/baton` sources its whole library set before
+# it takes any lock, so a file-by-file copy landing while a tick starts gave that tick a mixture of two
 # library sets — live on every unattended close-out, which runs this script itself (D-079). The
 # repair is one immutable set per content, named for it, and one atomic reference change:
 #
@@ -131,6 +131,18 @@ mkdir -p "$BATON_HOME/projects/$project"
 if [ ! -f "$BATON_HOME/projects/$project/project.json" ]; then
   jq -n --arg p "$canonical" '{path: $p, plan: "docs/MILESTONES.md"}' > "$BATON_HOME/projects/$project/project.json"
 fi
+# The standing check, which Baton runs itself on the tree a completion claims to have merged
+# (REQ-ARTIFACT-10). It is registered rather than read out of `CLAUDE.md`, which names it in prose,
+# and rather than taken from the artifact, which is the thing being checked. The field is added to
+# a registration that lacks it and never overwritten, because a person who changed the command
+# meant it; the write is additive for the reason F11 gives — `install.sh` wrote `{path, plan}` only
+# when the file was absent, so reinstalling over Baton's own registration could never supply a
+# field registration did not have (D-147).
+if ! jq -e '.check.command // empty' "$BATON_HOME/projects/$project/project.json" > /dev/null 2>&1; then
+  jq '. + {check: {command: "sh tests/run.sh", deadline_seconds: 1800}}' \
+    "$BATON_HOME/projects/$project/project.json" > "$BATON_HOME/projects/$project/project.json.tmp" \
+    && mv "$BATON_HOME/projects/$project/project.json.tmp" "$BATON_HOME/projects/$project/project.json"
+fi
 # Two deny classes and nothing else (REQ-PERM-04): privilege escalation, and Baton's own state by
 # named path — everything under BATON_HOME except inbox/. The // form is an absolute path for the
 # tools that take one; the Bash fragments catch a shell command that names the path, and can
@@ -141,11 +153,11 @@ jq -n --arg h "/$BATON_HOME" '
       deny: (
         ["Bash(sudo:*)", "Bash(su:*)", "Bash(doas:*)", "Bash(osascript * administrator privileges*)"]
         + ["Read(\($h)/log.jsonl)", "Edit(\($h)/log.jsonl)", "Write(\($h)/log.jsonl)"]
-        + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock", "notify" ]
+        + ([ "archive", "rejected", "prompts", "settings", "projects", "bin", "status", "lock", "notify", "checks" ]
            | map("Edit(\($h)/\(.)/**)", "Write(\($h)/\(.)/**)"))
         + ["Edit(\($h)/config.json)", "Write(\($h)/config.json)", "Edit(\($h)/last-tick)", "Write(\($h)/last-tick)"]
         # Sessions run bin/baton, but never the sourced bin/lib files (D-112).
-        + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick", "notify" ]
+        + ([ "log.jsonl", "archive", "rejected", "prompts", "settings", "projects", "status", "lock", "config.json", "last-tick", "notify", "checks" ]
            | map("Bash(*.baton/\(.)*)"))
         + ["Bash(*.baton/bin/lib*)"]
         # The launchd agent joins the named paths from M03. It sits outside ~/.baton but is

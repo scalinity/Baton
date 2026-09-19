@@ -1,0 +1,3 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "Baton ran sh check.sh on the tree at @MERGE@, and it failed; its output is at /private/var/folders/_q/nsgwvvj51zlcw71s_yzz0s100000gn/… · fix main, then baton answer M02 \"main fixed; finish the close-out from step (c)\"" with title "Baton · Fixture/M02 · main-broken"'
+[cwd @TMP@] claude agents --json

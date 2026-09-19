@@ -1,0 +1,2 @@
+== the attempt was dispatched before Baton recorded a baseline, which is every attempt in flight when this landed: there is no commit to bind the claim to and no honest way to recover one after the merge, so the completion is consumed and recorded unproved rather than refused ==
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json (complete, merged_as @MERGE@, unproved)

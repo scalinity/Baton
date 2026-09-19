@@ -473,7 +473,11 @@ dispatch_one() {
     {name: $name, model: $model}
     | if $effort != "" then . + {effort: $effort} else . end
     | . + {remote: $remote, worktree: $wt, branch: $branch, worktree_reused: $reused}
-    | if $reused then . + {worktree_commit: $commit} else . end
+    # The baseline, on every dispatch and not only on a reused worktree. It was `worktree_commit`
+    # and said only where a reused worktree happened to stand; it is now the commit a completion
+    # claim has to descend from, which is a fact about the attempt and has to be there for every
+    # one of them. Nothing read the old name (D-145).
+    | . + {baseline: $commit}
     | . + {settings: $settings, prompt_path: $pp, prompt_sha256: $sha}')"
 
   # The five lines a dispatch leaves behind, on stdout: a person's own `baton dispatch` reads them

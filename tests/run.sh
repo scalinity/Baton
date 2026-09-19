@@ -15,6 +15,12 @@
 # mtimes (one "<path under transcripts/ or home/> <seconds before now>" per line, for the rules that
 # stat a file rather than read it; every transcript starts at the scenario's now), and expected/. install.sh needs codesign, which the Command Line Tools carry, for the install scenario.
 #
+# A scenario whose cmd builds commits of its own — tests/completion-fixture.sh does, because a
+# completion chain needs a baseline, a candidate and a merge that the fixture commit alone cannot
+# supply — writes "<NAME> <value>" per line to $tmp/subs and replaces @NAME@ in its own home/ with
+# the value. Those values are turned back into @NAME@ in got/ before the diff, so an expectation
+# holds the names rather than hashes that would move whenever tests/project/ changed.
+#
 # BATON_TESTS_FREEZE=<name> rewrites that one scenario's expected/ from the run, for output that
 # has been read and judged right; BATON_TESTS_FREEZE=all does it for every scenario and is for a
 # harness change that moves every expectation at once. BATON_TESTS_ONLY=<glob> runs the scenarios
@@ -165,6 +171,18 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
     mv "$tmp/got/home/log.jsonl.checked" "$tmp/got/home/log.jsonl"
   fi
   find "$tmp/got" -type f -exec sed -i '' "s|$tmp|@TMP@|g; s|$commit|@COMMIT@|g; s|$offmain|@OFFMAIN@|g; s|$othercommit|@OTHERCOMMIT@|g" {} +
+
+  # A scenario that builds commits of its own — a completion chain needs a baseline, a candidate and
+  # a merge — writes "<NAME> <value>" per line to $tmp/subs and substitutes @NAME@ in its own home/.
+  # Those values are put back here, so the expectation holds the names and not the hashes. Without
+  # it every completion expectation would be pinned to the fixture project's tree, and adding a line
+  # to a brief would move thirteen files that have nothing to do with the change.
+  if [ -f "$tmp/subs" ]; then
+    while read -r sub_name sub_value || [ -n "$sub_name" ]; do
+      [ -n "$sub_name" ] && [ -n "$sub_value" ] || continue
+      find "$tmp/got" -type f -exec sed -i '' "s|$sub_value|@$sub_name@|g" {} +
+    done < "$tmp/subs"
+  fi
 
   # git cannot hold an empty directory, so a scenario whose inbox ends empty would compare
   # against an expected/ that has no inbox at all on a fresh checkout. Neither side may

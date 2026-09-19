@@ -1,5 +1,5 @@
 == a handover lands that lists M07: the omitted park ends by itself, and M07 and M02 dispatch in the handover's order ==
-consumed  M01-f1.json → @TMP@/home/archive/M01-f1-2026-09-12T12:00:00+01:00.json (complete, merged_as @COMMIT@)
+consumed  M01-f1.json → @TMP@/home/archive/M01-f1-2026-09-12T12:00:00+01:00.json (complete, merged_as @COMMIT@, unproved)
 unparked  Fixture/M07 · the omitted no longer holds: a handover now lists it
 backgrounded · 0badc0d1 · Baton · Fixture · M07
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)

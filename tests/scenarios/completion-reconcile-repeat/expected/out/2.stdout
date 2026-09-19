@@ -1,0 +1,1 @@
+== a repeat was moved into the archive and the tick was killed before its repeated event: the copy is claimed as a repeat of the handover already consumed, not settled as a second consumption, because a second consumed event would reset the ladder, park again and act twice on one handover ==
