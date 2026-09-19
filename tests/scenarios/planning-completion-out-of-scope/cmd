@@ -1,0 +1,3 @@
+echo "== a planning session that changed neither the plan document nor the briefs did not do what it was dispatched for: the handover is rejected, and the refusal names the two paths the generation prompt asked for =="
+sh "$ROOT/tests/completion-fixture.sh" planning-out-of-scope
+sh "$ROOT/tests/consume-once.sh"

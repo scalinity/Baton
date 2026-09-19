@@ -1,0 +1,51 @@
+{
+  "path": "@TMP@/Fixture",
+  "goal": "a fixture project.",
+  "done": "every milestone reads done.",
+  "constraints": [
+    "POSIX shell only."
+  ],
+  "non_goals": [
+    "a rewrite in another language."
+  ],
+  "plan_format": "generated",
+  "onboarded_at": "2026-09-19T08:00:00+01:00",
+  "cli": {
+    "version": "2.1.278 (Claude Code)",
+    "checked_at": "2026-09-19T08:00:00+01:00"
+  },
+  "plan_owed": {
+    "reason": "attempt 1 wrote a plan Baton will not adopt: 7 things to repair, the first being docs/MILESTONES.md uses the id M00-plan, which Baton reserves for the session that writes the plan",
+    "owner": "M12",
+    "defects": [
+      {
+        "what": "docs/MILESTONES.md uses the id M00-plan, which Baton reserves for the session that writes the plan",
+        "repair": "rename that row in docs/MILESTONES.md to an id of its own and rename its brief with it"
+      },
+      {
+        "what": "docs/MILESTONES.md row 1 marks M01 \"done\" before anybody has done it, and Baton never dispatches a row that is not blank",
+        "repair": "leave every Status cell in docs/MILESTONES.md blank and commit it on main"
+      },
+      {
+        "what": "docs/MILESTONES.md has M02 depending on M09, which is not a row in the same table",
+        "repair": "name only ids the milestone table holds in the Depends on cell of M02 in docs/MILESTONES.md"
+      },
+      {
+        "what": "docs/MILESTONES.md opens the gate \"the note is approved\", and a gate is a hold only a person clears: a generated plan that carries one stops itself on the first night",
+        "repair": "remove the gate \"the note is approved\" from the gates table in docs/MILESTONES.md, or clear it with the D-number of the entry that cleared it"
+      },
+      {
+        "what": "nothing in docs/MILESTONES.md is eligible: every milestone waits on another, so the first tick would dispatch nothing",
+        "repair": "leave at least one row in docs/MILESTONES.md with a Depends on cell of – and no gate holding it"
+      },
+      {
+        "what": "docs/milestones/M02.md does not name M00-plan in its ## 11. section, and M00-plan depends on M02: Baton dispatches only what a handover lists, so the chain would stop at M02",
+        "repair": "name M00-plan as a successor in the ## 11. section of docs/milestones/M02.md and commit it on main"
+      },
+      {
+        "what": "Baton needs M00-plan's brief docs/milestones/M00-plan.md on main with a fenced block under \"## Copy-ready session prompt\". It does not exist on main or in the working tree. Write the brief with that heading and fenced block, then commit it on main: git -C \"@TMP@/Fixture\" add -- \"docs/milestones/M00-plan.md\" && git -C \"@TMP@/Fixture\" commit -m \"Record M00-plan brief\"",
+        "repair": "git -C '@TMP@/Fixture' add -- 'docs/milestones/M00-plan.md' && git -C '@TMP@/Fixture' commit -m 'Record M00-plan brief'"
+      }
+    ]
+  }
+}

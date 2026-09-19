@@ -105,6 +105,11 @@ completion_baseline() {
 # 1 when the brief has no such section, which makes the milestone unprovable rather than
 # trivially provable.
 completion_scope_patterns() {
+  # The planning lane declares its scope in Baton's own text rather than in a brief, because the
+  # project it runs in has no briefs yet — writing them is what it is for. `planning_scope_patterns`
+  # is the two paths its prompt names, which is stronger evidence than a §5 would be: it is what
+  # Baton asked for, not what a session wrote about what it meant to do (lib/planning.sh).
+  [ "$2" != "$PLANNING_ID" ] || { planning_scope_patterns; return 0; }
   csp_text=$(git -C "$1" show "main:docs/milestones/$2.md" 2>/dev/null) \
     || { echo "docs/milestones/$2.md is not on main in $1"; return 1; }
   # The section's absence is a different refusal from the section naming no path — a brief with no

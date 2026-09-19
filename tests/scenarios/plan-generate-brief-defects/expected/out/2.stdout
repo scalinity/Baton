@@ -1,0 +1,22 @@
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+--- every defect, in one pass ---
+  * Baton needs M01's kickoff prompt to carry the slot paragraph it replaces at dispatch with what else is in flight: the prompt has no paragraph beginning WHAT ELSE IS IN FLIGHT. Write the paragraph "WHAT ELSE IS IN FLIGHT. Runs alone unless the dispatch says otherwise." into the fenced block under "## Copy-ready session prompt", then commit it on main: git -C '@TMP@/Fixture' add -- 'docs/milestones/M01.md' && git -C '@TMP@/Fixture' commit -m 'Record M01 brief'
+    repair: git -C '@TMP@/Fixture' add -- 'docs/milestones/M01.md' && git -C '@TMP@/Fixture' commit -m 'Record M01 brief'
+  * docs/milestones/M01.md has no ## 9., and a brief a session navigates by its headings needs the eleven numbered sections and the three unnumbered ones
+    repair: add the missing headings to docs/milestones/M01.md in MILESTONE FORMAT order and commit it on main
+  * docs/milestones/M01.md has content under ## Completion evidence before anybody has done the milestone, and the recovery clause reads that section as work already begun
+    repair: empty the ## Completion evidence section of docs/milestones/M01.md and commit it on main
+  * docs/milestones/M01.md does not carry the slot paragraph verbatim: Baton replaces that whole paragraph at dispatch with what else is in flight, and it matches the sentence and not its first words
+    repair: make part 2 of the fenced block in docs/milestones/M01.md exactly "WHAT ELSE IS IN FLIGHT. Runs alone unless the dispatch says otherwise.", alone on its line, and commit it on main
+  * docs/milestones/M01.md declares no scope: its ## 5. section names no repository path between backticks, and Baton proves a completion by finding one changed path inside that section
+    repair: name the paths M01 will change in the ## 5. section of docs/milestones/M01.md, each between backticks, and commit it on main
+  * docs/milestones/M02.md has no ## Recovery procedure, and a brief a session navigates by its headings needs the eleven numbered sections and the three unnumbered ones
+    repair: add the missing headings to docs/milestones/M02.md in MILESTONE FORMAT order and commit it on main
+  * docs/milestones/M02.md does not carry the slot paragraph verbatim: Baton replaces that whole paragraph at dispatch with what else is in flight, and it matches the sentence and not its first words
+    repair: make part 2 of the fenced block in docs/milestones/M02.md exactly "WHAT ELSE IS IN FLIGHT. Runs alone unless the dispatch says otherwise.", alone on its line, and commit it on main
+  * docs/milestones/M02.md has no VERIFICATION part in its kickoff prompt, and a prompt run by a session that remembers nothing of the one that wrote it needs all seven
+    repair: write the VERIFICATION part into the fenced block in docs/milestones/M02.md and commit it on main
+  * docs/milestones/M02.md declares no Size in its ## 1. section, so nothing in the plan says whether the milestone is one session of work or three
+    repair: write a Size line into the ## 1. section of docs/milestones/M02.md — Small, Medium or Large, with about how many hours — and commit it on main
+--- nothing was adopted and nothing was seeded ---
+{"plan":"none","plan_format":"generated","has_start":false}

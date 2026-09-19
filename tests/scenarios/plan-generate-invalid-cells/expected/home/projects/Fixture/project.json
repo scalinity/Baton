@@ -1,0 +1,27 @@
+{
+  "path": "@TMP@/Fixture",
+  "goal": "a fixture project.",
+  "done": "every milestone reads done.",
+  "constraints": [
+    "POSIX shell only."
+  ],
+  "non_goals": [
+    "a rewrite in another language."
+  ],
+  "plan_format": "generated",
+  "onboarded_at": "2026-09-19T08:00:00+01:00",
+  "cli": {
+    "version": "2.1.278 (Claude Code)",
+    "checked_at": "2026-09-19T08:00:00+01:00"
+  },
+  "plan_owed": {
+    "reason": "attempt 1 wrote a plan Baton will not adopt: 1 thing to repair, the first being docs/MILESTONES.md does not parse even with defaults: the milestones table, row M02, cell Depends on: \"after M01 has landed\" is not ids, ranges or – for none",
+    "owner": "M12",
+    "defects": [
+      {
+        "what": "docs/MILESTONES.md does not parse even with defaults: the milestones table, row M02, cell Depends on: \"after M01 has landed\" is not ids, ranges or – for none",
+        "repair": "repair the cell the reader named in docs/MILESTONES.md and commit it on main"
+      }
+    ]
+  }
+}
