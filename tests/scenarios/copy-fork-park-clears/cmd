@@ -1,0 +1,18 @@
+set -eu
+# The fork park's condition is a process. While a row still carries the original with a pid the
+# worry stands and only a person can end it; the moment no row does, nothing is left to do and the
+# lane is Baton's again. The rejection park beside it is the same class, the same scope and the same
+# shape without `carries.original`, and its condition does not end by itself, so it never moves.
+cp "$SCENARIO/rows.json" "$SHIM/rows.json"
+echo "== the original still carries a pid: the park stands =="
+"$BATON" tick
+if ! jq -se 'any(.kind == "resolution")' "$BATON_HOME/log.jsonl" > /dev/null; then
+  jq -se '[.[] | select(.kind == "resolution")] | length == 0' "$BATON_HOME/log.jsonl" > /dev/null
+fi
+echo "== the original has left the listing: the fork park clears, the rejection park does not =="
+jq -c '[ .[] | select(.sessionId != "f2") ]' "$SHIM/rows.json" > "$SHIM/rows.json.tmp"
+mv "$SHIM/rows.json.tmp" "$SHIM/rows.json"
+"$BATON" tick
+jq -se '[.[] | select(.kind == "resolution")] as $r
+  | ($r | length) == 1 and ($r | last | .milestone) == "M02" and ($r | last | .how) == "edit"' \
+  "$BATON_HOME/log.jsonl" > /dev/null

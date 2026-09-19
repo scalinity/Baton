@@ -3,4 +3,4 @@
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude stop 0badf2
-osascript -e 'display notification "the resume forked and the original session f2 may still be running: the stop of job 0badf2 was refused. Baton · Fixture · M02 is now carried by 1a2b3c4d-0000-4000-8000-000000000000; stop the original by hand and leave o… · baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · other"'
+osascript -e 'display notification "the resume forked and the original session f2 may still be running: the stop of job 0badf2 was refused. Baton · Fixture · M02 is now carried by 1a2b3c4d-0000-4000-… · stop the original session f2 by hand; the park clears itself once no row carries it" with title "Baton · Fixture/M02 · other"'

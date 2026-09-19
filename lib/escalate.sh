@@ -353,6 +353,19 @@ escalation_content() {
 # Baton has no business making on a decision it escalated precisely because it cannot make it.
 escalation_verb() {
   evb_m=$2
+  # The fork park first, because neither of the two routes below is its way out. A resume that forked
+  # and could not prove its compensating stop landed leaves a process that may be running under a
+  # session Baton no longer tracks (D-132): no plan or brief edit bears on that, and a ruling would be
+  # delivered into the copy — a session that is running and has nothing wrong with it. The one act
+  # that ends it is a person stopping the original, and the park carries which one. The park clears
+  # itself once no row carries that session (`fork_resolve_check`), so the line says so and asks for
+  # nothing else afterwards. Its class is the house `other`, which a rejection also uses, so the test
+  # is the field and never the class.
+  evb_orig=$(printf '%s' "$3" | jq -r '.original // empty' 2>/dev/null || true)
+  if [ -n "$evb_orig" ]; then
+    printf 'stop the original session %s by hand; the park clears itself once no row carries it' "$evb_orig"
+    return 0
+  fi
   # A ruling is delivered by resuming a session inside a lane, so a park that `ruling_target` calls
   # unreachable cannot be answered and must not print a command that would be refused. The edit is
   # its way out, and `escalate` gave it the hashes that make the edit visible.
@@ -714,5 +727,49 @@ question_resolve_check() {
       "$(jq -nc --arg a "$qrc_at" --arg d "$qrc_detail" '{asked_at: $a, detail: $d}')"
     printf 'prompt    %s/%s · %s · the question outlived its session; only a ruling reaches it now\n' \
       "$1" "$qrc_m" "$qrc_s"
+  done
+}
+
+# fork_resolve_check <project> <rows json>: the route out of a park that needs no person at all,
+# because its condition ends on its own.
+#
+# `resume_session` parks a lane when a resume forked and the compensating stop could not be proved to
+# have landed: a process may still be running under a session `copy_fork` has already moved every
+# derivation off, so nothing tracks it (D-132). That worry is about a process, and a process ends.
+# The moment no row carries the original with a pid there is nothing left for a person to do, and a
+# park that cannot end is a milestone held out of every dispatch and a lane `derive_gap` counts open
+# for as long as Baton runs (lib/derive.sh:499-501).
+#
+# **Filtered by the field, not only by the class.** `escalate_rejection` writes the same shape —
+# `other`, lane scope, no `reread` — for every rejected artifact (lib/inbox.sh:218-221), and a
+# rejection's condition does not end by itself: a file was rejected and a person must decide
+# something, so ruling-only is correct there and this must never touch it. `carries.original` is what
+# tells the two apart, and a rejection has no such field.
+#
+# **The copy completing is not the test.** It is evidence about the copy and says nothing about
+# whether the original process died; releasing a park on an act independent of its condition is the
+# defect class D-134 exists to close. The rows are the only witness, and they are asked directly.
+fork_resolve_check() {
+  [ -n "${2:-}" ] || return 0
+  frc_parked=$(derive_parked "$1") || { echo "$frc_parked" >&2; return 1; }
+  frc_list=$(printf '%s' "$frc_parked" | jq -c \
+    '[ .parked[] | select(.class == "other" and .scope == "lane" and (.carries.original // "") != "") ]')
+  frc_n=$(printf '%s' "$frc_list" | jq length); frc_i=0
+  while [ "$frc_i" -lt "$frc_n" ]; do
+    frc_e=$(printf '%s' "$frc_list" | jq -c ".[$frc_i]"); frc_i=$((frc_i + 1))
+    frc_o=$(printf '%s' "$frc_e" | jq -r .carries.original)
+    # A row with a pid is the worry still standing. A listing read as empty is a listing: it says the
+    # session is gone. A listing that could not be read never reaches here, because the tick fails on
+    # it before step 3.
+    if printf '%s' "$2" | jq -e --arg s "$frc_o" 'any(.[]; .sessionId == $s and .pid != null)' \
+       > /dev/null 2>&1; then
+      continue
+    fi
+    frc_m=$(printf '%s' "$frc_e" | jq -r '.milestone // ""')
+    resolve "$1" "$frc_m" "$(printf '%s' "$frc_e" | jq -r '.session // ""')" \
+      "$(printf '%s' "$frc_e" | jq -r '.attempt // ""')" "$(printf '%s' "$frc_e" | jq -r .at)" edit \
+      || { echo "baton: $1/$frc_m the unpark of the fork park naming $frc_o could not be written" >&2; continue; }
+    printf 'unparked  %s/%s · no row carries the unstopped original %s any more · Baton acts on the lane again\n' \
+      "$1" "$frc_m" "$frc_o"
   done
 }

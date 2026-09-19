@@ -220,12 +220,14 @@ dispatch_try() {
 # Baton never acts on a lane a person is typing into (INV-04), and a lane whose transcript could not
 # be scanned is not evidence that nobody is.
 tick_project() {
-  # The two unparks a tick can see, before anything reads the parks. An edit a person made is their
-  # decision arriving, and a question answered in place is the row saying so; both are facts every
-  # later check reads, and a lane freed here is one step 4 acts on in the same tick rather than a
-  # minute later. A lane whose condition still stands is parked again by the rule that parked it.
+  # The three unparks a tick can see, before anything reads the parks. An edit a person made is their
+  # decision arriving, a question answered in place is the row saying so, and a fork park whose
+  # original no longer has a row is a worry that has ended without anyone acting; all three are facts
+  # every later check reads, and a lane freed here is one step 4 acts on in the same tick rather than
+  # a minute later. A lane whose condition still stands is parked again by the rule that parked it.
   edit_reread_check "$1" "$2" "$3" || return 1
   question_resolve_check "$1" "$3" || return 1
+  fork_resolve_check "$1" "$3" || return 1
   tp_over=$(takeover_check "$1" "$3") || return 1
   printf '%s' "$tp_over" | jq -r '.lines[]'
   tp_off=$(printf '%s' "$tp_over" | jq -r '.stand_off[]')
