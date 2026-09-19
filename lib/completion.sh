@@ -354,9 +354,15 @@ completion_check_run() {
   # failed would kill the subshell at the failing command, the marker would never be written, and
   # the poll below would run to the deadline and record a failing check as `timed-out`. A check
   # exiting non-zero is the ordinary case this exists to catch, not an error in the shell.
+  # The subshell's own stderr goes nowhere, and only the subshell's: the command's own output is
+  # redirected to `$ccr_out` inside it, before this applies. What this discards is the shell's
+  # job-control notice — `…: 40552 Terminated: 15  sh -c …` — which a shell writes when it reaps a
+  # child the deadline killed. It is the shell talking about its own bookkeeping, it is not the
+  # check's output, and whether it appears at all depends on the timing of the kill, so a frozen
+  # expectation that included it would pass on one machine and fail on the next (D-152).
   ( set +e
     cd "$ccr_tree" && sh -c "$ccr_cmd" > "$ccr_out" 2>&1
-    printf '%s\n' "$?" > "$ccr_out.exit.tmp" && mv "$ccr_out.exit.tmp" "$ccr_out.exit" ) &
+    printf '%s\n' "$?" > "$ccr_out.exit.tmp" && mv "$ccr_out.exit.tmp" "$ccr_out.exit" ) 2>/dev/null &
   ccr_pid=$!
   ccr_waited=0
   ccr_timedout=no
