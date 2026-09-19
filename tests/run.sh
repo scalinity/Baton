@@ -143,6 +143,13 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
   cp -R "$tmp/out" "$tmp/got/out"
   cp "$tmp/shim/calls.log" "$tmp/got/calls.log"
   rm -rf "$tmp/got/home/lock"
+  # The managed worktree root goes the way of the lock: a dispatch creates a whole git worktree of
+  # the fixture project under home/worktrees/, hundreds of files whose content is the fixture's own
+  # and whose .git pointer carries the temporary path. What a scenario means to assert about a
+  # worktree is where it is and whether it was reused, and both are in the `dispatch` event and the
+  # dispatch's own stdout line, which are diffed. A scenario that needs a worktree to exist before
+  # the run makes one in `cmd`, outside home/, where it is not snapshotted either.
+  rm -rf "$tmp/got/home/worktrees"
   # The prompt hash cannot be frozen, because the sidecar carries the temporary path: recompute it
   # from the sidecar under the one rule and record whether it matched. A line that is not JSON is
   # left as it is (log-torn-line).

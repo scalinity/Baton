@@ -1,0 +1,13 @@
+set -eu
+# A milestone with no worktree anywhere gets one under the managed root,
+# $BATON_HOME/worktrees/<project>/<milestone>, and nothing is left beside the checkout.
+status=0
+"$BATON" dispatch Fixture M02 || status=$?
+wt=$BATON_HOME/worktrees/Fixture/M02
+test -d "$wt"
+test ! -e Fixture-M02
+test "$(git -C "$wt" symbolic-ref --short HEAD)" = m02
+test "$(git -C "$wt" rev-parse --path-format=absolute --git-common-dir)" \
+   = "$(git -C Fixture rev-parse --path-format=absolute --git-common-dir)"
+printf '%s\n' 'the worktree is under the managed root, on m02, in the fixture repository'
+exit "$status"

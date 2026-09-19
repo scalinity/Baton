@@ -2,7 +2,7 @@ dispatch  Fixture/M02 · 2 consecutive failures · the lane is parked
 retry     Fixture/M02 · the dispatch-failed park is released; the next tick may dispatch when eligible
 backgrounded · 0badc0d1 · Baton · Fixture · M02
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
-worktree  @TMP@/Fixture-M02 (branch m02)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
 settings  @TMP@/home/settings/Fixture-M02.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
 fixed worktree stage plus explicit retry released the sessionless park and dispatched once

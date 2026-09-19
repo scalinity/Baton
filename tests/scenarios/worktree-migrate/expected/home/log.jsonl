@@ -1,0 +1,3 @@
+{"at":"2026-09-12T11:00:00+01:00","kind":"dispatch","project":"Fixture","milestone":"M02","session":"f2","attempt":1,"name":"Baton · Fixture · M02","model":"opus","remote":false,"worktree":"/w","branch":"m02","worktree_reused":false,"settings":"/s","prompt_path":"/p/f2/1.txt","prompt_sha256":"sidecar-missing: /p/f2/1.txt"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"worktree_moved","project":"Fixture","milestone":"M03","from":"@TMP@/Fixture-M03","to":"@TMP@/home/worktrees/Fixture/M03","branch":"m03"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"worktree_moved","project":"Fixture","milestone":"M07-b","from":"@TMP@/Fixture-M07-b","to":"@TMP@/home/worktrees/Fixture/M07-b","branch":"m07-b"}

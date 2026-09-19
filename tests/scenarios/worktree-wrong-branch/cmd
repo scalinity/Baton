@@ -1,0 +1,16 @@
+set -eu
+# This project's own worktree at the managed path, but checked out on another branch. Reuse is
+# refused rather than the branch switched: what is on that branch is somebody's work in progress,
+# and Baton moves no one's checkout for them.
+wt=$BATON_HOME/worktrees/Fixture/M02
+if [ ! -d "$wt" ]; then
+  mkdir -p "$BATON_HOME/worktrees/Fixture"
+  git -C Fixture -c core.hooksPath=/dev/null worktree add -q "$wt" -b sidetrack main
+fi
+status=0
+"$BATON" dispatch Fixture M02 || status=$?
+test "$status" -eq 1
+jq -se 'last | .kind == "dispatch_failed" and .stage == "worktree"' "$BATON_HOME/log.jsonl" > /dev/null
+test "$(git -C "$wt" symbolic-ref --short HEAD)" = sidetrack
+test ! -e "$BATON_HOME/settings/Fixture-M02.json"
+printf '%s\n' 'the wrong branch was refused and left checked out as it was'

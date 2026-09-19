@@ -1,0 +1,19 @@
+set -eu
+# The tick moves the legacy sibling worktrees into the managed root. Two shapes: a plain id, and a
+# hyphenated one whose branch is m07-b — the case a milestone read back out of its branch would
+# spell M07-B and lose. Nothing is deleted: the branch, the commit and an untracked file all arrive
+# at the new path. The second run finds nothing left to move, which is the idempotence.
+if [ ! -e Fixture-M03 ] && [ ! -e "$BATON_HOME/worktrees/Fixture/M03" ]; then
+  git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M03 -b m03 main
+  git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M07-b -b m07-b main
+  printf 'uncommitted\n' > Fixture-M03/dirty.txt
+fi
+"$BATON" tick
+for id in M03 M07-b; do
+  test -d "$BATON_HOME/worktrees/Fixture/$id"
+  test ! -e "Fixture-$id"
+  test "$(git -C "$BATON_HOME/worktrees/Fixture/$id" symbolic-ref --short HEAD)" \
+     = "$(printf '%s' "$id" | tr 'A-Z' 'a-z')"
+done
+test "$(cat "$BATON_HOME/worktrees/Fixture/M03/dirty.txt")" = uncommitted
+printf '%s\n' 'both moved with their branches; M03 brought its untracked file'
