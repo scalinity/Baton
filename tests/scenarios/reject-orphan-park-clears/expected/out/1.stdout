@@ -1,0 +1,14 @@
+== limitation 33's second half. A handover Baton could not parse, and whose session it could
+== not place in any lane, leaves a park with no project: no ruling target, no re-read receipt,
+== and no per-project pass that will ever visit it. Two such parks, and two ways one ends.
+== M05's session, started by hand, went on to write an artifact Baton could read and consume,
+== so the first tick closes that park without anybody doing anything. M04's file is still
+== sitting in rejected/, so nothing has been corrected and its park is right to stand.
+settled   M05 · the rejection park raised at 2026-09-12T11:35:00+01:00 is closed · the session it names has had a handover consumed since
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  ?/M04 · other · the file is not a JSON object · fix what it names; the next tick re-reads the plan and the brief
+
+== the person deals with M04's file. They type nothing at Baton, because there is nothing they
+== could have typed: the park names no lane to answer. The next tick reads the condition itself.
+settled   M04 · the rejection park raised at 2026-09-12T11:30:00+01:00 is closed · the file it names is gone
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell

@@ -1,0 +1,37 @@
+set -eu
+# The silent record's own guard, which is the half the two stale-lock scenarios cannot show. Those
+# prove that a HOST-EXPLAINED condition writes its event and calls no notifier; this proves that
+# nothing else can. The failure mode of the fourth disposition is a condition that needed a person
+# and got an event nobody will read, so the class is checked against the table rather than taken
+# from the caller.
+. "$ROOT/tests/lib-load.sh"
+lock_take
+
+echo '=== the one class the table calls HOST-EXPLAINED writes its event, and channel says which it is'
+record_only "" "" "" "" baton-unhealthy project '{"detail":"the lock was cleared and the tick proceeded"}'
+
+echo '=== a class that reaches a person cannot be recorded silently, whatever the caller believes'
+for c in asking question merge-failed dispatch-failed main-broken unfinished-twice; do
+  status=0
+  record_only Fixture M02 s 1 "$c" lane '{"detail":"a person is owed this"}' 2>/dev/null || status=$?
+  echo "  $c -> exit $status"
+done
+
+echo
+echo '=== gap is the class the fourth disposition was named for, and it is refused here too: a gap is'
+echo '=== over when it is reported, but nothing yet explains it. There is no notification arm at all'
+echo '=== until docs/milestones/M15-b.md can say which gaps the host accounts for.'
+status=0
+record_only "" "" "" "" gap project '{"detail":"Baton was not running for 12 m"}' 2>/dev/null || status=$?
+echo "  gap -> exit $status"
+
+echo
+echo '=== the refusals a person reads, on the stream they belong to'
+record_only Fixture M02 s 1 asking lane '{"detail":"a person is owed this"}' || true
+record_only "" "" "" "" baton-unhealthy sideways '{"detail":"not a scope"}' || true
+record_only "" "" "" "" permission project '{"detail":"not a class"}' || true
+record_only "" "" "" "" baton-unhealthy project 'not json' || true
+
+echo
+echo '=== what was written: one line, and the notifier was not called at all'
+jq -c '{kind, class, scope, channel}' "$BATON_HOME/log.jsonl"

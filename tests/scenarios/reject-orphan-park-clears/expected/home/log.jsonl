@@ -1,0 +1,7 @@
+{"at":"2026-09-12T11:30:00+01:00","kind":"rejected","milestone":"M04","session":"orphan-session-id","path":"@TMP@/home/rejected/M04-orphan-session-id.json","reason":"unparseable"}
+{"at":"2026-09-12T11:30:00+01:00","kind":"escalation","milestone":"M04","session":"orphan-session-id","class":"other","scope":"lane","carries":{"rule":"unparseable","path":"@TMP@/home/rejected/M04-orphan-session-id.json","detail":"the file is not a JSON object"},"channel":["notification"]}
+{"at":"2026-09-12T11:35:00+01:00","kind":"rejected","milestone":"M05","session":"handwritten-session","path":"@TMP@/home/rejected/M05-handwritten-session.json","reason":"unparseable"}
+{"at":"2026-09-12T11:35:00+01:00","kind":"escalation","milestone":"M05","session":"handwritten-session","class":"other","scope":"lane","carries":{"rule":"unparseable","path":"@TMP@/home/rejected/M05-handwritten-session.json","detail":"the file is not a JSON object"},"channel":["notification"]}
+{"at":"2026-09-12T11:45:00+01:00","kind":"consumed","project":"Fixture","milestone":"M05","session":"handwritten-session","outcome":"complete","written_by":"session","archive":"@TMP@/home/archive/M05-handwritten-session-2026-09-12T11:45:00+01:00.json"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"resolution","milestone":"M05","session":"handwritten-session","how":"edit","escalation_at":"2026-09-12T11:35:00+01:00"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"resolution","milestone":"M04","session":"orphan-session-id","how":"edit","escalation_at":"2026-09-12T11:30:00+01:00"}

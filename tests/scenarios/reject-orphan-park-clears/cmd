@@ -1,0 +1,18 @@
+# No live row and no dispatched lane, deliberately: the parks this scenario is about belong to no
+# lane at all, and an in-flight session would arm caffeinate once per tick. The shim appends to
+# calls.log detached and on its own time, so those arms race the next listing call and the
+# expectation flakes on ordering alone (tests/run.sh says so; D-172 is what that costs).
+echo "== limitation 33's second half. A handover Baton could not parse, and whose session it could"
+echo "== not place in any lane, leaves a park with no project: no ruling target, no re-read receipt,"
+echo "== and no per-project pass that will ever visit it. Two such parks, and two ways one ends."
+echo "== M05's session, started by hand, went on to write an artifact Baton could read and consume,"
+echo "== so the first tick closes that park without anybody doing anything. M04's file is still"
+echo "== sitting in rejected/, so nothing has been corrected and its park is right to stand."
+"$BATON" tick || echo "status $?"
+"$BATON" status
+echo
+echo "== the person deals with M04's file. They type nothing at Baton, because there is nothing they"
+echo "== could have typed: the park names no lane to answer. The next tick reads the condition itself."
+rm -f "$BATON_HOME/rejected/M04-orphan-session-id.json"
+"$BATON" tick || echo "status $?"
+"$BATON" status
