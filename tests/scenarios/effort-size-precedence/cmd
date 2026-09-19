@@ -1,0 +1,8 @@
+echo "== precedence, three ways. M05's brief declares Large and its plan row's Effort cell says low: the cell is a person's instruction about the dispatch and wins over the brief's description of the work. M06 declares a Size that is not one of the three and M07 states one only inside its fenced prompt, where the dispatch does not look; both carry no effort at all, which is what a blank Effort cell has always meant, and neither parks the project =="
+"$BATON" dispatch Fixture M05
+"$BATON" dispatch Fixture M06
+"$BATON" dispatch Fixture M07
+echo "== what actually reached the CLI =="
+grep -o -- '--model [a-z]* \(--effort [a-z]* \)\?' "$SHIM/calls.log" || true
+echo "== status: nothing parked over a Size Baton could not read =="
+"$BATON" status
