@@ -365,12 +365,24 @@ prompt_from_brief() {
 # already established that it is on `main` with a complete fenced block, and `prompt_from_brief` reads
 # it again a moment later with three messages of its own; a second failure path for the same cause
 # would report the effort as the problem when the brief is.
+#
+# The line has to *declare* the Size and not merely mention it: what precedes `Size:` may be list
+# markers, emphasis and whitespace and nothing else — one character class, with no `{n,m}` interval,
+# which the awk here does support but which would add nothing the class does not already allow.
+# M12's generation check asks the looser question — is there a line in §1 holding `Size:` at all —
+# and that is right for a check whose answer is yes or no, where a false match costs a defect
+# reported that a person then reads. This one reads a value off the line and dispatches on it, so it
+# owes the stricter question. Without the anchor, a §1 sentence
+# such as "- **Objective:** settle the Size: Large, then build." is the first match, `found` is set,
+# and the real `- **Size:** Small` line two lines down is never reached: the milestone dispatches at
+# `high` on a word from a clause about deciding something. Anchoring it costs one pattern and is the
+# difference between reading a declaration and grepping prose.
 brief_size() {
   bs_text=$(git -C "$1" show "main:docs/milestones/$2.md" 2>/dev/null) || return 0
   printf '%s\n' "$bs_text" | awk '
     function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
     /^## / { inside = (trim($0) ~ /^## 1\./); next }
-    inside && !found && /Size:/ {
+    inside && !found && /^[-*+ \t]*Size:/ {
       s = $0; sub(/^.*Size:/, "", s); gsub(/\*/, "", s)
       sub(/[,;.].*$/, "", s); s = trim(s)
       if (s != "") { print tolower(s); found = 1 }

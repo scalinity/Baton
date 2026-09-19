@@ -1,0 +1,10 @@
+== the same independent pair, with the listing refused on the fifth agents --json call of the scenario — the one dispatch_run takes again before its second dispatch. M02 is already started and stays started; M03 is not dispatched onto a listing Baton could not read, and the tick reports itself incomplete, so the marker is not advanced. The second run of this cmd is the next tick: the listing answers again and M03 goes, which is what the candidate waits sixty seconds costs ==
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+dispatch    the dispatch pass failed; nothing more is dispatched this tick
+== tick exit: 3 ==
+last tick: no tick yet · unattended needs the lid open or clamshell
+in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
