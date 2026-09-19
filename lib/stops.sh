@@ -405,7 +405,7 @@ redispatch() {
   # redispatches; with several lanes on the rung at once they would each pass it and each spend a
   # start the window could not afford. `budget_room` re-reads the log, so a redispatch made a moment
   # ago in this same tick is already in the number. Empty when `budgetSessions` is off, which is the
-  # default, and this costs nothing (D-181).
+  # default, and this costs nothing (D-196).
   rdp_room=$(budget_room) || { render_failure err "$rdp_room"; return 1; }
   if [ -n "$rdp_room" ] && [ "$rdp_room" -le 0 ]; then
     render_row out action 'held      %s/%s · the window has no start left to spend, so the redispatch waits for it to roll\n' "$(render_token out lane "$1")" "$(render_token out milestone "$2")"
