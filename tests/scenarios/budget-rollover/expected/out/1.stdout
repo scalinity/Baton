@@ -1,0 +1,19 @@
+== with no feed reading the window is the span ending one span after the oldest start still inside it; the starts already on the log meet the two budgetSessions allows, so the tick pauses ==
+hold      all · budget · 2 session starts in this window, at or above the 2 budgetSessions allows · resumes at 2026-09-12T13:30:00+01:00
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+hold  all · budget · 2 session starts in this window, at or above the 2 budgetSessions allows · resumes at 2026-09-12T13:30:00+01:00 (in 1 h 30 m)
+-- the record, and the boundary the pause names --
+{"window_start":"2026-09-12T08:30:00+01:00","sessions_used":2,"tier":"max20"}
+
+== the clock passes that boundary: the oldest start leaves the window, the window's start moves on to the next one, and the count falls with it. Where the count then clears, the pause lifts and the work waiting is admitted through the cap and the holds like any other candidate; where it does not — the second run below, which begins with the first run's own dispatch already on the log — the hold that named a time now gone is closed and one naming the window actually holding is opened in its place ==
+lifted    all · budget · the window rolled or the reading fell below the ceiling
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+gap       Baton was not running for 1 h 45 m, measured against 2026-09-12T12:00:00+01:00
+last tick 2026-09-12T13:45:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+{"window_start":"2026-09-12T09:30:00+01:00","sessions_used":2,"tier":"max20"}
+-- the window rolled: a lift is recorded, and the record's window_start has moved on to the start that is now the oldest inside it --

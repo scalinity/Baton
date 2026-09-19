@@ -216,8 +216,24 @@ status_render() {
   while [ "$sr_i" -lt "$sr_n" ]; do
     sr_h=$(nth "$sr_list" "$sr_i"); sr_i=$((sr_i + 1))
     sr_reading=$(printf '%s' "$sr_h" | jq -r 'if .reading then " · reading \(.reading)" else "" end')
-    render_row out action 'hold  %s · %s%s\n' "$(render_token out state "$(text "$sr_h" .model)")" \
-      "$(text "$sr_h" .cause)" "$sr_reading"
+    # A budget pause carries what a rate-limit hold cannot: why it bit, and when Baton expects it
+    # to lift. That is the whole of M14's visible result — the alternative is a lane that looks
+    # like it is working and is not — so the tail is composed here rather than left to the cause
+    # alone, and the elapsed form beside the timestamp is the same `duration` the waits above use.
+    sr_tail=''
+    sr_resume=$(field "$sr_h" .resumes_at)
+    if [ -n "$sr_resume" ]; then
+      sr_at=$(iso_epoch "$sr_resume") || { echo "$sr_at"; return 1; }
+      if [ "$sr_at" -le "$sr_now" ]; then sr_tail=' · resume due'
+      else sr_tail=" · resumes at $(render_token out timestamp "$sr_resume") (in $(duration "$((sr_at - sr_now))"))"; fi
+    fi
+    # A hold that states its own reason states the reading inside it, so the bare `reading N` is
+    # dropped rather than said twice; a hold with no reason keeps the field the reserve has always
+    # printed.
+    sr_why=$(field "$sr_h" .reason)
+    [ -z "$sr_why" ] || { sr_tail=" · $sr_why$sr_tail"; sr_reading=''; }
+    render_row out action 'hold  %s · %s%s%s\n' "$(render_token out state "$(text "$sr_h" .model)")" \
+      "$(text "$sr_h" .cause)" "$sr_reading" "$sr_tail"
   done
 
   # 6. In flight: the lane, the session, the model, the attempt, the elapsed since the latest

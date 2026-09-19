@@ -1,0 +1,2 @@
+{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"f1","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M01-f1-a.json"}
+{"at":"2026-09-12T12:00:00+01:00","kind":"hold","model":"all","cause":"budget","resumes_at":"2026-09-12T16:00:00+01:00","reason":"the five-hour window reads 95%, at or above the ceiling of 90%","window_start":"2026-09-12T11:00:00+01:00","sessions_used":0,"tier":"max20","reading":95,"status_file":"@TMP@/home/status/f1.json"}

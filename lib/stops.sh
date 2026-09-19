@@ -391,8 +391,24 @@ redispatch() {
     render_row out action 'held      %s/%s · the project is parked (%s), so the redispatch waits for the park to be answered\n' "$(render_token out lane "$1")" "$(render_token out milestone "$2")" "$rdp_park"
     return 0
   fi
+  # The line says the hold stands rather than naming what would lift it: since M14 a hold is not
+  # always a usage-limit wait — a budget pause holds every model until the window rolls — and a
+  # line that told a person to wait for a wait that does not exist would send them looking for one.
+  # `baton status` names each open hold and its cause, which is where that answer belongs.
   if hold_bites "$rdp_model"; then
-    render_row out action 'held      %s/%s · %s is held, so the redispatch waits for the wait to clear\n' "$(render_token out lane "$1")" "$(render_token out milestone "$2")" "$(render_token out state "$rdp_model")"
+    render_row out action 'held      %s/%s · %s is held, so the redispatch waits until the hold lifts\n' "$(render_token out lane "$1")" "$(render_token out milestone "$2")" "$(render_token out state "$rdp_model")"
+    return 0
+  fi
+  # The budget's remaining starts, beside the hold, because this rung runs in steps 3 to 6 — before
+  # the dispatch pass — and writes a `dispatch` event of its own. `hold_bites` answers from the hold
+  # `budget_check` wrote at the top of the tick, which is a count taken before this tick's own
+  # redispatches; with several lanes on the rung at once they would each pass it and each spend a
+  # start the window could not afford. `budget_room` re-reads the log, so a redispatch made a moment
+  # ago in this same tick is already in the number. Empty when `budgetSessions` is off, which is the
+  # default, and this costs nothing (D-181).
+  rdp_room=$(budget_room) || { render_failure err "$rdp_room"; return 1; }
+  if [ -n "$rdp_room" ] && [ "$rdp_room" -le 0 ]; then
+    render_row out action 'held      %s/%s · the window has no start left to spend, so the redispatch waits for it to roll\n' "$(render_token out lane "$1")" "$(render_token out milestone "$2")"
     return 0
   fi
   rdp_attempt=$(attempt_of "$1" "$2")

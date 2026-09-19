@@ -1,0 +1,7 @@
+== the five-hour window reads 40, below the ceiling of 90: both eligible milestones dispatch and the budget record is written ==
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+in flight  Fixture/M07 · 0badc0d2-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+-- the record, for a window the feed's own resets_at names --
+{"window_start":"2026-09-12T11:00:00+01:00","sessions_used":2,"tier":"max20"}
+-- no pause was written --

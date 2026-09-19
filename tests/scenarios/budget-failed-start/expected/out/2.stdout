@@ -1,0 +1,9 @@
+== five failed starts, and pacing charges the two that reached the CLI: launch and service, never worktree, settings or prompt ==
+-- no feed reading at all, so the count is the only guard --
+hold      all · budget · 3 session starts in this window, at or above the 3 budgetSessions allows · resumes at 2026-09-12T15:40:00+01:00
+-- two charged, so the third start of the window is this tick's own dispatch and the budgetSessions of 3 is met --
+{"window_start":"2026-09-12T10:40:00+01:00","sessions_used":3,"tier":"max20"}
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+hold  all · budget · 3 session starts in this window, at or above the 3 budgetSessions allows · resumes at 2026-09-12T15:40:00+01:00 (in 3 h 40 m)
+in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+-- no attempt moved on any of the five, which is M13's rule left where it was --

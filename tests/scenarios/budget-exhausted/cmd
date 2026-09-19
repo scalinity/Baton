@@ -1,0 +1,11 @@
+set -e
+echo "== the five-hour window reads 95, at or above the ceiling of 90: nothing is dispatched, the pause is recorded with the feed's own resume time, and status shows both =="
+"$BATON" tick
+"$BATON" status
+echo "-- the pause, as the log records it --"
+jq -c 'select(.kind == "hold" and .cause == "budget") | {model, cause, resumes_at, reason, reading, sessions_used, window_start, tier}' "$BATON_HOME/log.jsonl"
+echo "-- no session was started and no dispatch was attempted --"
+! grep -q -- '--bg' "$SHIM/calls.log"
+! grep -q '"kind":"dispatch' "$BATON_HOME/log.jsonl"
+echo "-- and no escalation, no attempt, nothing on the ladder --"
+! grep -q '"kind":"escalation"' "$BATON_HOME/log.jsonl"

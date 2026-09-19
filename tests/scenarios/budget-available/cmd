@@ -1,0 +1,8 @@
+set -e
+echo "== the five-hour window reads 40, below the ceiling of 90: both eligible milestones dispatch and the budget record is written =="
+"$BATON" tick
+"$BATON" status
+echo "-- the record, for a window the feed's own resets_at names --"
+jq -c . "$BATON_HOME/projects/Fixture/budget.json"
+echo "-- no pause was written --"
+! grep -q '"cause":"budget"' "$BATON_HOME/log.jsonl"
