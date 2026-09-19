@@ -1,0 +1,11 @@
+set -e
+echo "== one start charged to each of two projects, and one account: the two together meet the two budgetSessions allows, so both projects pause =="
+"$BATON" tick
+"$BATON" status
+echo "-- each project's record carries its own share and neither carries an allowance of its own --"
+jq -c . "$BATON_HOME/projects/Fixture/budget.json"
+jq -c . "$BATON_HOME/projects/Other/budget.json"
+echo "-- and the pause that stopped them both names the account's count, not either share --"
+jq -c 'select(.kind == "hold" and .cause == "budget") | {model, cause, sessions_used, reason}' "$BATON_HOME/log.jsonl"
+echo "-- nothing was started, in either project --"
+! grep -q -- '--bg' "$SHIM/calls.log"

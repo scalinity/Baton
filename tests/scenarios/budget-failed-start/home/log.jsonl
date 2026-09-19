@@ -1,0 +1,6 @@
+{"at":"2026-09-12T09:00:00+01:00","kind":"consumed","project":"Fixture","milestone":"M01","session":"f1","attempt":1,"outcome":"complete","merged_as":"@COMMIT@","written_by":"session","archive":"@TMP@/home/archive/M01-f1-a.json"}
+{"at":"2026-09-12T10:10:00+01:00","kind":"dispatch_failed","project":"Fixture","milestone":"M03","stage":"worktree","detail":"the worktree could not be created"}
+{"at":"2026-09-12T10:20:00+01:00","kind":"dispatch_failed","project":"Fixture","milestone":"M03","stage":"settings","detail":"the permissions file has no deny rules"}
+{"at":"2026-09-12T10:30:00+01:00","kind":"dispatch_failed","project":"Fixture","milestone":"M04","stage":"prompt","detail":"the brief has no complete fenced block"}
+{"at":"2026-09-12T10:40:00+01:00","kind":"dispatch_failed","project":"Fixture","milestone":"M05","stage":"launch","detail":"the launch printed no backgrounded line"}
+{"at":"2026-09-12T10:50:00+01:00","kind":"dispatch_failed","project":"Fixture","milestone":"M06","stage":"service","detail":"the background service would not start"}

@@ -1,0 +1,12 @@
+== five failed starts, and pacing charges the two that reached the CLI: launch and service, never worktree, settings or prompt ==
+-- no feed reading at all, so the count is the only guard --
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+-- two charged, so the third start of the window is this tick's own dispatch and the budgetSessions of 3 is met --
+{"window_start":"2026-09-12T10:40:00+01:00","sessions_used":3,"tier":"max20"}
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+-- no attempt moved on any of the five, which is M13's rule left where it was --

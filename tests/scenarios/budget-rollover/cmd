@@ -1,0 +1,16 @@
+set -e
+cp "$SCENARIO/now" "$SHIM/now"
+echo "== with no feed reading the window is the span ending one span after the oldest start still inside it; the starts already on the log meet the two budgetSessions allows, so the tick pauses =="
+"$BATON" tick
+"$BATON" status
+echo "-- the record, and the boundary the pause names --"
+jq -c . "$BATON_HOME/projects/Fixture/budget.json"
+echo
+echo "== the clock passes that boundary: the oldest start leaves the window, the window's start moves on to the next one, and the count falls with it. Where the count then clears, the pause lifts and the work waiting is admitted through the cap and the holds like any other candidate; where it does not — the second run below, which begins with the first run's own dispatch already on the log — the hold that named a time now gone is closed and one naming the window actually holding is opened in its place =="
+printf '2026-09-12T13:45:00+01:00\n' > "$SHIM/now"
+"$BATON" tick
+"$BATON" status
+jq -c . "$BATON_HOME/projects/Fixture/budget.json"
+echo "-- the window rolled: a lift is recorded, and the record's window_start has moved on to the start that is now the oldest inside it --"
+grep -q '"kind":"hold_lifted","model":"all","cause":"budget"' "$BATON_HOME/log.jsonl"
+[ "$(jq -r .window_start "$BATON_HOME/projects/Fixture/budget.json")" = "2026-09-12T09:30:00+01:00" ]

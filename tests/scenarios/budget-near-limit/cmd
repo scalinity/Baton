@@ -1,0 +1,9 @@
+set -e
+echo "== one short of each guard — the window reads 89 against a ceiling of 90, and two starts stand against the three budgetSessions allows — so a near-limit tick still admits =="
+"$BATON" tick
+"$BATON" status
+echo "-- the record: two earlier starts and the one this tick had room for --"
+jq -c . "$BATON_HOME/projects/Fixture/budget.json"
+echo "-- the near-limit tick admitted rather than pausing: a session was started --"
+grep -q -- '--bg' "$SHIM/calls.log"
+echo "-- the guard is at-or-above and not near, which the second run below shows from the other side: the same configuration pauses once that third start is on the log --"

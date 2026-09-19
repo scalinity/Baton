@@ -1,0 +1,17 @@
+set -e
+cp "$SCENARIO/now" "$SHIM/now"
+cp "$SCENARIO/home/status/f1.json" "$BATON_HOME/status/f1.json"
+echo "== the window reads 95 and the pause names the boundary the feed gave it =="
+"$BATON" tick
+"$BATON" status
+echo
+echo "== past that boundary, with a session a person ran having put the next window over the line too: the hold that named a time now gone is closed and one naming the window actually holding is opened, so status never reads 'resume due' under a pause that is not lifting =="
+printf '2026-09-12T16:30:00+01:00\n' > "$SHIM/now"
+printf '%s\n' '{"session_id":"f1","model":{"id":"claude-opus-5"},"rate_limits":{"five_hour":{"used_percentage":93,"resets_at":1789243200},"seven_day":{"used_percentage":30,"resets_at":1789900000}}}' > "$BATON_HOME/status/f1.json"
+"$BATON" tick
+"$BATON" status
+echo "-- two holds and one lift, each naming a window that was really holding --"
+[ "$(grep -c '"kind":"hold","model":"all","cause":"budget"' "$BATON_HOME/log.jsonl")" = 2 ]
+[ "$(grep -c '"kind":"hold_lifted","model":"all","cause":"budget"' "$BATON_HOME/log.jsonl")" = 1 ]
+echo "-- and nothing was started across either window --"
+! grep -q -- '--bg' "$SHIM/calls.log"

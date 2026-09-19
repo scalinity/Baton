@@ -1,0 +1,9 @@
+== one start charged to each of two projects, and one account: the two together meet the two budgetSessions allows, so both projects pause ==
+last tick 2026-09-12T12:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+hold  all · budget · 2 session starts in this window, at or above the 2 budgetSessions allows · resumes at 2026-09-12T16:00:00+01:00 (in 4 h 0 m)
+-- each project's record carries its own share and neither carries an allowance of its own --
+{"window_start":"2026-09-12T11:00:00+01:00","sessions_used":1,"tier":"max20"}
+{"window_start":"2026-09-12T11:00:00+01:00","sessions_used":1,"tier":"max20"}
+-- and the pause that stopped them both names the account's count, not either share --
+{"model":"all","cause":"budget","sessions_used":2,"reason":"2 session starts in this window, at or above the 2 budgetSessions allows"}
+-- nothing was started, in either project --

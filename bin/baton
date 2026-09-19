@@ -54,6 +54,7 @@ fi
 . "$BATON_LIB/preconditions.sh"
 . "$BATON_LIB/candidates.sh"
 . "$BATON_LIB/derive.sh"
+. "$BATON_LIB/budget.sh"
 . "$BATON_LIB/completion.sh"
 . "$BATON_LIB/inbox.sh"
 . "$BATON_LIB/rows.sh"

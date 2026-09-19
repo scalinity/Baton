@@ -1,0 +1,14 @@
+set -e
+cp "$SCENARIO/now" "$SHIM/now"
+cp "$SCENARIO/home/status/f1.json" "$BATON_HOME/status/f1.json"
+echo "== the five-hour window reads 95, at or above the ceiling of 90: the tick pauses =="
+"$BATON" tick
+"$BATON" status
+echo
+echo "== the window resets and a session writes a reading below the ceiling: the pause lifts on the reading alone, without the clock having to pass anything, and the work waiting is admitted =="
+printf '%s\n' '{"session_id":"f1","model":{"id":"claude-opus-5"},"rate_limits":{"five_hour":{"used_percentage":12,"resets_at":1789243200},"seven_day":{"used_percentage":31,"resets_at":1789900000}}}' > "$BATON_HOME/status/f1.json"
+"$BATON" tick
+"$BATON" status
+echo "-- the lift is recorded and a session was started after it --"
+grep -q '"kind":"hold_lifted","model":"all","cause":"budget"' "$BATON_HOME/log.jsonl"
+grep -q -- '--bg' "$SHIM/calls.log"
