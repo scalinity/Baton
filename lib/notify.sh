@@ -84,8 +84,10 @@ notify() {
       nt_name=$(printf '%s-%s-%06d' "$nt_epoch" "$$" "$notify_seq")
       [ -e "$nt_spool/$nt_name" ] || [ -e "$nt_spool/.$nt_name" ] || break
     done
+    # The spool's three lines are transport, not terminal output: no escape, no width and no reading
+    # of this process's streams belongs in a file another program reads and posts (`render_plain`).
     if mkdir -p "$nt_spool" 2>/dev/null \
-       && printf '%s\n%s\n%s\n' "$(notify_line "$1")" "$(notify_line "$2")" "$nt_target" > "$nt_spool/.$nt_name" 2>/dev/null \
+       && render_plain '%s\n%s\n%s\n' "$(notify_line "$1")" "$(notify_line "$2")" "$nt_target" > "$nt_spool/.$nt_name" 2>/dev/null \
        && mv "$nt_spool/.$nt_name" "$nt_spool/$nt_name" 2>/dev/null; then
       "$BATON_OPEN" -g "$BATON_HOME/bin/Baton.app" > /dev/null 2>&1 && return 0
       rm -f "$nt_spool/$nt_name"
@@ -119,7 +121,7 @@ notify_title() {
   elif [ -n "$2" ]; then nt_addr="Baton · $2"
   fi
   [ -z "$3" ] || nt_addr="$nt_addr · $3"
-  printf '%s' "$nt_addr"
+  render_plain '%s' "$nt_addr"
 }
 
 # fields_or_fail <who> <json>: the guard both writers run first. log_event reads an empty fields
@@ -128,9 +130,9 @@ notify_title() {
 # with no class is worse than no notification. So a caller that passed something unparseable is a
 # bug, and it fails here where it is visible rather than three derivations later.
 fields_or_fail() {
-  [ -n "$2" ] || { echo "$1: the event's fields are empty" >&2; return 1; }
+  [ -n "$2" ] || { render_failure err "$1: the event's fields are empty"; return 1; }
   printf '%s' "$2" | jq -e 'type == "object"' > /dev/null 2>&1 \
-    || { echo "$1: the event's fields are not a JSON object: $2" >&2; return 1; }
+    || { render_failure err "$1: the event's fields are not a JSON object: $2"; return 1; }
 }
 
 # class_or_fail <caller> <kind> <class>: the taxonomy, enforced rather than read. Both lists are fixed
@@ -149,7 +151,7 @@ class_or_fail() {
     notification:transient|notification:stall|notification:long-running) ;;
     notification:blocked_by|notification:distant_wait_for|notification:prompt-lost) ;;
     notification:gap|notification:takeover-silent) ;;
-    *) echo "$1: \"$3\" is not one of the $2 classes" >&2; return 1 ;;
+    *) render_failure err "$1: \"$3\" is not one of the $2 classes"; return 1 ;;
   esac
 }
 

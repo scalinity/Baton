@@ -31,7 +31,7 @@ fi
 mkdir -p "$BATON_HOME/bin/lib" "$BATON_HOME/inbox" "$BATON_HOME/archive" "$BATON_HOME/rejected" \
   "$BATON_HOME/status" "$BATON_HOME/settings" "$BATON_HOME/prompts" "$BATON_HOME/projects"
 
-# The relay is published, not copied over (D-131). `bin/baton` sources nineteen libraries before it
+# The relay is published, not copied over (D-131). `bin/baton` sources twenty libraries before it
 # takes any lock, so a file-by-file copy landing while a tick starts gave that tick a mixture of two
 # library sets — live on every unattended close-out, which runs this script itself (D-079). The
 # repair is one immutable set per content, named for it, and one atomic reference change:

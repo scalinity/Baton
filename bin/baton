@@ -20,7 +20,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 # The bundle this copy's libraries were published as. Empty here and rewritten by `install.sh` into
 # the copy it installs, which is the whole of F08's repair (D-131).
 #
-# `install.sh` copies file by file and takes no lock, and this script sources nineteen libraries
+# `install.sh` copies file by file and takes no lock, and this script sources twenty libraries
 # before the verb is read and long before any `lock_take` below — so an install landing while a tick
 # is starting used to give that tick some libraries from the old set and some from the new, and no
 # lock could have prevented it, because the sourcing is already over by the time one is taken. The
@@ -42,6 +42,7 @@ if [ -d "$here/lib" ]; then
 else
   BATON_LIB=$here/../lib
 fi
+. "$BATON_LIB/render.sh"
 . "$BATON_LIB/lock.sh"
 . "$BATON_LIB/log.sh"
 . "$BATON_LIB/plan.sh"
@@ -65,23 +66,35 @@ fi
 # Before any verb: nothing Baton starts inherits the Claude Code session this may be running inside.
 claude_env_clean
 
+# And before any verb prints anything: the rendering context, read here because `[ -t 1 ]` asked
+# inside a command substitution or a pipeline answers for that pipe rather than for the stream the
+# verb is about to write to. Every library reads what this captures; nothing asks again.
+render_init
+
+# usage <out|err>: the seven verbs. The stream is an argument because the same seven rows are the
+# answer to `baton help` on stdout and the refusal that follows a wrong argument on stderr, and
+# only the caller knows which of the two this is. The verb column is padded before it is styled,
+# because a width counts the escape bytes of a string that was styled first.
 usage() {
-  cat <<USAGE
-usage: baton <verb> ...
-  tick                               the eight steps for every registered project, then the marker
-  answer <milestone> <ruling | n>    deliver a ruling into a parked lane; "continue" hands back a takeover
-  status                             the one view: parks, takeovers, waits, holds, in flight, the inbox
-  plan <project>                     print the graph as the tick sees it; validate every Model cell
-  dispatch <project> <milestone>     step 8 by hand: worktree, settings, prompt, claude --bg, one event
-  allow <milestone> '<rule>'         write the rule into the project's allowlist and the live settings
-  wake [<milestone> [<text>]]        bring a finished session back, carrying the text; with none, list them
-USAGE
+  us_stream=$1
+  render_heading "$us_stream" 'usage: baton <verb> ...\n'
+  usage_row "$us_stream" 'tick' 'the eight steps for every registered project, then the marker'
+  usage_row "$us_stream" 'answer <milestone> <ruling | n>' 'deliver a ruling into a parked lane; "continue" hands back a takeover'
+  usage_row "$us_stream" 'status' 'the one view: parks, takeovers, waits, holds, in flight, the inbox'
+  usage_row "$us_stream" 'plan <project>' 'print the graph as the tick sees it; validate every Model cell'
+  usage_row "$us_stream" 'dispatch <project> <milestone>' 'step 8 by hand: worktree, settings, prompt, claude --bg, one event'
+  usage_row "$us_stream" 'allow <milestone> '"'"'<rule>'"'" 'write the rule into the project'"'"'s allowlist and the live settings'
+  usage_row "$us_stream" 'wake [<milestone> [<text>]]' 'bring a finished session back, carrying the text; with none, list them'
+}
+
+usage_row() {
+  render_row "$1" plain '  %s%s\n' "$(render_token "$1" verb "$(printf '%-35s' "$2")")" "$3"
 }
 
 verb=${1:-}
 case "$verb" in
   tick)
-    [ $# -eq 1 ] || { usage >&2; exit 2; }
+    [ $# -eq 1 ] || { usage err; exit 2; }
     # The one verb that clears a stale lock rather than refusing over it: a lock past the interval
     # whose holder is gone would otherwise stop the relay until a person noticed (REQ-TICK-03).
     # The report runs after the break, so it speaks only for a lock still held by a live process —
@@ -92,19 +105,19 @@ case "$verb" in
     verb_tick "$stale"
     ;;
   plan)
-    [ $# -eq 2 ] || { usage >&2; exit 2; }
+    [ $# -eq 2 ] || { usage err; exit 2; }
     lock_stale_report
     lock_take
     verb_plan "$2"
     ;;
   dispatch)
-    [ $# -eq 3 ] || { usage >&2; exit 2; }
+    [ $# -eq 3 ] || { usage err; exit 2; }
     lock_stale_report
     lock_take
     verb_dispatch "$2" "$3"
     ;;
   status)
-    [ $# -eq 1 ] || { usage >&2; exit 2; }
+    [ $# -eq 1 ] || { usage err; exit 2; }
     # Before anything else, so that a person reading the view sees why it is about to refuse.
     lock_stale_report
     lock_take
@@ -113,15 +126,15 @@ case "$verb" in
   answer)
     # Two arguments exactly: the milestone and the ruling. A ruling of several words is one shell
     # argument, which is what the quotes in every message Baton sends are for.
-    [ $# -eq 3 ] || { usage >&2; exit 2; }
+    [ $# -eq 3 ] || { usage err; exit 2; }
     lock_stale_report
     lock_take
     verb_answer "$2" "$3"
     ;;
   allow)
-    [ $# -eq 3 ] || [ $# -eq 4 ] || { usage >&2; exit 2; }
+    [ $# -eq 3 ] || [ $# -eq 4 ] || { usage err; exit 2; }
     if [ $# -eq 4 ] && [ "$4" != --resume ]; then
-      echo "baton: allow takes one flag, --resume; '$4' is not it" >&2
+      render_failure err "baton: allow takes one flag, --resume; '$4' is not it"
       exit 2
     fi
     lock_stale_report
@@ -131,17 +144,17 @@ case "$verb" in
   wake)
     # At most two arguments: the milestone and the text the woken session receives, which the wake
     # session quotes as one shell argument. With neither, the finished sessions are listed.
-    [ $# -le 3 ] || { usage >&2; exit 2; }
+    [ $# -le 3 ] || { usage err; exit 2; }
     lock_stale_report
     lock_take
     verb_wake "${2:-}" "${3:-}"
     ;;
   ''|help|-h|--help)
-    usage
+    usage out
     ;;
   *)
-    echo "baton: unknown verb '$verb'" >&2
-    usage >&2
+    render_failure err "baton: unknown verb '$verb'"
+    usage err
     exit 2
     ;;
 esac

@@ -262,27 +262,28 @@ reject_move() {
 # loses the record, and that is the accepted trade: a file sitting in rejected/ with no event is
 # visible and harmless, while a file rejected twice would escalate the same lane twice.
 reject() {
-  rj_ids=$(artifact_ids "$1") || { echo "baton: $rj_ids" >&2; return 1; }
+  rj_ids=$(artifact_ids "$1") || { render_failure err "baton: $rj_ids"; return 1; }
   rj_milestone=$(printf '%s' "$rj_ids" | jq -r .milestone)
   rj_session=$(printf '%s' "$rj_ids" | jq -r .session)
   rj_project=$(project_key_of "$(printf '%s' "$rj_ids" | jq -r '.project // ""')" 2>/dev/null || echo '')
   rj_attempt=''
   if [ -n "$rj_project" ]; then
     rj_attempt=$(attempt_for_session "$rj_project" "$rj_milestone" "$rj_session") \
-      || { echo "baton: $rj_attempt" >&2; return 1; }
+      || { render_failure err "baton: $rj_attempt"; return 1; }
   else
     # A file that cannot name its own project — truncated, unparseable, or naming a checkout Baton
     # does not know — still belongs to a lane if Baton dispatched the session, and the log says so.
     # Without a lane the escalation has no verb, so this is what makes the rejection answerable.
-    rj_lane=$(lane_of_session "$rj_session") || { echo "baton: $rj_lane" >&2; return 1; }
+    rj_lane=$(lane_of_session "$rj_session") || { render_failure err "baton: $rj_lane"; return 1; }
     rj_project=$(printf '%s' "$rj_lane" | jq -r '.project // empty')
     rj_attempt=$(printf '%s' "$rj_lane" | jq -r '.attempt // empty')
   fi
-  rj_dest=$(reject_move "$1") || { echo "baton: $rj_dest" >&2; return 1; }
+  rj_dest=$(reject_move "$1") || { render_failure err "baton: $rj_dest"; return 1; }
   log_event rejected "$rj_project" "$rj_milestone" "$rj_session" "$rj_attempt" \
     "$(jq -nc --arg p "$rj_dest" --arg r "$2" '{path: $p, reason: $r}')"
   escalate_rejection "$rj_project" "$rj_milestone" "$rj_session" "$rj_attempt" "$2" "$rj_dest"
-  printf 'rejected  %s → %s (%s: %s)\n' "$(basename "$1")" "$rj_dest" "$2" "$3"
+  render_row out action 'rejected  %s → %s (%s: %s)\n' \
+    "$(render_token out path "$(basename "$1")")" "$(render_token out path "$rj_dest")" "$2" "$3"
 }
 
 # repeat_of <file>: the consumed event of the handover this file repeats, when it repeats one. A file
@@ -338,13 +339,14 @@ repeat_of() {
 # ranking of handovers in force reads only those, so a repeat has no place in either.
 repeat_one() {
   rp_first=$(printf '%s' "$2" | jq -r .archive)
-  rp_archive=$(archive_move "$1" "$(baton_now)") || { echo "baton: $rp_archive" >&2; return 1; }
+  rp_archive=$(archive_move "$1" "$(baton_now)") || { render_failure err "baton: $rp_archive"; return 1; }
   log_event repeated "$(printf '%s' "$2" | jq -r '.project // ""')" "$(printf '%s' "$2" | jq -r .milestone)" \
     "$(printf '%s' "$2" | jq -r .session)" "$(printf '%s' "$2" | jq -r '.attempt // ""')" \
     "$(printf '%s' "$2" | jq -c --arg a "$rp_archive" '{outcome, archive: $a, repeats: .archive}
                                                       | with_entries(select(.value != null))')"
-  printf 'repeated  %s → %s (repeats %s, acted on once)\n' \
-    "$(basename "$1")" "$rp_archive" "$(basename "$rp_first")"
+  render_row out record 'repeated  %s → %s (repeats %s, acted on once)\n' \
+    "$(render_token out path "$(basename "$1")")" "$(render_token out path "$rp_archive")" \
+    "$(render_token out path "$(basename "$rp_first")")"
 }
 
 # inbox_consume <rows json> [<rows were read: yes|no>]: every *.json in the inbox, never a .tmp, in
@@ -365,7 +367,7 @@ inbox_consume() {
     if [ "$ic_rc" -eq 0 ]; then
       repeat_one "$ic_f" "$ic_repeat" || ic_status=1
     elif [ "$ic_rc" -eq 2 ]; then
-      echo "baton: $ic_repeat" >&2
+      render_failure err "baton: $ic_repeat"
       ic_status=1
     elif ic_ok=$(artifact_check "$ic_f"); then
       consume_one "$ic_f" "$ic_ok" "$1" || ic_status=1
@@ -394,7 +396,7 @@ inbox_consume() {
   for ic_t in "$BATON_HOME"/inbox/*.json.tmp; do
     [ -f "$ic_t" ] || continue
     if ! ic_ids=$(artifact_ids "$ic_t"); then
-      echo "baton: $ic_ids" >&2
+      render_failure err "baton: $ic_ids"
       ic_status=1
       continue
     fi
@@ -419,7 +421,7 @@ consume_one() {
   co_outcome=$(printf '%s' "$co_a" | jq -r .outcome)
   co_reason=$(printf '%s' "$co_a" | jq -r '.reason // ""')
   co_attempt=$(attempt_for_session "$co_project" "$co_milestone" "$co_session") \
-    || { echo "baton: $co_attempt" >&2; return 1; }
+    || { render_failure err "baton: $co_attempt"; return 1; }
   co_note=$co_outcome
 
   # The event is composed before the move, and the three fields an outside process sizes — error,
@@ -436,7 +438,7 @@ consume_one() {
   # The move comes before anything the decision does: a move that fails leaves the file in the
   # inbox for the next tick, and a session stopped ahead of it would be stopped again on every tick.
   co_at=$(baton_now)
-  co_archive=$(archive_move "$1" "$co_at") || { echo "baton: $co_archive" >&2; return 1; }
+  co_archive=$(archive_move "$1" "$co_at") || { render_failure err "baton: $co_archive"; return 1; }
 
   # An asking session is stopped at once, so that the ruling M05 delivers resumes it under the
   # same id rather than racing a session that is still holding the prompt open. The verb takes the
@@ -468,7 +470,8 @@ consume_one() {
 
   log_event consumed "$co_project" "$co_milestone" "$co_session" "$co_attempt" \
     "$(printf '%s' "$co_fields" | jq -c --arg a "$co_archive" '. + {archive: $a}')"
-  printf 'consumed  %s → %s (%s)\n' "$(basename "$1")" "$co_archive" "$co_note"
+  render_row out record 'consumed  %s → %s (%s)\n' \
+    "$(render_token out path "$(basename "$1")")" "$(render_token out path "$co_archive")" "$co_note"
 
   # The endings that need a person, parked here because here is where the artifact is in hand: the
   # question with its options, or the sentence the session wrote about what it could not do. The
@@ -495,6 +498,8 @@ consume_one() {
     log_event rejected "$co_project" "$co_dm" "" "" \
       "$(jq -nc --arg p "$co_archive" '{path: $p, reason: "brief-pointer"}')"
     escalate_rejection "$co_project" "$co_dm" "" "" brief-pointer "$co_archive"
-    printf 'dropped   %s entry of %s (%s)\n' "$co_dm" "$(basename "$1")" "$(printf '%s' "$co_d" | jq -r .detail)"
+    render_row out action 'dropped   %s entry of %s (%s)\n' \
+      "$(render_token out milestone "$co_dm")" "$(render_token out path "$(basename "$1")")" \
+      "$(printf '%s' "$co_d" | jq -r .detail)"
   done
 }

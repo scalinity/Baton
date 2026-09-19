@@ -80,7 +80,7 @@ milestone can never break the tick that dispatched it, and a broken install is u
 reviewed earlier code on `main` and installing again (D-018, D-079, D-113). A launchd job cannot execute anything under `~/Documents`,
 which is the other reason the running copy lives under `~/.baton/`.
 
-**Nothing is read half-installed** (D-131). `bin/baton` sources eighteen libraries before it reads
+**Nothing is read half-installed** (D-131). `bin/baton` sources twenty libraries before it reads
 the verb and long before any `lock_take`, and launchd fires every sixty seconds, so a file-by-file
 copy could hand a starting tick some libraries from the old set and some from the new — and a lock
 in the installer could not have prevented it, because the sourcing is over before the tick takes

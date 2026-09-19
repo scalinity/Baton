@@ -89,7 +89,7 @@ declared_step() {
   dst_a=$(printf '%s' "$2" | jq -r '.attempt // ""')
   case "$(printf '%s' "$2" | jq -r .reason)" in
     unfinished)
-      dst_run=$(consecutive_run "$1" "$dst_m" unfinished) || { echo "$dst_run" >&2; return 1; }
+      dst_run=$(consecutive_run "$1" "$dst_m" unfinished) || { render_failure err "$dst_run"; return 1; }
       if [ "$(printf '%s' "$dst_run" | jq -r .count)" -ge 2 ]; then
         # A split is a plan edit and the edit is the person's answer, so the next attempt starts
         # from the plan as it now reads; a ruling was delivered to the session, which is working.
@@ -101,7 +101,7 @@ declared_step() {
         esac
         escalate "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice lane \
           "$(splits_carries "$dst_run" "$dst_m" unfinished)"
-        printf 'unfinished %s/%s · twice in a row · the lane is parked with both splits\n' "$1" "$dst_m"
+        render_row out action 'unfinished %s/%s · twice in a row · the lane is parked with both splits\n' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")"
       else
         # Not a failure ending: the session came back and said what it had done, which is the
         # reset point the ladder reads. A redispatch here is the plan working, not a retry.
@@ -123,13 +123,13 @@ declared_step() {
           # record spend a key the event never matches, and notify on every tick.
           dst_key_a=${dst_a:-0}
           dst_spent=$(derive_key_spent "$1" "$dst_m" "$dst_key_a" blocked_by "$dst_by") \
-            || { echo "$dst_spent" >&2; return 1; }
+            || { render_failure err "$dst_spent"; return 1; }
           [ "$(printf '%s' "$dst_spent" | jq -r .spent)" = false ] || return 0
           dst_detail="blocked by $dst_by, which is $dst_state; Baton redispatches this lane when the plan reads it done"
           notification_write "$1" "$dst_m" "$dst_s" "$dst_key_a" blocked_by "$dst_by" \
             "$(jq -nc --arg b "$dst_by" --arg s "$dst_state" --arg d "$dst_detail" \
                '{blocked_by: $b, blocker_state: $s, detail: $d}')"
-          printf 'blocked   %s/%s · waiting on %s (%s)\n' "$1" "$dst_m" "$dst_by" "$dst_state"
+          render_row out record 'blocked   %s/%s · waiting on %s (%s)\n' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")" "$(render_token out milestone "$dst_by")" "$dst_state"
           ;;
         *)
           # Nothing is coming to unblock it, so the wait would never end. That is a person's to
@@ -145,7 +145,7 @@ declared_step() {
           escalate "$1" "$dst_m" "$dst_s" "$dst_a" blocked lane \
             "$(jq -nc --arg b "$dst_by" --arg s "$dst_state" --arg d "$dst_says" \
                '{blocked_by: $b, blocker_state: $s, detail: $d}')"
-          printf 'blocked   %s/%s · nothing is coming to unblock %s · the lane is parked\n' "$1" "$dst_m" "$dst_by"
+          render_row out action 'blocked   %s/%s · nothing is coming to unblock %s · the lane is parked\n' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")" "$(render_token out milestone "$dst_by")"
           ;;
       esac
       ;;
@@ -160,13 +160,13 @@ declared_step() {
 # has not been dispatched, so it has no attempt, and the next handover to name it is new
 # information whatever happened in between.
 distant_wait_for_check() {
-  dwf_doc=$(derive_consumed "$1") || { echo "$dwf_doc" >&2; return 1; }
+  dwf_doc=$(derive_consumed "$1") || { render_failure err "$dwf_doc"; return 1; }
   dwf_file=$(printf '%s' "$dwf_doc" | jq -r \
     '[ .consumed[] | select(.outcome == "complete" and .archive_present) ] | last | .archive // empty')
   [ -n "$dwf_file" ] && [ -f "$dwf_file" ] || return 0
   dwf_done=$(printf '%s' "$2" | jq -c '[ .milestones[] | select(.status == "done") | .id ]')
   dwf_el=$(printf '%s' "$2" | plan_eligible | jq -Rsc 'split("\n") | map(select(length > 0))')
-  dwf_log=$(log_json) || { echo "$dwf_log" >&2; return 1; }
+  dwf_log=$(log_json) || { render_failure err "$dwf_log"; return 1; }
   dwf_key=$(basename "$dwf_file")
   jq -r --argjson done "$dwf_done" --argjson el "$dwf_el" --argjson fly "$3" '
     .eligible[]? | select(.disposition == "wait") | . as $e
@@ -186,7 +186,7 @@ distant_wait_for_check() {
       notification_write "$1" "$dwf_m" "" "" distant_wait_for "$dwf_key|$dwf_w" \
         "$(jq -nc --arg w "$dwf_w" --arg h "$dwf_key" --arg d "$dwf_detail" \
            '{wait_for: $w, handover: $h, detail: $d}')"
-      printf 'waiting   %s/%s · waits for %s, which nothing is going to finish\n' "$1" "$dwf_m" "$dwf_w"
+      render_row out action 'waiting   %s/%s · waits for %s, which nothing is going to finish\n' "$(render_token out lane "$1")" "$(render_token out milestone "$dwf_m")" "$(render_token out milestone "$dwf_w")"
     done
 }
 
@@ -202,7 +202,7 @@ distant_wait_for_check() {
 #
 # `answer_deliver` is called with its cascade turned off, so a delivery here cannot start another.
 main_broken_cascade() {
-  mbc_parked=$(derive_parked "$1") || { echo "$mbc_parked" >&2; return 1; }
+  mbc_parked=$(derive_parked "$1") || { render_failure err "$mbc_parked"; return 1; }
   mbc_list=$(printf '%s' "$mbc_parked" | jq -c --arg at "$4" --arg m "$5" \
     '[ .parked[] | select(.scope == "project" and .class == "main-broken" and (.at != $at or .milestone != $m)) ]')
   mbc_status=0
