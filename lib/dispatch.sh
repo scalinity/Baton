@@ -112,8 +112,14 @@ worktree_ensure() {
   if [ -d "$we_wt" ]; then
     we_reused=true
     we_commit=$(git -C "$we_wt" rev-parse HEAD 2>&1) || { echo "$we_wt exists but is not a worktree: $we_commit"; return 1; }
+    # Both answers are resolved before they are compared. `--path-format=absolute` makes a path
+    # absolute; it does not make it canonical, so a project registered through a symlinked path
+    # would be told its own worktree belongs to somebody else. Measured on this Mac the two already
+    # agree, which is exactly why the resolution is written now rather than after it has bitten.
     we_theirs=$(git -C "$we_wt" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || we_theirs=
+    [ -z "$we_theirs" ] || we_theirs=$(cd "$we_theirs" 2>/dev/null && pwd -P) || we_theirs=
     we_ours=$(git -C "$we_path" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || we_ours=
+    [ -z "$we_ours" ] || we_ours=$(cd "$we_ours" 2>/dev/null && pwd -P) || we_ours=
     if [ -z "$we_ours" ] || [ -z "$we_theirs" ] || [ "$we_ours" != "$we_theirs" ]; then
       echo "$we_wt is not a worktree of $we_path: its repository is ${we_theirs:-unreadable} and the checkout's is ${we_ours:-unreadable}. Baton reuses only the project's own worktree, so move that directory aside yourself: mv $(shell_word "$we_wt") $(shell_word "$we_wt.aside")"
       return 1
@@ -196,9 +202,16 @@ worktree_migrate() {
     [ "$wm_ref" = "refs/heads/$(printf '%s' "$wm_id" | tr 'A-Z' 'a-z')" ] || continue
     wm_to=$wm_root/$wm_id
     [ "$wm_wt" != "$wm_to" ] || continue
+    # Something already at the destination is a state rather than an error: the worktree keeps
+    # working where it is, nothing is at risk, and Baton never writes over a directory it did not
+    # put there. It is said out loud because Baton's own operation cannot produce it — a worktree it
+    # created at the managed path would be registered there, and the legacy sibling could not then
+    # hold the same branch — so it means a person's directory is in the way. It does not fail the
+    # pass, because the pass's status is what decides the tick's marker: a condition that stands
+    # until somebody moves a directory would otherwise freeze the clock `status` reads and have the
+    # relay report itself as not running while it runs every minute.
     [ ! -e "$wm_to" ] || {
       render_failure err "baton: $wm_project/$wm_id's worktree stays at $wm_wt: $wm_to already exists and Baton never writes over one"
-      wm_status=1
       continue
     }
     wm_live=$(printf '%s' "$wm_rows" | jq -r --arg w "$wm_wt" '

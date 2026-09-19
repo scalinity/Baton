@@ -1,12 +1,16 @@
 set -eu
 # The tick moves the legacy sibling worktrees into the managed root. Two shapes: a plain id, and a
 # hyphenated one whose branch is m07-b — the case a milestone read back out of its branch would
-# spell M07-B and lose. Nothing is deleted: the branch, the commit and an untracked file all arrive
-# at the new path. The second run finds nothing left to move, which is the idempotence.
+# spell M07-B and lose. Nothing is deleted: the branch, the commit at its head, an edit to a tracked
+# file and an untracked file all arrive at the new path, which is the whole of what "dirty changes
+# survive" claims. The second run finds nothing left to move, which is the idempotence.
 if [ ! -e Fixture-M03 ] && [ ! -e "$BATON_HOME/worktrees/Fixture/M03" ]; then
   git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M03 -b m03 main
   git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M07-b -b m07-b main
   printf 'uncommitted\n' > Fixture-M03/dirty.txt
+  printf 'an edit nobody committed\n' >> Fixture-M03/CLAUDE.md
+  head_before=$(git -C Fixture-M03 rev-parse HEAD)
+  printf '%s\n' "$head_before" > head-before.txt
 fi
 "$BATON" tick
 for id in M03 M07-b; do
@@ -15,5 +19,9 @@ for id in M03 M07-b; do
   test "$(git -C "$BATON_HOME/worktrees/Fixture/$id" symbolic-ref --short HEAD)" \
      = "$(printf '%s' "$id" | tr 'A-Z' 'a-z')"
 done
-test "$(cat "$BATON_HOME/worktrees/Fixture/M03/dirty.txt")" = uncommitted
-printf '%s\n' 'both moved with their branches; M03 brought its untracked file'
+moved=$BATON_HOME/worktrees/Fixture/M03
+test "$(git -C "$moved" rev-parse HEAD)" = "$(cat head-before.txt)"
+test "$(cat "$moved/dirty.txt")" = uncommitted
+grep -q 'an edit nobody committed' "$moved/CLAUDE.md"
+git -C "$moved" status --porcelain | sort
+printf '%s\n' 'both moved with their branches; M03 kept its head, its tracked edit and its untracked file'
