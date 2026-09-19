@@ -17,7 +17,8 @@ session_name() {
 
 # slot_line_text <worktree> <branch> <canonical> <also-in-flight> <attempt> <commit>
 # The paragraph that replaces part 2 of a kickoff prompt at dispatch. <also-in-flight> is the
-# comma-joined list "M28 (worktree Reclaim-M28, brief docs/milestones/M28.md)" or empty. The
+# comma-joined list "M28 (worktree /Users/danny/.baton/worktrees/Reclaim/M28, brief
+# docs/milestones/M28.md)" or empty, and is opaque text here: this function never parses it. The
 # attempt sentence appears from attempt 2 on, naming the commit the branch stands at.
 slot_line_text() {
   sl="WHAT ELSE IS IN FLIGHT. You are working in $1 on branch $2; the canonical checkout is $3 — merge there at close-out and refresh there."
