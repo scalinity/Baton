@@ -9,6 +9,12 @@ if [ ! -e Fixture-M03 ] && [ ! -e "$BATON_HOME/worktrees/Fixture/M03" ]; then
   git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M07-b -b m07-b main
   printf 'uncommitted\n' > Fixture-M03/dirty.txt
   printf 'an edit nobody committed\n' >> Fixture-M03/CLAUDE.md
+  # An ignored build product, which is the thing the criterion actually names. It travels by the
+  # same rename as everything else — nothing in a move consults .gitignore — and saying so in a
+  # fixture is cheaper than saying so in prose.
+  printf 'build/\n' > Fixture-M03/.gitignore
+  mkdir -p Fixture-M03/build
+  printf 'a build product\n' > Fixture-M03/build/artifact.o
   head_before=$(git -C Fixture-M03 rev-parse HEAD)
   printf '%s\n' "$head_before" > head-before.txt
 fi
@@ -22,6 +28,7 @@ done
 moved=$BATON_HOME/worktrees/Fixture/M03
 test "$(git -C "$moved" rev-parse HEAD)" = "$(cat head-before.txt)"
 test "$(cat "$moved/dirty.txt")" = uncommitted
+test "$(cat "$moved/build/artifact.o")" = 'a build product'
 grep -q 'an edit nobody committed' "$moved/CLAUDE.md"
 git -C "$moved" status --porcelain | sort
-printf '%s\n' 'both moved with their branches; M03 kept its head, its tracked edit and its untracked file'
+printf '%s\n' 'both moved with their branches; M03 kept its head, its tracked edit, its untracked file and its ignored build product'

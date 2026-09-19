@@ -108,7 +108,7 @@ reason.
 - **Never touch a target project's code.** Reclaim is read, never written; no session is dispatched
   into it before M16, which onboards it, and no Baton session edits it ever. A plan that does not
   parse is reported. `baton onboard` does not write a target repository either: a plan it cannot read
-  strictly is adapted in the registration, never in the project's own document (D-155).
+  strictly is adapted in the registration, never in the project's own document (D-156).
 - **The deny list is the safety rail.** Dispatched sessions run under `bypassPermissions`; the two
   deny classes in `docs/SPEC.md` REQ-PERM-04 are what stops a session escalating privileges or
   rewriting Baton's own record. A session writes `~/.baton/inbox/` and nothing else under

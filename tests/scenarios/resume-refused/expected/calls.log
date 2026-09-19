@@ -5,4 +5,6 @@
 caffeinate -i -w 4240
 caffeinate -i -t 120
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 caffeinate -i -t 120
+[cwd @TMP@] claude agents --json

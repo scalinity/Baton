@@ -4,6 +4,7 @@ osascript -e 'display notification "the standing check failed on main after the 
 caffeinate -i -w 502
 caffeinate -i -w 503
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 [cwd @TMP@] claude stop 0badb2
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude --bg --resume b2 <prompt>
@@ -14,8 +15,11 @@ caffeinate -i -w 503
 caffeinate -i -w 502
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 caffeinate -i -w 502
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json

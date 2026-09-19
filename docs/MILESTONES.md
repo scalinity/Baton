@@ -61,7 +61,7 @@ Rules for every session (also in `CLAUDE.md`):
 No gate is open, and none holds M08. D-021's `Reclaim migrated` gate was dropped with the manual
 path it guarded: the migration commit it waited for — columns added to Reclaim's plan by hand, a
 hand-written registration and a hand-written seed artifact — is what `baton onboard` does instead,
-without a commit in Reclaim at all (D-155). M08 is `held` permanently and superseded by SCOPE §9,
+without a commit in Reclaim at all (D-156). M08 is `held` permanently and superseded by SCOPE §9,
 which gives its acceptance to M16; there is nothing for a person to clear.
 
 ## Traceability: requirements → milestones

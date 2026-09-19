@@ -1,0 +1,13 @@
+set -eu
+# A lane with no row at all — its process gone, as a crashed session's is, and as every session's is
+# after a reboot — but with an open lane in the log: a dispatch and no `complete` consumption. Baton
+# can still be asked to resume it by id, and the harness would restore the working directory it
+# recorded, so the move is refused. A guard that counted only live rows would have moved this one
+# and stranded the resume.
+if [ ! -e Fixture-M02 ]; then
+  git -C Fixture -c core.hooksPath=/dev/null worktree add -q ../Fixture-M02 -b m02 main
+fi
+"$BATON" tick
+test -d Fixture-M02
+test ! -e "$BATON_HOME/worktrees/Fixture/M02"
+printf '%s\n' 'no row, but an open lane: the worktree stayed where a resume would look for it'
