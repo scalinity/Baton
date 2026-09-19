@@ -1,0 +1,16 @@
+== a park id that names no park is refused on its own terms, because a lane whose parks are all
+== at other times and a lane with no park at all read identically otherwise.
+status 1
+== the realistic mistake is a truncated or mistyped timestamp, which still begins with a year,
+== so it is read as a park id and the open ones are shown
+status 1
+== a tail that is not a timestamp is not read as a park id at all. That is what protects a
+== project key holding an @ from being split into a project that was never named.
+status 1
+== a lane with no park at all keeps the older refusal, which names the target as it was typed
+status 1
+== a rejection park that names no project renders its project as ?, the way baton status does,
+== rather than the literal null. It is listed because it answers to the name that was typed, and
+== the ? is honest about the line not being a command that could run: no ruling reaches a lane
+== Baton never dispatched. That it is listed at all is recorded as a known limitation.
+status 1

@@ -16,30 +16,47 @@
 # person, this is what the person runs to reach the session. Neither decides anything.
 set -eu
 
-# answer_resolve <milestone> [<project>]: derivation 13, narrowed by the long form when it was
-# given. Prints {milestone, count, candidates}; the caller decides what a count means, because
-# `answer` and `allow` refuse for different reasons and say different things.
+# answer_resolve <milestone> [<project>] [<park at>]: derivation 13, narrowed by the long form when
+# it was given and by the park's own `at` when that was. Prints {milestone, count, candidates}; the
+# caller decides what a count means, because `answer` and `allow` refuse for different reasons and
+# say different things.
+#
+# The `at` is the third narrowing and not a different kind of thing: derivation 2 keys a park on it,
+# `resolve` names the escalation it closes by it, and every park this function returns carries it
+# already. What it adds is the one case the other two narrowings cannot reach — several parks on one
+# lane, where naming the project again names the same lane (limitation 33).
 answer_resolve() {
   anr_c=$(derive_answer_candidates "$1") || { echo "$anr_c"; return 1; }
   [ -z "${2:-}" ] || anr_c=$(printf '%s' "$anr_c" | jq -c --arg p "$2" \
     '.candidates |= map(select(.project == $p)) | .count = (.candidates | length)')
+  [ -z "${3:-}" ] || anr_c=$(printf '%s' "$anr_c" | jq -c --arg a "$3" \
+    '.candidates |= map(select(.at == $a)) | .count = (.candidates | length)')
   printf '%s\n' "$anr_c"
 }
 
-# answer_candidates_print <candidates json> <out|err>: the refusal a person reads when a milestone
-# parked in more than one project. The long form is printed as a command rather than as a list,
-# because the next thing that happens is one of these lines being run.
+# answer_candidates_print <candidates json> <out|err> [<qualify: at>]: the refusal a person reads
+# when more than one park answers to the name they typed. The long form is printed as a command
+# rather than as a list, because the next thing that happens is one of these lines being run.
 #
 # Its stream is an argument because both callers print it on stderr, beneath their own refusal, and
-# a helper that guessed would guess for the stream the refusal did not use.
+# a helper that guessed would guess for the stream the refusal did not use. The qualifier is an
+# argument for the same reason and not a rule read off the candidates: the two refusals ask different
+# questions. "Parked in three projects" is answered by naming a project, and appending a timestamp to
+# each line would be three ways of saying the same thing; "this lane carries two parks" is answered
+# only by naming a park, and that is what the `at` is.
 answer_candidates_print() {
-  acp_stream=$2
+  acp_stream=$2; acp_q=${3:-}
   acp_n=$(printf '%s' "$1" | jq length); acp_i=0
   while [ "$acp_i" -lt "$acp_n" ]; do
     acp_c=$(printf '%s' "$1" | jq -c --argjson i "$acp_i" '.[$i]'); acp_i=$((acp_i + 1))
+    # `?` for a park that names no project, which is how `status` already renders one, so the two
+    # verbs do not spell the same park two ways. Such a park cannot be answered at all — no ruling
+    # reaches a lane Baton never dispatched — and the line is a command, so `?` is the honest
+    # rendering: obviously not runnable, rather than the literal `null` this printed before.
+    acp_target=$(printf '%s' "$acp_c" | jq -r '(.project // "?") + "/" + .milestone')
+    [ "$acp_q" != at ] || acp_target=$acp_target@$(printf '%s' "$acp_c" | jq -r .at)
     render_row "$acp_stream" plain '  %s · %s · %s\n' \
-      "$(render_hint "$acp_stream" \
-         "baton answer $(printf '%s' "$acp_c" | jq -r .project)/$(printf '%s' "$acp_c" | jq -r .milestone)")" \
+      "$(render_hint "$acp_stream" "baton answer $acp_target")" \
       "$(printf '%s' "$acp_c" | jq -r '.class // "?"')" \
       "$(printf '%s' "$acp_c" | jq -r '(.carries.question // .carries.detail // "") | split("\n")[0]')"
   done
@@ -189,30 +206,69 @@ answer_handback() {
   printf '%s\n' "$ahb_list"
 }
 
-# verb_answer <milestone | project/milestone> <ruling | n>: REQ-VERB-03.
+# verb_answer <milestone | project/milestone | project/milestone@at> <ruling | n>: REQ-VERB-03.
+#
+# The target has three forms and they narrow in that order: a bare name across every project, a lane,
+# and one park of that lane. The third is limitation 33's first half. A lane that carries two parks
+# refused every ruling and printed the long form twice, which names the same lane and leads back to
+# the same refusal — so a park that Baton had recorded, notified about and shown in `status` could
+# not be answered through the public controls at all.
+#
+# The park is named by its `at`, because that is already its identity everywhere else: derivation 2
+# keys on it, `resolve` closes an escalation by it, and `escalation_at` joins the two. Inventing a
+# short id would be a second name for a thing that has one.
+#
+# `@` separates it, and the split is written so that a project key holding one cannot be mistaken for
+# it: the tail must begin with a digit, which every `at` does because every one begins with a year,
+# and the split then takes the *last* `@`. Without the digit `pro@ject/M03` parses as the project
+# `pro` parked at `ject/M03`, and the person gets a refusal about a lane they did not name.
 verb_answer() {
   # An empty ruling would still arrive under the label, telling the session a decision had been made
   # and giving it nothing; and it would close the park, so the person could not send the real one.
   [ -n "$2" ] || { render_failure err "baton: a ruling is words or an option number, and this one is empty"; return 1; }
   case "$1" in
-    */*) vba_p=${1%%/*}; vba_m=${1#*/} ;;
-    *)   vba_p=''; vba_m=$1 ;;
+    *@[0-9]*) vba_at=${1##*@}; vba_t=${1%@*} ;;
+    *)        vba_at=''; vba_t=$1 ;;
+  esac
+  case "$vba_t" in
+    */*) vba_p=${vba_t%%/*}; vba_m=${vba_t#*/} ;;
+    *)   vba_p=''; vba_m=$vba_t ;;
   esac
   vba_rows=$(rows_json)
-  vba_c=$(answer_resolve "$vba_m" "$vba_p") || { render_failure err "baton: $vba_c"; return 1; }
+  vba_c=$(answer_resolve "$vba_m" "$vba_p" "$vba_at") || { render_failure err "baton: $vba_c"; return 1; }
   vba_n=$(printf '%s' "$vba_c" | jq -r .count)
 
+  # A park id that matches nothing is refused on its own terms, because the two ways to reach zero
+  # read identically otherwise and are opposite in what to do next: a lane with no park at all wants
+  # "nothing is waiting", and a lane whose parks are all at other times wants to be shown them.
+  if [ "$vba_n" -eq 0 ] && [ -n "$vba_at" ]; then
+    vba_all=$(answer_resolve "$vba_m" "$vba_p") || { render_failure err "baton: $vba_all"; return 1; }
+    if [ "$(printf '%s' "$vba_all" | jq -r .count)" -gt 0 ]; then
+      render_failure err "baton: no park of $vba_t was raised at $vba_at; the open ones are:"
+      answer_candidates_print "$(printf '%s' "$vba_all" | jq -c .candidates)" err at
+    else
+      # And a refusal here even when the lane has no park at all, rather than falling through. Below
+      # is the hand-back, which resumes a lane a person took over when the ruling is exactly
+      # `continue` — and a park id names a park, never a lane. Falling through would let
+      # `baton answer <project>/<milestone>@<at>` on an already-answered park flaglessly resume a
+      # session because the lane happened to be taken over, which is a resume nobody asked for.
+      render_failure err "baton: nothing is waiting on $1"
+    fi
+    return 1
+  fi
+
   if [ "$vba_n" -gt 1 ]; then
-    # Parks in several projects are what the long form is for. Several parks on one lane are not —
-    # the long form names the same lane again — so the refusal says which it is rather than offer
-    # a way through that leads back here.
+    # Parks in several projects are what the long form is for, and naming a project settles them.
+    # Several parks on one lane are not: the long form names the same lane again, so those are shown
+    # with the `at` that tells them apart and the refusal asks for a park rather than a project.
     vba_pn=$(printf '%s' "$vba_c" | jq '[ .candidates[] | .project ] | unique | length')
     if [ "$vba_pn" -gt 1 ]; then
       render_failure err "baton: $vba_m is parked in $vba_pn projects; name one:"
+      answer_candidates_print "$(printf '%s' "$vba_c" | jq -c .candidates)" err
     else
-      render_failure err "baton: $1 carries $vba_n open parks at once, which one lane should never do; Baton will not guess which the ruling answers. They are:"
+      render_failure err "baton: $vba_t carries $vba_n open parks at once, which one lane should never do; Baton will not guess which the ruling answers. Name the park:"
+      answer_candidates_print "$(printf '%s' "$vba_c" | jq -c .candidates)" err at
     fi
-    answer_candidates_print "$(printf '%s' "$vba_c" | jq -c .candidates)" err
     return 1
   fi
 
