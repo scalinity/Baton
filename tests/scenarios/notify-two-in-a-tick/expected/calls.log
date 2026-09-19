@@ -2,7 +2,9 @@
 open -g @TMP@/home/bin/Baton.app
   posted: Baton · Fixture/M02 · question | Baton · Fixture · M02 is waiting for input, and no payload carries the question, so it can only be read in the session · answer it in place in Claude.app, or baton answer M02 "<ruling>" | claude://claude.ai/code/session_01LaneThread
 caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
 open -g @TMP@/home/bin/Baton.app
   posted: Baton · gap | no tick for 2 h 0 m; the last one completed at 2026-09-12T10:00:00+01:00, and a lane was open through it | 
 [cwd @TMP@] claude agents --json
 caffeinate -i -w 502
+[cwd @TMP@] claude agents --json

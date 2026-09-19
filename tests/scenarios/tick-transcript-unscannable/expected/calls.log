@@ -2,4 +2,6 @@
 osascript -e 'display notification "the transcript is an .orphaned- sibling, so the lane was not scanned and cannot be read as clean (@TMP@/transcripts/-Fixt… · baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · other"'
 caffeinate -i -w 502
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 caffeinate -i -w 502
+[cwd @TMP@] claude agents --json

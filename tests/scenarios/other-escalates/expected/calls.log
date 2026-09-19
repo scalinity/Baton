@@ -2,4 +2,6 @@
 osascript -e 'display notification "the session stopped: the fixture project's git index is locked by another process and no command that writes can run · baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · other"'
 caffeinate -i -w 502
 [cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
 caffeinate -i -w 502
+[cwd @TMP@] claude agents --json
