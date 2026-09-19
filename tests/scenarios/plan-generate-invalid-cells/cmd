@@ -1,0 +1,13 @@
+set -eu
+# The plan the first attempt left has a Depends on cell that is prose, which is not a token, so the
+# reader refuses the whole document and names the cell. Nothing is adopted on a guess. The refusal
+# goes into plan_owed with its repair, and the next attempt is dispatched carrying it — into the
+# same worktree, on the same branch, over the plan that is already there.
+"$BATON" tick || true
+printf '%s\n' '--- what the plan owes now ---'
+jq -r '.plan_owed.defects[] | "  * \(.what)\n    repair: \(.repair)"' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- nothing was adopted and nothing was seeded ---'
+jq -c '{plan: (.plan // "none"), plan_format, has_start: (has("start"))}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- the second attempt carries the defect and is told not to start a second graph ---'
+sed -n '/^WHAT IS WRONG WITH THE PLAN/,/^STARTUP ORDER/p' "$BATON_HOME"/prompts/*/1.txt
+sed -n '/^3\. If the plan document/,/^$/p' "$BATON_HOME"/prompts/*/1.txt

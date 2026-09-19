@@ -1,0 +1,3 @@
+echo "== the planning lane closes out like any other: the chain is proved against its dispatch baseline, and its declared scope is Baton's own text rather than a brief's section 5, because the project it ran in had no briefs to declare one =="
+sh "$ROOT/tests/completion-fixture.sh" planning
+sh "$ROOT/tests/consume-once.sh"

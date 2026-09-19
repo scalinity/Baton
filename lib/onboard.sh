@@ -933,7 +933,7 @@ verb_onboard() {
     render_row out record '  checkout    %s\n' "$(render_token out path "$vo_checkout")"
     render_row out record '  goal        %s\n' "$(printf '%s' "$vo_intent" | jq -r .goal)"
     render_row out record '  plan        none readable; plan_format is generated and the plan is owed\n'
-    render_row out action '  next        M12 generates the plan from the confirmed goal; nothing is dispatched until one exists\n'
+    render_row out action '  next        the next tick dispatches the session that writes the plan from the confirmed goal\n'
     return 0
   fi
 

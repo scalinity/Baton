@@ -31,6 +31,8 @@ export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_OSASCRIPT BATON_HOME BATON
 . "$root/lib/inbox.sh"
 . "$root/lib/status.sh"
 . "$root/lib/escalate.sh"
+. "$root/lib/onboard.sh"
+. "$root/lib/planning.sh"
 . "$root/lib/stops.sh"
 
 lock_take

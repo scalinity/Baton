@@ -110,7 +110,28 @@ base=$(cf_commit "the project's standing check" check.sh "$cf_check" "$scoped")
 
 candidate=''; merge=''; wrong=''; head=''
 
+# The branch the shape's candidate is put on. Every milestone shape uses the milestone's own, and
+# the planning shapes use the planning lane's, because the lane's branch is what `completion_chain`
+# resolves the candidate through and a planning completion judged against `m02` would be judged
+# against a branch its dispatch never named.
+cf_branch=m02
+
 case "$shape" in
+  # The planning lane's own close-out: the session wrote the plan, committed it on `m00-plan` and
+  # merged it into `main`. Its declared scope is Baton's own text rather than a brief's §5, so the
+  # in-scope path here is one of the two the generation prompt names.
+  planning)
+    cf_branch=m00-plan
+    candidate=$(cf_commit "the plan the planning session wrote" docs/MILESTONES.md "| ID | Depends on |" "$base")
+    merge=$(cf_merge "merge m00-plan" "$candidate" "$base" "$candidate")
+    ;;
+  # The same lane, having changed nothing Baton asked it for. The refusal names the planning role's
+  # own two paths, which is what makes it readable: the session was told where to write.
+  planning-out-of-scope)
+    cf_branch=m00-plan
+    candidate=$(cf_commit "work outside what the planning prompt asked for" README.md "readme" "$base")
+    merge=$(cf_merge "merge m00-plan" "$candidate" "$base" "$candidate")
+    ;;
   # The ordinary close-out: one in-scope commit on the branch, merged into main.
   valid|forged-check|check-fails|check-slow|repeat)
     candidate=$(cf_commit "the milestone's work" docs/one.md "one" "$base")
@@ -155,7 +176,7 @@ case "$shape" in
   *) echo "completion-fixture: unknown shape $shape" >&2; exit 2 ;;
 esac
 
-git -C "$repo" branch -f m02 "$candidate"
+git -C "$repo" branch -f "$cf_branch" "$candidate"
 git -C "$repo" update-ref refs/heads/main "${head:-$merge}"
 
 cf_say BASELINE "$base"

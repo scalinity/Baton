@@ -1,0 +1,10 @@
+set -eu
+# The plan and the briefs are otherwise sound, and M01's section 11 says nothing follows while the
+# table has M02 depending on it. Baton dispatches only what a handover lists, and a close-out reads
+# section 11 for what to list, so the chain would stop at M01 with M02 eligible and unnamed. The
+# refusal says which milestone is missing from which section.
+"$BATON" tick || true
+printf '%s\n' '--- the defect ---'
+jq -r '.plan_owed.defects[] | "  * \(.what)\n    repair: \(.repair)"' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- nothing was adopted and nothing was seeded ---'
+jq -c '{plan: (.plan // "none"), plan_format, has_start: (has("start"))}' "$BATON_HOME/projects/Fixture/project.json"

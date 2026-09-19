@@ -1,0 +1,13 @@
+set -eu
+# Three attempts have each left the repository without a plan Baton will adopt. The bound stops the
+# spending: no fourth session is dispatched, and what is recorded is why Baton stopped. There is no
+# escalation class of its own for it — the project has been parked plan-unreadable since the first
+# tick that could not read a plan, the person was notified once then, and that park's own repair is
+# the repair for this: write or fix the plan, and the next tick reads it.
+"$BATON" tick || true
+printf '%s\n' '--- the second tick says nothing more ---'
+"$BATON" tick || true
+printf '%s\n' '--- what was recorded ---'
+jq -c 'select(.kind == "plan_generation" or .kind == "dispatch") | {kind, milestone, attempt, outcome, attempts, max}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

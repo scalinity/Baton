@@ -7,6 +7,6 @@ Register this project and let Baton run it? [yes/no] onboarded Fixture with no u
   checkout    @TMP@/Fixture
   goal        a fixture project.
   plan        none readable; plan_format is generated and the plan is owed
-  next        M12 generates the plan from the confirmed goal; nothing is dispatched until one exists
+  next        the next tick dispatches the session that writes the plan from the confirmed goal
 --- what M12 is told ---
 {"plan":"docs/MILESTONES.md","plan_format":"generated","plan_owed":{"reason":"docs/MILESTONES.md does not parse even with defaults: the milestones table, row M01, cell Model: \"gpt-9\" is not a model alias in config.json or a full model id","owner":"M12"}}
