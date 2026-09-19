@@ -29,7 +29,7 @@
 # the feed names a percentage, never a number of sessions. So no tier maps to a number of sessions
 # here: `budgetTier` records the person's word for the plan and nothing is derived from it, and
 # `budgetSessions` is a number a person sets, defaulting to 0, which is off. A built-in table would
-# be stating a guarantee the provider never gave (D-194).
+# be stating a guarantee the provider never gave (D-196).
 set -eu
 
 # budget_int <key> <default>: one whole number out of config.json, or a failure naming the key.
@@ -114,7 +114,7 @@ EOF
 # always drawn, and a tool that refused its owner would be the wrong tool. But the session it
 # started is a session on the same subscription, and its event is a `dispatch` like any other, so
 # counting it is simply true. A count that pretended otherwise would read low by exactly the work a
-# person did most recently, which is the worst moment to under-read (D-195).
+# person did most recently, which is the worst moment to under-read (D-197).
 #
 # The walk is backwards from the newest event and stops at the first start older than the cutoff.
 # The log is append-ordered under one writer holding the lock, so its order is its time order and
