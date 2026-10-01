@@ -1,0 +1,2 @@
+== a sleep the history closes with a wake on the far side of a reboot is not a sleep: the window it touches cannot be read, so the message stands, with no kernel boot time at all ==
+gap       Baton was not running for 2 h 0 m, measured against 2026-09-12T10:00:00+01:00

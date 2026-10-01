@@ -50,6 +50,10 @@ host_cache_file() {
 #
 #   T <epoch> sleep|wake      an actual transition, its timestamp read with its own UTC offset
 #   A <reason>                something that breaks the timeline, positioned between its neighbours
+#   A boot-boundary <lo> <hi> a boot, which carries its own bracket: the epochs of the timestamped
+#                             records of any domain before and after it, `-` for a side with none
+#   S <epoch>                 the current boot as the kernel dates it; first, and absent when the
+#                             host does not answer
 #
 # Prints them; status 1 when the history could not be read at all. `DarkWake` is a `wake`, because
 # the machine is running during one and Baton sometimes ticks in one — treating a lid-closed stretch
@@ -248,6 +252,14 @@ host_window() {
           # The newest boot is the one the kernel dates exactly, so when its time falls inside the
           # bracket the bracket is that instant. Anything else is placed by its neighbours alone.
           if (j == newest && booted > 0 && booted >= lo && booted <= hi) { lo = booted; hi = booted }
+          # A sleep the history closes with a wake on the far side of a boot is not a sleep: the
+          # machine went down and came up. That interval is the one the boot invalidates wherever the
+          # boot itself sits, and a window it touches cannot be read, so it is unknown. The boundary
+          # is printed at the first timestamped record after the reset, so transition ab[j] is the
+          # last one before the boot and ab[j] + 1 the first one after it; a boot with no record
+          # after it has no such pair.
+          if (ab[j] >= 1 && ab[j] + 1 <= n && tk[ab[j]] == "sleep" && tk[ab[j] + 1] == "wake" \
+              && touches(te[ab[j]], te[ab[j] + 1])) unknown(ar[j])
         } else {
           lo = (ab[j] >= 1) ? te[ab[j]] : -INF
           hi = (ab[j] + 1 <= n) ? te[ab[j] + 1] : INF
