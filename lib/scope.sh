@@ -435,9 +435,14 @@ scope_settings() {
 # the guard — `{request, cwd, prompt}`. The working directory is fresh for every attempt, under the
 # request's own directory, so there is no `CLAUDE.md` above it but Baton's home and the person's, no
 # memory directory a sibling wrote, and no transcript of an earlier attempt beside it.
+#
+# Status 2, and not 1, when no request waits any more: the candidate was offered in step 1 and the
+# inbox may have consumed the verdict it was for before step 8 dispatched it. That is a candidate gone
+# stale rather than a dispatch that failed, and recording it as one would count towards the bound
+# that parks the lane.
 scope_dispatch_doc() {
   sdd_next=$(scope_next "$1" "$3") || { echo "$sdd_next"; return 1; }
-  [ -n "$sdd_next" ] || { echo "$1 has no scope guard request waiting for a guard"; return 1; }
+  [ -n "$sdd_next" ] || { echo "$1 has no scope guard request waiting for a guard"; return 2; }
   sdd_r=$(printf '%s' "$sdd_next" | jq -r .request)
   sdd_prompt=$(scope_prompt "$1" "$sdd_r" "$4") || { echo "$sdd_prompt"; return 1; }
   sdd_cwd=$(scope_dir "$1")/$sdd_r/$2
@@ -531,6 +536,12 @@ scope_pass() {
   # because this function's stdout is the document the tick parses and the wait functions print.
   spa_wl=$(scope_waits "$spa_p" "$spa_rows") || { render_failure err "baton: $spa_p the scope guard's waits: $spa_wl"; return 1; }
   [ -z "$spa_wl" ] || scope_pass_line "$spa_wl"
+  # The park for a guard that could not be stopped clears through `fork_resolve_check`, which runs in
+  # `tick_project` — and a project that owes a plan never reaches it, so it is asked here for that one.
+  if planning_owed "$spa_p" > /dev/null 2>&1; then
+    spa_fl=$(fork_resolve_check "$spa_p" "$spa_rows") || { render_failure err "baton: $spa_p $spa_fl"; return 1; }
+    [ -z "$spa_fl" ] || scope_pass_line "$spa_fl"
+  fi
   spa_log=$(log_json) || { render_failure err "$spa_log"; return 1; }
   # Only the requests not yet written are looked at again: every close-out ever consumed owes one, and
   # reading each event back once a tick would grow the tick with the project's history.
@@ -593,10 +604,22 @@ scope_pass() {
         spa_sid=$(printf '%s' "$spa_s" | jq -r '.session // ""')
         spa_job=''; [ -z "$spa_sid" ] || spa_job=$(job_of_session "$spa_rows" "$spa_sid")
         if [ -n "$spa_job" ]; then
-          "$BATON_CLAUDE" stop "$spa_job" > /dev/null 2>&1 || true
           spa_stopped=yes
-          scope_pass_line "$(render_plain 'scope     %s/%s · the guard for %s ended without a verdict; its session is stopped' \
-            "$spa_p" "$SCOPE_ID" "$spa_what")"
+          if "$BATON_CLAUDE" stop "$spa_job" > /dev/null 2>&1; then
+            scope_pass_line "$(render_plain 'scope     %s/%s · the guard for %s ended without a verdict; its session is stopped' \
+              "$spa_p" "$SCOPE_ID" "$spa_what")"
+          elif ! printf '%s' "$spa_log" | jq -e --arg p "$spa_p" --arg s "$spa_sid" \
+                 'any(.[]; .kind == "escalation" and .project == $p and .class == "other" and .carries.original == $s)' > /dev/null; then
+            # A stop the CLI refuses would otherwise hold the request here every tick with nothing said,
+            # since no fresh guard is asked beside a live one. Parked once in the fork park's own shape,
+            # whose verb asks a person to stop the session by hand and which clears itself once no row
+            # carries it (`fork_resolve_check`).
+            escalate "$spa_p" "$SCOPE_ID" "" "" other lane "$(jq -nc --arg s "$spa_sid" --arg r "$spa_r" --arg w "$spa_what" \
+              '{original: $s, request: $r, detail: "the guard for \($w) ended without a verdict and its session \($s) could not be stopped, so no fresh guard is asked while it runs"}')" \
+              || { render_failure err "baton: $spa_p the park for the unstoppable guard $spa_sid could not be written"; return 1; }
+            scope_pass_line "$(render_plain 'scope     %s/%s · the guard for %s could not be stopped · the lane is parked for a person' \
+              "$spa_p" "$SCOPE_ID" "$spa_what")"
+          fi
         fi
         [ "$(printf '%s' "$spa_s" | jq -r .state)" = unresolved ] || continue
         printf '%s' "$spa_s" | jq -e 'has("park")' > /dev/null && continue

@@ -692,8 +692,15 @@ dispatch_one() {
     # The request, its prompt and its working directory together, before the settings are written: a
     # registration with no confirmed intent fails here, at the prompt stage, and `dispatch_try`'s
     # bound turns two such failures into the park that names `baton onboard`.
-    do_doc=$(scope_dispatch_doc "$do_project" "$do_attempt" "$do_rows" "$(baton_now)") \
-      || { dispatch_failed "$do_project" "$do_id" prompt "$do_doc"; return 1; }
+    # Status 2 is a candidate gone stale — its verdict was consumed since step 1 offered it — and is
+    # no failure: nothing is recorded, so it spends nothing of that bound.
+    do_rc=0; do_doc=$(scope_dispatch_doc "$do_project" "$do_attempt" "$do_rows" "$(baton_now)") || do_rc=$?
+    if [ "$do_rc" -eq 2 ]; then
+      render_row out record 'scope     %s/%s · no request waits for a guard any more; none is dispatched\n' \
+        "$(render_token out lane "$do_project")" "$(render_token out milestone "$do_id")"
+      return 1
+    fi
+    [ "$do_rc" -eq 0 ] || { dispatch_failed "$do_project" "$do_id" prompt "$do_doc"; return 1; }
     do_request=$(printf '%s' "$do_doc" | jq -r .request)
     do_wt_path=$(printf '%s' "$do_doc" | jq -r .cwd)
     do_branch=''; do_reused=false; do_commit=''

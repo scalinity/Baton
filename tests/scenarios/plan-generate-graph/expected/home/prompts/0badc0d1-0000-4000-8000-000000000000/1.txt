@@ -22,7 +22,7 @@ was already confirmed, and re-approving its consequences is the review that gets
 WHAT IS WRONG WITH THE PLAN THAT IS ALREADY THERE. This is attempt 2. A previous session wrote a
 plan and Baton refused it. Repair exactly these, keep everything that is already right, and do not
 start a second graph.
-  * docs/MILESTONES.md uses the id M00-plan, which Baton reserves for the session that writes the plan
+  * docs/MILESTONES.md uses the id M00-plan, which Baton reserves for a session of its own — the one that writes the plan, or the scope guard
     Repair: rename that row in docs/MILESTONES.md to an id of its own and rename its brief with it
   * docs/MILESTONES.md row 1 marks M01 "done" before anybody has done it, and Baton never dispatches a row that is not blank
     Repair: leave every Status cell in docs/MILESTONES.md blank and commit it on main
@@ -79,7 +79,7 @@ The milestone table, in the plan document:
   * The header must carry both an ID cell and a Depends on cell. That pair is how Baton finds this
     table among the document's others, and a table without Depends on is not a table at all to it.
   * ID is M, then digits, then optionally a hyphen and one run of lowercase letters and digits:
-    M01, M02, M07-b. M00-plan is reserved for this session and must not appear as a row.
+    M01, M02, M07-b. M00-plan and M00-scope are reserved for Baton's own sessions and must not appear as rows.
   * Depends on holds ids and ranges only — M05, M06 or M01-M13 — or an en dash for none. Every id
     named must be a row in this same table. Prose is not a token and fails the read.
   * Model is one of the aliases this Baton knows — fable, opus, sonnet, haiku — or a full model id beginning

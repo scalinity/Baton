@@ -473,8 +473,9 @@ consume_settle() {
   # (`scope_closeout_request`): the successors' hold reads it from the event that closes the lane, so
   # no tick falls between the lane closing and the hold beginning.
   cs_scope=$(scope_closeout_request "$cs_milestone" "$cs_attempt" "$cs_completion")
-  cs_fields=$(printf '%s' "$cs_a" | jq -c --arg w "$cs_written_by" --argjson c "$cs_completion" --arg r "$cs_scope" '
-    (if .outcome == "stopped" then {outcome, reason, error, blocked_by} else {outcome, merged_as, verdict, finding} end)
+  cs_fields=$(printf '%s' "$cs_a" | jq -c --arg w "$cs_written_by" --argjson c "$cs_completion" --arg r "$cs_scope" --arg g "$SCOPE_ID" '
+    (if .outcome == "stopped" then {outcome, reason, error, blocked_by}
+     elif .milestone == $g then {outcome, verdict, finding} else {outcome, merged_as} end)
     | with_entries(select(.value != null))
     | with_entries(if (.value | type) == "string" and (.value | length) > 500
                    then .value |= (.[0:500] + "…") else . end)
@@ -501,7 +502,7 @@ consume_settle() {
   if [ "$cs_outcome" = stopped ]; then
     cs_note="stopped, $cs_reason → $(stop_route "$cs_reason")"
   fi
-  if [ "$cs_outcome" = complete ] && printf '%s' "$cs_a" | jq -e 'has("verdict")' > /dev/null; then
+  if [ "$cs_outcome" = complete ] && [ "$cs_milestone" = "$SCOPE_ID" ]; then
     cs_note="complete, verdict $(printf '%s' "$cs_a" | jq -r .verdict)"
   elif [ "$cs_outcome" = complete ]; then
     cs_note="complete, merged_as $(printf '%s' "$cs_a" | jq -r .merged_as)"

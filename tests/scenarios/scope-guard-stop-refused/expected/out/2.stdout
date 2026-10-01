@@ -1,0 +1,11 @@
+== The first guard for M02's close-out ended without a verdict and the CLI refuses to stop it. No fresh guard is asked beside a live one, so the lane is parked once for a person to stop it by hand; M03 stays held. Once no row carries the session, the park clears itself and a fresh guard is asked ==
+held      Fixture/M03 · M02's close-out is with the scope guard
+held      Fixture/M03 · M02's close-out is with the scope guard
+--- the park, raised once ---
+{"milestone":"M00-scope","class":"other","original":"33333333-0001-4444-8555-666666666666","detail":"the guard for M02's close-out ended without a verdict and its session 33333333-0001-4444-8555-666666666666 could not be stopped, so no fresh guard is asked while it runs"}
+--- a person stops the session by hand ---
+held      Fixture/M03 · M02's close-out is with the scope guard
+held      Fixture/M03 · M02's close-out is with the scope guard
+{"kind":"dispatch","milestone":"M00-scope","how":null,"attempt":1}
+{"kind":"resolution","milestone":"M00-scope","how":"edit","attempt":null}
+{"kind":"dispatch","milestone":"M00-scope","how":null,"attempt":2}

@@ -341,14 +341,14 @@ planning_validate() {
 
   # The table as a graph. One jq pass over the parsed document, printing `<what>\t<repair>` per
   # defect, because each of these is a question about the whole table rather than about one row.
-  pv_lines=$(printf '%s' "$pv_tables" | jq -r --arg plan "$pv_plan" --arg res "$PLANNING_ID" '
+  pv_lines=$(printf '%s' "$pv_tables" | jq -r --arg plan "$pv_plan" --arg res "$PLANNING_ID" --arg guard "$SCOPE_ID" '
     ([ .milestones[] | .id ]) as $ids
     | [ if ($ids | length) == 0
         then ["the milestone table in \($plan) has a header and no rows, so the plan names no work",
               "write one row per milestone into the milestone table in \($plan) and commit it on main"]
         else empty end,
-        ( .milestones[] | select(.id == $res)
-          | ["\($plan) uses the id \($res), which Baton reserves for the session that writes the plan",
+        ( .milestones[] | select(.id == $res or .id == $guard) | .id as $taken
+          | ["\($plan) uses the id \($taken), which Baton reserves for a session of its own — the one that writes the plan, or the scope guard",
              "rename that row in \($plan) to an id of its own and rename its brief with it"] ),
         ( .milestones[] | select(.status != "")
           | ["\($plan) row \(.row) marks \(.id) \"\(.status)\" before anybody has done it, and Baton never dispatches a row that is not blank",
@@ -496,7 +496,7 @@ The milestone table, in the plan document:
   * The header must carry both an ID cell and a Depends on cell. That pair is how Baton finds this
     table among the document's others, and a table without Depends on is not a table at all to it.
   * ID is M, then digits, then optionally a hyphen and one run of lowercase letters and digits:
-    M01, M02, M07-b. M00-plan is reserved for this session and must not appear as a row.
+    M01, M02, M07-b. M00-plan and M00-scope are reserved for Baton's own sessions and must not appear as rows.
   * Depends on holds ids and ranges only — M05, M06 or M01-M13 — or an en dash for none. Every id
     named must be a row in this same table. Prose is not a token and fails the read.
 PLANNING_TABLE

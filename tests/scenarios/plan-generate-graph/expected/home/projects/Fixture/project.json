@@ -15,11 +15,11 @@
     "checked_at": "2026-09-19T08:00:00+01:00"
   },
   "plan_owed": {
-    "reason": "attempt 1 wrote a plan Baton will not adopt: 10 things to repair, the first being docs/MILESTONES.md uses the id M00-plan, which Baton reserves for the session that writes the plan",
+    "reason": "attempt 1 wrote a plan Baton will not adopt: 10 things to repair, the first being docs/MILESTONES.md uses the id M00-plan, which Baton reserves for a session of its own — the one that writes the plan, or the scope guard",
     "owner": "M12",
     "defects": [
       {
-        "what": "docs/MILESTONES.md uses the id M00-plan, which Baton reserves for the session that writes the plan",
+        "what": "docs/MILESTONES.md uses the id M00-plan, which Baton reserves for a session of its own — the one that writes the plan, or the scope guard",
         "repair": "rename that row in docs/MILESTONES.md to an id of its own and rename its brief with it"
       },
       {
