@@ -1,0 +1,18 @@
+THE WORK: milestone M02, attempt 1, has just been completed in this project and merged into main.
+
+What Baton itself established about it (no session wrote this):
+- the branch changed 1 path between @BASELINE@ and its tip @CANDIDATE@, and was merged into main as @MERGE@;
+- Baton ran the project's standing check on @MERGE@, and it passed.
+
+The paths it changed:
+docs/one.md
+
+The change itself, as git shows it between those two commits:
+
+diff --git a/docs/one.md b/docs/one.md
+new file mode 100644
+index 0000000..5626abf
+--- /dev/null
++++ b/docs/one.md
+@@ -0,0 +1 @@
++one

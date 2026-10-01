@@ -1,0 +1,9 @@
+== The CLI refuses every launch. The guard's dispatch fails at the launch stage twice and its lane is parked dispatch-failed; M03 stays held. That park names nothing a tick can re-read, so later ticks leave it standing and raise nothing more: a person hands it back once the CLI starts again ==
+held      Fixture/M03 · M02's close-out waits for the scope guard
+held      Fixture/M03 · M02's close-out waits for the scope guard
+held      Fixture/M03 · M02's close-out waits for the scope guard
+held      Fixture/M03 · M02's close-out waits for the scope guard
+--- every dispatch the guard lane failed, and its parks (exactly one) ---
+{"kind":"dispatch_failed","stage":"launch","class":null,"how":null}
+{"kind":"dispatch_failed","stage":"launch","class":null,"how":null}
+{"kind":"escalation","stage":null,"class":"dispatch-failed","how":null}

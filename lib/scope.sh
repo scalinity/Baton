@@ -506,14 +506,18 @@ scope_pass() {
   # holds it, a live session under its name is never dispatched over, and a guard already running is
   # left to finish. The `dispatch-failed` park is the one released here, when what parked it — a
   # registration with no confirmed intent, a checkout or a rail — reads clean again (D-169's rule).
+  # Not one parked at the `launch` or `service` stage: what failed there is the CLI or its service,
+  # which nothing here can re-read, and releasing it would re-park it two ticks later with a second
+  # message — the same park, said again every two ticks for as long as the CLI refuses.
   spa_parked=$(derive_parked "$spa_p") || { render_failure err "$spa_parked"; return 1; }
   spa_lane=$(printf '%s' "$spa_parked" | jq -r --arg m "$SCOPE_ID" \
     'first(.parked[] | select(.scope == "lane" and .milestone == $m)) as $k
-     | if $k == null then "" else "\($k.class) \($k.at)" end')
+     | if $k == null then "" else "\($k.class) \($k.carries.stage // "-") \($k.at)" end')
   if [ -n "$spa_lane" ]; then
-    spa_class=${spa_lane%% *}; spa_at=${spa_lane#* }
+    spa_class=${spa_lane%% *}; spa_at=${spa_lane#* }; spa_stage=${spa_at%% *}; spa_at=${spa_at#* }
     spa_next=$(scope_next "$spa_p" "$spa_rows") || { render_failure err "$spa_next"; return 1; }
-    if [ "$spa_class" = dispatch-failed ] && [ -n "$spa_next" ] \
+    if [ "$spa_class" = dispatch-failed ] && [ "$spa_stage" != launch ] && [ "$spa_stage" != service ] \
+       && [ -n "$spa_next" ] \
        && scope_prompt "$spa_p" "$(printf '%s' "$spa_next" | jq -r .request)" now > /dev/null 2>&1 \
        && spa_pre=$(scope_preconditions "$spa_p") \
        && printf '%s' "$spa_pre" | jq -e '(.failures | length) == 0' > /dev/null 2>&1; then

@@ -1,0 +1,26 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/home/checks/Fixture/scope/M02-1/1] claude --bg -n 'Baton · Fixture · M00-scope' --model opus --effort high --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M00-scope.json --setting-sources  --strict-mcp-config --disable-slash-commands <prompt>
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/home/worktrees/Fixture/M04] claude --bg -n 'Baton · Fixture · M04' --model opus --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M04.json <prompt>
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/home/checks/Fixture/scope/M02-1/1] claude --bg -n 'Baton · Fixture · M00-scope' --model opus --effort high --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M00-scope.json --setting-sources  --strict-mcp-config --disable-slash-commands <prompt>
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "2 dispatches in a row produced no session, the last at the launch stage: Error: the session could not be started · fix what the launch stage names, then baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · dispatch-failed"'
+[cwd @TMP@/home/worktrees/Fixture/M04] claude --bg -n 'Baton · Fixture · M04' --model opus --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M04.json <prompt>
+osascript -e 'display notification "2 dispatches in a row produced no session, the last at the launch stage: cleanup skipped; budget spent this tick; Error: the session could not be started · fix what the launch stage names, then baton answer M04 \"<ruling>\"" with title "Baton · Fixture/M04 · dispatch-failed"'
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
