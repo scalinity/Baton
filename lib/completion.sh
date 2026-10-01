@@ -222,8 +222,11 @@ completion_chain() {
      && ! git -C "$cc_repo" merge-base --is-ancestor "$cc_base" "$cc_m"; then
     cc_tree=$(git -C "$cc_repo" rev-parse --verify --quiet "$cc_base^{tree}" 2>/dev/null) \
       || { echo "the tree of the dispatch baseline $cc_base could not be read in $cc_repo"; return 1; }
-    cc_twins=$(git -C "$cc_repo" log --format='%H %T' "$cc_m" 2>/dev/null \
-      | awk -v t="$cc_tree" '$2 == t { print $1 }')
+    # Captured before the filter: in a pipeline the status is awk's, and a history git could not
+    # read would arrive as "no ancestor shares the tree", the wrong reason for a refusal.
+    cc_hist=$(git -C "$cc_repo" log --format='%H %T' "$cc_m" 2>/dev/null) \
+      || { echo "the history of $cc_m could not be read in $cc_repo, so no equivalent of the dispatch baseline $cc_base can be found"; return 1; }
+    cc_twins=$(printf '%s\n' "$cc_hist" | awk -v t="$cc_tree" '$2 == t { print $1 }')
     cc_twin_n=$(printf '%s' "$cc_twins" | awk 'END { print NR }')
     cc_why="the dispatch baseline $cc_base is not an ancestor of $cc_branch at $cc_t, so the branch is not this attempt's"
     case "$cc_twin_n" in
