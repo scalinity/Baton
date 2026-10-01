@@ -587,7 +587,8 @@ replan_request() {
                   replan: {milestone: $k.milestone, class: $k.class, at: $k.at,
                            detail: ($k.carries.detail // "")}}' "$rrq_f") \
     || { render_failure err "baton: $rrq_f does not parse; no replan was requested"; return 1; }
-  onboard_registration_write "$1" "$rrq_doc"
+  onboard_registration_write "$1" "$rrq_doc" \
+    || { render_failure err "baton: $rrq_f could not be written; no replan was requested"; return 1; }
   replan_requested_event "$1" "$rrq_park" || return 1
   render_row out action 'replan    %s/%s · requested · a planning session replaces the plan, and nothing else of %s is dispatched until it is adopted\n' \
     "$(render_token out lane "$1")" "$(render_token out milestone "$(printf '%s' "$rrq_park" | jq -r .milestone)")" "$1"
@@ -596,11 +597,20 @@ replan_request() {
 # replan_requested_event <project> <park json>: the request's own record, `replan` naming the park by
 # its `at` as well as its milestone and class, so that every later reading — the repair, the
 # exhaustion, the end without an adoption — finds this park's request and no other's.
+#
+# It carries `start_at`, the registration's starting handover as it stood, because that is the one
+# thing an adoption is sure to have changed before its own event exists: a replan's adoption always
+# writes the starting handover afresh (`planning_adopt`), `onboard_commit` writes it before the
+# `adopted` event is recorded, and a person's `baton onboard` over a registration that has one never
+# writes it again. A request whose `start_at` no longer matches was answered by an adoption a tick
+# ended part-way through, not ended by a person.
 replan_requested_event() {
   rre_n=$(planning_attempts "$1") || { render_failure err "$rre_n"; return 1; }
+  rre_st=$(jq -r '.start.at // ""' "$BATON_HOME/projects/$1/project.json") \
+    || { render_failure err "baton: $1 the registration does not parse; the replan request's event is not written"; return 1; }
   log_event plan_generation "$1" "$PLANNING_ID" "" "" \
-    "$(printf '%s' "$2" | jq -c --argjson n "$rre_n" \
-       '{outcome: "requested", attempts: $n, replan: {milestone, class, at}}')" \
+    "$(printf '%s' "$2" | jq -c --argjson n "$rre_n" --arg st "$rre_st" \
+       '{outcome: "requested", attempts: $n, replan: {milestone, class, at}, start_at: $st}')" \
     || { render_failure err "baton: $1 the replan request's event could not be written"; return 1; }
 }
 
@@ -634,10 +644,15 @@ replan_route() {
 # exhaustion that pass records is acted on by the next tick's. For every standing park this route
 # raised:
 #
-#   * **answered** — an `adopted` event names its `at`: nothing. `onboard_commit` removes `plan_owed`
-#     before `planning_close_park` resolves the park, so a tick that ended between the two leaves this
-#     park standing; requesting from it would replace the plan just adopted. Once nothing is owed the
-#     re-read runs again and reads the adopted plan as the change it is.
+#   * **answered** — an `adopted` event names it, or its request's `start_at` is no longer the
+#     registration's starting handover: nothing. `onboard_commit` removes `plan_owed` and writes the
+#     starting handover before the `adopted` event and before `planning_close_park` resolves the park,
+#     so a tick that ended in between leaves this park standing; requesting from it would replace the
+#     plan just adopted, and delivering it would tell the person a replan ended that was adopted. Once
+#     nothing is owed the re-read runs again and reads the adopted plan as the change it is.
+#
+# A park is named by its milestone and its `at` together, in every event and against `plan_owed`:
+# `at` is to the second, and two parks can be raised in the same one.
 #   * **delivered** — a `delivered` event names it: nothing. It is a person's park now.
 #   * **owed, with no event** — the registration names it and no `requested` event does: the tick that
 #     made the request ended between its two writes. The event is written.
@@ -654,24 +669,35 @@ replan_pass() {
   rps_n=$(printf '%s' "$rps_list" | jq length); rps_i=0
   [ "$rps_n" -gt 0 ] || return 0
   rps_log=$(log_json) || { render_failure err "$rps_log"; return 1; }
-  rps_owed=$(planning_replan "$1" 2>/dev/null | jq -r '.at // ""') || rps_owed=''
+  # What is owed, read from a registration that must parse: one that does not would read as nothing
+  # owed, and every requested park would be delivered as a replan a person ended.
+  rps_f=$BATON_HOME/projects/$1/project.json
+  rps_reg=$(jq -c '{owed: ((.plan_owed.replan // {}) | "\(.milestone // "") \(.at // "")"),
+                    start: (.start.at // "")}' "$rps_f" 2>/dev/null) \
+    || { render_failure err "baton: $rps_f does not parse; the replan pass waits for it"; return 1; }
+  rps_owed=$(printf '%s' "$rps_reg" | jq -r .owed)
   rps_status=0
   while [ "$rps_i" -lt "$rps_n" ]; do
     rps_k=$(printf '%s' "$rps_list" | jq -c ".[$rps_i]"); rps_i=$((rps_i + 1))
     rps_at=$(printf '%s' "$rps_k" | jq -r .at)
-    rps_state=$(printf '%s' "$rps_log" | jq -r --arg p "$1" --arg m "$PLANNING_ID" --arg a "$rps_at" '
+    rps_m=$(printf '%s' "$rps_k" | jq -r .milestone)
+    rps_state=$(printf '%s' "$rps_log" | jq -r --arg p "$1" --arg m "$PLANNING_ID" --arg a "$rps_at" \
+      --arg pk "$rps_m" --arg st "$(printf '%s' "$rps_reg" | jq -r .start)" '
       [ to_entries[] | {i: .key} + .value
         | select(.kind == "plan_generation" and .project == $p and .milestone == $m) ] as $ev
-      | ([ $ev[] | select(.outcome == "requested" and .replan.at == $a) ] | last | .i // -1) as $req
-      | if any($ev[]; .outcome == "adopted" and .replan.at == $a) then "answered"
-        elif any($ev[]; .outcome == "delivered" and .replan.at == $a) then "delivered"
+      | def names: .replan.at == $a and .replan.milestone == $pk;
+      ([ $ev[] | select(.outcome == "requested" and names) ] | last) as $rq
+      | ($rq.i // -1) as $req
+      | if any($ev[]; .outcome == "adopted" and names) then "answered"
+        elif any($ev[]; .outcome == "delivered" and names) then "delivered"
         elif $req < 0 then "unrequested"
+        elif ($rq.start_at // "") != "" and $rq.start_at != $st then "answered"
         elif any($ev[]; .outcome == "exhausted" and .i > $req) then "exhausted"
-        else "requested" end')
+        else "requested" end') || { render_failure err "baton: $1 the replan record could not be read"; return 1; }
     case "$rps_state" in
       answered|delivered) continue ;;
     esac
-    if [ "$rps_owed" = "$rps_at" ]; then
+    if [ "$rps_owed" = "$rps_m $rps_at" ]; then
       case "$rps_state" in
         unrequested)
           if replan_requested_event "$1" "$rps_k"; then
@@ -681,8 +707,11 @@ replan_pass() {
             rps_status=1
           fi ;;
         exhausted)
+          # Short, because `message_render` caps the body with the verb last and this sentence leads
+          # the park's own detail: the decision is the detail, and the lead only says why it is late.
+          rps_na=$(planning_attempts "$1" 2>/dev/null) || rps_na=its
           replan_deliver "$1" "$rps_k" exhausted \
-            "$(planning_attempts "$1" 2>/dev/null || printf 'its') replan attempts, none adopted; repair the plan, then run baton onboard $(project_path "$1" 2>/dev/null || printf '<path>')" \
+            "$rps_na replan attempts, none adopted · repair the plan, then baton onboard" \
             || rps_status=1 ;;
       esac
       continue
@@ -691,7 +720,6 @@ replan_pass() {
       requested|exhausted)
         replan_deliver "$1" "$rps_k" ended "the replan was ended without a plan being adopted" || rps_status=1 ;;
       unrequested)
-        rps_m=$(printf '%s' "$rps_k" | jq -r .milestone)
         if rps_no=$(replan_gate "$1" "$rps_m" "$(printf '%s' "$rps_k" | jq -r .class)" "$2"); then
           replan_request "$1" "$rps_k" || rps_status=1
         else

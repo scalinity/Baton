@@ -2,6 +2,6 @@
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
-osascript -e 'display notification "3 replan attempts, none adopted; repair the plan, then run baton onboard @TMP@/Fixture · M02 ended unfinished twi… · edit the plan; a split is a plan edit" with title "Baton · Fixture/M02 · unfinished-twice"'
+osascript -e 'display notification "3 replan attempts, none adopted · repair the plan, then baton onboard · M02 ended unfinished twice in a row; the newest says: split at item 2: saying it back is its own session · the previous says: split at ch… · edit the plan; a split is a plan edit" with title "Baton · Fixture/M02 · unfinished-twice"'
 [cwd @TMP@] claude agents --json
 [cwd @TMP@] claude agents --json
