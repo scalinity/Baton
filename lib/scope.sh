@@ -235,32 +235,36 @@ scope_adoption() {
   printf '%s' "$sad_st" | jq -r --arg r "$sad_r" 'first(.[] | select(.request == $r) | .state) // "owed"'
 }
 
-# scope_states <project> <rows json>: every request of the project with its state, oldest first —
-# `{request, boundary, milestone, attempts, state, session, attempt, park, ...}`. Derived from the log
-# and the rows every time, because a state stored beside the log would be a second record of one fact.
+# scope_states <project> <rows json> [<log json>]: every request of the project with its state, oldest
+# first — `{request, boundary, milestone, attempts, state, session, attempt, park, ...}`. Derived from
+# the log and the rows every time, because a state stored beside the log would be a second record of
+# one fact. A caller that has already read the log hands it in rather than have it read again.
 #
-#   pass       the newest verdict for the request is `pass`
-#   released   the verdict is `drift` and a person has answered the park it raised
-#   drift      the verdict is `drift` and nobody has answered yet
+#   pass       a guard's verdict for the request is `pass`, and none was `drift`
+#   released   a verdict was `drift` and a person has answered the park it raised
+#   drift      a verdict was `drift` and nobody has answered yet
 #   owed       no guard has been dispatched for it
+#   waiting    its newest guard stopped on an API error the wait route retries
 #   running    its newest guard is live, or was dispatched or resumed under two intervals ago
 #   failed     its newest guard ended without a verdict — an ending of its own, or no live row
 #   unresolved failed, with `SCOPE_ATTEMPTS` sessions spent on it
 #
-# Only `pass` and `released` let a boundary through. "Failed" is the honest word for a guard idle
-# after a turn that wrote no verdict: the Stop gate has already insisted once and written
-# `no-handover`, so the session is not going to produce one by waiting.
+# Only `pass` and `released` let a boundary through. **A drift outranks every other verdict**, the
+# later ones included: the guard lane's handovers arrive through the inbox like any lane's, and a pass
+# read after a drift — a late guard, or a file a sibling wrote under the guard's name — would lift a
+# boundary over a park no person has answered. Once a request has drifted, a ruling is the only way
+# on. "Failed" is the honest word for a guard idle after a turn that wrote no verdict: the Stop gate
+# has already insisted once and written `no-handover`, so the session is not going to produce one by
+# waiting. "Waiting" is a guard the wait route will resume (`scope_waits`): a usage limit holds its
+# model, and only the guard's own resumed turn clears that hold, so a fresh guard on the same model
+# would be held by the very wait it was meant to replace.
 scope_states() {
-  sst_p=$1; sst_rows=$2
+  sst_p=$1; sst_rows=$2; sst_log=${3:-}
   sst_d=$(scope_dir "$sst_p")
-  sst_reqs='[]'
-  for sst_f in "$sst_d"/*/request.json; do
-    [ -f "$sst_f" ] || continue
-    sst_one=$(jq -c . "$sst_f" 2>/dev/null) || { echo "$sst_f could not be read"; return 1; }
-    sst_reqs=$(printf '%s' "$sst_reqs" | jq -c --argjson r "$sst_one" '. + [$r]')
-  done
-  [ "$sst_reqs" != '[]' ] || { echo '[]'; return 0; }
-  sst_log=$(log_json) || { echo "$sst_log"; return 1; }
+  set -- "$sst_d"/*/request.json
+  [ -f "$1" ] || { echo '[]'; return 0; }
+  sst_reqs=$(jq -sc . "$@" 2>/dev/null) || { echo "a request under $sst_d could not be read"; return 1; }
+  [ -n "$sst_log" ] || { sst_log=$(log_json) || { echo "$sst_log"; return 1; }; }
   sst_now=$(now_epoch) || { echo "$sst_now"; return 1; }
   printf '%s' "$sst_log" | jq -c --arg p "$sst_p" --arg g "$SCOPE_ID" --argjson reqs "$sst_reqs" \
     --argjson rows "$sst_rows" --argjson now "$sst_now" --argjson max "$SCOPE_ATTEMPTS" \
@@ -279,31 +283,39 @@ scope_states() {
     | map(. as $q
         | [ $ev[] | select(.kind == "dispatch" and .request == $q.request) ] as $ds
         | ($ds | map(.attempt)) as $as
+        | [ $ev[] | select(.kind == "consumed" and .outcome == "complete" and (.attempt as $a | $as | index($a) != null)
+                           and (.verdict == "pass" or .verdict == "drift")) ] as $vs
+        | (([ $vs[] | select(.verdict == "drift") ] | first) // ($vs | first)) as $v
         | ($ds | last) as $d
-        | ([ $ev[] | select(.kind == "consumed" and .outcome == "complete" and (.attempt as $a | $as | index($a) != null)
-                            and (.verdict == "pass" or .verdict == "drift")) ] | last) as $v
         | ([ $ev[] | select(.kind == "escalation" and .class == "drift" and .carries.request == $q.request) ] | last) as $dp
         | ([ $ev[] | select(.kind == "escalation" and .class == "other" and .carries.request == $q.request) ] | last) as $up
         | (if $d == null then null else
              ([ $ev[] | select((.kind == "dispatch" or .kind == "copy_fork") and .attempt == $d.attempt) ] | last | .session) end) as $s
+        # A resume counts as the guard acting again only once it reached the session: a refused one
+        # changed nothing, and counting it would read a standing park as one already answered.
         | (if $d == null then [] else
-             [ $ev[] | select(.attempt == $d.attempt and (.kind == "dispatch" or .kind == "resume")) ] end) as $acts
+             [ $ev[] | select(.attempt == $d.attempt
+                              and (.kind == "dispatch"
+                                   or (.kind == "resume" and (.outcome == "delivered" or .outcome == "forked")))) ] end) as $acts
         | ($acts | last) as $act
         | ($s != null and ($rows | any(.sessionId == $s and .pid != null))) as $live
-        | ($d != null and any($ev[]; .kind == "consumed" and .attempt == $d.attempt and .outcome != "complete"
-                                     and .i > ($act.i // -1))) as $ended
+        | ([ $ev[] | select(.kind == "consumed" and .attempt == ($d.attempt // -1) and .outcome != "complete"
+                            and .i > ($act.i // -1)) ] | last) as $end
+        | ($end != null and $end.reason == "api-error"
+           and (($end.error // "") as $e | ["invalid_request", "model_not_found"] | index($e) | not)) as $waiting
         | {request: $q.request, boundary: $q.boundary, milestone: $q.milestone, created: $q.created,
            attempts: ($ds | length), attempt: ($d.attempt // null), session: $s, live: $live,
            verdict: ($v.verdict // null), finding: ($v.finding // null), verdict_at: ($v.at // null),
            park: (if $v.verdict == "drift" then $dp else
                   if $up != null and $up.i > ($act.i // -1) then $up else null end end)}
         | .state = (
-            if .verdict == "pass" then "pass"
-            elif .verdict == "drift" then
-              (if $dp != null and any($ev[]; .kind == "resolution" and .escalation_at == $dp.at) then "released"
-               else "drift" end)
+            if .verdict == "drift" then
+              (if $dp != null and any($ev[]; .kind == "resolution" and .escalation_at == $dp.at and .i > $dp.i)
+               then "released" else "drift" end)
+            elif .verdict == "pass" then "pass"
             elif $d == null then "owed"
-            elif ($ended | not) and ($live
+            elif $waiting then "waiting"
+            elif $end == null and ($live
                    or (($act.at | epoch) as $t | $t != null and ($now - $t) < $grace)) then "running"
             elif .attempts >= $max then "unresolved"
             else "failed" end)
@@ -418,6 +430,33 @@ scope_verdict_check() {
   completion_reserved_check "$1"
 }
 
+# scope_waits <project> <rows json>: the wait route, for the guard lane alone — `stops_run`'s own
+# wait arm, run here because the ladder stands off this lane and because the adoption guard belongs to
+# a project that fails the self-check and so never reaches `stops_run` at all. Without it a guard
+# stopped by a usage limit would hold its model for every project: `holds_apply` reads the wait, the
+# wait clears only on the guard's own later handover, and nothing would resume the guard to write
+# one. Only the `wait` route: an `invalid_request` or `model_not_found` ending is a failure that
+# `scope_states` hands to a fresh guard, whose dispatch is also what clears that wait.
+scope_waits() {
+  sws_all=$(wait_due "$1") || { echo "$sws_all"; return 1; }
+  sws_all=$(printf '%s' "$sws_all" | jq -c --arg g "$SCOPE_ID" '[ .[] | select(.milestone == $g and .route.action == "wait") ]')
+  sws_now=$(now_epoch) || { echo "$sws_now"; return 1; }
+  sws_n=$(printf '%s' "$sws_all" | jq length); sws_i=0
+  while [ "$sws_i" -lt "$sws_n" ]; do
+    sws_w=$(printf '%s' "$sws_all" | jq -c ".[$sws_i]"); sws_i=$((sws_i + 1))
+    sws_run=$(wait_run "$1" "$SCOPE_ID" "$(printf '%s' "$sws_w" | jq -r .attempt)") || { echo "$sws_run"; return 1; }
+    sws_since=$(printf '%s' "$sws_run" | jq -r --arg f "$(printf '%s' "$sws_w" | jq -r .since)" '.since // $f')
+    sws_at=$(iso_epoch "$sws_since") || { echo "$sws_at"; return 1; }
+    wait_notify "$1" "$sws_w" "$sws_since" "$((sws_now - sws_at))"
+    sws_due=$(printf '%s' "$sws_w" | jq -r .due)
+    if [ "$sws_due" != true ] && [ "$(printf '%s' "$sws_w" | jq -r .route.retry)" = at-once ] \
+       && [ "$(printf '%s' "$sws_w" | jq -r .retries)" = 0 ]; then
+      sws_due=true
+    fi
+    [ "$sws_due" != true ] || wait_retry_run "$1" "$sws_w" "$2"
+  done
+}
+
 # scope_pass <project> <rows json>: the guard's part of step 1, for every registered project — it runs
 # beside `planning_pass` and before the self-check, because the adoption guard belongs to a project
 # that owes a plan and so fails the self-check. Prints `{candidates, lines}` in `planning_pass`'s
@@ -430,14 +469,19 @@ scope_verdict_check() {
 scope_pass() {
   spa_p=$1; spa_rows=$2
   spa_lines=''
+  # The waits first, so a guard resumed here reads as acting again in the states below. Captured,
+  # because this function's stdout is the document the tick parses and the wait functions print.
+  spa_wl=$(scope_waits "$spa_p" "$spa_rows") || { render_failure err "baton: $spa_p the scope guard's waits: $spa_wl"; return 1; }
+  [ -z "$spa_wl" ] || scope_pass_line "$spa_wl"
   spa_log=$(log_json) || { render_failure err "$spa_log"; return 1; }
-  spa_owed=$(printf '%s' "$spa_log" | jq -c --arg p "$spa_p" \
-    '[ .[] | select(.kind == "consumed" and .project == $p and (.scope.request | type) == "string") ]')
-  spa_n=$(printf '%s' "$spa_owed" | jq length); spa_i=0
-  while [ "$spa_i" -lt "$spa_n" ]; do
-    spa_e=$(printf '%s' "$spa_owed" | jq -c ".[$spa_i]"); spa_i=$((spa_i + 1))
-    spa_r=$(printf '%s' "$spa_e" | jq -r .scope.request)
-    [ ! -f "$(scope_dir "$spa_p")/$spa_r/request.json" ] || continue
+  # Only the requests not yet written are looked at again: every close-out ever consumed owes one, and
+  # reading each event back once a tick would grow the tick with the project's history.
+  spa_dir=$(scope_dir "$spa_p")
+  for spa_r in $(printf '%s' "$spa_log" | jq -r --arg p "$spa_p" \
+      '.[] | select(.kind == "consumed" and .project == $p and (.scope.request | type) == "string") | .scope.request'); do
+    [ ! -f "$spa_dir/$spa_r/request.json" ] || continue
+    spa_e=$(printf '%s' "$spa_log" | jq -c --arg p "$spa_p" --arg r "$spa_r" \
+      '[ .[] | select(.kind == "consumed" and .project == $p and .scope.request == $r) ] | last')
     if spa_out=$(scope_closeout_ensure "$spa_p" "$spa_e"); then
       scope_pass_line "$(render_plain 'scope     %s/%s · the close-out is held for the scope guard, which is given only the confirmed intent and the work' \
         "$spa_p" "$(printf '%s' "$spa_e" | jq -r .milestone)")"
@@ -449,7 +493,7 @@ scope_pass() {
     fi
   done
 
-  spa_st=$(scope_states "$spa_p" "$spa_rows") || { render_failure err "$spa_st"; return 1; }
+  spa_st=$(scope_states "$spa_p" "$spa_rows" "$spa_log") || { render_failure err "$spa_st"; return 1; }
   [ "$spa_st" != '[]' ] || { scope_pass_out '[]'; return 0; }
 
   # Drift, parked once per request. The park names the guard's own session and attempt, so a ruling
@@ -529,7 +573,7 @@ scope_pass() {
       scope_pass_out '[]'; return 0
     fi
   fi
-  if printf '%s' "$spa_st" | jq -e 'any(.[]; .state == "running")' > /dev/null \
+  if printf '%s' "$spa_st" | jq -e 'any(.[]; .state == "running" or .state == "waiting")' > /dev/null \
      || printf '%s' "$spa_rows" | jq -e --arg n "$(session_name "$spa_p" "$SCOPE_ID")" \
           'any(.[]; .name == $n and .pid != null)' > /dev/null; then
     scope_pass_out '[]'; return 0
@@ -583,6 +627,7 @@ scope_hold() {
     | $doc
     | .candidates = [ $v[] | select(.held | length == 0) | .c ]
     | {owed: "waits for the scope guard", running: "is with the scope guard",
+       waiting: "is with a scope guard that waits out an API error",
        failed: "had a scope guard end without a verdict", unresolved: "is unresolved at the scope guard",
        drift: "drifted, and the park waits for a person"} as $say
     | .lines += [ $v[] | select(.held | length > 0)

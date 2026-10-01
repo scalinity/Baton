@@ -510,10 +510,12 @@ ladder_step() {
 # others. Read as a lane with no park, the ladder would count that ruling's own refused resume as a
 # failure ending and resume the session with the continue template, which does not carry the ruling.
 #
-# The scope guard's lane is stood by always. Its whole input is its prompt, so a resume has nothing
-# to continue into and a redispatch would need a plan row it has none of; `scope_pass` retries it
-# with a fresh session, bounded, and parks it for a person at the bound. Two retry rules on one lane
-# would be two guards on one request.
+# The scope guard's lane is stood by always, and `scope_pass` does for it what every loop here does
+# for the others. A failure ending has nothing a ladder resume could continue into and a redispatch
+# would need a plan row the lane has none of, so a fresh session is asked instead, bounded, and the
+# lane parks for a person at the bound; an API error is waited out by `scope_waits`, the wait arm
+# below run for this lane alone — there because the adoption guard's project never reaches this
+# function. Two rules on one lane would be two guards on one request.
 stops_standing_by() {
   [ "$2" != "$SCOPE_ID" ] || return 0
   if stood_off "$1" "$3"; then return 0; fi
