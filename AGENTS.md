@@ -27,7 +27,13 @@ The method is `CONTRACT.md` clause 3, applied to this repository.
 1. After the milestone's own checks, `/review-2` and `/address`: completion evidence into the
    brief under `## Completion evidence` using the `docs/MILESTONES.md` template, the
    `docs/DECISIONS.md` entries, the `docs/ARCHITECTURE.md` §10 row; commit on the branch.
-2. Merge into `main`. If the merge fails, write a `stopped` artifact with reason `merge-failed`
+2. First run `git log --oneline HEAD..main`; if `main` moved while the session ran, merge `main`
+   into the session's own branch in its worktree, so a conflict is resolved there and never in the
+   canonical checkout. Keep every side's whole row change in `docs/MILESTONES.md` and every row in
+   `docs/DECISIONS.md`, never taking one side whole, and after the merge check that no D-number
+   appears twice, renumbering only this session's own: two lanes that each mark their row and append
+   a decision conflict on both files even when their code never meets (measured 2026-10-01).
+   Merge into `main`. If the merge fails, write a `stopped` artifact with reason `merge-failed`
    and go no further. Then run the standing check, `sh tests/run.sh`, on `main`; fix `main` if it
    fails, else write `stopped` with reason `main-broken`. Read the run to completion and quote its
    scenario count and its failure count in the completion evidence: a run the harness moved to the
@@ -129,7 +135,9 @@ reason.
 - **The log has one writer**, one function, under the lock. Hooks write per-session files.
 - **Every resume is flagless.** Any flag on `--bg --resume` forks a copy.
 - **Never start, stop, attach to, respawn or resume a session** except the fixture-project sessions
-  a brief names, and never one named `Baton · Reclaim · …`.
+  a brief names, and never one named `Baton · Reclaim · …`. From M16 on the relay itself, the tick
+  and `baton onboard`, starts and resumes Reclaim's sessions; this rule binds every Baton session,
+  M16's observing session included.
 - **Builds and tests are shell fixtures.** `sh tests/run.sh` is authorised for every session; every
   check is reported as passed, failed or unrun with its output. `sh install.sh` is authorised at
   close-out, on `main`, once the standing check has passed there.
