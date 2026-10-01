@@ -1,0 +1,8 @@
+replan    Fixture/M02 · the replan was ended without a plan being adopted · the park's message is delivered now
+--- the registration ---
+{"plan_format":"native","owed":null,"start":["M01"]}
+--- what the ticks recorded ---
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"channel":null,"receipt":null,"outcome":"delivered","attempts":0,"replan":{"milestone":"M02","class":"unfinished-twice","at":"2026-09-19T07:30:00+01:00"},"why":"ended","how":null,"attempt":null}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M02 · unfinished-twice · M02 ended unfinished twice in a row; the newest says: split at item 2: saying it back is its own session · the previous says: split at checklist item 5; M02-b takes the derivations · edit the plan; a split is a plan edit

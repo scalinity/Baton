@@ -1,0 +1,16 @@
+set -eu
+# M02 has ended unfinished twice and the gate's other conditions hold, but the plan reads M01 `done`
+# and Baton never proved it: M01 was run by hand, so no dispatch names its session, and its completion
+# was consumed and recorded unproved. A replacement plan may carry `done` only where Baton proved it:
+# one that keeps M01 `done` is refused, and one that blanks it, as the replan prompt tells the session
+# to, is adopted with M01 eligible again, so Baton would build finished work a second time. Neither
+# answers the park, so no replan is requested. The line counts the unproved rows and names them, and
+# the park goes to the person with its Mac message. Baton's own plan is such a plan: its M01 was run by
+# hand, and every completion before the dispatch baseline is recorded unproved.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

@@ -1,0 +1,20 @@
+set -eu
+# A replan is owed for M02, whose park was raised without a Mac message and carries the re-read receipt
+# `replan_raise` really writes: the brief and the work plan hashed as they read before the replan. The
+# planning session has landed — its completion proved — and merged a plan that leaves M01 blank, adds
+# M03 and rewrites M02's row and brief. Baton refuses it, because M01 is a completion it proved, and
+# dispatches the next attempt carrying the defect.
+#
+# Two things do not happen, and they are this fixture. The park stands: the merge changed both readings
+# the receipt hashes, and read as an edit it would close the park and redispatch M02 from a brief Baton
+# has just refused, so the re-read waits while a replan is owed. And M01 is not dispatched: the refused
+# plan is live on main and the starting handover in force says `run` for M01, which its blanked row
+# would now satisfy, so step 5 is skipped for the project until a plan is adopted. Nothing in calls.log
+# is an osascript — the park was never delivered, and there is nothing yet to deliver it for.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

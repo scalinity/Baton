@@ -1,0 +1,12 @@
+generate  Fixture · attempt 3 left a plan with 1 thing to repair · the next attempt carries them
+generate  Fixture · 3 replan attempts have not produced a plan Baton will adopt · the park on M02 stands until the plan is repaired by hand
+replan    Fixture/M02 · 3 replan attempts, none adopted; repair the plan, then run baton onboard @TMP@/Fixture · the park's message is delivered now
+--- the registration ---
+{"plan_format":"native","owed":{"owner":"M15-d","reason":"attempt 3 wrote a plan Baton will not adopt: 1 thing to repair, the first being docs/MILESTONES.md row 1 leaves M01 blank, and Baton proved M01 complete","replan":{"milestone":"M02","class":"unfinished-twice","at":"2026-09-18T12:01:00+01:00"}},"start":["M01"]}
+--- what the ticks recorded ---
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"channel":null,"receipt":null,"outcome":"refused","attempts":3,"replan":null,"why":null,"how":null,"attempt":null}
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"channel":null,"receipt":null,"outcome":"exhausted","attempts":3,"replan":null,"why":null,"how":null,"attempt":null}
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"channel":null,"receipt":null,"outcome":"delivered","attempts":3,"replan":{"milestone":"M02","class":"unfinished-twice","at":"2026-09-18T12:01:00+01:00"},"why":"exhausted","how":null,"attempt":null}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M02 · unfinished-twice · M02 ended unfinished twice in a row; the newest says: split at item 2: saying it back is its own session · the previous says: split at checklist item 5; M02-b takes the derivations · edit the plan; a split is a plan edit

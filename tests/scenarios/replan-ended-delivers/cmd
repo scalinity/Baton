@@ -1,0 +1,14 @@
+set -eu
+# M02's park was raised without a Mac message and a replan requested from it. Before any plan was
+# adopted, `plan_owed` was removed — `baton onboard` re-reads a native plan and drops it, and nothing
+# else removes it without an adoption. The replan is over without having answered the park, and the
+# park has told nobody, so its own message is delivered now, once, led by a sentence saying the replan
+# ended. The hold and the re-read guard have lifted with `plan_owed`; the plan has not changed since
+# the park's receipt, so the park stands for the person.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

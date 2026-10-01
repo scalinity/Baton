@@ -1,0 +1,21 @@
+set -eu
+# M02 has ended unfinished twice in a row. Its class, unfinished-twice, is one `disposition_of` assigns
+# `replan`, and every condition of the request's gate holds: the registration carries a confirmed goal,
+# the plan is native at docs/MILESTONES.md, no other lane of the project is open and nothing parks it,
+# and the one `done` row, M01, is a completion Baton proved. So the park is raised without a Mac message
+# — `channel` reads `replan` and it carries the re-read receipt — and the request is made from it in the
+# same tick: `plan_owed.replan` names the park by its `at`, and a `plan_generation` event with outcome
+# `requested` records it. Step 5 is skipped for the project from then on.
+#
+# The second tick dispatches the planning lane for the replan, as its first attempt of this generation.
+# Nothing in calls.log is an osascript: the whole trace from park to dispatch reaches nobody, and the
+# second run of this file — the harness's — makes no second request, because the park stands and is
+# owed.
+"$BATON" tick || true
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

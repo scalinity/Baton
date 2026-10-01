@@ -242,7 +242,16 @@ tick_project() {
   # original no longer has a row is a worry that has ended without anyone acting; all three are facts
   # every later check reads, and a lane freed here is one step 4 acts on in the same tick rather than
   # a minute later. A lane whose condition still stands is parked again by the rule that parked it.
-  edit_reread_check "$1" "$2" "$3" || return 1
+  #
+  # Not while a replan is owed. The planning session merges its plan to `main` before Baton measures
+  # it, and that merge changes the brief and the work plan every re-read receipt hashes — so read
+  # here, a plan Baton then refuses would release the replan's own park as a person's edit and free
+  # the lane under the refused plan. The re-read waits for the replan to end: an adoption closes the
+  # park itself (`planning_close_park`), and once nothing is owed the next tick reads whatever has
+  # changed, a person's edit included.
+  if ! planning_replan "$1" > /dev/null 2>&1; then
+    edit_reread_check "$1" "$2" "$3" || return 1
+  fi
   question_resolve_check "$1" "$3" || return 1
   fork_resolve_check "$1" "$3" || return 1
   tp_over=$(takeover_check "$1" "$3") || return 1
@@ -434,6 +443,13 @@ tick_run() {
         render_row out action 'generate    %s · the plan generation pass failed this tick\n' "$(render_token out lane "$tr_key")"
         tr_status=3
       fi
+      #    The replan route's per-tick half, after generation so that an exhaustion that pass has just
+      #    recorded is delivered in the same tick: a park raised without a message is told to the
+      #    person once its replan can no longer arrive (`lib/disposition.sh`).
+      replan_pass "$tr_key" "$tr_rows" || {
+        render_row out action 'replan      %s · the replan pass failed this tick\n' "$(render_token out lane "$tr_key")"
+        tr_status=3
+      }
       #    The scope guard's pass, beside generation and before the self-check for generation's
       #    reason: the guard of a plan awaiting adoption belongs to a project that fails the
       #    self-check. Its one candidate joins the same list (`lib/scope.sh`).
@@ -540,6 +556,15 @@ tick_run() {
     # Step 5 skips a project a project-scope park holds: nothing new starts on ground a person has
     # been asked to fix, while the lanes already running carried on through steps 3 and 4 above.
     project_held "$tr_key" > /dev/null && continue
+    # And a project owing a replan, beside it and for a reason of the same kind: the plan its lanes run
+    # from is being replaced. The planning session merges to `main` before Baton adopts or refuses
+    # what it wrote, so step 5 would read that plan live — a refused plan's blanked `done` dispatched
+    # again from the handover in force, or its new row raised as `omitted`, a message about a plan
+    # Baton refused. The planning lane and the scope guard reach the dispatch through their own passes
+    # in step 1, so they run on; and `scope_hold` filters step 5's candidates, which there are none of
+    # here, so the two holds compose. The hold ends when `plan_owed` does: an adoption, or a person's
+    # `baton onboard` after the attempts are spent.
+    planning_replan "$tr_key" > /dev/null 2>&1 && continue
     # The close-out boundary: a successor whose dependency's close-out the scope guard has not passed
     # is held out of the candidates. A hold that cannot be read dispatches nothing for the project.
     if tr_doc=$(dispositions_intersect "$tr_key" "$tr_plan" "$tr_rows") \

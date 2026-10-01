@@ -423,3 +423,278 @@ rejection_resolve_check() {
   done
   return "$rrc_status"
 }
+
+# ---- the replan route ------------------------------------------------------------------------
+#
+# `replan` is the disposition whose answer is a plan, and this is the route that asks for one
+# (`docs/milestones/M15-e.md`). Its three halves are here because this is the home of the route
+# family: the gate, the park written without a message, and the request. `lib/planning.sh` does the
+# rest — it dispatches the planning lane for the request, measures what it lands, adopts it and closes
+# the park — and is not changed by any of this.
+#
+# **The gate is decided once, at the raise, and the park's `channel` says which way it went.**
+# `declared_step` asks `replan_route` before it raises either replan class. When the gate passes, the
+# park is written by `replan_raise` with `channel: ["replan"]` and no Mac message, and the request is
+# made from it in the same breath; when it does not, the line says why and `escalate` raises the park
+# as it always has, with the message. A park a person was told about stays theirs: requesting a replan
+# from it later, when the gate happened to pass, would set a planning session writing the very plan
+# the message had just asked the person to edit, and the two writers would meet on `main`.
+#
+# **Silence ends when the route does.** A park nobody was told about may stand only while its replan
+# can still arrive, so every way the route finishes without an adoption — its attempts spent (D-167's
+# bound, unchanged), `plan_owed` removed without one, or the gate refusing on a tick that had to make
+# the request again — delivers the park's own message once, and spends no new class (clause 2 above).
+# `replan_pass` is the per-tick half that notices each of those.
+
+# replan_gate <project> <milestone> <rows json>: whether a replan may be requested for a park of this
+# milestone. Nothing and status 0 when it may; one sentence and status 1 when it may not, which is
+# the reason the park goes to the person instead. A reading that fails refuses, because the refusal
+# is the side that tells somebody.
+#
+# The conditions, cheapest first, and each is a certain refusal further down the line:
+#
+#   * **No plan already owed.** `plan_owed` is one record; a second request would overwrite the
+#     first one's park, or a first plan's reason, and leave that one with nobody coming for it.
+#   * **A confirmed goal** — the planning input, as `planning_pass` refuses a first plan without one.
+#   * **A `native` plan registered at `docs/MILESTONES.md`.** A replacement is read as strictly as a
+#     first plan and proved against the planning lane's scope, which is that path and the briefs, so an
+#     `adapted` plan, or one registered anywhere else, can never have a replacement adopted. A
+#     registration with no `plan_format` predates onboarding and is not called native on its silence.
+#   * **No other open lane and no project park.** Every lane `derive_in_flight` names, live or rowless,
+#     runs from the plan being replaced, and the parked milestone's own lane is the one asking. The
+#     scope guard's lane is the exception: it writes nothing in any repository, it is given no plan to
+#     run from, and it is dispatched at every close-out, so counting it would refuse most requests for
+#     a lane that cannot be affected by one. A project-scope park holds every lane, the planning one
+#     included (`planning_pass`), so a request under one is a session that cannot start.
+#   * **Every `done` row proved.** A replacement may carry `done` only where Baton proved it
+#     (REQ-GENERATE-13): one that keeps an unproved `done` is refused, and requesting it spends
+#     `planningAttempts` sessions on that refusal; one that follows the replan prompt and blanks the
+#     row is adopted, and the row is then eligible again, so Baton dispatches finished work a second
+#     time. Neither is an answer, so no request is made. The count goes on the line, because it is the
+#     cost of the rule (D-201).
+replan_gate() {
+  rgt_f=$BATON_HOME/projects/$1/project.json
+  if rgt_owed=$(planning_owed "$1"); then
+    echo "a plan is already owed ($(printf '%s' "$rgt_owed" | jq -r '.reason // "no reason recorded"'))"
+    return 1
+  fi
+  if ! jq -e '(.goal // "") != ""' "$rgt_f" > /dev/null 2>&1; then
+    echo "the registration carries no confirmed goal to replan against · run baton onboard $(project_path "$1" 2>/dev/null || printf '<path>')"
+    return 1
+  fi
+  rgt_fmt=$(jq -r '.plan_format // ""' "$rgt_f" 2>/dev/null) || rgt_fmt=''
+  rgt_plan=$(jq -r '.plan // ""' "$rgt_f" 2>/dev/null) || rgt_plan=''
+  if [ "$rgt_fmt" != native ] || [ "$rgt_plan" != "$PLANNING_PLAN" ]; then
+    echo "the plan is ${rgt_fmt:-of no recorded format} at ${rgt_plan:-no recorded path}, and only a native plan at $PLANNING_PLAN can have a replacement adopted"
+    return 1
+  fi
+  rgt_fl=$(derive_in_flight "$1" "$3") || { echo "the open lanes could not be read"; return 1; }
+  rgt_open=$(printf '%s' "$rgt_fl" | jq -r --arg m "$2" --arg s "$SCOPE_ID" '
+    [ (.in_flight + .no_row)[] | .milestone | select(. != $m and . != $s) ] | unique | join(", ")')
+  if [ -n "$rgt_open" ]; then
+    echo "another lane runs from this plan ($rgt_open)"
+    return 1
+  fi
+  rgt_pp=$(derive_parked "$1") || { echo "the parks could not be read"; return 1; }
+  rgt_pc=$(printf '%s' "$rgt_pp" | jq -r 'first(.parked[] | select(.scope == "project") | .class) // empty')
+  if [ -n "$rgt_pc" ]; then
+    echo "the project is parked ($rgt_pc)"
+    return 1
+  fi
+  rgt_doc=$(plan_of_project "$1" 2>/dev/null) || { echo "the plan could not be read"; return 1; }
+  rgt_hist=$(planning_history "$1") || { echo "Baton's record of the project could not be read"; return 1; }
+  rgt_un=$(jq -nc --argjson p "$rgt_doc" --argjson h "$rgt_hist" \
+    '[ $p.milestones[] | select(.status == "done") | .id ] - $h.preserved')
+  rgt_n=$(printf '%s' "$rgt_un" | jq length)
+  if [ "$rgt_n" -gt 0 ]; then
+    echo "$rgt_n done row$([ "$rgt_n" -eq 1 ] || printf s) Baton never proved complete ($(printf '%s' "$rgt_un" | jq -r 'if length > 5 then (.[0:5] | join(", ")) + ", …" else join(", ") end')): a replacement would be refused for keeping such a row done, or would blank it and have it built again"
+    return 1
+  fi
+}
+
+# replan_raise <project> <milestone> <session> <attempt> <class> <carries json>: the park written
+# without a Mac message, for a class whose disposition is `replan`. `escalate`'s arguments in
+# `escalate`'s order less the scope, which is always `lane` — the class is about one milestone's
+# place in the plan.
+#
+# A sibling of `record_only` for `record_only`'s own reason: `escalate` guarantees a message implies a
+# record, and a flag that skipped the message would make that guarantee conditional (D-057). It
+# differs from `record_only` in two things, both because this park is not over when it is written.
+# **It carries the re-read receipt**, `escalate`'s, so that once the plan is replaced — or once a
+# person ends the replan by hand — `edit_reread_check` reads the change the way it reads any edit.
+# **And its `channel` is `["replan"]`**, which says why no message went: not that nothing was asked of
+# anyone, as `["record"]` says, but that what was asked went to the planning lane. `replan_pass` reads
+# it to find the parks whose silence it has to end.
+#
+# The guard is `record_only`'s, inverted: the disposition is asked of the table, and anything but
+# `replan` is refused, so no caller can route a park a person must see down the silent path.
+replan_raise() {
+  rrs_class=$5; rrs_carries=$6
+  class_or_fail replan_raise escalation "$rrs_class" || return 1
+  fields_or_fail replan_raise "$rrs_carries" || return 1
+  rrs_d=$(disposition_of escalation "$rrs_class" "$rrs_carries") || return 1
+  [ "$rrs_d" = replan ] || {
+    render_failure err "replan_raise: $rrs_class is $rrs_d, not replan; it cannot be raised without a message"
+    return 1
+  }
+  rrs_reread=$(reread_hashes "$1" "$2" "$rrs_class" "$rrs_carries") || rrs_reread='{}'
+  rrs_carries=$(printf '%s' "$rrs_carries" | jq -c --argjson r "$rrs_reread" \
+    'if ($r | length) > 0 then . + {reread: $r} else . end')
+  log_event escalation "$1" "$2" "$3" "$4" \
+    "$(jq -nc --arg c "$rrs_class" --argjson carries "$rrs_carries" \
+       '{class: $c, scope: "lane", carries: $carries, channel: ["replan"]}')"
+}
+
+# replan_request <project> <park json>: the request — `plan_owed` with the park it answers, then the
+# `plan_generation` event with outcome `requested`.
+#
+# **The registration first.** `planning_replan` reads the first and `planning_landed` and
+# `planning_attempts` read the second, and a tick can end between them. With the registration first,
+# what that leaves is a replan owed with no event, which `replan_pass` can see and repair; the other
+# order would leave an event with no `plan_owed`, which reads exactly like a replan a person ended by
+# hand. The event is written with `log_event` and not `planning_record`, which swallows a refusal:
+# a request whose event was refused has to be made again, and it can only be seen to need that if
+# the refusal is.
+replan_request() {
+  rrq_park=$2
+  rrq_f=$BATON_HOME/projects/$1/project.json
+  rrq_doc=$(jq -c --argjson k "$rrq_park" '
+    .plan_owed = {reason: "\($k.milestone) is parked \($k.class), and the plan is what is wrong",
+                  owner: "M15-e",
+                  replan: {milestone: $k.milestone, class: $k.class, at: $k.at,
+                           detail: ($k.carries.detail // "")}}' "$rrq_f") \
+    || { render_failure err "baton: $rrq_f does not parse; no replan was requested"; return 1; }
+  onboard_registration_write "$1" "$rrq_doc"
+  replan_requested_event "$1" "$rrq_park" || return 1
+  render_row out action 'replan    %s/%s · requested · a planning session replaces the plan, and nothing else of %s is dispatched until it is adopted\n' \
+    "$(render_token out lane "$1")" "$(render_token out milestone "$(printf '%s' "$rrq_park" | jq -r .milestone)")" "$1"
+}
+
+# replan_requested_event <project> <park json>: the request's own record, `replan` naming the park by
+# its `at` as well as its milestone and class, so that every later reading — the repair, the
+# exhaustion, the end without an adoption — finds this park's request and no other's.
+replan_requested_event() {
+  rre_n=$(planning_attempts "$1") || { render_failure err "$rre_n"; return 1; }
+  log_event plan_generation "$1" "$PLANNING_ID" "" "" \
+    "$(printf '%s' "$2" | jq -c --argjson n "$rre_n" \
+       '{outcome: "requested", attempts: $n, replan: {milestone, class, at}}')" \
+    || { render_failure err "baton: $1 the replan request's event could not be written"; return 1; }
+}
+
+# replan_route <project> <milestone> <session> <attempt> <class> <carries json> <rows json>:
+# `declared_step`'s one question before it raises a replan class. Status 0 when the park is raised
+# here, silently, and the request made from it; status 1 when the caller is to `escalate` as it always
+# has — the gate refused, with the line saying why, or the silent park could not be written.
+#
+# The request is made from the park just written, found again by its milestone and class among the
+# standing parks, because the request names the park by `at` and only the log knows the `at` it got.
+# A request that fails after the park is written leaves a silent park with nothing owed, which is
+# `replan_pass`'s to find on the next tick — the gate is asked again there and the message delivered
+# if it refuses — so the park is still this function's and the status is 0.
+replan_route() {
+  if ! rrt_no=$(replan_gate "$1" "$2" "$7"); then
+    render_row out action 'replan    %s/%s · not requested: %s · the park goes to the person\n' \
+      "$(render_token out lane "$1")" "$(render_token out milestone "$2")" "$rrt_no"
+    return 1
+  fi
+  replan_raise "$1" "$2" "$3" "$4" "$5" "$6" || return 1
+  rrt_pp=$(derive_parked "$1") || { render_failure err "$rrt_pp"; return 0; }
+  rrt_park=$(printf '%s' "$rrt_pp" | jq -c --arg m "$2" --arg c "$5" '
+    [ .parked[] | select(.scope == "lane" and .milestone == $m and .class == $c
+                         and ((.channel // []) | index("replan")) != null) ] | last // empty')
+  [ -n "$rrt_park" ] || return 0
+  replan_request "$1" "$rrt_park" || true
+}
+
+# replan_pass <project> <rows json>: the per-tick half, run beside `planning_pass` so that an
+# exhaustion that pass records is acted on in the same tick. For every standing park this route
+# raised:
+#
+#   * **answered** — an `adopted` event names its `at`: nothing. `onboard_commit` removes `plan_owed`
+#     before `planning_close_park` resolves the park, so a tick that ended between the two leaves this
+#     park standing; requesting from it would replace the plan just adopted. Once nothing is owed the
+#     re-read runs again and reads the adopted plan as the change it is.
+#   * **delivered** — a `delivered` event names it: nothing. It is a person's park now.
+#   * **owed, with no event** — the registration names it and no `requested` event does: the tick that
+#     made the request ended between its two writes. The event is written.
+#   * **owed and spent** — an `exhausted` event follows its request: delivered.
+#   * **owed** otherwise: nothing. The planning lane is working on it.
+#   * **requested, and owed no longer** — `plan_owed` is gone without an adoption, which only a person
+#     does (`baton onboard` re-reads the plan and drops it): delivered, because the route is over.
+#   * **never requested** — the tick that raised it ended before the request: the gate is asked again,
+#     and the request made, or the message delivered with the refusal leading it.
+replan_pass() {
+  rps_parked=$(derive_parked "$1") || { render_failure err "$rps_parked"; return 1; }
+  rps_list=$(printf '%s' "$rps_parked" | jq -c '
+    [ .parked[] | select(.scope == "lane" and ((.channel // []) | index("replan")) != null) ]')
+  rps_n=$(printf '%s' "$rps_list" | jq length); rps_i=0
+  [ "$rps_n" -gt 0 ] || return 0
+  rps_log=$(log_json) || { render_failure err "$rps_log"; return 1; }
+  rps_owed=$(planning_replan "$1" 2>/dev/null | jq -r '.at // ""') || rps_owed=''
+  rps_status=0
+  while [ "$rps_i" -lt "$rps_n" ]; do
+    rps_k=$(printf '%s' "$rps_list" | jq -c ".[$rps_i]"); rps_i=$((rps_i + 1))
+    rps_at=$(printf '%s' "$rps_k" | jq -r .at)
+    rps_state=$(printf '%s' "$rps_log" | jq -r --arg p "$1" --arg m "$PLANNING_ID" --arg a "$rps_at" '
+      [ to_entries[] | {i: .key} + .value
+        | select(.kind == "plan_generation" and .project == $p and .milestone == $m) ] as $ev
+      | ([ $ev[] | select(.outcome == "requested" and .replan.at == $a) ] | last | .i // -1) as $req
+      | if any($ev[]; .outcome == "adopted" and .replan.at == $a) then "answered"
+        elif any($ev[]; .outcome == "delivered" and .replan.at == $a) then "delivered"
+        elif $req < 0 then "unrequested"
+        elif any($ev[]; .outcome == "exhausted" and .i > $req) then "exhausted"
+        else "requested" end')
+    case "$rps_state" in
+      answered|delivered) continue ;;
+    esac
+    if [ "$rps_owed" = "$rps_at" ]; then
+      case "$rps_state" in
+        unrequested) replan_requested_event "$1" "$rps_k" || rps_status=1 ;;
+        exhausted)
+          replan_deliver "$1" "$rps_k" exhausted \
+            "$(planning_attempts "$1" 2>/dev/null || printf 'its') replan attempts, none adopted; repair the plan, then run baton onboard $(project_path "$1" 2>/dev/null || printf '<path>')" \
+            || rps_status=1 ;;
+      esac
+      continue
+    fi
+    case "$rps_state" in
+      requested|exhausted)
+        replan_deliver "$1" "$rps_k" ended "the replan was ended without a plan being adopted" || rps_status=1 ;;
+      unrequested)
+        rps_m=$(printf '%s' "$rps_k" | jq -r .milestone)
+        if rps_no=$(replan_gate "$1" "$rps_m" "$2"); then
+          replan_request "$1" "$rps_k" || rps_status=1
+        else
+          replan_deliver "$1" "$rps_k" refused "no replan could be requested: $rps_no" || rps_status=1
+        fi ;;
+    esac
+  done
+  return "$rps_status"
+}
+
+# replan_deliver <project> <park json> <why> <lead>: the park's own message, once, now that its route
+# is over. The `delivered` event first and the message after it, the order `escalate` keeps (D-057):
+# the event is what makes it once, so a message with no event behind it would go out every tick.
+#
+# The message is the one `escalate` would have sent when the park was raised — `message_render` over
+# the park's own class and carries — with one sentence leading the detail, because the person is
+# reading about a park that has stood for a while and needs to know why it reaches them now and what
+# ends it. Nothing else changes: the park stands as it was, the same verb answers it, and no class is
+# spent (REQ-ESC-04).
+replan_deliver() {
+  rdl_k=$2
+  rdl_m=$(printf '%s' "$rdl_k" | jq -r .milestone)
+  rdl_s=$(printf '%s' "$rdl_k" | jq -r '.session // ""')
+  rdl_n=$(planning_attempts "$1") || rdl_n=0
+  log_event plan_generation "$1" "$PLANNING_ID" "" "" \
+    "$(printf '%s' "$rdl_k" | jq -c --arg w "$3" --argjson n "$rdl_n" \
+       '{outcome: "delivered", attempts: $n, replan: {milestone, class, at}, why: $w}')" \
+    || { render_failure err "baton: $1 the delivery of the park on $rdl_m could not be recorded, so it is not sent"; return 1; }
+  rdl_carries=$(printf '%s' "$rdl_k" | jq -c --arg l "$4" \
+    '(.carries // {}) | .detail = (if (.detail // "") == "" then $l else "\($l) · \(.detail)" end)')
+  rdl_msg=$(message_render "$1" "$rdl_m" "$(printf '%s' "$rdl_k" | jq -r .class)" "$rdl_carries" \
+    "$rdl_s" "$(printf '%s' "$rdl_k" | jq -r '.attempt // ""')")
+  notify "$(printf '%s' "$rdl_msg" | jq -r .address)" "$(printf '%s' "$rdl_msg" | jq -r .body)" "$rdl_s"
+  render_row out action 'replan    %s/%s · %s · the park'"'"'s message is delivered now\n' \
+    "$(render_token out lane "$1")" "$(render_token out milestone "$rdl_m")" "$4"
+}

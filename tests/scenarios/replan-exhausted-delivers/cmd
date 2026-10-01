@@ -1,0 +1,20 @@
+set -eu
+# M02's park was raised without a Mac message and a replan requested from it. Three planning sessions
+# have since landed, and each merged a plan Baton refused, the third not yet measured. This tick
+# refuses it too, and the attempts are spent: `planning_pass` records `exhausted` (D-167's bound,
+# unchanged) and commissions no fourth.
+#
+# The park has told nobody, and the route that answered for it is over, so its own message is
+# delivered now, once: the `delivered` event first, naming the park by its `at`, and then the message —
+# the park's class, its carries and its verb, led by one sentence saying the replan was tried and how
+# to end it. calls.log holds exactly one osascript across both runs; the second run finds the park
+# delivered and sends nothing. The park stands as it was, under its own class: no class is spent.
+# The project stays held, because the refused plan is still the one on main, until a person repairs it
+# and runs `baton onboard`, which drops `plan_owed`.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

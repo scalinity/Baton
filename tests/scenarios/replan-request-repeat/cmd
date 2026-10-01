@@ -1,0 +1,19 @@
+set -eu
+# The replan M02's silent park asked for was adopted: `onboard_commit` reseeded the starting handover
+# and removed `plan_owed`, and the `adopted` event names the park's `at`. The tick that adopted it
+# ended before `planning_close_park` wrote the park's resolution, so the park still stands, still
+# silent, with nothing owed.
+#
+# No second replan is requested for it. The adoption has already answered this park, and a request
+# made from it would replace the plan just adopted. Nothing is delivered either: the route did not
+# fail. With no replan owed the re-read runs again, finds the brief and the work plan changed since the
+# receipt — the adopted plan is the change — and closes the park as the edit it is, and the
+# declared-stop rule redispatches M02 from its new brief in the same tick, which is the step the
+# adoption would have taken. No osascript, and the second run changes nothing.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

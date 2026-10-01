@@ -1,0 +1,10 @@
+--- the registration ---
+{"plan_format":"native","owed":{"owner":"M15-e","reason":"M02 is parked blocked, and the plan is what is wrong","replan":{"milestone":"M02","class":"blocked","at":"2026-09-19T08:00:00+01:00"}},"start":["M01"]}
+--- what the ticks recorded ---
+{"kind":"escalation","milestone":"M02","class":"blocked","channel":["replan"],"receipt":"blocker-and-instructions","outcome":null,"attempts":null,"replan":null,"why":null,"how":null,"attempt":2}
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"channel":null,"receipt":null,"outcome":"requested","attempts":0,"replan":{"milestone":"M02","class":"blocked","at":"2026-09-19T08:00:00+01:00"},"why":null,"how":null,"attempt":null}
+{"kind":"dispatch","milestone":"M00-plan","class":null,"channel":null,"receipt":null,"outcome":null,"attempts":null,"replan":null,"why":null,"how":null,"attempt":4}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M02 · blocked · blocked by M09, which the plan neither holds nor makes eligible nor shows in flight · the session said: M02 needs the schema M09 publishes, and no milestone in the plan publishes it · edit the plan, or baton answer M02 "<ruling>"
+in flight  Fixture/M00-plan · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 4 · 0 s

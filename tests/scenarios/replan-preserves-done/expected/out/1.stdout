@@ -4,19 +4,12 @@ session   0badc0d1-0000-4000-8000-000000000000 (attempt 5)
 worktree  @TMP@/home/worktrees/Fixture/M00-plan (branch m00-plan)
 settings  @TMP@/home/settings/Fixture-M00-plan.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
-backgrounded · 0badc0d2 · Baton · Fixture · M01
-session   0badc0d2-0000-4000-8000-000000000000 (attempt 2)
-worktree  @TMP@/home/worktrees/Fixture/M01 (branch m01)
-settings  @TMP@/home/settings/Fixture-M01.json
-prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
 --- the registration ---
 {"plan":"docs/MILESTONES.md","plan_format":"native","owed":{"owner":"M15-d","replan":"M02","defects":["docs/MILESTONES.md row 1 leaves M01 blank, and Baton proved M01 complete"]},"start":["M01"]}
 --- what the tick recorded ---
 {"kind":"plan_generation","milestone":"M00-plan","class":null,"outcome":"refused","attempts":1,"defects":1,"first":"docs/MILESTONES.md row 1 leaves M01 blank, and Baton proved M01 complete","max":null,"how":null,"attempt":null}
 {"kind":"dispatch","milestone":"M00-plan","class":null,"outcome":null,"attempts":null,"defects":null,"first":null,"max":null,"how":null,"attempt":5}
-{"kind":"dispatch","milestone":"M01","class":null,"outcome":null,"attempts":null,"defects":null,"first":null,"max":null,"how":null,"attempt":2}
 --- status ---
 last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
 parked  Fixture/M02 · unfinished-twice · M02 ended unfinished twice in a row; the newest says: split at item 2: saying it back is its own session · the previous says: split at checklist item 5; M02-b takes the derivations · edit the plan; a split is a plan edit
 in flight  Fixture/M00-plan · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 5 · 0 s
-in flight  Fixture/M01 · 0badc0d2-0000-4000-8000-000000000000 · opus · attempt 2 · 0 s
