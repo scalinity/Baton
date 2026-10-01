@@ -1,0 +1,21 @@
+=== a request is owed only by a proved completion of a milestone
+  proved M02 attempt 3:     [M02-3]
+  unproved M02:             []
+  no completion:            []
+  no attempt:               []
+  the planning lane:        []
+  the guard itself:         []
+=== the cut: over the bound, the text ends at a whole line and says how much was shown
+  4000 lines in:  212000 bytes
+  at the bound:   120143 bytes out
+line 00018 of a long change, padded to a fixed width
+
+[Baton cut the text here: 1000 of 212000 bytes are shown. Judge only what is shown, and treat what is not shown as unexamined rather than as fine.]
+=== the model and effort: opus and high by default, config.json's scopeModel and scopeEffort when set
+  default:   opus high
+  from config: sonnet medium
+=== a verdict the check cannot read, or one with no finding, is refused — never passed
+  not json                               exit 1 · the verdict could not be read
+  {"verdict":"pass"}                     exit 1 · a verdict without a finding
+  {"verdict":"maybe","finding":"x"}      exit 1 · verdict is "maybe", not "pass" or "drift"
+  {"verdict":["pass"],"finding":"x"}     exit 1 · verdict is ["pass"], not "pass" or "drift"
