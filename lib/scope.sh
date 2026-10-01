@@ -179,14 +179,17 @@ scope_closeout_ensure() {
       "$(printf '%s' "$sce_c" | jq -r '.check.revision // "the merge"')" "$(printf '%s' "$sce_c" | jq -r '.check.outcome // "was not run"')"
     printf 'The paths it changed:\n%s\n\n' "$sce_names"
     printf 'The change itself, as git shows it between those two commits:\n\n'
-    scope_bounded "$sce_tmp.diff"
-  } > "$sce_tmp"
+    cat "$sce_tmp.diff"
+  } > "$sce_tmp.raw"
+  # Bounded whole, the path list with the diff: a branch that commits a vendored tree has a path list
+  # no prompt argument can carry, and a launch the kernel refuses would park the lane for good.
+  scope_bounded "$sce_tmp.raw" > "$sce_tmp"
   sce_doc=$(jq -nc --arg r "$sce_r" --arg m "$sce_m" --argjson a "$sce_a" --arg b "$sce_base" --arg t "$sce_tip" \
     --arg i "$sce_merge" --argjson at "$(now_epoch)" \
     '{request: $r, boundary: "close-out", milestone: $m, attempt: $a, baseline: $b, candidate: $t,
       integration: $i, created: $at}')
   sce_rc=0; sce_out=$(scope_record_write "$sce_p" "$sce_r" "$sce_doc" "$sce_tmp") || sce_rc=$?
-  rm -f "$sce_tmp" "$sce_tmp.diff"
+  rm -f "$sce_tmp" "$sce_tmp.diff" "$sce_tmp.raw"
   [ "$sce_rc" -eq 0 ] || { echo "$sce_out"; return 1; }
 }
 
@@ -543,10 +546,14 @@ scope_pass() {
         [ -z "$spa_job" ] || "$BATON_CLAUDE" stop "$spa_job" > /dev/null 2>&1 || true
         escalate "$spa_p" "$SCOPE_ID" "$(printf '%s' "$spa_s" | jq -r .session)" "$(printf '%s' "$spa_s" | jq -r .attempt)" \
           drift lane "$(printf '%s' "$spa_s" | jq -c --arg w "$spa_what" '
-            def cut($n): if (utf8bytelength <= $n) then . else .[0:$n] + "…" end;
+            # Cut in bytes, as `asking_carries` cuts: `log_event` refuses a line at 4096 bytes and not
+            # at 4096 characters, and a refused park is a drift that never reaches anyone. The
+            # finding is carried once, inside the detail a person reads, and whole in the archive.
+            def cut($n): if utf8bytelength <= $n then .
+                         elif (.[0:$n] | utf8bytelength) <= $n then .[0:$n] + "…"
+                         else .[0:($n / 4 | floor)] + "…" end;
             {request, boundary, milestone,
-             detail: ("\($w) drifts from the confirmed intent: \(.finding | cut(600))"),
-             finding: (.finding | cut(1200))}')" \
+             detail: ("\($w) drifts from the confirmed intent: \(.finding | cut(1200)) · until this is answered no other scope guard of this project runs")}')" \
           || { render_failure err "baton: $spa_p the drift park for $spa_r could not be written"; return 1; }
         scope_pass_line "$(render_plain 'drift     %s/%s · %s drifts from the confirmed intent · the guard lane is parked for a person' \
           "$spa_p" "$SCOPE_ID" "$spa_what")" ;;
@@ -630,11 +637,13 @@ scope_pass_out() {
 # be read, and the caller then dispatches nothing for the project: a hold that cannot be read is not a
 # hold that lifted.
 #
-# The newest close-out of the dependency, read from the `consumed` event that closed it: the same
-# line carries the request, so the hold is in force the moment the lane closes and not a tick later
-# when the request is written. A dependency whose close-out owes no request — one completed before
-# the guard was installed, or one Baton did not dispatch — holds nothing, because there is nothing
-# for the guard to have judged.
+# Every close-out of the dependency that owes a request, read from the `consumed` events that closed
+# them: the same line carries the request, so the hold is in force the moment the lane closes and not
+# a tick later when the request is written. Every one and not the newest, because a later handover
+# that owes nothing — a hand-written one, or one Baton could not prove — would otherwise lift a hold
+# over a drift no person has answered. A dependency none of whose close-outs owes a request — one
+# completed before the guard was installed, or one Baton did not dispatch — holds nothing, because
+# there is nothing for the guard to have judged.
 scope_hold() {
   shd_p=$1; shd_plan=$2; shd_doc=$3
   [ "$(printf '%s' "$shd_doc" | jq '.candidates | length')" -gt 0 ] || { printf '%s\n' "$shd_doc"; return 0; }
@@ -648,9 +657,9 @@ scope_hold() {
     | [ $doc.candidates[] | . as $c
         | {c: $c,
            held: [ ($deps[$c.milestone] // [])[] | . as $d
-                   | ([ $done[] | select(.milestone == $d) ] | last) as $e
-                   | select($e != null and ($e.scope.request | type) == "string")
-                   | ($state[$e.scope.request] // "owed") as $s
+                   | ([ $done[] | select(.milestone == $d and (.scope.request | type) == "string")
+                        | .scope.request ] | unique)[] as $r
+                   | ($state[$r] // "owed") as $s
                    | select($s != "pass" and $s != "released")
                    | {dependency: $d, state: $s} ]} ] as $v
     | $doc

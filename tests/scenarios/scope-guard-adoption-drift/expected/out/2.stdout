@@ -14,4 +14,4 @@ in flight  Fixture/M01 · 0badc0d2-0000-4000-8000-000000000000 · opus · attemp
 {"kind":"resolution","milestone":null,"class":null,"how":"edit","outcome":null}
 {"kind":"dispatch","milestone":"M01","class":null,"how":null,"outcome":null}
 osascript -e 'display notification "the registration names no path and plan · fix the plan file; the next tick re-reads it" with title "Baton · Fixture · plan-unreadable"'
-osascript -e 'display notification "the proposed plan drifts from the confirmed intent: The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal. · baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · drift"'
+osascript -e 'display notification "the proposed plan drifts from the confirmed intent: The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal. · until this is answered no other … · baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · drift"'

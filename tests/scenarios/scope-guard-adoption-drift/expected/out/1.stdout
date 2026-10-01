@@ -15,7 +15,7 @@ self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or pl
 {"owed":true}
 last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
 project park  Fixture · plan-unreadable · the registration names no path and plan · fix the plan file; the next tick re-reads it
-parked  Fixture/M00-scope · drift · the proposed plan drifts from the confirmed intent: The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal. · baton answer M00-scope "<ruling>"
+parked  Fixture/M00-scope · drift · the proposed plan drifts from the confirmed intent: The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal. · until this is answered no other scope guard of this project runs · baton answer M00-scope "<ruling>"
 --- the person rules ---
 ruling    Fixture/M00-scope · 0badc0d1-0000-4000-8000-000000000000 · drift · delivered
 generated Fixture · docs/MILESTONES.md · 2 milestones · the plan owed since onboarding is settled
@@ -36,4 +36,4 @@ prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
 {"kind":"resolution","milestone":null,"class":null,"how":"edit","outcome":null}
 {"kind":"dispatch","milestone":"M01","class":null,"how":null,"outcome":null}
 osascript -e 'display notification "the registration names no path and plan · fix the plan file; the next tick re-reads it" with title "Baton · Fixture · plan-unreadable"'
-osascript -e 'display notification "the proposed plan drifts from the confirmed intent: The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal. · baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · drift"'
+osascript -e 'display notification "the proposed plan drifts from the confirmed intent: The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal. · until this is answered no other … · baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · drift"'
