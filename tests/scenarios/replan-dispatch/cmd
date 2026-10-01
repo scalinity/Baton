@@ -1,0 +1,14 @@
+set -eu
+# A replan is owed for M02 and no planning session has run since it was requested. The plan on main
+# is the one being replaced and reads clean — the defect that asked for the replan is not one a
+# validator sees — so it is not adopted. The planning lane is dispatched instead, with the replan
+# prompt: what Baton proved complete, why the plan is being replaced, and the rules a replacement must
+# meet. The project's first plan took three attempts before the request, and the bound counts this
+# generation only, so the replan is not exhausted before it begins.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan, plan_format, owed: ((.plan_owed // {}) | {owner, replan: (.replan.milestone // null), defects: [(.defects // [])[] | .what]}), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, outcome, attempts, defects, first, max, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

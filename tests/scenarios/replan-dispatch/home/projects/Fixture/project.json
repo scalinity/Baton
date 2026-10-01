@@ -1,0 +1,41 @@
+{
+  "path": "@TMP@/Fixture",
+  "goal": "a fixture project.",
+  "done": "every milestone reads done.",
+  "constraints": [
+    "POSIX shell only."
+  ],
+  "non_goals": [
+    "a rewrite in another language."
+  ],
+  "plan_format": "native",
+  "onboarded_at": "2026-09-18T08:00:00+01:00",
+  "cli": {
+    "version": "2.1.278 (Claude Code)",
+    "checked_at": "2026-09-18T08:00:00+01:00"
+  },
+  "plan": "docs/MILESTONES.md",
+  "start": {
+    "at": "2026-09-18T08:00:00+01:00",
+    "eligible": [
+      {
+        "milestone": "M01",
+        "brief": {
+          "path": "docs/milestones/M01.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "run"
+      }
+    ]
+  },
+  "plan_owed": {
+    "reason": "M02 is parked unfinished-twice, and the plan is what is wrong",
+    "owner": "M15-d",
+    "replan": {
+      "milestone": "M02",
+      "class": "unfinished-twice",
+      "at": "2026-09-18T12:01:00+01:00",
+      "detail": "M02 ended unfinished twice in a row; the newest says: split at item 2: saying it back is its own session"
+    }
+  }
+}

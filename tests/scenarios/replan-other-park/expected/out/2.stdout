@@ -1,0 +1,8 @@
+--- the registration ---
+{"plan":"docs/MILESTONES.md","plan_format":"native","owed":{"owner":null,"replan":null,"defects":[]},"start":["M02","M03"]}
+--- what the tick recorded ---
+{"kind":"onboarded","milestone":null,"class":null,"outcome":null,"attempts":null,"defects":null,"first":null,"max":null,"how":null,"attempt":null}
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"outcome":"adopted","attempts":1,"defects":null,"first":null,"max":null,"how":null,"attempt":null}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M02 · other · M02 ended unfinished twice in a row; the newest says: split at item 2: saying it back is its own session · the previous says: split at checklist item 5; M02-b takes the derivations · baton answer M02 "<ruling>"

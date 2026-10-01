@@ -82,10 +82,64 @@ planning_owed() {
   jq -ce '.plan_owed | select(type == "object")' "$pow_f" 2>/dev/null
 }
 
-# planning_attempts <project key>: how many generation attempts this project has had, which is the
-# count of the planning lane's dispatches. The log is the record and the registration is not: an
-# attempt is a dispatch event, and a second counter would be a second truth about one fact.
-planning_attempts() { attempt_of "$1" "$PLANNING_ID"; }
+# planning_attempts <project key>: how many generation attempts this generation has had, which is
+# the count of the planning lane's dispatches since the newest `plan_generation` event whose outcome
+# is `requested`, or since the start of the log when there is none. The log is the record and the
+# registration is not: an attempt is a dispatch event, and a second counter would be a second truth
+# about one fact.
+#
+# **A replan is a generation of its own.** Without a `requested` event this is every dispatch the
+# lane ever had, which is `attempt_of` exactly and the count M12's bound has always read. With one,
+# the attempts the project's first plan took are not charged to its replan: a project whose plan took
+# three attempts to write would otherwise be exhausted before its replan began, and D-167's bound is
+# a bound on one generation's attempts rather than on the project's lifetime. The bound's value, its
+# record and the class it spends — none — are unchanged.
+planning_attempts() {
+  pat_log=$(log_json) || { echo "$pat_log"; return 1; }
+  printf '%s' "$pat_log" | jq -r --arg p "$1" --arg m "$PLANNING_ID" '
+    [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
+    | ([ $ev[] | select(.kind == "plan_generation" and .outcome == "requested") ] | last | .i // -1) as $from
+    | [ $ev[] | select(.kind == "dispatch" and .i > $from) ] | length'
+}
+
+# planning_replan <project key>: the replan the registration owes, `plan_owed.replan` —
+# `{milestone, class, at, detail}`, naming the standing park that asked for it — or status 1 when the
+# plan owed is M12's first plan rather than a replacement. The one test for "this generation replaces
+# a plan", asked of the registration, as `planning_owed` asks it whether anything is owed at all.
+planning_replan() {
+  prp_f=$BATON_HOME/projects/$1/project.json
+  [ -f "$prp_f" ] || return 1
+  jq -ce '.plan_owed.replan | select(type == "object" and (.milestone // "") != "")' "$prp_f" 2>/dev/null
+}
+
+# planning_history <project key>: what Baton's own record says has happened to the project's
+# milestones, as `{preserved, worked}` — two sorted arrays of ids.
+#
+# `preserved` is every milestone with a `consumed` event whose outcome is `complete` and whose
+# completion Baton proved: `completion.proved` true, which `completion_verify` writes only once the
+# baseline, the branch tip, the merge and the declared scope have all held. That is the whole of the
+# evidence a replanned plan's `done` cell may rest on. Not the plan document, whose `Status` cells a
+# session's own close-out writes, and not the artifact's `outcome`, which is a session's word about
+# its own work — the thing CONTRACT clause 4 says Baton is checking. A `complete` Baton recorded
+# unproved, because the dispatch predates the baseline or Baton never dispatched it, is not here, and
+# that is the cost of the rule rather than an oversight: it is the one record that cannot be told
+# apart from a claim. The standing check's outcome is not part of it either; a check that failed
+# parks the project `main-broken`, which is a statement about `main` rather than about whether the
+# milestone's work landed.
+#
+# `worked` is every milestone Baton has dispatched at least once, whatever came of it. A brief of one
+# of those may already carry completion evidence, written by a session that stopped part-way, and the
+# recovery clause is right to read it.
+#
+# The planning lane's own id is in neither: its completion is the plan itself, never a row in it.
+planning_history() {
+  phi_log=$(log_json) || { echo "$phi_log"; return 1; }
+  printf '%s' "$phi_log" | jq -c --arg p "$1" --arg res "$PLANNING_ID" '
+    [ .[] | select(.project == $p and .milestone != null and .milestone != $res) ] as $ev
+    | {preserved: ([ $ev[] | select(.kind == "consumed" and .outcome == "complete"
+                                    and (.completion.proved // false) == true) | .milestone ] | unique),
+       worked: ([ $ev[] | select(.kind == "dispatch") | .milestone ] | unique)}'
+}
 
 # planning_attempts_max: the bound, from config.json. Validated as text before it is compared, the
 # way `completion_check_command` validates its deadline: `config_num` hands back whatever the file
@@ -182,9 +236,13 @@ planning_defects_from() {
 #   * §11 naming every milestone whose `Depends on` names this one, because Baton dispatches only
 #     what a handover lists and a close-out that omits a successor stops the chain there.
 #
+# The fourth argument is `worked` for a milestone Baton has already dispatched, and only a replan
+# passes it: the second question is then not asked, because evidence under that heading was written
+# by a session Baton started for this milestone and is what the next one resumes from.
+#
 # Prints one `<what>\t<repair>` per defect, tab separated, and nothing when the brief is sound.
 planning_brief_defects() {
-  pbd_c=$1; pbd_id=$2; pbd_succ=${3:-}
+  pbd_c=$1; pbd_id=$2; pbd_succ=${3:-}; pbd_worked=${4:-}
   pbd_rel=$PLANNING_BRIEFS/$pbd_id.md
   pbd_text=$(git -C "$pbd_c" show "main:$pbd_rel" 2>/dev/null) || return 0
 
@@ -215,7 +273,7 @@ planning_brief_defects() {
     trim($0) == "## Completion evidence" { inside = 1; next }
     inside && /^## / { inside = 0 }
     inside && trim($0) != "" { print }' | head -1)
-  [ -z "$pbd_evidence" ] \
+  [ -z "$pbd_evidence" ] || [ "$pbd_worked" = worked ] \
     || printf '%s\t%s\n' \
          "$pbd_rel has content under ## Completion evidence before anybody has done the milestone, and the recovery clause reads that section as work already begun" \
          "empty the ## Completion evidence section of $pbd_rel and commit it on main"
@@ -296,12 +354,30 @@ planning_brief_defects() {
 # the columns named. Adopting it would put an `adaptation` in the registration for a document Baton
 # asked for, which is Baton tolerating its own output's deviation, and the repair is one concrete
 # column rather than a permission granted for ever (D-166).
+#
+# **A replan is measured against Baton's record of the project as well as against the rules.** A
+# plan written for a project with no history may mark nothing `done`, and nothing here changes that.
+# A replacement plan is written for a project with history, so the one question the Status rule
+# asks becomes whose word a `done` rests on: a `done` cell is accepted exactly where
+# `planning_history` finds a completion Baton proved, it is *required* there, and anywhere else it is
+# refused as it always was — the failure being a session marking its own work done and being
+# believed. Three more things follow from the plan being a replacement rather than a first draft:
+# the parked milestone keeps its row, so the lane the replan was for resumes under the new plan; a
+# brief of a proved milestone is not measured, because nobody will dispatch it again and the replan
+# is told to leave it as it is; and an uncleared gate and a `held` cell stand, because both are a
+# person's hold on the plan being replaced, claim no work, and are not the generator's to remove.
 planning_validate() {
   pv_key=$1; pv_c=$2
   pv_defects='[]'
   pv_plan=''
   pv_fmt=''
   pv_tables=null
+  pv_replan=$(planning_replan "$pv_key") || pv_replan=''
+  pv_hist='{"preserved":[],"worked":[]}'
+  if [ -n "$pv_replan" ]; then
+    pv_hist=$(planning_history "$pv_key") || { echo "$pv_hist"; return 1; }
+  fi
+  pv_kept=$(printf '%s' "$pv_hist" | jq -c .preserved)
 
   # The registered pointer first, as `verb_onboard` passes it, so a project whose plan a person put
   # somewhere other than the conventional path is read there rather than searched for again.
@@ -341,8 +417,10 @@ planning_validate() {
 
   # The table as a graph. One jq pass over the parsed document, printing `<what>\t<repair>` per
   # defect, because each of these is a question about the whole table rather than about one row.
-  pv_lines=$(printf '%s' "$pv_tables" | jq -r --arg plan "$pv_plan" --arg res "$PLANNING_ID" '
+  pv_lines=$(printf '%s' "$pv_tables" | jq -r --arg plan "$pv_plan" --arg res "$PLANNING_ID" \
+      --argjson replan "${pv_replan:-null}" --argjson kept "$pv_kept" '
     ([ .milestones[] | .id ]) as $ids
+    | ($kept | if length == 0 then "none" else join(", ") end) as $keptlist
     | [ if ($ids | length) == 0
         then ["the milestone table in \($plan) has a header and no rows, so the plan names no work",
               "write one row per milestone into the milestone table in \($plan) and commit it on main"]
@@ -350,16 +428,35 @@ planning_validate() {
         ( .milestones[] | select(.id == $res)
           | ["\($plan) uses the id \($res), which Baton reserves for the session that writes the plan",
              "rename that row in \($plan) to an id of its own and rename its brief with it"] ),
-        ( .milestones[] | select(.status != "")
-          | ["\($plan) row \(.row) marks \(.id) \"\(.status)\" before anybody has done it, and Baton never dispatches a row that is not blank",
-             "leave every Status cell in \($plan) blank and commit it on main"] ),
+        ( if $replan == null then
+            ( .milestones[] | select(.status != "")
+              | ["\($plan) row \(.row) marks \(.id) \"\(.status)\" before anybody has done it, and Baton never dispatches a row that is not blank",
+                 "leave every Status cell in \($plan) blank and commit it on main"] )
+          else
+            ( .milestones[] | select(.status == "done" and (.id as $id | $kept | index($id)) == null)
+              | ["\($plan) row \(.row) marks \(.id) done, and Baton has no proved completion of \(.id): a replanned plan carries done only for a milestone Baton proved complete",
+                 "leave the Status cell of \(.id) in \($plan) blank and commit it on main; the rows that read done are exactly \($keptlist)"] ),
+            ( . as $t | $kept[] | . as $k
+              | ([ $t.milestones[] | select(.id == $k) ] | first) as $row
+              | if $row == null
+                then ["\($plan) has no row for \($k), which Baton proved complete, and a replan keeps finished work",
+                      "put \($k) back in the milestone table in \($plan) with Status done, its brief unchanged, and commit it on main"]
+                elif $row.status != "done"
+                then ["\($plan) row \($row.row) leaves \($k) \(if $row.status == "" then "blank" else "\"\($row.status)\"" end), and Baton proved \($k) complete",
+                      "write done in the Status cell of \($k) in \($plan) and commit it on main"]
+                else empty end ),
+            ( if ($ids | index($replan.milestone)) == null
+              then ["\($plan) has no row for \($replan.milestone), and the plan is being replaced because \($replan.milestone) is parked (\($replan.class // "replan")): without its row the lane the replan is for has nothing to resume",
+                    "keep \($replan.milestone) as a row in \($plan) — reshape its brief, or split work off it into new rows — and commit it on main"]
+              else empty end )
+          end ),
         ( .milestones[] | . as $m | .depends[] | select(. == $m.id)
           | ["\($plan) has \($m.id) depending on itself, so nothing can ever make it eligible",
              "remove \($m.id) from its own Depends on cell in \($plan)"] ),
         ( .milestones[] | . as $m | .depends[] | select(. as $d | $ids | index($d) == null)
           | ["\($plan) has \($m.id) depending on \(.), which is not a row in the same table",
               "name only ids the milestone table holds in the Depends on cell of \($m.id) in \($plan)"] ),
-        ( .gates[] | select(.cleared == "")
+        ( .gates[] | select($replan == null and .cleared == "")
           | ["\($plan) opens the gate \"\(.gate)\", and a gate is a hold only a person clears: a generated plan that carries one stops itself on the first night",
              "remove the gate \"\(.gate)\" from the gates table in \($plan), or clear it with the D-number of the entry that cleared it"] ) ]
     | .[] | @tsv')
@@ -380,8 +477,13 @@ planning_validate() {
 
   # Each milestone: the dispatch preconditions Baton already reports for a plan it did not author,
   # and the four questions only a generated brief is asked.
-  pv_ids=$(printf '%s' "$pv_tables" | jq -r '.milestones[] | .id')
+  # A proved milestone of a replan is skipped whole: it is never dispatched again, and its brief is the
+  # record of work done, which the replan is told to leave exactly as it is.
+  pv_ids=$(printf '%s' "$pv_tables" | jq -r --argjson kept "$pv_kept" \
+    '.milestones[] | select((.id as $id | $kept | index($id)) == null) | .id')
   for pv_id in $pv_ids; do
+    pv_worked=''
+    printf '%s' "$pv_hist" | jq -e --arg m "$pv_id" '.worked | index($m) != null' > /dev/null && pv_worked=worked
     pv_succ=$(printf '%s' "$pv_tables" | jq -r --arg m "$pv_id" \
       '[ .milestones[] | select(.depends | index($m) != null) | .id ] | join(" ")')
     if ! pv_pre=$(dispatch_preconditions "$pv_key" "$pv_id"); then
@@ -398,7 +500,7 @@ planning_validate() {
           "$(printf '%s' "$pv_one" | jq -r '.repair // ""')"
       done
     fi
-    planning_defects_from "$(planning_brief_defects "$pv_c" "$pv_id" "$pv_succ")"
+    planning_defects_from "$(planning_brief_defects "$pv_c" "$pv_id" "$pv_succ" "$pv_worked")"
   done
 
   jq -nc --arg p "$pv_plan" --arg f "$pv_fmt" --argjson t "$pv_tables" --argjson d "$pv_defects" \
@@ -418,16 +520,50 @@ planning_validate() {
 # replaces it at dispatch with what else is really in flight. Every other mention of that sentence
 # in this text is indented, because `slot_line` anchors its match at the start of a line and would
 # otherwise replace the instruction instead of the slot.
+#
+# **A replan is told the same rules with its history in them.** The registration's
+# `plan_owed.replan` makes this the prompt for replacing a plan rather than writing a first one, and
+# exactly the sentences that assume a project with no history change: who is asking, what is
+# already built, why the plan is being replaced, where the work starts from, which Status cells may
+# read `done`, what becomes of the gates and of a worked brief's evidence, and how much of the plan
+# to change. Each of them is a rule `planning_validate` measures the same way, so the session is
+# never refused for a sentence it was not given. The confirmed intent paragraph is the same text in
+# both, because it is the authority in both.
 planning_prompt() {
   ppt_key=$1; ppt_c=$2; ppt_doc=$3; ppt_defects=$4; ppt_attempt=$5
   ppt_check=$(printf '%s' "$ppt_doc" | jq -r '.check.command // ""')
   [ -n "$ppt_check" ] || ppt_check='(none detected; say so rather than inventing one)'
+  ppt_replan=$(printf '%s' "$ppt_doc" | jq -c '.plan_owed.replan | select(type == "object" and (.milestone // "") != "")')
+  ppt_kept=''
+  if [ -n "$ppt_replan" ]; then
+    ppt_hist=$(planning_history "$ppt_key") || return 1
+    ppt_kept=$(printf '%s' "$ppt_hist" | jq -r '.preserved | join(", ")')
+    ppt_rm=$(printf '%s' "$ppt_replan" | jq -r .milestone)
+  fi
 
-  printf 'You are writing the milestone plan for %s, the Git repository at %s, and you are implementing none of it.\n\n' \
-    "$ppt_key" "$ppt_c"
+  if [ -n "$ppt_replan" ]; then
+    printf 'You are replacing the milestone plan for %s, the Git repository at %s, and you are implementing none of it.\n\n' \
+      "$ppt_key" "$ppt_c"
+  else
+    printf 'You are writing the milestone plan for %s, the Git repository at %s, and you are implementing none of it.\n\n' \
+      "$ppt_key" "$ppt_c"
+  fi
   printf 'WHAT ELSE IS IN FLIGHT. Runs alone unless the dispatch says otherwise.\n\n'
 
-  /bin/cat <<'PLANNING_WHO'
+  if [ -n "$ppt_replan" ]; then
+    /bin/cat <<'PLANNING_WHO_REPLAN'
+WHO IS ASKING. Baton is a relay on one Mac: every sixty seconds it reads a project's plan file, its
+own dispatch log and a mailbox, and starts one Claude Code session per milestone with the kickoff
+prompt that milestone's brief carries. It embeds no model call and makes no judgement of its own.
+This project has a plan, and the plan is what is wrong: one of its milestones is parked for a reason
+no further session of that milestone can repair, so the repair is a better plan rather than another
+attempt at the same one. Baton holds that milestone's lane until it adopts what you write.
+Everything you write here is read by sessions that have no memory of you and no memory of each
+other.
+
+PLANNING_WHO_REPLAN
+  else
+    /bin/cat <<'PLANNING_WHO'
 WHO IS ASKING. Baton is a relay on one Mac: every sixty seconds it reads a project's plan file, its
 own dispatch log and a mailbox, and starts one Claude Code session per milestone with the kickoff
 prompt that milestone's brief carries. It embeds no model call and makes no judgement of its own.
@@ -436,6 +572,7 @@ dispatched until you write one. Everything you write here is read by sessions th
 of you and no memory of each other.
 
 PLANNING_WHO
+  fi
 
   printf 'THE CONFIRMED INTENT, which is the authority and is not yours to revise.\n'
   printf '%s' "$ppt_doc" | jq -r '
@@ -450,6 +587,29 @@ widen them, and do not add a milestone whose purpose is to have somebody approve
 was already confirmed, and re-approving its consequences is the review that gets rubber-stamped.
 
 PLANNING_INTENT
+
+  if [ -n "$ppt_replan" ]; then
+    # Why, from the park that asked: the class says which of the two plan defects this is, and the
+    # detail is the park's own carries — the splits two sessions proposed, or the blocker nothing
+    # delivers — cut the way every carried sentence in this prompt is cut.
+    printf 'WHY THE PLAN IS BEING REPLACED.\n'
+    printf '%s' "$ppt_replan" | jq -r --argjson c "$PLANNING_DEFECT_CHARS" '
+      def cut($k): tostring | if (length <= $k) then . else .[0:$k] + "…" end;
+      (if .class == "unfinished-twice"
+       then "  \(.milestone) came back unfinished from two sessions in a row: it does not fit one session, and the\n  plan sized it as though it did."
+       elif .class == "blocked"
+       then "  \(.milestone) is blocked on something the plan neither holds nor makes eligible nor shows in flight,\n  so nothing in the plan as it stands will ever unblock it."
+       else "  \(.milestone) is parked (\(.class // "no class recorded")), and Baton found the plan to be what is wrong." end),
+      (if (.detail // "") != "" then "  What the parked lane recorded: \(.detail | cut($c))" else empty end)'
+    printf 'Keep %s as a row with its id: reshape its brief, split work off it into new rows, or repair the\ngraph around it, so the parked lane resumes under the plan you write.\n\n' "$ppt_rm"
+    printf 'WHAT IS ALREADY BUILT, which you keep.\n'
+    if [ -n "$ppt_kept" ]; then
+      printf '  %s\n' "$ppt_kept"
+      printf 'Baton proved each of these complete from its own record, not from the plan document. Each keeps\nits row with Status done and its brief exactly as it is: do not edit, renumber or re-plan them, and\ndo not plan their work again.\n\n'
+    else
+      printf '  Nothing yet: Baton has proved no milestone of this project complete, so no row reads done.\n\n'
+    fi
+  fi
 
   if [ "$(printf '%s' "$ppt_defects" | jq 'length')" -gt 0 ]; then
     printf 'WHAT IS WRONG WITH THE PLAN THAT IS ALREADY THERE. This is attempt %s. A previous session wrote a\nplan and Baton refused it. Repair exactly these, keep everything that is already right, and do not\nstart a second graph.\n' \
@@ -469,12 +629,25 @@ STARTUP ORDER.
    cannot ask anybody which parts are done.
 2. Read the recent history and the working tree — git log --oneline -30 and git status — so the plan
    starts from the repository as it is rather than as a document describes it.
+PLANNING_STARTUP
+  if [ -n "$ppt_replan" ]; then
+    /bin/cat <<'PLANNING_STARTUP_REPLAN'
+3. The plan document on main is the plan you are replacing. Bring this branch up to main first —
+   git merge main — because this branch may hold an older plan from an earlier generation. Then edit
+   that document in place, against the defects above where this prompt carries any: keep every
+   milestone and brief that is still right and the ids already in use, and change only what the
+   reason above needs. Do not start a second graph and do not renumber what is there.
+
+PLANNING_STARTUP_REPLAN
+  else
+    /bin/cat <<'PLANNING_STARTUP_FIRST'
 3. If the plan document named below already exists on this branch, it is a previous attempt at this
    same work. Repair it in place — against the defects above where this prompt carries any — and
    keep every milestone and brief that is already right. Do not start a second graph and do not
    renumber what is there.
 
-PLANNING_STARTUP
+PLANNING_STARTUP_FIRST
+  fi
 
   printf 'WHAT YOU WRITE, in %s, on this branch.\n' "$ppt_c"
   printf '1. %s — the plan document, holding the milestone table and the gates table below.\n' "$PLANNING_PLAN"
@@ -509,9 +682,15 @@ PLANNING_TABLE
     "$(jq -r '(.models // {}) | keys_unsorted | join(", ")' "$BATON_HOME/config.json" 2>/dev/null \
        || printf 'the keys of .models in %s/config.json' "$BATON_HOME")"
 
-  /bin/cat <<'PLANNING_TABLE2'
+  if [ -n "$ppt_replan" ]; then
+    printf '  * Status reads done on exactly the rows listed under WHAT IS ALREADY BUILT, and on no other.\n    Baton refuses a done it did not prove, whoever wrote it, and refuses a plan that drops one it\n    did. A held cell a person wrote stays as it is; every other Status cell is blank.\n'
+  else
+    /bin/cat <<'PLANNING_STATUS_FIRST'
   * Status is blank on every row. Nothing is done yet, and a row that is not blank is a row Baton
     will never dispatch.
+PLANNING_STATUS_FIRST
+  fi
+  /bin/cat <<'PLANNING_TABLE2'
   * Columns beyond those six are ignored by Baton and are for people to read; a Title is worth having.
   * At least one row must have no dependency, or the first tick has nothing it can start.
 
@@ -520,11 +699,24 @@ The gates table, after it:
     | Gate | Holds | Cleared |
     |---|---|---|
 
+PLANNING_TABLE2
+  if [ -n "$ppt_replan" ]; then
+    /bin/cat <<'PLANNING_GATES_REPLAN'
+  * The header must carry both a Gate cell and a Holds cell. Keep the gates table as it stands: a
+    gate in it is a hold a person placed on the plan you are replacing and only a person clears, so
+    you neither add a gate nor remove one.
+
+PLANNING_GATES_REPLAN
+  else
+    /bin/cat <<'PLANNING_GATES_FIRST'
   * The header must carry both a Gate cell and a Holds cell. The table may have no rows, and
     normally should: a gate is a hold only a person clears, so a plan that invents one stops itself
     on the first night. Write one only if the work genuinely waits on an act outside the repository,
     and then it must already be cleared, or Baton refuses the plan.
 
+PLANNING_GATES_FIRST
+  fi
+  /bin/cat <<'PLANNING_FORMAT'
 Each milestone:
   * is one fresh session of work — roughly two to seven hours — with an objective a session can
     finish and acceptance a session can check for itself;
@@ -592,11 +784,24 @@ sections, then three unnumbered ones.
     <the seven parts below>
     ```
 
+PLANNING_FORMAT
+  if [ -n "$ppt_replan" ]; then
+    /bin/cat <<'PLANNING_EVIDENCE_REPLAN'
+In a new brief the Completion evidence section is left empty: the session that does the milestone
+appends to it, and the recovery clause reads it, so a new brief that arrives with anything under
+that heading tells the first session to resume work nobody did. A brief of a milestone Baton has
+already dispatched keeps what is under that heading, because it is what the next session of that
+milestone resumes from. The briefs of the rows that read done are not measured and not edited.
+
+PLANNING_EVIDENCE_REPLAN
+  else
+    /bin/cat <<'PLANNING_EVIDENCE_FIRST'
 The Completion evidence section is left empty. The session that does the milestone appends to it,
 and the recovery clause reads it: a brief that arrives with anything under that heading tells the
 first session to resume work nobody did.
 
-PLANNING_TABLE2
+PLANNING_EVIDENCE_FIRST
+  fi
 
   printf 'The Copy-ready session prompt section holds exactly one fenced code block, and that block is the\nwhole prompt Baton hands the session. Seven parts, in this order:\n'
   /bin/cat <<'PLANNING_SEVEN'
@@ -662,14 +867,30 @@ CONSTRAINTS FOR THIS SESSION.
     genuinely undecided, decide it, write down what you decided and why in the brief that owns it,
     and carry on.
   * Stay inside the confirmed constraints and non-goals when you choose what the milestones are.
+PLANNING_ARTIFACT
+  if [ -n "$ppt_replan" ]; then
+    /bin/cat <<'PLANNING_SIZE_REPLAN'
+  * Change no more of the plan than the reason needs. A replan that rewrites work which was already
+    right spends sessions deciding it again, and every row you keep is one a person already knows.
+
+PLANNING_SIZE_REPLAN
+  else
+    /bin/cat <<'PLANNING_SIZE_FIRST'
   * Between eight and twenty milestones is the usual shape of a plan this size. Fewer means
     milestones too big for one session; more means a graph nobody can hold.
 
-PLANNING_ARTIFACT
+PLANNING_SIZE_FIRST
+  fi
 
   printf 'VERIFICATION, before you close out. Check each of these yourself and report it as passed, failed\nor unrun with its output; an unrun check is never reported as passed.\n'
-  printf '  * Every id in every Depends on cell is a row in the milestone table, and every Status cell is\n    blank.\n'
-  printf '  * %s/<ID>.md exists for every id, with the eleven numbered sections, the three unnumbered\n    headings, an empty Completion evidence section, and one complete fenced block under\n    ## Copy-ready session prompt whose part 2 is the slot paragraph verbatim.\n' "$PLANNING_BRIEFS"
+  if [ -n "$ppt_replan" ]; then
+    printf '  * Every id in every Depends on cell is a row in the milestone table; Status reads done on exactly\n    %s, and is otherwise blank or a held cell a person wrote; %s is still a row.\n' \
+      "${ppt_kept:-no row}" "$ppt_rm"
+    printf '  * %s/<ID>.md exists for every id, with the eleven numbered sections, the three unnumbered\n    headings, Completion evidence empty in every new brief, and one complete fenced block under\n    ## Copy-ready session prompt whose part 2 is the slot paragraph verbatim; the briefs of the rows\n    that read done are unchanged.\n' "$PLANNING_BRIEFS"
+  else
+    printf '  * Every id in every Depends on cell is a row in the milestone table, and every Status cell is\n    blank.\n'
+    printf '  * %s/<ID>.md exists for every id, with the eleven numbered sections, the three unnumbered\n    headings, an empty Completion evidence section, and one complete fenced block under\n    ## Copy-ready session prompt whose part 2 is the slot paragraph verbatim.\n' "$PLANNING_BRIEFS"
+  fi
   printf '  * Every docs/… path any of those prompts names exists in the repository.\n'
   printf '  * Section 5 of every brief names at least one repository path between backticks.\n'
   printf '  * The standing check — %s — passes on main after the merge.\n\n' "$ppt_check"
@@ -761,7 +982,21 @@ planning_recorded_since() {
 # The partial work stays on the branch and in the repository: the next attempt repairs it.
 #
 # **This function is the adopted-plan boundary, and M15-c's scope guard goes at the line marked
-# below.** It is the one place a plan becomes the project's plan, it is reached once per adoption,
+# below.**
+#
+# **A replan is adopted on the same boundary, with three differences, all keyed on
+# `plan_owed.replan`.** The plan on `main` is measured only once a planning session has been
+# dispatched since the request: before one has, that plan is the one being replaced, and it may well
+# read clean — the defect that asked for the replan is not one a validator can see. The starting
+# handover is written again from the adopted plan, because the handovers in force name the old one's
+# milestones and a new row nothing lists would read as omitted. And the park the request named is
+# closed with an `edit` resolution, which is what the adoption is — the plan the lane runs from has
+# changed — and which is the reading `declared_step` already acts on: `person_acted` answers `edit`,
+# and the lane is redispatched from the new brief or re-judged against the new graph. The park is
+# closed only when it still stands and only when `disposition_of` assigns its class `replan`, so a
+# replan cannot close a park of any other class — a drift escalation among them, which is M15-c's.
+#
+# It is the one place a plan becomes the project's plan, it is reached once per adoption,
 # and it already holds both halves of what that guard is defined to receive: the confirmed intent
 # record — `goal`, `done`, `constraints` and `non_goals`, read from the registration a few lines
 # down as `pa_intent` — and the work being judged, which is the parsed plan in `pa_res.tables` and
@@ -777,6 +1012,9 @@ planning_adopt() {
   pa_c=$(jq -r '.path // ""' "$pa_f" 2>/dev/null) || pa_c=''
   [ -n "$pa_c" ] || { planning_verdict false; return 0; }
   pa_attempt=$(planning_attempts "$pa_key") || pa_attempt=0
+  pa_replan=$(planning_replan "$pa_key") || pa_replan=''
+  # Nothing to measure yet: the plan on main is still the one the replan replaces.
+  [ -z "$pa_replan" ] || [ "$pa_attempt" -gt 0 ] || { planning_verdict false; return 0; }
 
   pa_res=$(planning_validate "$pa_key" "$pa_c") || {
     render_failure err "baton: $pa_key the generated plan could not be measured: $pa_res"
@@ -794,7 +1032,7 @@ planning_adopt() {
     pa_plural=s; [ "$pa_n" -ne 1 ] || pa_plural=''
     pa_reason="attempt $pa_attempt wrote a plan Baton will not adopt: $pa_n thing$pa_plural to repair, the first being $(printf '%s' "$pa_defects" | jq -r '.[0].what')"
     pa_doc=$(jq -c --arg r "$pa_reason" --argjson d "$pa_defects" \
-      '.plan_owed = ((.plan_owed // {}) + {reason: $r, owner: "M12", defects: $d})' "$pa_f") \
+      '.plan_owed = ((.plan_owed // {}) + {reason: $r, owner: (.plan_owed.owner // "M12"), defects: $d})' "$pa_f") \
       || { render_failure err "baton: $pa_f does not parse"; planning_verdict false; return 0; }
     onboard_registration_write "$pa_key" "$pa_doc"
     # The registration write above is a compare-then-rename and so is free to repeat; the event and
@@ -814,7 +1052,7 @@ planning_adopt() {
 
   # ---- the adopted-plan boundary: M15-c's scope guard goes here, before anything is written ----
   pa_seed=yes
-  ! jq -e '(.start.eligible | type) == "array"' "$pa_f" > /dev/null 2>&1 || pa_seed=no
+  [ -n "$pa_replan" ] || ! jq -e '(.start.eligible | type) == "array"' "$pa_f" > /dev/null 2>&1 || pa_seed=no
   pa_tool=$(onboard_toolchain "$pa_c")
   pa_intent=$(jq -c '{goal: (.goal // ""), done: (.done // ""),
                       constraints: (.constraints // []), non_goals: (.non_goals // [])}' "$pa_f") \
@@ -830,11 +1068,25 @@ planning_adopt() {
   pa_count=$(printf '%s' "$pa_res" | jq -r '.tables.milestones | length')
   pa_plural=s; [ "$pa_count" -ne 1 ] || pa_plural=''
   pa_start=$(jq -r '[(.start.eligible // [])[] | .milestone] | join(", ")' "$pa_f" 2>/dev/null || true)
-  planning_record "$pa_key" adopted "$pa_attempt" \
-    "$(jq -nc --arg p "$pa_plan" --argjson n "$pa_count" '{plan: $p, milestones: $n}')"
-  pa_lines="$pa_lines$(render_plain 'generated %s · %s · %s milestone%s · the plan owed since onboarding is settled' \
-    "$pa_key" "$pa_plan" "$pa_count" "$pa_plural")
+  if [ -z "$pa_replan" ]; then
+    planning_record "$pa_key" adopted "$pa_attempt" \
+      "$(jq -nc --arg p "$pa_plan" --argjson n "$pa_count" '{plan: $p, milestones: $n}')"
+    pa_lines="$pa_lines$(render_plain 'generated %s · %s · %s milestone%s · the plan owed since onboarding is settled' \
+      "$pa_key" "$pa_plan" "$pa_count" "$pa_plural")
 "
+  else
+    pa_kept=$(printf '%s' "$pa_res" | jq -r '[.tables.milestones[] | select(.status == "done")] | length')
+    pa_rm=$(printf '%s' "$pa_replan" | jq -r .milestone)
+    pa_rc=$(printf '%s' "$pa_replan" | jq -r '.class // ""')
+    pa_rat=$(printf '%s' "$pa_replan" | jq -r '.at // ""')
+    planning_record "$pa_key" adopted "$pa_attempt" \
+      "$(jq -nc --arg p "$pa_plan" --argjson n "$pa_count" --argjson k "$pa_kept" --argjson r "$pa_replan" \
+         '{plan: $p, milestones: $n, kept_done: $k, replan: ($r | {milestone, class})}')"
+    pa_lines="$pa_lines$(render_plain 'replanned %s · %s · %s milestone%s, %s kept done · the plan %s was parked under is replaced' \
+      "$pa_key" "$pa_plan" "$pa_count" "$pa_plural" "$pa_kept" "$pa_rm")
+"
+    planning_close_park "$pa_key" "$pa_rm" "$pa_rc" "$pa_rat"
+  fi
   [ -z "$pa_start" ] || pa_lines="$pa_lines$(render_plain 'starting  %s · %s' "$pa_key" "$pa_start")
 "
   planning_verdict true
@@ -846,6 +1098,43 @@ planning_adopt() {
 planning_verdict() {
   jq -nc --argjson a "$1" --arg l "$pa_lines" \
     '{adopted: $a, lines: ($l | split("\n") | map(select(length > 0)))}'
+}
+
+# planning_close_park <project key> <milestone> <class> <park at>: the replan's one act on the park
+# that asked for it, once the plan it was parked under has been replaced. A helper of
+# `planning_adopt` alone, which is why it writes that function's line collector.
+#
+# The park is found again rather than taken from the registration's word for it, and closed only
+# while it stands: a person may have answered it or edited the plan first, and their resolution is
+# then the one on record. The class on the standing park — not the one the request copied — is asked
+# of `disposition_of`, and anything but `replan` is left standing with a line saying so. That is the
+# whole of why a replan cannot clear an escalation of any other class: it never resolves one.
+#
+# A resolution that could not be written leaves the park standing, which holds the lane rather than
+# freeing it; the line says so and the adoption stands, because the plan is adopted either way and a
+# park is the safe side to err on.
+planning_close_park() {
+  pcp_parked=$(derive_parked "$1") || { render_failure err "$pcp_parked"; return 0; }
+  pcp_park=$(printf '%s' "$pcp_parked" | jq -c --arg m "$2" --arg at "$4" \
+    'first(.parked[] | select(.scope == "lane" and .milestone == $m and .at == $at)) // empty')
+  [ -n "$pcp_park" ] || return 0
+  pcp_class=$(printf '%s' "$pcp_park" | jq -r .class)
+  pcp_d=$(disposition_of escalation "$pcp_class" "$(printf '%s' "$pcp_park" | jq -c '.carries // {}')" 2>/dev/null) || pcp_d=''
+  if [ "$pcp_d" != replan ]; then
+    pa_lines="$pa_lines$(render_plain 'replanned %s/%s · the park raised at %s is %s, which is not a replan'"'"'s to close · it stands' \
+      "$1" "$2" "$4" "$pcp_class")
+"
+    return 0
+  fi
+  if ! resolve "$1" "$2" "$(printf '%s' "$pcp_park" | jq -r '.session // ""')" \
+       "$(printf '%s' "$pcp_park" | jq -r '.attempt // ""')" "$4" edit; then
+    pa_lines="$pa_lines$(render_plain 'replanned %s/%s · the park raised at %s could not be closed · it stands' "$1" "$2" "$4")
+"
+    return 0
+  fi
+  pa_lines="$pa_lines$(render_plain 'unparked  %s/%s · the plan it was parked under (%s) is replaced · the park raised at %s is closed' \
+    "$1" "$2" "$pcp_class" "$4")
+"
 }
 
 # planning_pass <project key> <rows json>: step 1's companion, for a project that owes a plan.
@@ -966,8 +1255,15 @@ planning_pass() {
         "$(planning_owed "$ppa_key" | jq -c --argjson m "$ppa_max" --argjson c "$PLANNING_DEFECT_CHARS" '
            def cut($k): tostring | if (length <= $k) then . else .[0:$k] + "…" end;
            {max: $m, reason: ((.reason // "") | cut($c))}')"
-      planning_pass_line "$(render_plain 'generate  %s · %s generation attempts have not produced a plan Baton will adopt · the project stays parked until the plan is repaired by hand' \
-        "$ppa_key" "$ppa_attempts")"
+      # A replan has no `plan-unreadable` park — its plan reads — so what stands for the person is
+      # the lane park the request was made from, which is the same repair: a person edits the plan.
+      if ppa_replan=$(planning_replan "$ppa_key"); then
+        planning_pass_line "$(render_plain 'generate  %s · %s replan attempts have not produced a plan Baton will adopt · the park on %s stands until the plan is repaired by hand' \
+          "$ppa_key" "$ppa_attempts" "$(printf '%s' "$ppa_replan" | jq -r .milestone)")"
+      else
+        planning_pass_line "$(render_plain 'generate  %s · %s generation attempts have not produced a plan Baton will adopt · the project stays parked until the plan is repaired by hand' \
+          "$ppa_key" "$ppa_attempts")"
+      fi
     fi
     planning_pass_out '[]'; return 0
   fi
