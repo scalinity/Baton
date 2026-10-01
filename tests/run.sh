@@ -94,8 +94,10 @@ count=0
 freeze=${BATON_TESTS_FREEZE:-}
 
 # The host's git configuration stays out: the fixture commit's hash, the worktree adds and the
-# hooks a config could name must be the same on every Mac.
+# hooks a config could name must be the same on every Mac. The identity and dates a session
+# inherits in its environment outrank a fixture's `-c user.name=…`, so they go too.
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_COMMITTER_DATE
 
 # prompt_normalise, the one rule, for the hash check below; iso_epoch, for the mtimes file.
 BATON_DATE=date
