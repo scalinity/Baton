@@ -216,6 +216,24 @@ Claude-Session: https://example.invalid/session")
 
 Claude-Session: https://example.invalid/session")
     ;;
+  # The recorded baseline is on `main` but the branch was never built on it: an ancestor of the
+  # merge and not of the tip. Not a lost commit, so no equivalent is looked for and the ordinary
+  # refusal stands.
+  wrong-on-main)
+    wrong=$(cf_commit "a main commit the branch never stood on" docs/three.md "three" "$base")
+    candidate=$(cf_commit "the milestone's work" docs/one.md "one" "$base")
+    merge=$(cf_merge "merge m02" "$candidate" "$wrong" "$candidate")
+    ;;
+  # The rewrite's equivalent exists on `main`, but the branch tip does not descend from it, so the
+  # stand-in cannot be the commit this attempt started from.
+  rewritten-off-branch)
+    candidate=$(cf_commit "the milestone's work" docs/one.md "one" "$scoped")
+    merge=$(cf_merge "merge m02" "$candidate" "$base" "$candidate")
+    old=$(git -C "$repo" commit-tree "$(git -C "$repo" rev-parse "$base^{tree}")" -p "$scoped" \
+      -m "the project's standing check
+
+Claude-Session: https://example.invalid/session")
+    ;;
   *) echo "completion-fixture: unknown shape $shape" >&2; exit 2 ;;
 esac
 

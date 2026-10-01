@@ -1,0 +1,3 @@
+echo "== the dispatch recorded a baseline that is on main but under none of the branch, so it is not a lost commit and the ordinary refusal stands =="
+sh "$ROOT/tests/completion-fixture.sh" wrong-on-main
+sh "$ROOT/tests/consume-once.sh"
