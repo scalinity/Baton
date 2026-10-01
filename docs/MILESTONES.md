@@ -56,7 +56,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M17-b | One rendering layer for Baton's output | M17 | opus | high | | done | Every verb and Mac message uses lib/render.sh; terminal output is consistent, plain and matchable when piped and under NO_COLOR; behaviour and event-log format stay unchanged; lib/declared.sh:98 stops claiming a person edited the plan (D-136) | No |
 | M19 | A recovery that reaches a person | M15-c, M15-d | opus | high | | | A crash whose session left the listing is resumed by id, or redispatched when no transcript remains; a recovery Baton cannot perform is logged, counted once and parks the lane `ladder-end` within three ticks | No |
 | M19-b | Pause: stand the relay down, or one lane | M19 | opus | high | | | `baton pause` stops every running lane and admits nothing until `baton resume`; `baton pause <milestone>` does it for one lane; a paused lane is never read as a crash, a stall or a wait to retry | No |
-| M19-c | A paused lane keeps its place | M19-b | opus | medium | | | A paused lane holds its slot under the cap and no dispatch opens a new attempt over it | No |
+| M19-c | A paused lane keeps its place | M19-b, M15-e | opus | medium | | | A paused lane holds its slot under the cap and no dispatch opens a new attempt over it | No |
 | M19-d | Status shows a paused lane | M19-b | opus | medium | | | `baton status` names every paused lane and the stand-down, and never prints a paused lane as in flight | No |
 
 ## Gates
