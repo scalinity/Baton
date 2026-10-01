@@ -1,0 +1,8 @@
+echo "== The CLI refuses every launch. The guard's dispatch fails at the launch stage twice and its lane is parked dispatch-failed; M03 stays held. That park names nothing a tick can re-read, so later ticks leave it standing and raise nothing more: a person hands it back once the CLI starts again =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+"$BATON" tick || true
+"$BATON" tick || true
+"$BATON" tick || true
+"$BATON" tick || true
+echo '--- every dispatch the guard lane failed, and its parks (exactly one) ---'
+jq -c 'select(.milestone == "M00-scope" and (.kind == "dispatch_failed" or .kind == "escalation" or .kind == "resolution")) | {kind, stage, class, how}' "$BATON_HOME/log.jsonl"

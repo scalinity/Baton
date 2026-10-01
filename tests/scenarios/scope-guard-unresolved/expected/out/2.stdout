@@ -1,0 +1,10 @@
+== Three guards for M02's close-out have each ended without a verdict. The request is unresolved, never passed: the tick stops the last guard, parks the lane once for a person with a Mac message, and M03 stays held. A ruling reaches the last guard, which can still give a verdict, and the request is with the guard again ==
+held      Fixture/M03 · M02's close-out is with the scope guard
+held      Fixture/M03 · M02's close-out is with the scope guard
+--- the park ---
+{"milestone":"M00-scope","session":"33333333-0003-4444-8555-666666666666","attempt":3,"class":"other","request":"M02-1","detail":"3 scope guards for M02's close-out ended without a verdict, so it is unresolved and stays held; a ruling is delivered to the last of them, which can still give one"}
+--- no fourth guard was dispatched ---
+1 2 3 
+--- a person rules; the ruling goes to the last guard, under its own id ---
+held      Fixture/M03 · M02's close-out is with the scope guard
+osascript -e 'display notification "3 scope guards for M02's close-out ended without a verdict, so it is unresolved and stays held; a ruling is delivered to the last of them, which can still give one · baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · other"'

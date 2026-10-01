@@ -1,0 +1,5 @@
+echo "== The guard's process is gone and its pass waits in the inbox. Step 1 sees a guard with no live row and no verdict and offers a fresh one; step 2 consumes the pass; so by step 8 nothing waits for a guard. The stale candidate is set aside without a dispatch_failed, which would count towards the bound that parks the lane, and M03 is dispatched on the pass =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+"$BATON" tick || true
+echo '--- no dispatch_failed, one guard attempt, and M03 dispatched ---'
+jq -c 'select(.kind == "dispatch" or .kind == "dispatch_failed") | {kind, milestone, attempt, stage}' "$BATON_HOME/log.jsonl"

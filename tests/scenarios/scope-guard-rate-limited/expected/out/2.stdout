@@ -1,0 +1,11 @@
+== The guard for M02's close-out stopped on a usage limit. The limit holds its model for every project, and only the guard's own resumed turn clears it, so the guard is not replaced by a fresh one the hold would drop: the wait route resumes it, M03 stays held meanwhile, and when its pass arrives the hold lifts and M03 is dispatched ==
+--- the hold, the wait retry, and no second guard ---
+{"kind":"dispatch","milestone":"M00-scope","model":"opus","cause":null,"attempt":1,"outcome":null}
+{"kind":"resume","milestone":"M00-scope","model":null,"cause":null,"attempt":1,"outcome":"delivered"}
+{"kind":"wait_retry","milestone":"M00-scope","model":null,"cause":null,"attempt":1,"outcome":null}
+{"kind":"hold","milestone":null,"model":"opus","cause":"rate_limit","attempt":null,"outcome":null}
+--- after the resumed guard's pass: the hold lifted and M03 dispatched ---
+{"kind":"dispatch","milestone":"M00-scope","model":"opus","cause":null}
+{"kind":"hold_lifted","milestone":null,"model":"opus","cause":"rate_limit"}
+{"kind":"dispatch","milestone":"M03","model":"opus","cause":null}
+{"kind":"dispatch","milestone":"M04","model":"opus","cause":null}

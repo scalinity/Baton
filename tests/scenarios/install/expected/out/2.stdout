@@ -34,6 +34,7 @@ planning.sh
 preconditions.sh
 render.sh
 rows.sh
+scope.sh
 status.sh
 stops.sh
 templates.sh

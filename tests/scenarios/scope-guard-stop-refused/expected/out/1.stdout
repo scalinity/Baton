@@ -1,0 +1,23 @@
+== The first guard for M02's close-out ended without a verdict and the CLI refuses to stop it. No fresh guard is asked beside a live one, so the lane is parked once for a person to stop it by hand; M03 stays held. Once no row carries the session, the park clears itself and a fresh guard is asked ==
+scope     Fixture/M00-scope · the guard for M02's close-out could not be stopped · the lane is parked for a person
+held      Fixture/M03 · M02's close-out had a scope guard end without a verdict
+backgrounded · 0badc0d1 · Baton · Fixture · M04
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M04 (branch m04)
+settings  @TMP@/home/settings/Fixture-M04.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+held      Fixture/M03 · M02's close-out had a scope guard end without a verdict
+--- the park, raised once ---
+{"milestone":"M00-scope","class":"other","original":"33333333-0001-4444-8555-666666666666","detail":"the guard for M02's close-out ended without a verdict and its session 33333333-0001-4444-8555-666666666666 could not be stopped, so no fresh guard is asked while it runs"}
+--- a person stops the session by hand ---
+unparked  Fixture/M00-scope · no row carries the unstopped original 33333333-0001-4444-8555-666666666666 any more · Baton acts on the lane again
+held      Fixture/M03 · M02's close-out had a scope guard end without a verdict
+held      Fixture/M03 · M02's close-out had a scope guard end without a verdict
+backgrounded · 0badc0d2 · Baton · Fixture · M00-scope
+session   0badc0d2-0000-4000-8000-000000000000 (attempt 2)
+request   M02-1 (working directory @TMP@/home/checks/Fixture/scope/M02-1/2)
+settings  @TMP@/home/settings/Fixture-M00-scope.json
+prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
+{"kind":"dispatch","milestone":"M00-scope","how":null,"attempt":1}
+{"kind":"resolution","milestone":"M00-scope","how":"edit","attempt":null}
+{"kind":"dispatch","milestone":"M00-scope","how":null,"attempt":2}

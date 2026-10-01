@@ -1,0 +1,39 @@
+== The generated plan holds, and its scope guard hands over a drift: the plan is a rewrite the record names as a non-goal. The plan is not adopted, no second plan is commissioned, and the guard lane is parked once with a Mac message. Ticks after that change nothing; a person's ruling is the one way out, and the tick after it adopts the plan the person has now accepted ==
+generate  Fixture · docs/MILESTONES.md holds · it is adopted once the scope guard, given only the confirmed intent and the plan, passes it
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+backgrounded · 0badc0d1 · Baton · Fixture · M00-scope
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+request   M00-plan-46998c849afd (working directory @TMP@/home/checks/Fixture/scope/M00-plan-46998c849afd/1)
+settings  @TMP@/home/settings/Fixture-M00-scope.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+consumed  M00-scope-0badc0d1-0000-4000-8000-000000000000.json → @TMP@/home/archive/M00-scope-0badc0d1-0000-4000-8000-000000000000-2026-09-19T08:00:00+01:00.json (complete, verdict drift)
+drift     Fixture/M00-scope · the proposed plan drifts from the confirmed intent · the guard lane is parked for a person
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+--- still owed, and parked ---
+{"owed":true}
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+project park  Fixture · plan-unreadable · the registration names no path and plan · fix the plan file; the next tick re-reads it
+parked  Fixture/M00-scope · drift · the proposed plan drifts from the confirmed intent: The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal. · until this is answered no other scope guard of this project runs · baton answer M00-scope "<ruling>"
+--- the person rules ---
+ruling    Fixture/M00-scope · 0badc0d1-0000-4000-8000-000000000000 · drift · delivered
+generated Fixture · docs/MILESTONES.md · 2 milestones · the plan owed since onboarding is settled
+starting  Fixture · M01, M02
+resolved  Fixture · the plan file reads again · the park raised at 2026-09-19T08:00:00+01:00 is closed
+backgrounded · 0badc0d2 · Baton · Fixture · M01
+session   0badc0d2-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M01 (branch m01)
+settings  @TMP@/home/settings/Fixture-M01.json
+prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
+{"owed":false,"start":["M01","M02"]}
+--- what the ticks recorded ---
+{"kind":"escalation","milestone":null,"class":"plan-unreadable","how":null,"outcome":null}
+{"kind":"dispatch","milestone":"M00-scope","class":null,"how":null,"outcome":null}
+{"kind":"escalation","milestone":"M00-scope","class":"drift","how":null,"outcome":null}
+{"kind":"resolution","milestone":"M00-scope","class":null,"how":"ruling","outcome":null}
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"how":null,"outcome":"adopted"}
+{"kind":"resolution","milestone":null,"class":null,"how":"edit","outcome":null}
+{"kind":"dispatch","milestone":"M01","class":null,"how":null,"outcome":null}
+osascript -e 'display notification "the registration names no path and plan · fix the plan file; the next tick re-reads it" with title "Baton · Fixture · plan-unreadable"'
+osascript -e 'display notification "the proposed plan drifts from the confirmed intent: The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal. · until this is answered no other … · baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · drift"'

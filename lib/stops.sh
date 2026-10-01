@@ -509,7 +509,15 @@ ladder_step() {
 # the session that wrote it, which waits for its ruling; the in-flight lanes that run on are the
 # others. Read as a lane with no park, the ladder would count that ruling's own refused resume as a
 # failure ending and resume the session with the continue template, which does not carry the ruling.
+#
+# The scope guard's lane is stood by always, and `scope_pass` does for it what every loop here does
+# for the others. A failure ending has nothing a ladder resume could continue into and a redispatch
+# would need a plan row the lane has none of, so a fresh session is asked instead, bounded, and the
+# lane parks for a person at the bound; an API error is waited out by `scope_waits`, the wait arm
+# below run for this lane alone — there because the adoption guard's project never reaches this
+# function. Two rules on one lane would be two guards on one request.
 stops_standing_by() {
+  [ "$2" != "$SCOPE_ID" ] || return 0
   if stood_off "$1" "$3"; then return 0; fi
   if printf '%s' "$4" | jq -e --arg m "$2" \
        'any(.parked[]; .milestone == $m)' > /dev/null; then return 0; fi

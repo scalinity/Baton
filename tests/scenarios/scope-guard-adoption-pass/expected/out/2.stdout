@@ -1,0 +1,9 @@
+== The generated plan holds and its scope guard is dispatched; the guard hands over a pass. The next tick consumes the verdict and the one after adopts the plan through onboarding's own seeding path — the self-check then reads it, the park closes, and the plan's first milestone is dispatched. An aligned plan is adopted with no person asked ==
+--- the registration after the pass ---
+{"plan_format":"native","owed":false,"start":["M01","M02"]}
+--- what the ticks recorded ---
+{"kind":"escalation","milestone":null,"request":null,"verdict":null,"outcome":null}
+{"kind":"dispatch","milestone":"M00-scope","request":"M00-plan-46998c849afd","verdict":null,"outcome":null}
+{"kind":"consumed","milestone":"M00-scope","request":null,"verdict":"pass","outcome":"complete"}
+{"kind":"plan_generation","milestone":"M00-plan","request":null,"verdict":null,"outcome":"adopted"}
+{"kind":"dispatch","milestone":"M01","request":null,"verdict":null,"outcome":null}

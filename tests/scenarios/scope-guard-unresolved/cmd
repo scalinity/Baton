@@ -1,0 +1,12 @@
+echo "== Three guards for M02's close-out have each ended without a verdict. The request is unresolved, never passed: the tick stops the last guard, parks the lane once for a person with a Mac message, and M03 stays held. A ruling reaches the last guard, which can still give a verdict, and the request is with the guard again =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+"$BATON" tick || true
+"$BATON" tick || true
+echo '--- the park ---'
+jq -c 'select(.kind == "escalation") | {milestone, session, attempt, class, request: .carries.request, detail: .carries.detail}' "$BATON_HOME/log.jsonl"
+echo '--- no fourth guard was dispatched ---'
+jq -c 'select(.kind == "dispatch" and .milestone == "M00-scope") | .attempt' "$BATON_HOME/log.jsonl" | tr '\n' ' '; echo
+echo '--- a person rules; the ruling goes to the last guard, under its own id ---'
+"$BATON" answer Fixture/M00-scope "judge it again; the change is one line in docs/one.md" || true
+"$BATON" tick || true
+grep -F 'osascript' "$BATON_SHIM/calls.log" || true

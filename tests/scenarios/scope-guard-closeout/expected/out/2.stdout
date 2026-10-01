@@ -1,0 +1,25 @@
+== M02's close-out was consumed and its consumed event owes the scope guard a request. The tick writes the request, holds M03 — which depends on M02 — and lets M04, which does not, run; and it dispatches the guard, isolated, with nothing but the confirmed intent record and M02's own change. The second run of this file is the repeated tick: the guard is running, so nothing is asked twice and M03 stays held ==
+held      Fixture/M03 · M02's close-out is with the scope guard
+--- the request Baton recorded, and the work it froze for the guard ---
+{"request":"M02-1","boundary":"close-out","milestone":"M02","attempt":1,"baseline":"@BASELINE@","candidate":"@CANDIDATE@","integration":"@MERGE@","created":1789167600}
+--- what the guard was given: its prompt, the one input it has, is the frozen sidecar below.
+--- What it was not given, by grep of that same sidecar (each count must be 0):
+  CANARY-TARGET-CLAUDE-MD      0
+  CANARY-PLAN-RATIONALE        0
+  Builds on the second         0
+  Expected files               0
+  the milestone's work         0
+  WHAT ELSE IS IN FLIGHT       0
+  M03                          0
+  M04                          0
+  Fixture-M02                  0
+--- and what it was given (each count must be at least 1):
+  Keep the fixture             1
+  Plain text and POSIX shell only 1
+  A web interface              1
+  docs/one.md                  3
+  +one                         1
+--- the settings the guard ran under: every tool denied, no CLAUDE.md, no memory, and its own id told to it
+{"permissions":{"defaultMode":"bypassPermissions","allow":[],"deny":["*"]},"env":{"CLAUDE_CODE_DISABLE_CLAUDE_MDS":"1","CLAUDE_CODE_DISABLE_AUTO_MEMORY":"1"},"prompt_hook":"'/usr/bin/jq' -c '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: (\"Your session id is \" + .session_id + \".\")}}'","stop":1,"remote":true}
+--- and how it was launched: from a fresh directory under the request, with no user setting, MCP server or skill
+[cwd @TMP@/home/checks/Fixture/scope/M02-1/1] claude --bg -n 'Baton · Fixture · M00-scope' --model opus --effort high --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M00-scope.json --setting-sources  --strict-mcp-config --disable-slash-commands <prompt>

@@ -1,0 +1,17 @@
+You are implementing milestone M01 of Fixture at the checkout this session was dispatched from, a fixture repository for Baton's tests. Read the note and record what it says. Size: Small, about two hours, medium effort.
+
+WHAT ELSE IS IN FLIGHT. You are working in @TMP@/home/worktrees/Fixture/M01 on branch m01; the canonical checkout is @TMP@/Fixture — merge there at close-out and refresh there. Nothing else is in flight. Stage only your own paths; never git add -A. Do not start the milestone after this one.
+
+STARTUP ORDER. Read CLAUDE.md, docs/MILESTONES.md and docs/milestones/M01.md in full, then the working tree. If this brief's Completion evidence is not empty, follow its Recovery procedure and resume only the unfinished part.
+
+WHAT TO SETTLE RATHER THAN INHERIT. Whether an empty note is recorded as empty or as absent: record it as empty, because absent and empty are different facts and only one of them is true.
+
+CONSTRAINTS. Shell only; no packages. Stage your own paths by name and never git add -A.
+
+VERIFICATION. Follow section 8 of docs/milestones/M01.md. Report every check as passed, failed or unrun with its output; an unrun check is never reported as passed.
+
+CLOSE-OUT, in this order.
+1. Append completion evidence to docs/milestones/M01.md and commit on this branch.
+2. Merge into main, keeping the branch and its commits.
+3. Write done in M01's Status cell in docs/MILESTONES.md on main and commit.
+4. Write the handover artifact naming M02 as eligible, then print it last in a baton fence.

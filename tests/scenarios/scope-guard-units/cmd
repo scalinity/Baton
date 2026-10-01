@@ -1,0 +1,29 @@
+set -eu
+# The scope guard's small answers, asked directly: which close-out owes a request, where the cut
+# falls, what the guard runs at, and that a verdict the check cannot read is refused rather than passed.
+. "$ROOT/tests/lib-load.sh"
+echo '=== a request is owed only by a proved completion of a milestone'
+printf '  proved M02 attempt 3:     [%s]\n' "$(scope_closeout_request M02 3 '{"proved":true}')"
+printf '  unproved M02:             [%s]\n' "$(scope_closeout_request M02 3 '{"proved":false}')"
+printf '  no completion:            [%s]\n' "$(scope_closeout_request M02 3 '{}')"
+printf '  no attempt:               [%s]\n' "$(scope_closeout_request M02 "" '{"proved":true}')"
+printf '  the planning lane:        [%s]\n' "$(scope_closeout_request M00-plan 1 '{"proved":true}')"
+printf '  the guard itself:         [%s]\n' "$(scope_closeout_request M00-scope 1 '{"proved":true}')"
+echo '=== the cut: over the bound, the text ends at a whole line and says how much was shown'
+f=$BATON_HOME/work.txt
+awk 'BEGIN { for (i = 1; i <= 4000; i++) printf "line %05d of a long change, padded to a fixed width\n", i }' > "$f"
+printf '  4000 lines in:  %s bytes\n' "$(wc -c < "$f" | tr -d ' ')"
+printf '  at the bound:   %s bytes out\n' "$(scope_bounded "$f" | wc -c | tr -d ' ')"
+SCOPE_WORK_BYTES=1000
+scope_bounded "$f" | tail -3
+echo '=== the model and effort: opus and high by default, config.json'"'"'s scopeModel and scopeEffort when set'
+printf '  default:   %s %s\n' "$(scope_model)" "$(scope_effort)"
+jq '. + {scopeModel: "sonnet", scopeEffort: "medium"}' "$BATON_HOME/config.json" > "$BATON_HOME/config.json.tmp" && mv "$BATON_HOME/config.json.tmp" "$BATON_HOME/config.json"
+printf '  from config: %s %s\n' "$(scope_model)" "$(scope_effort)"
+jq 'del(.scopeModel, .scopeEffort)' "$BATON_HOME/config.json" > "$BATON_HOME/config.json.tmp" && mv "$BATON_HOME/config.json.tmp" "$BATON_HOME/config.json"
+echo '=== a verdict the check cannot read, or one with no finding, is refused — never passed'
+for a in 'not json' '{"verdict":"pass"}' '{"verdict":"maybe","finding":"x"}' '{"verdict":["pass"],"finding":"x"}'; do
+  status=0; why=$(scope_verdict_check "$a" Fixture) || status=$?
+  printf '  %-38s exit %s · %s\n' "$a" "$status" "$why"
+done
+rm -f "$f"

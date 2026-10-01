@@ -79,7 +79,7 @@ The milestone table, in the plan document:
   * The header must carry both an ID cell and a Depends on cell. That pair is how Baton finds this
     table among the document's others, and a table without Depends on is not a table at all to it.
   * ID is M, then digits, then optionally a hyphen and one run of lowercase letters and digits:
-    M01, M02, M07-b. M00-plan is reserved for this session and must not appear as a row.
+    M01, M02, M07-b. M00-plan and M00-scope are reserved for Baton's own sessions and must not appear as rows.
   * Depends on holds ids and ranges only — M05, M06 or M01-M13 — or an en dash for none. Every id
     named must be a row in this same table. Prose is not a token and fails the read.
   * Model is one of the aliases this Baton knows — fable, opus, sonnet, haiku — or a full model id beginning

@@ -1,0 +1,4 @@
+baton: dispatch of Fixture M00-scope failed at launch: Error: the session could not be started
+baton: dispatch of Fixture M04 failed at launch: cleanup skipped; budget spent this tick; Error: the session could not be started
+baton: dispatch of Fixture M00-scope failed at launch: Error: the session could not be started
+baton: dispatch of Fixture M04 failed at launch: cleanup skipped; budget spent this tick; Error: the session could not be started

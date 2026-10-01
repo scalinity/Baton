@@ -29,3 +29,4 @@
 . "$ROOT/lib/lifecycle.sh"
 . "$ROOT/lib/onboard.sh"
 . "$ROOT/lib/planning.sh"
+. "$ROOT/lib/scope.sh"

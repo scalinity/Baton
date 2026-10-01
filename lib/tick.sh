@@ -434,6 +434,17 @@ tick_run() {
         render_row out action 'generate    %s · the plan generation pass failed this tick\n' "$(render_token out lane "$tr_key")"
         tr_status=3
       fi
+      #    The scope guard's pass, beside generation and before the self-check for generation's
+      #    reason: the guard of a plan awaiting adoption belongs to a project that fails the
+      #    self-check. Its one candidate joins the same list (`lib/scope.sh`).
+      if tr_scope=$(scope_pass "$tr_key" "$tr_rows"); then
+        render_lines "$(printf '%s' "$tr_scope" | jq -c .lines)" action
+        tr_cands=$(printf '%s' "$tr_cands" | jq -c \
+          --argjson a "$(printf '%s' "$tr_scope" | jq -c .candidates)" '. + $a')
+      else
+        render_row out action 'scope       %s · the scope guard pass failed this tick\n' "$(render_token out lane "$tr_key")"
+        tr_status=3
+      fi
     fi
     if tr_plan=$(self_check "$tr_key"); then
       tr_plans=$(printf '%s' "$tr_plans" | jq -c --arg k "$tr_key" --argjson p "$tr_plan" '. + {($k): $p}')
@@ -529,7 +540,10 @@ tick_run() {
     # Step 5 skips a project a project-scope park holds: nothing new starts on ground a person has
     # been asked to fix, while the lanes already running carried on through steps 3 and 4 above.
     project_held "$tr_key" > /dev/null && continue
-    if tr_doc=$(dispositions_intersect "$tr_key" "$tr_plan" "$tr_rows"); then
+    # The close-out boundary: a successor whose dependency's close-out the scope guard has not passed
+    # is held out of the candidates. A hold that cannot be read dispatches nothing for the project.
+    if tr_doc=$(dispositions_intersect "$tr_key" "$tr_plan" "$tr_rows") \
+       && tr_doc=$(scope_hold "$tr_key" "$tr_plan" "$tr_doc" "$tr_rows"); then
       render_lines "$(printf '%s' "$tr_doc" | jq -c .lines)"
       tr_cands=$(printf '%s' "$tr_doc" | jq -c --argjson a "$tr_cands" '$a + .candidates')
     else

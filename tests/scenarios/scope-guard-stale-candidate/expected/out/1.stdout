@@ -1,0 +1,18 @@
+== The guard's process is gone and its pass waits in the inbox. Step 1 sees a guard with no live row and no verdict and offers a fresh one; step 2 consumes the pass; so by step 8 nothing waits for a guard. The stale candidate is set aside without a dispatch_failed, which would count towards the bound that parks the lane, and M03 is dispatched on the pass ==
+consumed  M00-scope-22222222-3333-4444-8555-666666666666.json → @TMP@/home/archive/M00-scope-22222222-3333-4444-8555-666666666666-2026-09-12T00:00:00+01:00.json (complete, verdict pass)
+scope     Fixture/M00-scope · no request waits for a guard any more; none is dispatched
+backgrounded · 0badc0d1 · Baton · Fixture · M03
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M03 (branch m03)
+settings  @TMP@/home/settings/Fixture-M03.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+backgrounded · 0badc0d2 · Baton · Fixture · M04
+session   0badc0d2-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M04 (branch m04)
+settings  @TMP@/home/settings/Fixture-M04.json
+prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
+--- no dispatch_failed, one guard attempt, and M03 dispatched ---
+{"kind":"dispatch","milestone":"M02","attempt":1,"stage":null}
+{"kind":"dispatch","milestone":"M00-scope","attempt":1,"stage":null}
+{"kind":"dispatch","milestone":"M03","attempt":1,"stage":null}
+{"kind":"dispatch","milestone":"M04","attempt":1,"stage":null}

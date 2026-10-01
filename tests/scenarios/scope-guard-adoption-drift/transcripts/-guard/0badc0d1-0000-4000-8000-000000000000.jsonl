@@ -1,0 +1,1 @@
+{"type":"assistant","uuid":"a1","timestamp":"2026-09-11T22:41:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"The work against the record.\n\n```baton\n{\"verdict\":\"drift\",\"finding\":\"The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal.\"}\n```"}]}}

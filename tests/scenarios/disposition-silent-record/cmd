@@ -18,6 +18,19 @@ for c in asking question merge-failed dispatch-failed main-broken unfinished-twi
 done
 
 echo
+echo '=== drift, the scope guard'"'"'s finding, is refused whatever its carries hold. gap showed that'
+echo '=== HOST-EXPLAINED can be a reading of evidence; drift is where that must never reach, so the'
+echo '=== refusal is on the class, and each carries below is one a route might one day attach'
+for k in '{"request":"M02-1","detail":"the work drifts"}' \
+         '{"request":"M02-1","detail":"the host was asleep","host":{"assessed":"explained"}}' \
+         '{"request":"M02-1","detail":"a guard chose","options":["accept"],"recommendation":"accept"}' \
+         '{"request":"M02-1","detail":"a replan says so","disposition":"HOST-EXPLAINED"}'; do
+  status=0
+  record_only Fixture M00-scope s 1 drift lane "$k" 2>/dev/null || status=$?
+  echo "  drift $k -> exit $status"
+done
+
+echo
 echo '=== gap is a notification and this writer takes escalations, so it is refused here on the first'
 echo '=== guard rather than on the disposition. The honest reason is the one shown, not swallowed.'
 status=0
@@ -56,6 +69,7 @@ echo "  carries not json -> exit $status"
 echo
 echo '=== the refusals a person reads, on the stream they belong to'
 record_only Fixture M02 s 1 asking lane '{"detail":"a person is owed this"}' || true
+record_only Fixture M00-scope s 1 drift lane '{"detail":"the work drifts","host":{"assessed":"explained"}}' || true
 record_only "" "" "" "" baton-unhealthy sideways '{"detail":"not a scope"}' || true
 record_only "" "" "" "" permission project '{"detail":"not a class"}' || true
 record_only "" "" "" "" baton-unhealthy project 'not json' || true

@@ -1,0 +1,13 @@
+echo "== The guard for M02's close-out stopped on a usage limit. The limit holds its model for every project, and only the guard's own resumed turn clears it, so the guard is not replaced by a fresh one the hold would drop: the wait route resumes it, M03 stays held meanwhile, and when its pass arrives the hold lifts and M03 is dispatched =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+"$BATON" tick || true
+echo '--- the hold, the wait retry, and no second guard ---'
+jq -c 'select(.kind == "hold" or .kind == "wait_retry" or .kind == "resume" or (.kind == "dispatch" and .milestone == "M00-scope")) | {kind, milestone, model, cause, attempt, outcome}' "$BATON_HOME/log.jsonl"
+S=22222222-3333-4444-8555-666666666666
+mkdir -p "$BATON_HOME/inbox"
+if ! ls "$BATON_HOME"/archive/M00-scope-$S-*.json > /dev/null 2>&1; then
+  printf '%s\n' "{\"baton\":1,\"project\":\"$PWD/Fixture\",\"milestone\":\"M00-scope\",\"session\":\"$S\",\"outcome\":\"complete\",\"verdict\":\"pass\",\"finding\":\"The work adds the one line docs/one.md was owed, in plain text. It keeps the constraint and crosses no non-goal.\",\"written_at\":\"2026-09-12T00:02:00+01:00\"}" > "$BATON_HOME/inbox/M00-scope-$S.json"
+fi
+"$BATON" tick || true
+echo '--- after the resumed guard'"'"'s pass: the hold lifted and M03 dispatched ---'
+jq -c 'select(.kind == "hold_lifted" or (.kind == "dispatch" and .milestone != "M02")) | {kind, milestone, model, cause}' "$BATON_HOME/log.jsonl"

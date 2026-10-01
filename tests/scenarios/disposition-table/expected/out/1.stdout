@@ -14,6 +14,7 @@ escalation    plan-unreadable   human-required  notifies
 escalation    plan-unparseable  human-required  notifies
 escalation    main-broken       human-required  notifies
 escalation    baton-unhealthy   HOST-EXPLAINED  silent
+escalation    drift             human-required  notifies
 notification  rate_limit        human-required  notifies
 notification  billing_error     human-required  notifies
 notification  unrecoverable     human-required  notifies
@@ -64,6 +65,15 @@ no carries:          human-required
 carries not json:    human-required
 === the answer this function wrote last time is not evidence, and cannot talk it into itself
 disposition only:    human-required
+
+=== drift is a constant on the class: the scope guard found the work departing from the confirmed
+=== intent, and no evidence a caller attaches can move it to a disposition that is silent or a
+=== model's to settle — not the host's explanation, not options, not its own answer written down
+a host that explains: human-required
+options to choose:    human-required
+its own answer:       human-required
+a replan said so:     human-required
+no carries:           human-required
 
 === a class neither list holds is refused, not defaulted
 exit 1

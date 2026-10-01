@@ -1,0 +1,1 @@
+{"baton":1,"project":"@TMP@/Fixture","milestone":"M00-scope","session":"0badc0d1-0000-4000-8000-000000000000","outcome":"complete","verdict":"pass","finding":"The plan reads a note and says what it said, in shell. It serves the goal, keeps POSIX shell, and rewrites nothing in another language.","written_at":"2026-09-19T08:00:00+01:00"}

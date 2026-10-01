@@ -1,0 +1,1 @@
+{"type":"assistant","uuid":"a1","timestamp":"2026-09-11T22:41:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"The work against the record.\n\n```baton\n{\"verdict\":\"drift\",\"finding\":\"The work replaces the plain-text document with a web page and a server to render it. That is the web interface the record names as a non-goal.\"}\n```"}]}}

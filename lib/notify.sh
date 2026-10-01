@@ -146,7 +146,7 @@ class_or_fail() {
     escalation:blocked|escalation:merge-failed|escalation:other|escalation:disagreement) ;;
     escalation:omitted|escalation:model_not_found|escalation:dispatch-failed) ;;
     escalation:plan-unreadable|escalation:plan-unparseable|escalation:main-broken) ;;
-    escalation:baton-unhealthy) ;;
+    escalation:baton-unhealthy|escalation:drift) ;;
     notification:rate_limit|notification:billing_error|notification:unrecoverable) ;;
     notification:transient|notification:stall|notification:long-running) ;;
     notification:blocked_by|notification:distant_wait_for|notification:prompt-lost) ;;

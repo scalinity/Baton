@@ -1,0 +1,22 @@
+== The guard for M02's close-out has handed over a pass. The tick consumes it, the verdict rides on the consumed event, and in the same tick the hold lifts and M03 — held until now — is dispatched beside M04. Aligned work advances with no person asked ==
+consumed  M00-scope-22222222-3333-4444-8555-666666666666.json → @TMP@/home/archive/M00-scope-22222222-3333-4444-8555-666666666666-2026-09-12T00:00:00+01:00.json (complete, verdict pass)
+backgrounded · 0badc0d1 · Baton · Fixture · M03
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M03 (branch m03)
+settings  @TMP@/home/settings/Fixture-M03.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+backgrounded · 0badc0d2 · Baton · Fixture · M04
+session   0badc0d2-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M04 (branch m04)
+settings  @TMP@/home/settings/Fixture-M04.json
+prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
+--- the verdict, as the log records it ---
+{"milestone":"M00-scope","attempt":1,"outcome":"complete","verdict":"pass","finding":"The work adds the one line docs/one.md was owed, in plain text. It keeps the constraint and crosses no non-goal."}
+--- what was dispatched ---
+{"milestone":"M02","attempt":1}
+{"milestone":"M00-scope","attempt":1}
+{"milestone":"M03","attempt":1}
+{"milestone":"M04","attempt":1}
+--- nothing was escalated, and no Mac message was raised ---
+0
+0

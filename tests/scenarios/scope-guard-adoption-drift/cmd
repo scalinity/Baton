@@ -1,0 +1,22 @@
+set -eu
+echo "== The generated plan holds, and its scope guard hands over a drift: the plan is a rewrite the record names as a non-goal. The plan is not adopted, no second plan is commissioned, and the guard lane is parked once with a Mac message. Ticks after that change nothing; a person's ruling is the one way out, and the tick after it adopts the plan the person has now accepted =="
+"$BATON" tick || true
+sid=0badc0d1-0000-4000-8000-000000000000
+mkdir -p "$BATON_HOME/inbox"
+if ! ls "$BATON_HOME"/archive/M00-scope-$sid-*.json > /dev/null 2>&1; then
+  printf '%s\n' "{\"baton\":1,\"project\":\"$PWD/Fixture\",\"milestone\":\"M00-scope\",\"session\":\"$sid\",\"outcome\":\"complete\",\"verdict\":\"drift\",\"finding\":\"The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal.\",\"written_at\":\"2026-09-19T08:00:00+01:00\"}" \
+    > "$BATON_HOME/inbox/M00-scope-$sid.json"
+fi
+"$BATON" tick || true
+"$BATON" tick || true
+"$BATON" tick || true
+echo '--- still owed, and parked ---'
+jq -c '{owed: (.plan_owed != null)}' "$BATON_HOME/projects/Fixture/project.json"
+"$BATON" status || true
+echo '--- the person rules ---'
+"$BATON" answer Fixture/M00-scope "adopt it: the port was agreed after onboarding" || true
+"$BATON" tick || true
+jq -c '{owed: (.plan_owed != null), start: [(.start.eligible // [])[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+echo '--- what the ticks recorded ---'
+jq -c 'select(.kind == "dispatch" or .kind == "plan_generation" or .kind == "escalation" or .kind == "resolution") | {kind, milestone, class, how, outcome}' "$BATON_HOME/log.jsonl"
+grep -F osascript "$BATON_SHIM/calls.log" || true

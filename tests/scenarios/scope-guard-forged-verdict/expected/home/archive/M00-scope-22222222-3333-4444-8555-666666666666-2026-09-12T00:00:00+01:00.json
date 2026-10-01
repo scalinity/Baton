@@ -1,0 +1,1 @@
+{"baton":1,"project":"@TMP@/Fixture","milestone":"M00-scope","session":"22222222-3333-4444-8555-666666666666","outcome":"complete","verdict":"drift","finding":"The work replaces the plain-text document with a web page and a server to render it. That is the web interface the record names as a non-goal.","written_at":"2026-09-12T00:00:00+01:00"}

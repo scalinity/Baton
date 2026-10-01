@@ -1,0 +1,41 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "the registration names no path and plan · fix the plan file; the next tick re-reads it" with title "Baton · Fixture · plan-unreadable"'
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/home/checks/Fixture/scope/M00-plan-46998c849afd/1] claude --bg -n 'Baton · Fixture · M00-scope' --model opus --effort high --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M00-scope.json --setting-sources  --strict-mcp-config --disable-slash-commands <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude stop 0badc0d1
+osascript -e 'display notification "the proposed plan drifts from the confirmed intent: The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal. · until this is answered no other … · baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · drift"'
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude --bg --resume 0badc0d1-0000-4000-8000-000000000000 <prompt>
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/home/worktrees/Fixture/M01] claude --bg -n 'Baton · Fixture · M01' --model opus --effort medium --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M01.json <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4242
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4242
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4242
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4242
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4242
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4242
+[cwd @TMP@] claude agents --json

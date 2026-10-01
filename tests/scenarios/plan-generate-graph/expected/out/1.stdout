@@ -6,7 +6,7 @@ worktree  @TMP@/home/worktrees/Fixture/M00-plan (branch m00-plan)
 settings  @TMP@/home/settings/Fixture-M00-plan.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
 --- every defect, in one pass ---
-  * docs/MILESTONES.md uses the id M00-plan, which Baton reserves for the session that writes the plan
+  * docs/MILESTONES.md uses the id M00-plan, which Baton reserves for a session of its own — the one that writes the plan, or the scope guard
     repair: rename that row in docs/MILESTONES.md to an id of its own and rename its brief with it
   * docs/MILESTONES.md row 1 marks M01 "done" before anybody has done it, and Baton never dispatches a row that is not blank
     repair: leave every Status cell in docs/MILESTONES.md blank and commit it on main

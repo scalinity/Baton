@@ -1,0 +1,14 @@
+echo "== M02's close-out owes the scope guard, and the registration predates the confirmed intent record, so the guard has nothing to judge against. That is a check that cannot happen, and it is never a pass: the dispatch fails at the prompt stage, twice, and the lane is parked with the command that supplies the record; M03 stays held the whole time. Once the intent is confirmed the park releases itself on the next tick and the guard is dispatched =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+"$BATON" tick || true
+"$BATON" tick || true
+echo '--- what the two dispatches left, and the park ---'
+jq -c 'select(.kind == "dispatch_failed" or .kind == "escalation") | {kind, milestone, stage, class, detail: (.detail // .carries.detail)}' "$BATON_HOME/log.jsonl"
+echo '--- a later tick asks nothing more of a lane that is parked, and M03 is still held ---'
+"$BATON" tick || true
+echo '--- the person confirms the intent record (what baton onboard writes) ---'
+pj=$BATON_HOME/projects/Fixture/project.json
+jq '. + {goal: "Keep the fixture'"'"'s two plain-text documents current, one line each", done: "both documents carry their line",
+        constraints: ["Plain text and POSIX shell only"], non_goals: ["A web interface"]}' "$pj" > "$pj.tmp" && mv "$pj.tmp" "$pj"
+"$BATON" tick || true
+jq -c 'select(.kind == "resolution" or (.kind == "dispatch" and .milestone == "M00-scope")) | {kind, milestone, how, request}' "$BATON_HOME/log.jsonl"

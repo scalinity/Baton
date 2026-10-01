@@ -1,0 +1,6 @@
+== The guard's process is gone and its pass waits in the inbox. Step 1 sees a guard with no live row and no verdict and offers a fresh one; step 2 consumes the pass; so by step 8 nothing waits for a guard. The stale candidate is set aside without a dispatch_failed, which would count towards the bound that parks the lane, and M03 is dispatched on the pass ==
+--- no dispatch_failed, one guard attempt, and M03 dispatched ---
+{"kind":"dispatch","milestone":"M02","attempt":1,"stage":null}
+{"kind":"dispatch","milestone":"M00-scope","attempt":1,"stage":null}
+{"kind":"dispatch","milestone":"M03","attempt":1,"stage":null}
+{"kind":"dispatch","milestone":"M04","attempt":1,"stage":null}
