@@ -1,0 +1,11 @@
+#!/bin/sh
+# The sysctl shim: the one name Baton reads, `kern.boottime`, as the scenario's own host would have
+# printed it. `boottime` holds the epoch second the scenario's host booted at; without it the command
+# fails, which is a host that did not answer, and the gap's reading of a reboot then rests on the
+# sleep history alone. It does not record its argv: it is read once per history and says nothing a
+# scenario asserts on, and a line in `calls.log` would move every host scenario's expectation.
+set -eu
+S=${BATON_SHIM:?}
+[ "${1:-}" = -n ] && [ "${2:-}" = kern.boottime ] || exit 1
+[ -f "$S/boottime" ] || exit 1
+printf '{ sec = %s, usec = 0 } Thu Jan  1 00:00:00 1970\n' "$(head -1 "$S/boottime")"
