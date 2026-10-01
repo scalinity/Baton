@@ -1,0 +1,51 @@
+{
+  "path": "@TMP@/Fixture",
+  "goal": "a fixture project.",
+  "done": "every milestone reads done.",
+  "constraints": [
+    "POSIX shell only."
+  ],
+  "non_goals": [
+    "a rewrite in another language."
+  ],
+  "plan_format": "native",
+  "onboarded_at": "2026-09-18T08:00:00+01:00",
+  "cli": {
+    "version": "2.1.278 (Claude Code)",
+    "checked_at": "2026-09-18T08:00:00+01:00"
+  },
+  "plan": "docs/MILESTONES.md",
+  "start": {
+    "at": "2026-09-18T08:00:00+01:00",
+    "eligible": [
+      {
+        "milestone": "M01",
+        "brief": {
+          "path": "docs/milestones/M01.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "run"
+      }
+    ]
+  },
+  "plan_owed": {
+    "reason": "attempt 1 wrote a plan Baton will not adopt: 2 things to repair, the first being docs/MILESTONES.md has no row for M02, and the plan is being replaced because M02 is parked (blocked): without its row the lane the replan is for has nothing to resume",
+    "owner": "M15-d",
+    "replan": {
+      "milestone": "M02",
+      "class": "blocked",
+      "at": "2026-09-18T12:01:00+01:00",
+      "detail": "blocked by M09, which the plan neither holds nor makes eligible nor shows in flight"
+    },
+    "defects": [
+      {
+        "what": "docs/MILESTONES.md has no row for M02, and the plan is being replaced because M02 is parked (blocked): without its row the lane the replan is for has nothing to resume",
+        "repair": "keep M02 as a row in docs/MILESTONES.md — reshape its brief, or split work off it into new rows — and commit it on main"
+      },
+      {
+        "what": "docs/milestones/M03.md has content under ## Completion evidence before anybody has done the milestone, and the recovery clause reads that section as work already begun",
+        "repair": "empty the ## Completion evidence section of docs/milestones/M03.md and commit it on main"
+      }
+    ]
+  }
+}

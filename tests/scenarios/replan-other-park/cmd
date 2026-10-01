@@ -1,0 +1,12 @@
+set -eu
+# The replan names a park on M02, but the park standing there is class other — a session's own
+# stopped with reason other, which disposition_of assigns human-required. The plan is adopted, because
+# it holds, and the park is left standing with a line saying it is not a replan's to close: a replan
+# resolves only a park whose class the table assigns replan, whatever the request recorded.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan, plan_format, owed: ((.plan_owed // {}) | {owner, replan: (.replan.milestone // null), defects: [(.defects // [])[] | .what]}), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, outcome, attempts, defects, first, max, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

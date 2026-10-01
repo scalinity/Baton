@@ -1,0 +1,8 @@
+generate  Fixture/M00-plan · the lane is parked (merge-failed), so no planning session starts
+--- the registration ---
+{"plan":"docs/MILESTONES.md","plan_format":"native","owed":{"owner":"M15-d","replan":"M02","defects":[]},"start":["M01"]}
+--- what the tick recorded ---
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M02 · unfinished-twice · M02 ended unfinished twice in a row; the newest says: split at item 2: saying it back is its own session · the previous says: split at checklist item 5; M02-b takes the derivations · edit the plan; a split is a plan edit
+parked  Fixture/M00-plan · merge-failed · main moved under the plan document while the replan was being written · baton answer M00-plan "merge resolved; finish the close-out from step (c)"

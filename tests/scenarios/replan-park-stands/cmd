@@ -1,0 +1,15 @@
+set -eu
+# The planning session dispatched for the replan merged a plan that marks M03 done, and Baton never
+# proved M03 complete — nobody has even dispatched it. The plan is refused with that row named, exactly
+# as a first plan claiming done is refused; the registration keeps its plan, its start and its format,
+# and the replan owed now carries the defect. M02's park stands, so the lane is not redispatched
+# under the plan that was wrong. planningAttempts is 1, so the bound D-167 set is spent by this one
+# replan attempt: it is recorded as exhausted, no second planning session starts, and no new class is
+# raised — what reaches a person is the park that already stands. The second run records nothing more.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan, plan_format, owed: ((.plan_owed // {}) | {owner, replan: (.replan.milestone // null), defects: [(.defects // [])[] | .what]}), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, outcome, attempts, defects, first, max, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

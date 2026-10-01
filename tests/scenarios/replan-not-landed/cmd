@@ -1,0 +1,13 @@
+set -eu
+# The planning session dispatched for the replan stopped with merge-failed, so main still holds the
+# plan being replaced — and that plan reads clean, because the defect that asked for the replan is not
+# one a validator sees. A dispatch since the request is therefore not enough to measure anything: only
+# a proved planning completion since it is. Nothing is adopted, M02's park stands, and the planning
+# lane's own merge-failed park holds the next attempt for a person.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan, plan_format, owed: ((.plan_owed // {}) | {owner, replan: (.replan.milestone // null), defects: [(.defects // [])[] | .what]}), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, outcome, attempts, defects, first, max, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

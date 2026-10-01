@@ -1,0 +1,21 @@
+set -eu
+# The replan was asked because M02 is blocked on M09, which nothing in the plan will deliver. The
+# planning session merged a plan that measures four of the replan's rules at once, and exactly two of
+# them are defects: M02, the parked milestone, has no row, so the lane the replan is for has nothing to
+# resume; and M03 is new to Baton — never dispatched — yet its brief arrives with completion evidence.
+# Two things are deliberately not defects: an uncleared gate and a held cell, both a person's hold on
+# the plan being replaced; and M01's brief, which is malformed but belongs to a milestone Baton proved
+# complete, so it is not measured. The park stands, and the next attempt is dispatched carrying both
+# defects and the blocked reason.
+#
+# The omitted park on M04 beside it is the second measured symptom of the gap this milestone leaves,
+# recorded rather than hidden: the refused plan is on main and live, so its new eligible row M04 meets
+# handovers in force that do not list it, and step 5 escalates it — a Mac message about a plan Baton
+# refused. docs/milestones/M15-e.md's hold skips step 5 for a project owing a replan and moves this.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan, plan_format, owed: ((.plan_owed // {}) | {owner, replan: (.replan.milestone // null), defects: [(.defects // [])[] | .what]}), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, outcome, attempts, defects, first, max, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

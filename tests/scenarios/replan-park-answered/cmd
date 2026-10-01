@@ -1,0 +1,12 @@
+set -eu
+# A person answered M02's park with a ruling before the replan landed, so by the time the plan is
+# adopted there is no park to close. The adoption closes nothing a second time and says why, and the
+# ruling stays the resolution on record: the declared-stop rule reads it and stands down rather than
+# redispatching, because the session it went to is the one working on it.
+"$BATON" tick || true
+printf '%s\n' '--- the registration after adoption ---'
+jq -c '{plan, plan_format, plan_owed: (.plan_owed // "cleared"), goal, done, constraints, non_goals, start: [.start.eligible[] | {milestone, disposition}]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, outcome, kept_done, replan, how, escalation_at, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true
