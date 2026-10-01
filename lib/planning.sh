@@ -563,6 +563,13 @@ planning_prompt() {
     ppt_hist=$(planning_history "$ppt_key") || return 1
     ppt_kept=$(printf '%s' "$ppt_hist" | jq -r '.preserved | join(", ")')
     ppt_rm=$(printf '%s' "$ppt_replan" | jq -r .milestone)
+    # The attempt this generation is on, which is the number `plan_owed.reason` and the `refused`
+    # record already use. The caller passes the lane's lifetime count, which for a first plan is the
+    # same number and for a replan is not: a project whose first plan took three attempts would tell
+    # its first replan session "attempt 4" beside a defect saying "attempt 1 wrote a plan". The
+    # dispatch this prompt is for has not been logged yet, so it is the count plus one.
+    ppt_n=$(planning_attempts "$ppt_key") || return 1
+    ppt_attempt=$((ppt_n + 1))
   fi
 
   if [ -n "$ppt_replan" ]; then
