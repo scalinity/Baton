@@ -459,14 +459,16 @@ question_check() {
 }
 
 # gap_check <rows json> [<as-of>]: REQ-ESC-10, derivation 15. The as-of minus the marker, the as-of
-# defaulting to now, reported only when a lane was in flight, waiting or parked during it, and keyed
-# on the marker value so one outage reports once. The gap belongs to no milestone, so the event
+# defaulting to the start of the tick that holds the lock and otherwise to now, reported only when a
+# lane was in flight, waiting or parked during it, and keyed on the marker value so one outage
+# reports once. The gap belongs to no milestone, so the event
 # carries no lane and the key alone is the guard; the marker this tick is about to write changes the
 # key, which is why the second run of a scenario reports nothing.
 #
 # The tick passes the clock it started with, because its own step 2 can run for minutes and a tick
-# is not an outage while it is working; every other caller reads the gap from outside a tick, where
-# now is the honest instant.
+# is not an outage while it is working; a caller that names none and holds the lock is a tick too,
+# and gets the lock's own `at` (the gap_check body below); every other caller reads the gap from
+# outside a tick, where now is the honest instant.
 #
 # **Detection and attribution are two steps and stay two steps.** Everything above this line is
 # unchanged: the threshold, the open-lane test and the marker key decide *that* there was a gap, and
