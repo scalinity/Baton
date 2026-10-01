@@ -390,8 +390,16 @@ planning_brief_defects() {
 # believed. Three more things follow from the plan being a replacement rather than a first draft:
 # the parked milestone keeps its row, so the lane the replan was for resumes under the new plan; a
 # brief of a proved milestone is not measured, because nobody will dispatch it again and the replan
-# is told to leave it as it is; and an uncleared gate and a `held` cell stand, because both are a
-# person's hold on the plan being replaced, claim no work, and are not the generator's to remove.
+# is told to leave it as it is; and an uncleared gate and a `held` cell are not refused, because both
+# are a person's hold on the plan being replaced, claim no work, and are not the generator's to remove.
+#
+# Two limits, stated rather than hidden. That the replan *keeps* its inherited gates and `held` cells
+# is told to the session and not measured: Baton holds no record of either apart from the document
+# being replaced, which is the one source this file does not take a fact from, so a replan that drops
+# one is adopted. And a replan is read as strictly as a first plan — `native`, found through the
+# registered pointer, written where the prompt names — so a registration whose plan is `adapted` or
+# lives elsewhere than `$PLANNING_PLAN` cannot have one adopted; `docs/milestones/M15-e.md` declines
+# to request one for it.
 planning_validate() {
   pv_key=$1; pv_c=$2
   pv_defects='[]'
@@ -552,8 +560,10 @@ planning_validate() {
 # exactly the sentences that assume a project with no history change: who is asking, what is
 # already built, why the plan is being replaced, where the work starts from, which Status cells may
 # read `done`, what becomes of the gates and of a worked brief's evidence, and how much of the plan
-# to change. Each of them is a rule `planning_validate` measures the same way, so the session is
-# never refused for a sentence it was not given. The confirmed intent paragraph is the same text in
+# to change. Every one of them that `planning_validate` refuses on is stated here, so the session is
+# never refused for a sentence it was not given; the converse holds for all but two — keeping the
+# inherited gates and `held` cells — which are told and not measured, for the reason
+# `planning_validate` gives. The confirmed intent paragraph is the same text in
 # both, because it is the authority in both.
 planning_prompt() {
   ppt_key=$1; ppt_c=$2; ppt_doc=$3; ppt_defects=$4; ppt_attempt=$5
