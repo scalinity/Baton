@@ -1,0 +1,10 @@
+generate  Fixture · attempt 1 left a plan with 1 thing to repair · the next attempt carries them
+generate  Fixture · 1 replan attempts have not produced a plan Baton will adopt · the park on M02 stands until the plan is repaired by hand
+--- the registration ---
+{"plan":"docs/MILESTONES.md","plan_format":"native","owed":{"owner":"M15-d","replan":"M02","defects":["docs/MILESTONES.md row 3 marks M03 done, and Baton has no proved completion of M03: a replanned plan carries done only for a milestone Baton proved complete"]},"start":["M01"]}
+--- what the tick recorded ---
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"outcome":"refused","attempts":1,"defects":1,"first":"docs/MILESTONES.md row 3 marks M03 done, and Baton has no proved completion of M03: a replanned plan carries done only for a milestone Baton proved complete","max":null,"how":null,"attempt":null}
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"outcome":"exhausted","attempts":1,"defects":null,"first":null,"max":1,"how":null,"attempt":null}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M02 · unfinished-twice · M02 ended unfinished twice in a row; the newest says: split at item 2: saying it back is its own session · the previous says: split at checklist item 5; M02-b takes the derivations · edit the plan; a split is a plan edit

@@ -49,10 +49,15 @@ Rules for every session (also in `CLAUDE.md`):
 | M15 | The escalation taxonomy | M12 | opus | high | | done | Four dispositions, including HOST-EXPLAINED; solvable parks resolve without notification; replan preserves the goal; the taxonomy owns whether a re-read rebaseline earns a notification class of its own (D-136) | No |
 | M15-b | Host-explained gaps and wake reconciliation | M15 | opus | high | | done | Sleep-explained gaps stay recorded and visible without notifications; unexplained gaps notify; confirmed dead sessions use existing recovery | No |
 | M15-c | The independent scope guard | M15-b | opus | high | | | Goal-only checks at plan adoption and close-out; drift always reaches a person | No |
-| M15-d | Replan: when the plan is what is wrong | M15 | opus | high | | | A milestone that comes back unfinished twice, or blocked on a dependency nothing will deliver, is replanned from the confirmed goal instead of asking; every milestone Baton proved complete stays done | No |
+| M15-d | Replan: when the plan is what is wrong | M15 | opus | high | | done | A replacement plan is adopted only when every milestone Baton proved complete still reads done and no other row claims done; adoption keeps the confirmed intent, reseeds the starting handover and closes the replan's park, and the lane resumes under the new plan | No |
+| M15-e | Replan: the request, and the hold while it runs | M15-d | opus | high | | | A milestone that comes back unfinished twice, or blocked on a dependency nothing will deliver, is replanned from the confirmed goal without a Mac message, and nothing else of its project is dispatched until the new plan is adopted | No |
 | M16 | Cold live trial on Reclaim | M14, M15-c | opus | medium | | | Unregistered Reclaim completes at least three cold milestones with one intent confirmation and a live budget pause/resume | No |
 | M17 | Dispatch preconditions before worktree creation | – | opus | high | | done | Plan reports every eligible milestone's unmet dispatch preconditions in one pass; dispatch refuses them before creating a branch, worktree or settings, retaining the existing retry bound | No |
 | M17-b | One rendering layer for Baton's output | M17 | opus | high | | done | Every verb and Mac message uses lib/render.sh; terminal output is consistent, plain and matchable when piped and under NO_COLOR; behaviour and event-log format stay unchanged; lib/declared.sh:98 stops claiming a person edited the plan (D-136) | No |
+| M19 | A recovery that reaches a person | M15-c, M15-d | opus | high | | | A crash whose session left the listing is resumed by id, or redispatched when no transcript remains; a recovery Baton cannot perform is logged, counted once and parks the lane `ladder-end` within three ticks | No |
+| M19-b | Pause: stand the relay down, or one lane | M19 | opus | high | | | `baton pause` stops every running lane and admits nothing until `baton resume`; `baton pause <milestone>` does it for one lane; a paused lane is never read as a crash, a stall or a wait to retry | No |
+| M19-c | A paused lane keeps its place | M19-b, M15-e | opus | medium | | | A paused lane holds its slot under the cap and no dispatch opens a new attempt over it | No |
+| M19-d | Status shows a paused lane | M19-b | opus | medium | | | `baton status` names every paused lane and the stand-down, and never prints a paused lane as in flight | No |
 
 ## Gates
 
@@ -152,7 +157,22 @@ the record it made instead of a message, and that last part is this milestone's 
 The third file is held to five lines — read the newest recorded gap, print it unless the live line already names that marker — with the rendering and the reading both in the introduced file. M15-b's
 acceptance holds in full, so it is `done` and no `stopped` artifact is written (D-152).
 
-M15-c **crossed the count at seven and was not split** (D-204), inventoried before the first counted
+M15-d was split before implementation on 2026-10-01, by its own implementation session, because
+its recheck of a budget of one counted file beyond `lib/disposition.sh` did not hold (D-200). The
+whole replan route needs three. `lib/planning.sh` is the generation path learning history — a
+`done` cell accepted exactly where Baton proved the milestone complete, the replan prompt, and an
+adoption that closes the park. `lib/declared.sh` is the raise: both replan classes are parked by
+`escalate`, which writes the event and then always sends the Mac message, so "replanned without a
+Mac message" needs a different writer there. `lib/tick.sh` is the hold: a replanned project has
+handovers in force, so the plan the planning session merges to `main` is read live before Baton
+adopts or refuses it, unlike M12's plan, which nothing dispatches from until it is seeded. The cut
+is by what is wired: M15-d keeps the first, which changes nothing at runtime until something writes
+`plan_owed.replan`, and **M15-e** takes the request, the hold and the raise together, because a
+request without the hold dispatches under a plan being replaced. M15-d's own acceptance, narrowed by
+the split to the generation path, holds in full, so it is `done` and no `stopped` artifact is
+written, as with M10-b, M12 and M15 (D-152).
+
+M15-c **crossed the count at seven and was not split** (D-208), inventoried before the first counted
 edit. The scope guard is the plan's second judgment role, and a judgment role is three counted
 files by M15's own measurement: `lib/dispatch.sh` (the lane's branch and its isolated launch),
 `lib/inbox.sh` (the verdict handover, and the request written onto the close-out's `consumed`

@@ -1,0 +1,84 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash(jq:*)"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(su:*)",
+      "Bash(doas:*)",
+      "Bash(osascript * administrator privileges*)",
+      "Read(/@TMP@/home/log.jsonl)",
+      "Edit(/@TMP@/home/log.jsonl)",
+      "Write(/@TMP@/home/log.jsonl)",
+      "Edit(/@TMP@/home/archive/**)",
+      "Write(/@TMP@/home/archive/**)",
+      "Edit(/@TMP@/home/rejected/**)",
+      "Write(/@TMP@/home/rejected/**)",
+      "Edit(/@TMP@/home/prompts/**)",
+      "Write(/@TMP@/home/prompts/**)",
+      "Edit(/@TMP@/home/settings/**)",
+      "Write(/@TMP@/home/settings/**)",
+      "Edit(/@TMP@/home/projects/**)",
+      "Write(/@TMP@/home/projects/**)",
+      "Edit(/@TMP@/home/bin/**)",
+      "Write(/@TMP@/home/bin/**)",
+      "Edit(/@TMP@/home/status/**)",
+      "Write(/@TMP@/home/status/**)",
+      "Edit(/@TMP@/home/lock/**)",
+      "Write(/@TMP@/home/lock/**)",
+      "Edit(/@TMP@/home/notify/**)",
+      "Write(/@TMP@/home/notify/**)",
+      "Edit(/@TMP@/home/checks/**)",
+      "Write(/@TMP@/home/checks/**)",
+      "Edit(/@TMP@/home/config.json)",
+      "Write(/@TMP@/home/config.json)",
+      "Edit(/@TMP@/home/last-tick)",
+      "Write(/@TMP@/home/last-tick)",
+      "Bash(*.baton/log.jsonl*)",
+      "Bash(*.baton/archive*)",
+      "Bash(*.baton/rejected*)",
+      "Bash(*.baton/prompts*)",
+      "Bash(*.baton/settings*)",
+      "Bash(*.baton/projects*)",
+      "Bash(*.baton/status*)",
+      "Bash(*.baton/lock*)",
+      "Bash(*.baton/config.json*)",
+      "Bash(*.baton/last-tick*)",
+      "Bash(*.baton/notify*)",
+      "Bash(*.baton/checks*)",
+      "Bash(*.baton/bin/lib*)",
+      "Edit(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
+      "Write(//Users/danny/Library/LaunchAgents/com.baton.tick.plist)",
+      "Bash(*com.baton.tick*)"
+    ]
+  },
+  "remoteControlAtStartup": true,
+  "statusLine": {
+    "type": "command",
+    "command": "BATON_HOME='@TMP@/home' BATON_PROJECT='Fixture' BATON_MILESTONE='M01' '@TMP@/home/bin/statusline'"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BATON_HOME='@TMP@/home' BATON_PROJECT='Fixture' BATON_MILESTONE='M01' '@TMP@/home/bin/stop-gate'"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BATON_HOME='@TMP@/home' BATON_PROJECT='Fixture' BATON_MILESTONE='M01' '@TMP@/home/bin/stop-failure'"
+          }
+        ]
+      }
+    ]
+  }
+}

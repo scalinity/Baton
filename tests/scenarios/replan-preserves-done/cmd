@@ -1,0 +1,19 @@
+set -eu
+# The planning session dispatched for the replan merged a plan that leaves M01 blank. Baton proved M01
+# complete from its own record, so the plan is refused for dropping finished work, with the row named
+# and the repair being to write done back. The park on M02 stands, and with attempts to spare the
+# next replan attempt is dispatched at once, its prompt carrying the defect.
+#
+# The M01 dispatch beside it is the measured gap this milestone leaves, recorded here rather than
+# hidden: the refused plan is on main, where the planning session merged it, and the project has
+# handovers in force, so the tick reads that plan live and the old starting handover's `run` for M01
+# meets a row that now reads blank. Nothing writes `plan_owed.replan` in production until
+# docs/milestones/M15-e.md, whose hold on the project while a replan is owed is what removes this
+# dispatch; that milestone moves this expectation.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan, plan_format, owed: ((.plan_owed // {}) | {owner, replan: (.replan.milestone // null), defects: [(.defects // [])[] | .what]}), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, outcome, attempts, defects, first, max, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

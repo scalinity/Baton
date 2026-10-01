@@ -1,0 +1,19 @@
+replanned Fixture · docs/MILESTONES.md · 3 milestones, 1 kept done · the plan M02 was parked under is replaced
+unparked  Fixture/M02 · the plan it was parked under (unfinished-twice) is replaced · the park raised at 2026-09-18T12:01:00+01:00 is closed
+starting  Fixture · M02, M03
+redispatch Fixture/M02 · the brief or the work plan changed after two unfinished endings, so attempt 3 starts from it
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 3)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+--- the registration after adoption ---
+{"plan":"docs/MILESTONES.md","plan_format":"native","plan_owed":"cleared","goal":"a fixture project.","done":"every milestone reads done.","constraints":["POSIX shell only."],"non_goals":["a rewrite in another language."],"start":[{"milestone":"M02","disposition":"run"},{"milestone":"M03","disposition":"wait"}]}
+--- what the tick recorded ---
+{"kind":"onboarded","milestone":null,"outcome":null,"kept_done":null,"replan":null,"how":null,"escalation_at":null,"attempt":null}
+{"kind":"plan_generation","milestone":"M00-plan","outcome":"adopted","kept_done":1,"replan":{"milestone":"M02","class":"unfinished-twice","at":"2026-09-18T12:01:00+01:00"},"how":null,"escalation_at":null,"attempt":null}
+{"kind":"resolution","milestone":"M02","outcome":null,"kept_done":null,"replan":null,"how":"edit","escalation_at":"2026-09-18T12:01:00+01:00","attempt":2}
+{"kind":"dispatch","milestone":"M02","outcome":null,"kept_done":null,"replan":null,"how":null,"escalation_at":null,"attempt":3}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 3 · 0 s

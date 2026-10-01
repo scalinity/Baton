@@ -1,0 +1,11 @@
+--- the registration ---
+{"plan":"docs/MILESTONES.md","plan_format":"native","owed":{"owner":"M15-d","replan":"M02","defects":["docs/MILESTONES.md has no row for M02, and the plan is being replaced because M02 is parked (blocked): without its row the lane the replan is for has nothing to resume","docs/milestones/M03.md has content under ## Completion evidence before anybody has done the milestone, and the recovery clause reads that section as work already begun"]},"start":["M01"]}
+--- what the tick recorded ---
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"outcome":"refused","attempts":1,"defects":2,"first":"docs/MILESTONES.md has no row for M02, and the plan is being replaced because M02 is parked (blocked): without its row the lane the replan is for has nothing to resume","max":null,"how":null,"attempt":null}
+{"kind":"escalation","milestone":"M04","class":"omitted","outcome":null,"attempts":null,"defects":null,"first":null,"max":null,"how":null,"attempt":null}
+{"kind":"dispatch","milestone":"M00-plan","class":null,"outcome":null,"attempts":null,"defects":null,"first":null,"max":null,"how":null,"attempt":2}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M02 · blocked · blocked by M09, which the plan neither holds nor makes eligible nor shows in flight · edit the plan, or baton answer M02 "<ruling>"
+parked  Fixture/M04 · omitted · no archived handover of Fixture lists M04, though the plan makes it eligible · edit the plan or the brief; the next tick re-reads it
+in flight  Fixture/M00-plan · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 2 · 0 s

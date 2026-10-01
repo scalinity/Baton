@@ -1,0 +1,14 @@
+set -eu
+# A replan is owed for M02, which came back unfinished twice. The planning session dispatched since
+# the request has merged a plan that keeps M01 — the one milestone Baton proved complete — `done`,
+# reshapes M02 and splits M03 off it. This tick measures the plan against Baton's own record, adopts
+# it through onboarding's seeding path with a fresh starting handover, closes M02's park as an edit,
+# and the declared-stop rule then reads that edit and redispatches M02 from its new brief. The
+# confirmed intent is carried through unchanged.
+"$BATON" tick || true
+printf '%s\n' '--- the registration after adoption ---'
+jq -c '{plan, plan_format, plan_owed: (.plan_owed // "cleared"), goal, done, constraints, non_goals, start: [.start.eligible[] | {milestone, disposition}]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, outcome, kept_done, replan, how, escalation_at, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true
