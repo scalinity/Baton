@@ -102,6 +102,27 @@ planning_attempts() {
     | [ $ev[] | select(.kind == "dispatch" and .i > $from) ] | length'
 }
 
+# planning_landed <project key>: whether a planning session has landed work since the newest
+# `requested` event — a `consumed` complete of the planning lane, after it in log order, whose
+# completion Baton proved. Status 1 otherwise, and always when no `requested` event exists.
+#
+# This, and not a dispatch, is what a replacement plan waits for. A dispatch says a session started;
+# a session that then stopped, asked or crashed left `main` exactly as it was, and the plan there is
+# the one being replaced — which reads clean, because the defect that asked for the replan is not one
+# a validator sees. A proved completion is the one record that the plan or a brief changed and
+# merged: `completion_verify` proves it against the planning lane's declared scope, the plan document
+# and the briefs. A missing `requested` event answers no rather than reaching back to the first plan's
+# completions, so a request whose event was lost waits rather than adopting the plan it replaces.
+planning_landed() {
+  pld_log=$(log_json) || return 1
+  printf '%s' "$pld_log" | jq -e --arg p "$1" --arg m "$PLANNING_ID" '
+    [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
+    | ([ $ev[] | select(.kind == "plan_generation" and .outcome == "requested") ] | last | .i // -1) as $from
+    | $from >= 0
+      and any($ev[]; .kind == "consumed" and .outcome == "complete"
+                     and (.completion.proved // false) == true and .i > $from)' > /dev/null
+}
+
 # planning_replan <project key>: the replan the registration owes, `plan_owed.replan` —
 # `{milestone, class, at, detail}`, naming the standing park that asked for it — or status 1 when the
 # plan owed is M12's first plan rather than a replacement. The one test for "this generation replaces
@@ -985,9 +1006,10 @@ planning_recorded_since() {
 # below.**
 #
 # **A replan is adopted on the same boundary, with three differences, all keyed on
-# `plan_owed.replan`.** The plan on `main` is measured only once a planning session has been
-# dispatched since the request: before one has, that plan is the one being replaced, and it may well
-# read clean — the defect that asked for the replan is not one a validator can see. The starting
+# `plan_owed.replan`.** The plan on `main` is measured only once a planning session has landed work
+# since the request (`planning_landed`): before one has — none dispatched, or one that stopped, asked
+# or crashed without merging — that plan is the one being replaced, and it may well read clean, since
+# the defect that asked for the replan is not one a validator can see. The starting
 # handover is written again from the adopted plan, because the handovers in force name the old one's
 # milestones and a new row nothing lists would read as omitted. And the park the request named is
 # closed with an `edit` resolution, which is what the adoption is — the plan the lane runs from has
@@ -1014,7 +1036,7 @@ planning_adopt() {
   pa_attempt=$(planning_attempts "$pa_key") || pa_attempt=0
   pa_replan=$(planning_replan "$pa_key") || pa_replan=''
   # Nothing to measure yet: the plan on main is still the one the replan replaces.
-  [ -z "$pa_replan" ] || [ "$pa_attempt" -gt 0 ] || { planning_verdict false; return 0; }
+  [ -z "$pa_replan" ] || planning_landed "$pa_key" || { planning_verdict false; return 0; }
 
   pa_res=$(planning_validate "$pa_key" "$pa_c") || {
     render_failure err "baton: $pa_key the generated plan could not be measured: $pa_res"
