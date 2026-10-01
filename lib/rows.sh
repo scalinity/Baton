@@ -477,7 +477,20 @@ question_check() {
 # is both halves of "unexplained still notifies, unknown still notifies, and neither is silently
 # suppressed". The event is written in both cases and carries the evidence either way.
 gap_check() {
-  gc_gap=$(derive_gap "$1" "${2:-}") || { render_failure err "$gc_gap"; return 1; }
+  # **A tick measures at the instant it started on every path, and the rule lives here so that no
+  # caller has to remember it.** The tick's opening pass names `tr_now`, but the one that returns
+  # early because `claude agents --json` could not be read names nothing, and that read is the one a
+  # loaded Mac makes slow: measured against the wall clock at the end of it, a tick that started on
+  # schedule reports the seconds it spent waiting as a stretch Baton was not running. With no as-of
+  # given, a caller that holds the lock is a tick, and the lock's own `at` — written by `lock_take`
+  # the instant the lock was taken — is the instant it started. A caller that does not hold the lock
+  # reads the gap from outside a tick, where now is honest.
+  gc_as_of=${2:-}
+  if [ -z "$gc_as_of" ] && [ "$(cat "$BATON_HOME/lock/pid" 2>/dev/null || true)" = "$$" ]; then
+    gc_as_of=$(cat "$BATON_HOME/lock/at" 2>/dev/null || true)
+    iso_epoch "$gc_as_of" > /dev/null 2>&1 || gc_as_of=
+  fi
+  gc_gap=$(derive_gap "$1" "$gc_as_of") || { render_failure err "$gc_gap"; return 1; }
   [ "$(printf '%s' "$gc_gap" | jq -r .report)" = true ] || return 0
   gc_marker=$(printf '%s' "$gc_gap" | jq -r .marker)
   gc_seconds=$(printf '%s' "$gc_gap" | jq -r .gap_seconds)

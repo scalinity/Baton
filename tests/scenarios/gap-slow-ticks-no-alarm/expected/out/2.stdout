@@ -1,0 +1,42 @@
+== ticks of 68 s on a 60 s schedule, every other launchd run finding the lock held by a live holder, for ten intervals: Baton was running throughout, so no gap is reported ==
+tick 1: started 2026-09-12T10:01:00+00:00, marker 2026-09-12T10:02:08+00:00
+skipped run: exit 75
+lock held   @TMP@/home/lock held by pid PID since 2026-09-12T10:01:00+00:00 (1 m ago); its holder is running, so nothing here is stale
+baton: lock held at @TMP@/home/lock (pid PID, since 2026-09-12T10:01:00+00:00); nothing done
+tick 2: started 2026-09-12T10:03:08+00:00, marker 2026-09-12T10:04:16+00:00
+skipped run: exit 75
+lock held   @TMP@/home/lock held by pid PID since 2026-09-12T10:03:08+00:00 (1 m ago); its holder is running, so nothing here is stale
+baton: lock held at @TMP@/home/lock (pid PID, since 2026-09-12T10:03:08+00:00); nothing done
+tick 3: started 2026-09-12T10:05:16+00:00, marker 2026-09-12T10:06:24+00:00
+skipped run: exit 75
+lock held   @TMP@/home/lock held by pid PID since 2026-09-12T10:05:16+00:00 (1 m ago); its holder is running, so nothing here is stale
+baton: lock held at @TMP@/home/lock (pid PID, since 2026-09-12T10:05:16+00:00); nothing done
+tick 4: started 2026-09-12T10:07:24+00:00, marker 2026-09-12T10:08:32+00:00
+skipped run: exit 75
+lock held   @TMP@/home/lock held by pid PID since 2026-09-12T10:07:24+00:00 (1 m ago); its holder is running, so nothing here is stale
+baton: lock held at @TMP@/home/lock (pid PID, since 2026-09-12T10:07:24+00:00); nothing done
+tick 5: started 2026-09-12T10:09:32+00:00, marker 2026-09-12T10:10:40+00:00
+skipped run: exit 75
+lock held   @TMP@/home/lock held by pid PID since 2026-09-12T10:09:32+00:00 (1 m ago); its holder is running, so nothing here is stale
+baton: lock held at @TMP@/home/lock (pid PID, since 2026-09-12T10:09:32+00:00); nothing done
+tick 6: started 2026-09-12T10:11:40+00:00, marker 2026-09-12T10:12:48+00:00
+skipped run: exit 75
+lock held   @TMP@/home/lock held by pid PID since 2026-09-12T10:11:40+00:00 (1 m ago); its holder is running, so nothing here is stale
+baton: lock held at @TMP@/home/lock (pid PID, since 2026-09-12T10:11:40+00:00); nothing done
+tick 7: started 2026-09-12T10:13:48+00:00, marker 2026-09-12T10:14:56+00:00
+skipped run: exit 75
+lock held   @TMP@/home/lock held by pid PID since 2026-09-12T10:13:48+00:00 (1 m ago); its holder is running, so nothing here is stale
+baton: lock held at @TMP@/home/lock (pid PID, since 2026-09-12T10:13:48+00:00); nothing done
+tick 8: started 2026-09-12T10:15:56+00:00, marker 2026-09-12T10:17:04+00:00
+skipped run: exit 75
+lock held   @TMP@/home/lock held by pid PID since 2026-09-12T10:15:56+00:00 (1 m ago); its holder is running, so nothing here is stale
+baton: lock held at @TMP@/home/lock (pid PID, since 2026-09-12T10:15:56+00:00); nothing done
+tick 9: started 2026-09-12T10:18:04+00:00, marker 2026-09-12T10:19:12+00:00
+skipped run: exit 75
+lock held   @TMP@/home/lock held by pid PID since 2026-09-12T10:18:04+00:00 (1 m ago); its holder is running, so nothing here is stale
+baton: lock held at @TMP@/home/lock (pid PID, since 2026-09-12T10:18:04+00:00); nothing done
+tick 10: started 2026-09-12T10:20:12+00:00, marker 2026-09-12T10:21:20+00:00
+skipped run: exit 75
+lock held   @TMP@/home/lock held by pid PID since 2026-09-12T10:20:12+00:00 (1 m ago); its holder is running, so nothing here is stale
+baton: lock held at @TMP@/home/lock (pid PID, since 2026-09-12T10:20:12+00:00); nothing done
+0
