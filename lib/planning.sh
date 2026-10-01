@@ -84,21 +84,24 @@ planning_owed() {
 
 # planning_attempts <project key>: how many generation attempts this generation has had, which is
 # the count of the planning lane's dispatches since the newest `plan_generation` event whose outcome
-# is `requested`, or since the start of the log when there is none. The log is the record and the
+# is `requested` or `adopted` — a generation begins at a request and ends at an adoption — or since
+# the start of the log when there is neither. The log is the record and the
 # registration is not: an attempt is a dispatch event, and a second counter would be a second truth
 # about one fact.
 #
-# **A replan is a generation of its own.** Without a `requested` event this is every dispatch the
-# lane ever had, which is `attempt_of` exactly and the count M12's bound has always read. With one,
-# the attempts the project's first plan took are not charged to its replan: a project whose plan took
-# three attempts to write would otherwise be exhausted before its replan began, and D-167's bound is
-# a bound on one generation's attempts rather than on the project's lifetime. The bound's value, its
-# record and the class it spends — none — are unchanged.
+# **A replan is a generation of its own.** Before either event exists this is every dispatch the
+# lane ever had, which is `attempt_of` exactly and the count M12's bound has always read — a first
+# plan is still owed, so nothing has been adopted. After one, the attempts an earlier generation took
+# are not charged to the next: a project whose plan took three attempts to write would otherwise be
+# exhausted before its replan began, and a replan's attempts would be charged to a first plan owed
+# later. D-167's bound is a bound on one generation's attempts rather than on the project's lifetime.
+# The bound's value, its record and the class it spends — none — are unchanged.
 planning_attempts() {
   pat_log=$(log_json) || { echo "$pat_log"; return 1; }
   printf '%s' "$pat_log" | jq -r --arg p "$1" --arg m "$PLANNING_ID" '
     [ to_entries[] | {i: .key} + .value | select(.project == $p and .milestone == $m) ] as $ev
-    | ([ $ev[] | select(.kind == "plan_generation" and .outcome == "requested") ] | last | .i // -1) as $from
+    | ([ $ev[] | select(.kind == "plan_generation" and (.outcome == "requested" or .outcome == "adopted")) ]
+       | last | .i // -1) as $from
     | [ $ev[] | select(.kind == "dispatch" and .i > $from) ] | length'
 }
 
