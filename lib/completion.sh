@@ -691,7 +691,10 @@ completion_verify() {
 completion_summary() {
   printf '%s' "$1" | jq -c --arg e "$2" --argjson n "$COMPLETION_PATHS_SHOWN" \
     --argjson c "$COMPLETION_PATH_CHARS" '
-    def cut($n): tostring | if (utf8bytelength <= $n) then . else .[0:$n] + "…" end;
+    def cut($n): tostring
+      | if utf8bytelength <= $n then .
+        elif (.[0:$n] | utf8bytelength) <= $n then .[0:$n] + "…"
+        else .[0:($n / 4 | floor)] + "…" end;
     . + {changed_count: (.changed_paths | length)}
     | .changed_paths |= [ .[0:$n][] | cut($c) ]
     | if has("check") then .check |= (.command |= cut(200)
