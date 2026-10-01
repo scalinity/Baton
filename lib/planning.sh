@@ -760,7 +760,7 @@ planning_recorded_since() {
 # the next attempt's prompt is composed from and the field M11 already put there for this purpose.
 # The partial work stays on the branch and in the repository: the next attempt repairs it.
 #
-# **This function is the adopted-plan boundary, and M15-c's scope guard goes at the line marked
+# **This function is the adopted-plan boundary, and the scope guard stands at the line marked
 # below.** It is the one place a plan becomes the project's plan, it is reached once per adoption,
 # and it already holds both halves of what that guard is defined to receive: the confirmed intent
 # record — `goal`, `done`, `constraints` and `non_goals`, read from the registration a few lines
@@ -768,8 +768,8 @@ planning_recorded_since() {
 # the documents at `pa_plan` and `$PLANNING_BRIEFS` on `main`. What it does not hold, and must not
 # be given, is the plan author's rationale: the generating session's prompt and transcript are not
 # read here and nothing passes them on, which is the independence the guard exists for (SCOPE §6
-# M15-c, §8 item 6). A refusal from that guard is a refusal to adopt, so it belongs beside the
-# defect branch and not after the write. M12 does not implement it.
+# M15-c, §8 item 6). A refusal from that guard is a refusal to adopt, so it sits beside the defect
+# branch and not after the write.
 planning_adopt() {
   pa_key=$1
   pa_lines=''
@@ -812,7 +812,26 @@ planning_adopt() {
     return 0
   fi
 
-  # ---- the adopted-plan boundary: M15-c's scope guard goes here, before anything is written ----
+  # ---- the adopted-plan boundary: the scope guard, before anything is written ----
+  # A plan that holds is still not adopted until a guard given only the confirmed intent record and
+  # this plan says it serves the intent, or a person has answered the guard's drift (`lib/scope.sh`).
+  # Nothing here waits for it: the request is recorded, the guard is dispatched by a later tick like
+  # any lane, and this boundary reads its answer on the tick after. Meanwhile the verdict says
+  # `waiting`, so `planning_pass` commissions no second plan over one that is being judged.
+  pa_guard=$(scope_adoption "$pa_key" "$pa_c" "$pa_plan") || {
+    render_failure err "baton: $pa_key the plan holds but the scope guard's request could not be made: $pa_guard"
+    planning_verdict false yes
+    return 0
+  }
+  case "$pa_guard" in
+    pass|released) ;;
+    *)
+      [ "$pa_guard" != requested ] || pa_lines="$pa_lines$(render_plain 'generate  %s · %s holds · it is adopted once the scope guard, given only the confirmed intent and the plan, passes it' \
+        "$pa_key" "$pa_plan")
+"
+      planning_verdict false yes
+      return 0 ;;
+  esac
   pa_seed=yes
   ! jq -e '(.start.eligible | type) == "array"' "$pa_f" > /dev/null 2>&1 || pa_seed=no
   pa_tool=$(onboard_toolchain "$pa_c")
@@ -840,12 +859,13 @@ planning_adopt() {
   planning_verdict true
 }
 
-# planning_verdict <true|false>: `planning_adopt`'s one exit, so that the document it returns and the
-# lines it collected leave together however the pass ended. A helper of that function alone, which is
-# why it reads its variable.
+# planning_verdict <true|false> [yes]: `planning_adopt`'s one exit, so that the document it returns and
+# the lines it collected leave together however the pass ended. A helper of that function alone, which
+# is why it reads its variable. `yes` marks a plan that holds and waits on its scope guard.
 planning_verdict() {
-  jq -nc --argjson a "$1" --arg l "$pa_lines" \
-    '{adopted: $a, lines: ($l | split("\n") | map(select(length > 0)))}'
+  jq -nc --argjson a "$1" --arg w "${2:-}" --arg l "$pa_lines" \
+    '{adopted: $a, lines: ($l | split("\n") | map(select(length > 0)))}
+     | if $w == "yes" then . + {waiting: true} else . end'
 }
 
 # planning_pass <project key> <rows json>: step 1's companion, for a project that owes a plan.
@@ -886,7 +906,7 @@ planning_pass() {
   # to end with one too; without it the next line written would run onto the last one read.
   [ -z "$ppa_lines" ] || ppa_lines="$ppa_lines
 "
-  if printf '%s' "$ppa_adopt" | jq -e .adopted > /dev/null; then planning_pass_out '[]'; return 0; fi
+  if printf '%s' "$ppa_adopt" | jq -e '.adopted or .waiting' > /dev/null; then planning_pass_out '[]'; return 0; fi
 
   # The confirmed goal is the planning input, and there is no second source for it. A registration
   # that owes a plan and carries no goal is one the confirmation never completed or a hand edit

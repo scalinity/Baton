@@ -1,0 +1,8 @@
+== The first guard for M02's close-out ended its turn without a verdict: the Stop gate wrote no-handover, and the session sits idle. A check that did not happen is not a pass, so M03 stays held. The tick stops the idle guard rather than dispatch a second beside it; the tick after asks again with a fresh session in a fresh directory. The ladder stands off this lane — there is no resume of a guard ==
+held      Fixture/M03 · M02's close-out is with the scope guard
+held      Fixture/M03 · M02's close-out is with the scope guard
+--- the guards, by attempt, and where each ran ---
+{"attempt":1,"session":"33333333-0001-4444-8555-666666666666","request":"M02-1","worktree":"@TMP@/home/checks/Fixture/scope/M02-1/1"}
+{"attempt":2,"session":"0badc0d2-0000-4000-8000-000000000000","request":"M02-1","worktree":"@TMP@/home/checks/Fixture/scope/M02-1/2"}
+--- no resume of a guard, and no park ---
+[cwd @TMP@] claude stop 9c0de001

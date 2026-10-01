@@ -117,11 +117,12 @@ disposition_of() {
     # judgement that may not be self-reported.
     escalation:merge-failed) echo human-required ;;
 
-    # `other` is the house class and has four producers — a rejected artifact, a fork whose original
-    # could not be proved stopped, a session's own `stopped` with reason `other`, and a transcript
-    # that cannot be scanned. They are one disposition, so the carries is not read: each names a
-    # thing outside Baton's reading — a file, a process, a sentence a session wrote, an unreadable
-    # transcript — and a person is the one who can look at it.
+    # `other` is the house class and has five producers — a rejected artifact, a fork whose original
+    # could not be proved stopped, a session's own `stopped` with reason `other`, a transcript that
+    # cannot be scanned, and a scope guard request no guard could give a verdict on. They are one
+    # disposition, so the carries is not read: each names a thing outside Baton's reading — a file, a
+    # process, a sentence a session wrote, an unreadable transcript, a judgement not made — and a
+    # person is the one who can look at it.
     escalation:other) echo human-required ;;
 
     # Both end themselves the tick their condition stops holding (D-071), which is clause 1 at work.
@@ -156,6 +157,17 @@ disposition_of() {
     # M05. Real, correctly detected, explained by Baton's own act, over before it was written, and
     # carrying nothing for anyone to do.
     escalation:baton-unhealthy) echo HOST-EXPLAINED ;;
+
+    # The scope guard found the work departing from the confirmed intent (`lib/scope.sh`). This is the
+    # one escalation SCOPE §6 M15-c says must always reach a person, and it is a constant on the class
+    # for that reason: the carries is never read here, so no evidence a caller attaches — a host
+    # assessment, a list of options, anything a later route learns to write — can move it to a
+    # disposition that is recorded silently or resolved by a model. That is a sharper promise than
+    # `other`'s, whose carries is unread by choice; here an arm that read it would be the defect.
+    # Who would judge it is the point: the guard can see drift only because it holds the person's
+    # record and nothing else, and a model that read the same work with the plan beside it is the
+    # review that inherited the premise in the first place.
+    escalation:drift) echo human-required ;;
 
     # The notifications. Every one of them is `human-required`, and that is a finding rather than a
     # default: a notification is by definition a message Baton keeps working past (REQ-ESC-01), so

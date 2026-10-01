@@ -74,6 +74,16 @@ echo '=== the answer this function wrote last time is not evidence, and cannot t
 echo "disposition only:    $(disposition_of notification gap '{"disposition":"HOST-EXPLAINED"}')"
 
 echo
+echo '=== drift is a constant on the class: the scope guard found the work departing from the confirmed'
+echo '=== intent, and no evidence a caller attaches can move it to a disposition that is silent or a'
+echo '=== model'"'"'s to settle — not the host'"'"'s explanation, not options, not its own answer written down'
+echo "a host that explains: $(disposition_of escalation drift '{"request":"M02-1","host":{"assessed":"explained"}}')"
+echo "options to choose:    $(disposition_of escalation drift '{"request":"M02-1","options":["accept","revert"],"recommendation":"accept"}')"
+echo "its own answer:       $(disposition_of escalation drift '{"request":"M02-1","disposition":"HOST-EXPLAINED"}')"
+echo "a replan said so:     $(disposition_of escalation drift '{"request":"M02-1","replan":true,"verdict":"pass"}')"
+echo "no carries:           $(disposition_of escalation drift)"
+
+echo
 echo '=== a class neither list holds is refused, not defaulted'
 status=0
 disposition_of escalation permission || status=$?

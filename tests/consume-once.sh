@@ -40,6 +40,9 @@ export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_OSASCRIPT BATON_HOME BATON
 # grow with it.
 . "$root/lib/onboard.sh"
 . "$root/lib/planning.sh"
+# The scope guard's two answers the consume asks: which close-out owes a request, written onto its
+# `consumed` event, and whether a guard's own handover carries a verdict Baton can read.
+. "$root/lib/scope.sh"
 . "$root/lib/stops.sh"
 
 lock_take

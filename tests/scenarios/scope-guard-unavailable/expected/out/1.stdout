@@ -1,0 +1,26 @@
+== M02's close-out owes the scope guard, and the registration predates the confirmed intent record, so the guard has nothing to judge against. That is a check that cannot happen, and it is never a pass: the dispatch fails at the prompt stage, twice, and the lane is parked with the command that supplies the record; M03 stays held the whole time. Once the intent is confirmed the park releases itself on the next tick and the guard is dispatched ==
+scope     Fixture/M02 · the close-out is held for the scope guard, which is given only the confirmed intent and the work
+held      Fixture/M03 · M02's close-out waits for the scope guard
+backgrounded · 0badc0d1 · Baton · Fixture · M04
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
+worktree  @TMP@/home/worktrees/Fixture/M04 (branch m04)
+settings  @TMP@/home/settings/Fixture-M04.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+held      Fixture/M03 · M02's close-out waits for the scope guard
+dispatch  Fixture/M00-scope · 2 consecutive failures · the lane is parked
+--- what the two dispatches left, and the park ---
+{"kind":"dispatch_failed","milestone":"M00-scope","stage":"prompt","class":null,"detail":"Fixture has no confirmed intent record, so the scope guard has nothing to judge against: run baton onboard @TMP@/Fixture and confirm one"}
+{"kind":"dispatch_failed","milestone":"M00-scope","stage":"prompt","class":null,"detail":"Fixture has no confirmed intent record, so the scope guard has nothing to judge against: run baton onboard @TMP@/Fixture and confirm one"}
+{"kind":"escalation","milestone":"M00-scope","stage":null,"class":"dispatch-failed","detail":"2 dispatches in a row produced no session, the last at the prompt stage: Fixture has no confirmed intent record, so the scope guard has nothing to judge against: run baton onboard @TMP@/Fixture and confirm one"}
+--- a later tick asks nothing more of a lane that is parked, and M03 is still held ---
+held      Fixture/M03 · M02's close-out waits for the scope guard
+--- the person confirms the intent record (what baton onboard writes) ---
+unparked  Fixture/M00-scope · what the guard needs reads clean again · the park raised at 2026-09-12T00:00:00+01:00 is closed
+held      Fixture/M03 · M02's close-out waits for the scope guard
+backgrounded · 0badc0d2 · Baton · Fixture · M00-scope
+session   0badc0d2-0000-4000-8000-000000000000 (attempt 1)
+request   M02-1 (working directory @TMP@/home/checks/Fixture/scope/M02-1/1)
+settings  @TMP@/home/settings/Fixture-M00-scope.json
+prompt    @TMP@/home/prompts/0badc0d2-0000-4000-8000-000000000000/1.txt
+{"kind":"resolution","milestone":"M00-scope","how":"edit","request":null}
+{"kind":"dispatch","milestone":"M00-scope","how":null,"request":"M02-1"}

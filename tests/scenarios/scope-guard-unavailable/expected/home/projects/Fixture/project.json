@@ -1,0 +1,16 @@
+{
+  "path": "@TMP@/Fixture",
+  "plan": "docs/MILESTONES.md",
+  "check": {
+    "command": "sh check.sh",
+    "deadline_seconds": 60
+  },
+  "goal": "Keep the fixture's two plain-text documents current, one line each",
+  "done": "both documents carry their line",
+  "constraints": [
+    "Plain text and POSIX shell only"
+  ],
+  "non_goals": [
+    "A web interface"
+  ]
+}

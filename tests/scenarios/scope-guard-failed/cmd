@@ -1,0 +1,9 @@
+echo "== The first guard for M02's close-out ended its turn without a verdict: the Stop gate wrote no-handover, and the session sits idle. A check that did not happen is not a pass, so M03 stays held. The tick stops the idle guard rather than dispatch a second beside it; the tick after asks again with a fresh session in a fresh directory. The ladder stands off this lane — there is no resume of a guard =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+"$BATON" tick || true
+"$BATON" tick || true
+echo '--- the guards, by attempt, and where each ran ---'
+jq -c 'select(.kind == "dispatch" and .milestone == "M00-scope") | {attempt, session, request, worktree}' "$BATON_HOME/log.jsonl"
+echo '--- no resume of a guard, and no park ---'
+jq -c 'select(.kind == "resume" or .kind == "escalation") | {kind, milestone}' "$BATON_HOME/log.jsonl"
+grep -F ' stop ' "$BATON_SHIM/calls.log" || true

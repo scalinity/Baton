@@ -1,0 +1,17 @@
+== The generated plan holds, and its scope guard hands over a drift: the plan is a rewrite the record names as a non-goal. The plan is not adopted, no second plan is commissioned, and the guard lane is parked once with a Mac message. Ticks after that change nothing; a person's ruling is the one way out, and the tick after it adopts the plan the person has now accepted ==
+--- still owed, and parked ---
+{"owed":false}
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M01 · 0badc0d2-0000-4000-8000-000000000000 · opus · attempt 1 · 0 s
+--- the person rules ---
+{"owed":false,"start":["M01","M02"]}
+--- what the ticks recorded ---
+{"kind":"escalation","milestone":null,"class":"plan-unreadable","how":null,"outcome":null}
+{"kind":"dispatch","milestone":"M00-scope","class":null,"how":null,"outcome":null}
+{"kind":"escalation","milestone":"M00-scope","class":"drift","how":null,"outcome":null}
+{"kind":"resolution","milestone":"M00-scope","class":null,"how":"ruling","outcome":null}
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"how":null,"outcome":"adopted"}
+{"kind":"resolution","milestone":null,"class":null,"how":"edit","outcome":null}
+{"kind":"dispatch","milestone":"M01","class":null,"how":null,"outcome":null}
+osascript -e 'display notification "the registration names no path and plan · fix the plan file; the next tick re-reads it" with title "Baton · Fixture · plan-unreadable"'
+osascript -e 'display notification "the proposed plan drifts from the confirmed intent: The plan ports the note reader to another language before saying anything. That is the rewrite the record names as a non-goal. · baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · drift"'

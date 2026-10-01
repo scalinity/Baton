@@ -7,6 +7,14 @@
   main-broken -> exit 1
   unfinished-twice -> exit 1
 
+=== drift, the scope guard's finding, is refused whatever its carries hold. gap showed that
+=== HOST-EXPLAINED can be a reading of evidence; drift is where that must never reach, so the
+=== refusal is on the class, and each carries below is one a route might one day attach
+  drift {"request":"M02-1","detail":"the work drifts"} -> exit 1
+  drift {"request":"M02-1","detail":"the host was asleep","host":{"assessed":"explained"}} -> exit 1
+  drift {"request":"M02-1","detail":"a guard chose","options":["accept"],"recommendation":"accept"} -> exit 1
+  drift {"request":"M02-1","detail":"a replan says so","disposition":"HOST-EXPLAINED"} -> exit 1
+
 === gap is a notification and this writer takes escalations, so it is refused here on the first
 === guard rather than on the disposition. The honest reason is the one shown, not swallowed.
   gap -> exit 1

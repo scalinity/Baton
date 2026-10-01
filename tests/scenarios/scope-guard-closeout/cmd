@@ -1,0 +1,26 @@
+echo "== M02's close-out was consumed and its consumed event owes the scope guard a request. The tick writes the request, holds M03 — which depends on M02 — and lets M04, which does not, run; and it dispatches the guard, isolated, with nothing but the confirmed intent record and M02's own change. The second run of this file is the repeated tick: the guard is running, so nothing is asked twice and M03 stays held =="
+sh "$ROOT/tests/completion-fixture.sh" valid
+"$BATON" tick || true
+
+guard=$(jq -c 'select(.kind == "dispatch" and .milestone == "M00-scope")' "$BATON_HOME/log.jsonl" | head -1)
+sidecar=$(printf '%s' "$guard" | jq -r .prompt_path)
+settings=$(printf '%s' "$guard" | jq -r .settings)
+
+echo '--- the request Baton recorded, and the work it froze for the guard ---'
+jq -c . "$BATON_HOME/checks/Fixture/scope/M02-1/request.json"
+
+echo '--- what the guard was given: its prompt, the one input it has, is the frozen sidecar below.'
+echo '--- What it was not given, by grep of that same sidecar (each count must be 0):'
+for w in CANARY-TARGET-CLAUDE-MD CANARY-PLAN-RATIONALE 'Builds on the second' 'Expected files' \
+         "the milestone's work" 'WHAT ELSE IS IN FLIGHT' M03 M04 'Fixture-M02'; do
+  printf '  %-28s %s\n' "$w" "$(grep -c -F -- "$w" "$sidecar" || true)"
+done
+echo '--- and what it was given (each count must be at least 1):'
+for w in 'Keep the fixture' 'Plain text and POSIX shell only' 'A web interface' 'docs/one.md' '+one'; do
+  printf '  %-28s %s\n' "$w" "$(grep -c -F -- "$w" "$sidecar" || true)"
+done
+
+echo '--- the settings the guard ran under: every tool denied, no CLAUDE.md, no memory, and its own id told to it'
+jq -c '{permissions, env, prompt_hook: .hooks.UserPromptSubmit[0].hooks[0].command, stop: (.hooks.Stop | length), remote: .remoteControlAtStartup}' "$settings"
+echo '--- and how it was launched: from a fresh directory under the request, with no user setting, MCP server or skill'
+grep -F 'M00-scope' "$BATON_SHIM/calls.log" | head -1

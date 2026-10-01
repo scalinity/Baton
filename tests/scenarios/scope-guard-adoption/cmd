@@ -1,0 +1,19 @@
+set -eu
+echo "== A generated plan has arrived and holds. It is not adopted: the tick records a request for the scope guard and dispatches it, isolated, with the confirmed intent record and the plan and its briefs, and nothing of the session that wrote them. No second plan is commissioned while this one is judged. The second run is the repeated tick: the guard is running, and nothing is asked twice =="
+"$BATON" tick || true
+echo '--- the registration still owes its plan ---'
+jq -c '{plan_format, owed: (.plan_owed != null), start: (.start // "none")}' "$BATON_HOME/projects/Fixture/project.json"
+echo '--- what the tick recorded ---'
+jq -c 'select(.kind == "dispatch" or .kind == "plan_generation") | {kind, milestone, role, request, outcome}' "$BATON_HOME/log.jsonl"
+guard=$(jq -c 'select(.kind == "dispatch" and .milestone == "M00-scope")' "$BATON_HOME/log.jsonl" | head -1)
+sidecar=$(printf '%s' "$guard" | jq -r .prompt_path)
+echo '--- the request ---'
+jq -c . "$BATON_HOME"/checks/Fixture/scope/*/request.json
+echo '--- what the guard was not given (each count must be 0) and was given (at least 1) ---'
+for w in CANARY-TARGET-CLAUDE-MD 'You are working in' 'plan_owed' 'no readable milestone table'; do
+  printf '  %-30s %s\n' "$w" "$(grep -c -F -- "$w" "$sidecar" || true)"
+done
+for w in 'a fixture project.' 'POSIX shell only.' 'a rewrite in another language.' '=== docs/MILESTONES.md ===' \
+         '=== docs/milestones/M01.md ===' '=== docs/milestones/M02.md ===' 'Say what the note said'; do
+  printf '  %-30s %s\n' "$w" "$(grep -c -F -- "$w" "$sidecar" || true)"
+done

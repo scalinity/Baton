@@ -1,0 +1,8 @@
+== The guard for M02's close-out handed over a verdict Baton cannot read — neither pass nor drift. A check whose answer cannot be read is not a pass: the handover is rejected, the guard lane is parked for a person, and M03 stays held ==
+held      Fixture/M03 · M02's close-out is with the scope guard
+held      Fixture/M03 · M02's close-out is with the scope guard
+--- the rejection and the park ---
+{"kind":"rejected","milestone":"M00-scope","reason":"missing-field","class":null,"rule":null}
+{"kind":"escalation","milestone":"M00-scope","reason":null,"class":"other","rule":"missing-field"}
+--- M03 was never dispatched ---
+"M02" "M00-scope" "M04" 

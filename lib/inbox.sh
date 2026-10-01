@@ -153,7 +153,15 @@ artifact_check() {
   [ "$ac_outcome" != stopped ] || ac_reason=$(printf '%s' "$ac_a" | jq -r '.reason // ""')
   ac_dropped='[]'
   ac_completion='{}'
-  case "$ac_outcome" in
+  # The scope guard's handover is a `complete` that merged nothing and decides no order, so it is
+  # checked for the verdict it owes instead of a merge and an `eligible[]` (`scope_verdict_check`).
+  ac_case=$ac_outcome
+  [ "$ac_outcome:$(printf '%s' "$ac_a" | jq -r .milestone)" != "complete:$SCOPE_ID" ] || ac_case=verdict
+  case "$ac_case" in
+    verdict)
+      ac_detail=$(scope_verdict_check "$ac_a") \
+        || { jq -nc --arg d "$ac_detail" '{rule: "missing-field", detail: $d}'; return 1; }
+      ;;
     complete)
       ac_detail=$(completion_reserved_check "$ac_a") \
         || { jq -nc --arg d "$ac_detail" '{rule: "reserved-field", detail: $d}'; return 1; }
@@ -459,13 +467,20 @@ consume_settle() {
   # — are cut the way dispatch_failed cuts its detail, because log_event refuses a line at 4 KB and
   # a refusal here would leave an archived file with no consumed event, which derivation 1 then
   # reads as a lane still open. Baton's own completion evidence is bounded at its source.
-  cs_fields=$(printf '%s' "$cs_a" | jq -c --arg w "$cs_written_by" --argjson c "$cs_completion" '
-    (if .outcome == "stopped" then {outcome, reason, error, blocked_by} else {outcome, merged_as} end)
+  #
+  # A guard's verdict and finding ride on the event the same way, so the scope guard's state is read
+  # from the log like every other. And a close-out the guard must judge says so on this same line
+  # (`scope_closeout_request`): the successors' hold reads it from the event that closes the lane, so
+  # no tick falls between the lane closing and the hold beginning.
+  cs_scope=$(scope_closeout_request "$cs_milestone" "$cs_attempt" "$cs_completion")
+  cs_fields=$(printf '%s' "$cs_a" | jq -c --arg w "$cs_written_by" --argjson c "$cs_completion" --arg r "$cs_scope" '
+    (if .outcome == "stopped" then {outcome, reason, error, blocked_by} else {outcome, merged_as, verdict, finding} end)
     | with_entries(select(.value != null))
     | with_entries(if (.value | type) == "string" and (.value | length) > 500
                    then .value |= (.[0:500] + "…") else . end)
     | . + {written_by: $w}
-    | if ($c | length) > 0 then . + {completion: $c} else . end')
+    | if ($c | length) > 0 then . + {completion: $c} else . end
+    | if $r != "" then . + {scope: {request: $r}} else . end')
 
   # An asking session is stopped at once, so that the ruling M05 delivers resumes it under the
   # same id rather than racing a session that is still holding the prompt open. The verb takes the
@@ -486,7 +501,9 @@ consume_settle() {
   if [ "$cs_outcome" = stopped ]; then
     cs_note="stopped, $cs_reason → $(stop_route "$cs_reason")"
   fi
-  if [ "$cs_outcome" = complete ]; then
+  if [ "$cs_outcome" = complete ] && printf '%s' "$cs_a" | jq -e 'has("verdict")' > /dev/null; then
+    cs_note="complete, verdict $(printf '%s' "$cs_a" | jq -r .verdict)"
+  elif [ "$cs_outcome" = complete ]; then
     cs_note="complete, merged_as $(printf '%s' "$cs_a" | jq -r .merged_as)"
     # `has`, not `//`: jq's alternative operator treats `false` as absent, so `.proved // empty`
     # answers empty for exactly the case this line exists to name.

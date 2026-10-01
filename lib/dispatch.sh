@@ -504,14 +504,25 @@ claude_env_clean() {
   done
 }
 
-# claude_bg <worktree> <name> <model> <effort> <settings> <prompt>: the one command, with the
-# worktree as cwd and LC_ALL set. Sets bg_status, bg_stdout, bg_stderr and bg_id (empty when no
+# claude_bg <worktree> <name> <model> <effort> <settings> <prompt> [isolated]: the one command, with
+# the worktree as cwd and LC_ALL set. Sets bg_status, bg_stdout, bg_stderr and bg_id (empty when no
 # "backgrounded · <id>" line was printed, which is the failure test).
+#
+# `isolated` is the scope guard's launch: no user, project or local settings file, no MCP server but
+# none, and no skill, so nothing reaches the guard but its settings and its prompt (`lib/scope.sh`).
+# Two branches and not one optional word, because an empty argument does not survive `${7:+…}` — the
+# `''` that `--setting-sources` needs is dropped and the flag would swallow the next one.
 claude_bg() {
   cb_tmp=$(mktemp "${TMPDIR:-/tmp}/baton-bg.XXXXXX")
   set +e
-  ( cd "$1" && LC_ALL=en_US.UTF-8 "$BATON_CLAUDE" --bg -n "$2" --model "$3" ${4:+--effort "$4"} \
-      --permission-mode bypassPermissions --settings "$5" "$6" ) > "$cb_tmp" 2> "$cb_tmp.err"
+  if [ -n "${7:-}" ]; then
+    ( cd "$1" && LC_ALL=en_US.UTF-8 "$BATON_CLAUDE" --bg -n "$2" --model "$3" ${4:+--effort "$4"} \
+        --permission-mode bypassPermissions --settings "$5" \
+        --setting-sources '' --strict-mcp-config --disable-slash-commands "$6" ) > "$cb_tmp" 2> "$cb_tmp.err"
+  else
+    ( cd "$1" && LC_ALL=en_US.UTF-8 "$BATON_CLAUDE" --bg -n "$2" --model "$3" ${4:+--effort "$4"} \
+        --permission-mode bypassPermissions --settings "$5" "$6" ) > "$cb_tmp" 2> "$cb_tmp.err"
+  fi
   bg_status=$?
   set -e
   bg_stdout=$(cli_plain < "$cb_tmp"); bg_stderr=$(cli_plain < "$cb_tmp.err")
@@ -591,14 +602,28 @@ dispatch_stop_jobs() {
 # second time would give the planning lane its own launch failure handling, and the cap's
 # conservative count of a launch that could not be proved to have started nothing (D-130) is
 # precisely the code that must not exist twice.
+#
+# The scope guard (`lib/scope.sh`) is the second lane with no plan row, and it differs from the
+# planning lane in the places isolation needs. It has no worktree: its working directory is a fresh
+# one under the request, so nothing of the target's — no `CLAUDE.md`, no brief — is above it. Its
+# settings deny every tool and its launch loads no user setting, MCP server or skill. Its prompt is
+# Baton's own text with no slot paragraph, because the slot line names the other milestones in
+# flight and where they work, and a sibling is exactly what the guard is kept from. Its event names
+# the request it serves.
 dispatch_one() {
   do_project=$1; do_id=$2; do_plan=$3; do_rows=$4
   do_path=$(project_path "$do_project")
   do_planning=false
+  do_scope=false
   if [ "$do_id" = "$PLANNING_ID" ]; then
     do_planning=true
     # The "also in flight" list below reads this document, and the planning lane is dispatched for a
     # project whose plan is exactly what does not parse. An empty table is the truth about it.
+    do_plan='{"milestones":[]}'
+  elif [ "$do_id" = "$SCOPE_ID" ]; then
+    do_scope=true
+    # The same truth for the guard of a plan awaiting adoption, whose project has no plan Baton reads
+    # yet; the guard names no peer in any case.
     do_plan='{"milestones":[]}'
   fi
 
@@ -611,6 +636,8 @@ dispatch_one() {
   # right, because reading it as success is exactly the mistake this check exists to prevent.
   if [ "$do_planning" = true ]; then
     do_pre=$(planning_preconditions "$do_project")
+  elif [ "$do_scope" = true ]; then
+    do_pre=$(scope_preconditions "$do_project")
   else
     do_pre=$(dispatch_preconditions "$do_project" "$do_id")
   fi || {
@@ -634,6 +661,10 @@ dispatch_one() {
     do_model=$(planning_model)
     do_effort=$(planning_effort)
     do_remote=false
+  elif [ "$do_scope" = true ]; then
+    do_model=$(scope_model)
+    do_effort=$(scope_effort)
+    do_remote=false
   else
     do_row=$(printf '%s' "$do_plan" | plan_row "$do_id")
     do_model=$(printf '%s' "$do_row" | jq -r .model)
@@ -656,15 +687,32 @@ dispatch_one() {
   do_attempt=$((do_attempt + 1))
   do_name=$(session_name "$do_project" "$do_id")
 
-  do_wt=$(worktree_ensure "$do_path" "$do_id") || { dispatch_failed "$do_project" "$do_id" worktree "$do_wt"; return 1; }
-  do_wt_path=$(printf '%s' "$do_wt" | jq -r .worktree)
-  do_branch=$(printf '%s' "$do_wt" | jq -r .branch)
-  do_reused=$(printf '%s' "$do_wt" | jq -r .reused)
-  do_commit=$(printf '%s' "$do_wt" | jq -r .commit)
+  do_request=''
+  if [ "$do_scope" = true ]; then
+    # The request, its prompt and its working directory together, before the settings are written: a
+    # registration with no confirmed intent fails here, at the prompt stage, and `dispatch_try`'s
+    # bound turns two such failures into the park that names `baton onboard`.
+    do_doc=$(scope_dispatch_doc "$do_project" "$do_attempt" "$do_rows" "$(baton_now)") \
+      || { dispatch_failed "$do_project" "$do_id" prompt "$do_doc"; return 1; }
+    do_request=$(printf '%s' "$do_doc" | jq -r .request)
+    do_wt_path=$(printf '%s' "$do_doc" | jq -r .cwd)
+    do_branch=''; do_reused=false; do_commit=''
+  else
+    do_wt=$(worktree_ensure "$do_path" "$do_id") || { dispatch_failed "$do_project" "$do_id" worktree "$do_wt"; return 1; }
+    do_wt_path=$(printf '%s' "$do_wt" | jq -r .worktree)
+    do_branch=$(printf '%s' "$do_wt" | jq -r .branch)
+    do_reused=$(printf '%s' "$do_wt" | jq -r .reused)
+    do_commit=$(printf '%s' "$do_wt" | jq -r .commit)
+  fi
 
   do_settings=$(settings_compose "$do_project" "$do_id") || { dispatch_failed "$do_project" "$do_id" settings "$do_settings"; return 1; }
+  if [ "$do_scope" = true ]; then
+    do_sse=$(scope_settings "$do_settings") || { dispatch_failed "$do_project" "$do_id" settings "$do_sse"; return 1; }
+  fi
 
-  if [ "$do_planning" = true ]; then
+  if [ "$do_scope" = true ]; then
+    do_prompt=$(printf '%s' "$do_doc" | jq -r .prompt)
+  elif [ "$do_planning" = true ]; then
     # Baton's own text, composed from the registration the confirmation wrote and the defects the
     # last attempt left. There is no brief to read and none to be readable in the worktree, so the
     # two checks below are the milestone lane's alone.
@@ -698,15 +746,24 @@ dispatch_one() {
   # moved new worktrees to `<managed root>/<project>/<milestone>`, where it says only "M02" beside a
   # milestone already called M02. What this sentence is for is telling a session where another
   # session is working so it stays out of it, and a path is that; a name that repeats the id is not (D-178).
-  do_also=$(printf '%s' "$do_inflight" | jq -r --arg me "$do_id" --argjson plan "$do_plan" '
+  #
+  # A scope guard is not named as a peer: it works in no worktree and touches nothing a milestone
+  # could collide with, and its line would point a session at a brief that does not exist.
+  do_also=$(printf '%s' "$do_inflight" | jq -r --arg me "$do_id" --arg g "$SCOPE_ID" --argjson plan "$do_plan" '
     ($plan.milestones | map(select(.status == "done") | .id)) as $done
-    | map(select(.milestone as $m | $m != $me and (($done | index($m)) == null)))
+    | map(select(.milestone as $m | $m != $me and $m != $g and (($done | index($m)) == null)))
     | map("\(.milestone) (worktree \(.worktree), brief docs/milestones/\(.milestone).md)")
     | join(", ")')
-  do_slot=$(slot_line_text "$do_wt_path" "$do_branch" "$do_path" "$do_also" "$do_attempt" "$do_commit")
-  do_body=$(slot_line "$do_prompt" "$do_slot") || { dispatch_failed "$do_project" "$do_id" prompt "$do_body"; return 1; }
+  do_iso=''
+  if [ "$do_scope" = true ]; then
+    do_body=$do_prompt
+    do_iso=isolated
+  else
+    do_slot=$(slot_line_text "$do_wt_path" "$do_branch" "$do_path" "$do_also" "$do_attempt" "$do_commit")
+    do_body=$(slot_line "$do_prompt" "$do_slot") || { dispatch_failed "$do_project" "$do_id" prompt "$do_body"; return 1; }
+  fi
 
-  claude_bg "$do_wt_path" "$do_name" "$do_model" "$do_effort" "$do_settings" "$do_body"
+  claude_bg "$do_wt_path" "$do_name" "$do_model" "$do_effort" "$do_settings" "$do_body" "$do_iso"
   if [ -z "$bg_id" ]; then
     do_detail=$bg_stderr
     [ -n "$do_detail" ] || do_detail="exit $bg_status with nothing on stderr; stdout: $bg_stdout"
@@ -791,12 +848,15 @@ dispatch_one() {
     --arg name "$do_name" --arg model "$do_model" --arg effort "$do_effort" \
     --arg wt "$do_wt_path" --arg branch "$do_branch" --argjson reused "$do_reused" --arg commit "$do_commit" \
     --arg settings "$do_settings" --arg pp "$do_prompt_path" --arg sha "$do_prompt_sha" --argjson remote "$do_remote" \
-    --argjson planning "$do_planning" '
+    --argjson planning "$do_planning" --argjson scope "$do_scope" --arg request "$do_request" '
     {name: $name, model: $model}
-    # The role, on the one lane that is not a milestone. It is absent from every other dispatch
+    # The role, on the two lanes that are not milestones. It is absent from every other dispatch
     # rather than written as `milestone`, because a field an event has no value for is absent from
-    # it (§6.1), and every dispatch before this one had no role to name.
+    # it (§6.1), and every dispatch before the first of them had no role to name.
     | if $planning then . + {role: "planning"} else . end
+    # The request a guard serves: which close-out or which plan this attempt judges. It is the record
+    # Baton keeps of what the verdict answers, so a verdict is never read off the word of the guard.
+    | if $scope then . + {role: "scope", request: $request} else . end
     | if $effort != "" then . + {effort: $effort} else . end
     | . + {remote: $remote, worktree: $wt, branch: $branch, worktree_reused: $reused}
     # The baseline, on every dispatch and not only on a reused worktree. It was `worktree_commit`
@@ -804,6 +864,9 @@ dispatch_one() {
     # claim has to descend from, which is a fact about the attempt and has to be there for every
     # one of them. Nothing read the old name (D-145).
     | . + {baseline: $commit}
+    # A guard has no branch and no baseline, and a field with no value is absent (§6.1). Its
+    # working directory stays under `worktree`, because derivation 1 and the rows read it there.
+    | if $scope then del(.branch, .worktree_reused, .baseline) else . end
     | . + {settings: $settings, prompt_path: $pp, prompt_sha256: $sha}')"
 
   # The five lines a dispatch leaves behind, on stdout: a person's own `baton dispatch` reads them
@@ -811,7 +874,10 @@ dispatch_one() {
   render_row out record 'backgrounded · %s · %s\n' "$(render_token out session "$bg_id")" "$do_name"
   render_row out record 'session   %s (attempt %s)\n' \
     "$(render_token out session "$do_session")" "$do_attempt"
-  if [ "$do_reused" = true ]; then
+  if [ "$do_scope" = true ]; then
+    render_row out record 'request   %s (working directory %s)\n' "$do_request" \
+      "$(render_token out path "$do_wt_path")"
+  elif [ "$do_reused" = true ]; then
     render_row out record 'worktree  %s (branch %s, reused at %s)\n' \
       "$(render_token out path "$do_wt_path")" "$do_branch" "$(render_token out session "$do_commit")"
   else

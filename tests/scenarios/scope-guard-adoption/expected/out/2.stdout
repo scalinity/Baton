@@ -1,0 +1,20 @@
+== A generated plan has arrived and holds. It is not adopted: the tick records a request for the scope guard and dispatches it, isolated, with the confirmed intent record and the plan and its briefs, and nothing of the session that wrote them. No second plan is commissioned while this one is judged. The second run is the repeated tick: the guard is running, and nothing is asked twice ==
+self-check  Fixture · @TMP@/home/projects/Fixture/project.json lacks path or plan
+--- the registration still owes its plan ---
+{"plan_format":"generated","owed":true,"start":"none"}
+--- what the tick recorded ---
+{"kind":"dispatch","milestone":"M00-scope","role":"scope","request":"M00-plan-46998c849afd","outcome":null}
+--- the request ---
+{"request":"M00-plan-46998c849afd","boundary":"adoption","milestone":"M00-plan","plan":"docs/MILESTONES.md","main":"@COMMIT@","created":1789801200}
+--- what the guard was not given (each count must be 0) and was given (at least 1) ---
+  CANARY-TARGET-CLAUDE-MD        0
+  You are working in             0
+  plan_owed                      0
+  no readable milestone table    0
+  a fixture project.             1
+  POSIX shell only.              1
+  a rewrite in another language. 1
+  === docs/MILESTONES.md ===     1
+  === docs/milestones/M01.md === 1
+  === docs/milestones/M02.md === 1
+  Say what the note said         2

@@ -1,0 +1,5 @@
+Baton resumed this session to deliver a ruling. M00-scope, attempt 3, resume 1. You asked at 2026-09-12T00:00:00+01:00: 3 scope guards for M02's close-out ended without a verdict, so it is unresolved and stays held; a ruling is delivered to the last of them, which can still give one. The ruling below is decided: do not re-open it, do not ask again, and do not weigh alternatives against it.
+
+judge it again; the change is one line in docs/one.md
+
+Continue from where the last turn ended. The handover artifact is still owed.
