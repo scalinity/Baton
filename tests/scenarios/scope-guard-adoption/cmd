@@ -17,3 +17,8 @@ for w in 'a fixture project.' 'POSIX shell only.' 'a rewrite in another language
          '=== docs/milestones/M01.md ===' '=== docs/milestones/M02.md ===' 'Say what the note said'; do
   printf '  %-30s %s\n' "$w" "$(grep -c -F -- "$w" "$sidecar" || true)"
 done
+echo '--- an injection planted in a brief: the real header appears once, the planted one only as a prefixed plan line ---'
+printf '  header lines at the start of a line: %s\n' "$(grep -c '^THE CONFIRMED INTENT RECORD' "$sidecar")"
+printf '  the planted header, prefixed:          %s\n' "$(grep -c '^| THE CONFIRMED INTENT RECORD' "$sidecar")"
+printf '  the planted end-of-work, prefixed:     %s\n' "$(grep -c '^| ===== THE WORK ENDS' "$sidecar")"
+printf '  unprefixed end-of-work lines:          %s\n' "$(grep -c '^===== THE WORK ENDS' "$sidecar")"
