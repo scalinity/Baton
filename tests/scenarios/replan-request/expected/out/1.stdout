@@ -1,5 +1,5 @@
-replan    Fixture/M02 · requested · a planning session replaces the plan, and nothing else of Fixture is dispatched until it is adopted
 unfinished Fixture/M02 · twice in a row · the lane is parked without a message, because the plan is what is wrong
+replan    Fixture/M02 · requested · a planning session replaces the plan, and nothing else of Fixture is dispatched until it is adopted
 backgrounded · 0badc0d1 · Baton · Fixture · M00-plan
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 4)
 worktree  @TMP@/home/worktrees/Fixture/M00-plan (branch m00-plan)

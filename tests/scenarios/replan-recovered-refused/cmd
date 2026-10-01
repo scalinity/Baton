@@ -1,0 +1,14 @@
+set -eu
+# M02's park was raised without a Mac message, and the tick that raised it ended before it could make
+# the request: nothing is owed and no `requested` event names the park. The replan pass asks the
+# request's gate again, and this time it refuses — the registration has since lost its confirmed
+# goal — so the park can have no replan, and since it has told nobody its own message is delivered now:
+# a `delivered` event with why `refused`, then the message led by the refusal. One osascript across
+# both runs, nothing owed, and the park stands under its own class.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

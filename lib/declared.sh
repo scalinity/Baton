@@ -110,8 +110,8 @@ declared_step() {
         # instead (`replan_route`). Where it does not, the person is told, because the route is not
         # available — the line `replan_route` printed says why.
         dst_carries=$(splits_carries "$dst_run" "$dst_m" unfinished)
-        if replan_route "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice "$dst_carries" "$4"; then
-          render_row out action 'unfinished %s/%s · twice in a row · the lane is parked without a message, because the plan is what is wrong\n' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")"
+        if replan_route "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice "$dst_carries" "$4" \
+             "$(printf 'unfinished %s/%s · twice in a row · the lane is parked without a message, because the plan is what is wrong' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")")"; then
           return 0
         fi
         escalate "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice lane "$dst_carries"
@@ -160,8 +160,8 @@ declared_step() {
             '{blocked_by: $b, blocker_state: $s, detail: $d}')
           # A graph with an edge nothing will satisfy is the plan being wrong, the same route as
           # `unfinished-twice` above, and the same fallback to the person when the gate refuses.
-          if replan_route "$1" "$dst_m" "$dst_s" "$dst_a" blocked "$dst_carries" "$4"; then
-            render_row out action 'blocked   %s/%s · nothing is coming to unblock %s · the lane is parked without a message, because the plan is what is wrong\n' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")" "$(render_token out milestone "$dst_by")"
+          if replan_route "$1" "$dst_m" "$dst_s" "$dst_a" blocked "$dst_carries" "$4" \
+               "$(printf 'blocked   %s/%s · nothing is coming to unblock %s · the lane is parked without a message, because the plan is what is wrong' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")" "$(render_token out milestone "$dst_by")")"; then
             return 0
           fi
           escalate "$1" "$dst_m" "$dst_s" "$dst_a" blocked lane "$dst_carries"

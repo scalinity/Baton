@@ -628,10 +628,12 @@ replan_requested_event() {
     || { render_failure err "baton: $1 the replan request's event could not be written"; return 1; }
 }
 
-# replan_route <project> <milestone> <session> <attempt> <class> <carries json> <rows json>:
-# `declared_step`'s one question before it raises a replan class. Status 0 when the park is raised
-# here, silently, and the request made from it; status 1 when the caller is to `escalate` as it always
-# has — the gate refused, with the line saying why, or the silent park could not be written.
+# replan_route <project> <milestone> <session> <attempt> <class> <carries json> <rows json>
+# <park line>: `declared_step`'s one question before it raises a replan class. Status 0 when the park
+# is raised here, silently, and the request made from it; status 1 when the caller is to `escalate` as
+# it always has — the gate refused, with the line saying why, or the silent park could not be written.
+# The caller's line for the park, already rendered, is printed once the park is written and before
+# the request's, so the two read in the order they happened.
 #
 # The request is made from the park just written, found again by its milestone and class among the
 # standing parks, because the request names the park by `at` and only the log knows the `at` it got.
@@ -645,6 +647,7 @@ replan_route() {
     return 1
   fi
   replan_raise "$1" "$2" "$3" "$4" "$5" "$6" || return 1
+  render_row out action '%s\n' "$8"
   rrt_pp=$(derive_parked "$1") || { render_failure err "$rrt_pp"; return 0; }
   rrt_park=$(printf '%s' "$rrt_pp" | jq -c --arg m "$2" --arg c "$5" '
     [ .parked[] | select(.scope == "lane" and .milestone == $m and .class == $c
@@ -737,7 +740,9 @@ replan_pass() {
         if rps_no=$(replan_gate "$1" "$rps_m" "$(printf '%s' "$rps_k" | jq -r .class)" "$2"); then
           replan_request "$1" "$rps_k" || rps_status=1
         else
-          replan_deliver "$1" "$rps_k" refused "no replan could be requested: $rps_no" || rps_status=1
+          # The refusal's first clause only: what follows its ` · ` is a pointer, often a path, and the
+          # message's cap would spend itself there instead of on the park's own detail and verb.
+          replan_deliver "$1" "$rps_k" refused "no replan could be requested: ${rps_no%% · *}" || rps_status=1
         fi ;;
     esac
   done
