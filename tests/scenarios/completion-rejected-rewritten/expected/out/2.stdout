@@ -1,0 +1,2 @@
+== M02's handover was rejected completion-chain under the old rule and sits in rejected/; the session writes it again unchanged after a rewrite-aware relay lands: it is judged anew and consumed once, and the rejected copy is left as the record ==
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json (complete, merged_as @MERGE@, 1 path changed, check passed)

@@ -1,0 +1,3 @@
+echo "== M02 dispatched at a baseline a message-only history rewrite replaced, its branch merged on the new history: the baseline's tree-identical ancestor stands in, the standing check runs on the merge, and the record names both baselines =="
+sh "$ROOT/tests/completion-fixture.sh" rewritten
+sh "$ROOT/tests/consume-once.sh"

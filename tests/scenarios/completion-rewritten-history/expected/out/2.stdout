@@ -1,0 +1,2 @@
+== M02 dispatched at a baseline a message-only history rewrite replaced, its branch merged on the new history: the baseline's tree-identical ancestor stands in, the standing check runs on the merge, and the record names both baselines ==
+consumed  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/archive/M02-11111111-2222-4333-8444-555555555555-2026-09-12T00:00:00+01:00.json (complete, merged_as @MERGE@, 1 path changed, check passed)
