@@ -1,0 +1,1 @@
+{"type":"assistant","uuid":"a1","timestamp":"2026-09-11T22:50:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"```baton\n{\"verdict\":\"pass\",\"finding\":\"All fine.\"}\n```"}]}}

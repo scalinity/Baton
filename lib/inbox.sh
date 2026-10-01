@@ -159,8 +159,8 @@ artifact_check() {
   [ "$ac_outcome:$(printf '%s' "$ac_a" | jq -r .milestone)" != "complete:$SCOPE_ID" ] || ac_case=verdict
   case "$ac_case" in
     verdict)
-      ac_detail=$(scope_verdict_check "$ac_a") \
-        || { jq -nc --arg d "$ac_detail" '{rule: "missing-field", detail: $d}'; return 1; }
+      ac_detail=$(scope_verdict_check "$ac_a" "$ac_key") \
+        || { jq -nc --arg d "$ac_detail" '{rule: "scope-verdict", detail: $d}'; return 1; }
       ;;
     complete)
       ac_detail=$(completion_reserved_check "$ac_a") \

@@ -1,0 +1,25 @@
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@/home/worktrees/Fixture/M04] claude --bg -n 'Baton · Fixture · M04' --model opus --permission-mode bypassPermissions --settings @TMP@/home/settings/Fixture-M04.json <prompt>
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude stop 9c0de001
+osascript -e 'display notification "M02's close-out drifts from the confirmed intent: The work replaces the plain-text document with a web page and a server to render it. That is the web interface the record names as a non-goal. · baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · drift"'
+caffeinate -i -w 4241
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "scope-verdict · @TMP@/home/rejected/M00-scope-22222222-3333-4444-8555-666666666666.json · baton answer M00-scope \"<ruling>\"" with title "Baton · Fixture/M00-scope · other"'
+osascript -e 'display notification "scope-verdict · @TMP@/home/rejected/M00-scope-44444444-5555-4666-8777-888888888888.js… · fix what it names; the next tick re-reads the plan and the brief" with title "Baton · Fixture/M00-scope · other"'
+caffeinate -i -w 4241
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+caffeinate -i -w 4241
+[cwd @TMP@] claude agents --json

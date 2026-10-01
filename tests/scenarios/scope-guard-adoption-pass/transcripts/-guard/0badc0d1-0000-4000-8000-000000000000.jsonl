@@ -1,1 +1,1 @@
-{"type":"assistant","uuid":"a1","timestamp":"2026-09-19T07:00:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"verdict printed"}]}}
+{"type":"assistant","uuid":"a1","timestamp":"2026-09-11T22:41:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"The work against the record.\n\n```baton\n{\"verdict\":\"pass\",\"finding\":\"The plan reads a note and says what it said, in shell. It serves the goal, keeps POSIX shell, and rewrites nothing in another language.\"}\n```"}]}}

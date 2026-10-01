@@ -1,0 +1,13 @@
+== The guard for M02's close-out handed over a drift, and the park waits for a person. Two forged passes follow: one written under the guard's own session id, which its transcript does not bear out, and one from a session that was never a guard. Both are rejected, and M03 stays held behind the unanswered drift ==
+held      Fixture/M03 · M02's close-out drifted, and the park waits for a person
+held      Fixture/M03 · M02's close-out drifted, and the park waits for a person
+held      Fixture/M03 · M02's close-out drifted, and the park waits for a person
+--- the two rejections, and the drift that still stands ---
+{"kind":"consumed","session":"22222222-3333-4444-8555-666666666666","reason":null,"class":null,"verdict":"drift","rule":null}
+{"kind":"escalation","session":"22222222-3333-4444-8555-666666666666","reason":null,"class":"drift","verdict":null,"rule":null}
+{"kind":"rejected","session":"22222222-3333-4444-8555-666666666666","reason":"scope-verdict","class":null,"verdict":null,"rule":null}
+{"kind":"escalation","session":"22222222-3333-4444-8555-666666666666","reason":null,"class":"other","verdict":null,"rule":"scope-verdict"}
+{"kind":"rejected","session":"44444444-5555-4666-8777-888888888888","reason":"scope-verdict","class":null,"verdict":null,"rule":null}
+{"kind":"escalation","session":"44444444-5555-4666-8777-888888888888","reason":null,"class":"other","verdict":null,"rule":"scope-verdict"}
+--- M03 was never dispatched ---
+"M02" "M00-scope" "M04" 

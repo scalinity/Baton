@@ -416,18 +416,47 @@ scope_dispatch_doc() {
   jq -nc --arg r "$sdd_r" --arg c "$sdd_cwd" --arg t "$sdd_prompt" '{request: $r, cwd: $c, prompt: $t}'
 }
 
-# scope_verdict_check <artifact json>: the guard's handover, checked in place of a completion's. It
-# names no merge and no eligible milestones, because it changed nothing and decides no order; what it
-# must carry is a verdict Baton can read and a finding a person can. Anything else is a rejection,
-# which parks the lane `other` and reaches a person — never a pass.
+# scope_verdict_check <artifact json> <project key>: the guard's handover, checked in place of a
+# completion's. It names no merge and no eligible milestones, because it changed nothing and decides
+# no order; what it must carry is a verdict Baton can read and a finding a person can, and it must be
+# the guard's. Anything else is a rejection, which parks the lane `other` and reaches a person — never
+# a pass. Prints the reason and returns 1 on a rejection.
+#
+# **The guard's, and not a file under its name.** The inbox is writable by every dispatched session,
+# and a guard's session id can be read off the CLI's own listing, so the file name and the `session`
+# field prove nothing. Two things are asked instead. The session must be one Baton dispatched on the
+# guard lane of this project, which `attempt_for_session` answers from the log. And the verdict must
+# be the one the guard printed: a guard has no tool to write a file with, so its handover is the
+# `baton` fence of its own last turn, which the Stop gate recovers — and that fence is in the
+# session's transcript, where the CLI wrote it. A verdict whose `verdict` and `finding` do not match
+# the newest fence in that transcript is not the guard's word. This is tamper-evident rather than
+# tamper-proof — a transcript is a file the same user can write — and it is what turns a forged pass
+# from one file in the inbox into a deliberate rewrite of another session's record.
 scope_verdict_check() {
-  printf '%s' "$1" | jq -er '
+  svc_rc=0
+  svc_bad=$(printf '%s' "$1" | jq -er '
     if (.verdict | type) != "string" or (.verdict != "pass" and .verdict != "drift")
       then "verdict is \(.verdict | tojson), not \"pass\" or \"drift\""
     elif ((.finding // "") | type) != "string" or (.finding // "") == ""
       then "a verdict without a finding"
-    else empty end' 2>/dev/null && return 1
-  completion_reserved_check "$1"
+    else empty end' 2>/dev/null) || svc_rc=$?
+  # Matched on the status and not on the output: 4 is jq saying it produced nothing, which is the one
+  # answer that means "nothing wrong". A jq that failed to read the artifact at all answers 2 or 5,
+  # and reading that as nothing wrong would be a refusal that silently never refuses.
+  case "$svc_rc" in
+    0) printf '%s\n' "$svc_bad"; return 1 ;;
+    4) ;;
+    *) echo "the verdict could not be read"; return 1 ;;
+  esac
+  completion_reserved_check "$1" || return 1
+  svc_s=$(printf '%s' "$1" | jq -r .session)
+  svc_a=$(attempt_for_session "$2" "$SCOPE_ID" "$svc_s") || { echo "$svc_a"; return 1; }
+  [ -n "$svc_a" ] || { echo "no scope guard dispatch names session $svc_s, so this is not a guard's verdict"; return 1; }
+  svc_t=$(transcript_of "$svc_s") || { echo "the guard's transcript for session $svc_s cannot be found"; return 1; }
+  svc_fence=$(jq -r 'select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text' "$svc_t" 2>/dev/null \
+    | awk '/^```baton[ \t]*$/ { f = 1; buf = ""; next } f && /^```/ { f = 0; last = buf; next } f { buf = buf $0 "\n" } END { printf "%s", last }')
+  printf '%s' "$svc_fence" | jq -e --argjson a "$1" '.verdict == $a.verdict and .finding == $a.finding' > /dev/null 2>&1 \
+    || { echo "the verdict does not match the one guard session $svc_s printed in its own transcript"; return 1; }
 }
 
 # scope_waits <project> <rows json>: the wait route, for the guard lane alone — `stops_run`'s own

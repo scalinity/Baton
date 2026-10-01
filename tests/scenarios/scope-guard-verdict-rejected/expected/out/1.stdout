@@ -1,5 +1,5 @@
 == The guard for M02's close-out handed over a verdict Baton cannot read — neither pass nor drift. A check whose answer cannot be read is not a pass: the handover is rejected, the guard lane is parked for a person, and M03 stays held ==
-rejected  M00-scope-22222222-3333-4444-8555-666666666666.json → @TMP@/home/rejected/M00-scope-22222222-3333-4444-8555-666666666666.json (missing-field: verdict is "probably fine", not "pass" or "drift")
+rejected  M00-scope-22222222-3333-4444-8555-666666666666.json → @TMP@/home/rejected/M00-scope-22222222-3333-4444-8555-666666666666.json (scope-verdict: verdict is "probably fine", not "pass" or "drift")
 held      Fixture/M03 · M02's close-out is with the scope guard
 backgrounded · 0badc0d1 · Baton · Fixture · M04
 session   0badc0d1-0000-4000-8000-000000000000 (attempt 1)
@@ -8,7 +8,7 @@ settings  @TMP@/home/settings/Fixture-M04.json
 prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
 held      Fixture/M03 · M02's close-out is with the scope guard
 --- the rejection and the park ---
-{"kind":"rejected","milestone":"M00-scope","reason":"missing-field","class":null,"rule":null}
-{"kind":"escalation","milestone":"M00-scope","reason":null,"class":"other","rule":"missing-field"}
+{"kind":"rejected","milestone":"M00-scope","reason":"scope-verdict","class":null,"rule":null}
+{"kind":"escalation","milestone":"M00-scope","reason":null,"class":"other","rule":"scope-verdict"}
 --- M03 was never dispatched ---
 "M02" "M00-scope" "M04" 

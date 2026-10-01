@@ -1,1 +1,1 @@
-{"type":"assistant","uuid":"a1","timestamp":"2026-09-11T22:41:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"verdict printed"}]}}
+{"type":"assistant","uuid":"a1","timestamp":"2026-09-11T22:41:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"The work against the record.\n\n```baton\n{\"verdict\":\"pass\",\"finding\":\"The work adds the one line docs/one.md was owed, in plain text. It keeps the constraint and crosses no non-goal.\"}\n```"}]}}
