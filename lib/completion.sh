@@ -180,7 +180,8 @@ completion_in_scope() {
 }
 
 # completion_chain <repo> <baseline> <branch> <merged_as>: B, T, M and the paths the branch
-# changed, as one document, or the detail and status 1.
+# changed, as one document, or the detail and status 1. When the recorded baseline was replaced by
+# a history rewrite, B is its tree-identical equivalent and the document says so (see below).
 #
 # T is resolved once, at the top, and every later step reads that value: a second `rev-parse` of
 # the branch could answer with a commit the ancestry was never checked against, which is exactly
@@ -203,11 +204,44 @@ completion_chain() {
   cc_m=$(git -C "$cc_repo" rev-parse --verify --quiet "$cc_merged^{commit}" 2>/dev/null) \
     || { echo "$cc_merged is not a commit in $cc_repo"; return 1; }
 
+  cc_recorded=$cc_base
   cc_base=$(git -C "$cc_repo" rev-parse --verify --quiet "$cc_base^{commit}" 2>/dev/null) \
-    || { echo "the dispatch baseline recorded for $cc_branch is not a commit in $cc_repo"; return 1; }
+    || { echo "the dispatch baseline $cc_recorded recorded for $cc_branch is not a commit in $cc_repo, so no equivalent on the current history can be found"; return 1; }
+
+  # A baseline that is an ancestor of neither the branch tip nor the merge is a commit the current
+  # history has lost: a different branch's, or the old image of a history rewrite. A rewrite that
+  # changed only commit messages replaces every commit id and keeps every tree, so the commit
+  # Baton recorded has one tree-identical ancestor of the merge, which is that commit as the new
+  # history holds it. That ancestor stands in for it. A tree that no ancestor shares means the
+  # rewrite changed a file, and two that share it leave the answer a guess; both refuse, with the
+  # reason. A baseline the tip descends from has not been replaced, and the ordinary checks below
+  # judge it as they always did. Never a later attempt's baseline: that would shrink the range
+  # this proof measures (D-214).
+  cc_rewritten=''
+  if ! git -C "$cc_repo" merge-base --is-ancestor "$cc_base" "$cc_t" \
+     && ! git -C "$cc_repo" merge-base --is-ancestor "$cc_base" "$cc_m"; then
+    cc_tree=$(git -C "$cc_repo" rev-parse --verify --quiet "$cc_base^{tree}" 2>/dev/null) \
+      || { echo "the tree of the dispatch baseline $cc_base could not be read in $cc_repo"; return 1; }
+    cc_twins=$(git -C "$cc_repo" log --format='%H %T' "$cc_m" 2>/dev/null \
+      | awk -v t="$cc_tree" '$2 == t { print $1 }')
+    cc_twin_n=$(printf '%s' "$cc_twins" | awk 'END { print NR }')
+    cc_why="the dispatch baseline $cc_base is not an ancestor of $cc_branch at $cc_t, so the branch is not this attempt's"
+    case "$cc_twin_n" in
+      0) echo "$cc_why; no ancestor of $cc_m shares its tree $cc_tree, so no rewrite that kept every file explains it"
+         return 1 ;;
+      1) cc_rewritten=$cc_base; cc_base=$cc_twins ;;
+      *) echo "$cc_why; $cc_twin_n ancestors of $cc_m share its tree $cc_tree ($(printf '%s' "$cc_twins" | tr '\n' ' ' | sed 's/ $//')), so its equivalent is ambiguous"
+         return 1 ;;
+    esac
+  fi
 
   git -C "$cc_repo" merge-base --is-ancestor "$cc_base" "$cc_t" \
-    || { echo "the dispatch baseline $cc_base is not an ancestor of $cc_branch at $cc_t, so the branch is not this attempt's"; return 1; }
+    || { if [ -n "$cc_rewritten" ]; then
+           echo "the dispatch baseline $cc_rewritten, taken as its equivalent $cc_base on the rewritten history, is not an ancestor of $cc_branch at $cc_t, so the branch is not this attempt's"
+         else
+           echo "the dispatch baseline $cc_base is not an ancestor of $cc_branch at $cc_t, so the branch is not this attempt's"
+         fi
+         return 1; }
   git -C "$cc_repo" merge-base --is-ancestor "$cc_t" "$cc_m" \
     || { echo "$cc_branch at $cc_t is not an ancestor of $cc_merged, so the commit claimed as the merge does not carry the work"; return 1; }
 
@@ -218,9 +252,15 @@ completion_chain() {
   cc_changed=$(git -C "$cc_repo" -c core.quotePath=false diff --name-only "$cc_base" "$cc_t" 2>/dev/null) \
     || { echo "the changes between $cc_base and $cc_t could not be read in $cc_repo"; return 1; }
 
-  jq -nc --arg b "$cc_base" --arg t "$cc_t" --arg m "$cc_m" --arg br "$cc_branch" \
+  # `baseline` is the commit the range was measured from. After a rewrite that is the equivalent,
+  # and the two fields beside it say so, which is what tells a proof across a rewrite from an
+  # ordinary one.
+  jq -nc --arg b "$cc_base" --arg t "$cc_t" --arg m "$cc_m" --arg br "$cc_branch" --arg r "$cc_rewritten" \
     --argjson c "$(printf '%s' "$cc_changed" | jq -Rsc 'split("\n") | map(select(length > 0))')" \
-    '{baseline: $b, candidate: $t, integration: $m, branch: $br, changed_paths: $c}'
+    '{baseline: $b, candidate: $t, integration: $m, branch: $br, changed_paths: $c}
+     | if $r != "" then . + {recorded_baseline: $r,
+         baseline_basis: "the recorded baseline is not an ancestor of the integration commit; this is its one ancestor with an identical tree"}
+       else . end'
 }
 
 # completion_scope_check <repo> <milestone> <changed paths json>: at least one changed path inside

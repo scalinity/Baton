@@ -1,0 +1,3 @@
+echo "== M02 dispatched at a baseline a rewrite replaced, with two ancestors of the merge sharing its tree: the equivalent is ambiguous, so the chain is refused and says so =="
+sh "$ROOT/tests/completion-fixture.sh" rewritten-ambiguous
+sh "$ROOT/tests/consume-once.sh"

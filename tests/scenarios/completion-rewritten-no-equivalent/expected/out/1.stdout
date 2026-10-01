@@ -1,0 +1,2 @@
+== M02 dispatched at a baseline a rewrite replaced while changing a file in it: no ancestor of the merge shares its tree, so the chain is refused and says so ==
+rejected  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.json (completion-chain: the dispatch baseline @OLD@ is not an ancestor of m02 at @CANDIDATE@, so the branch is not this attempt's; no ancestor of @MERGE@ shares its tree @TREE@, so no rewrite that kept every file explains it)

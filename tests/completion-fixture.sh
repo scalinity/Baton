@@ -120,7 +120,7 @@ esac
 scoped=$(cf_commit "the milestone's brief declares its scope" docs/milestones/M02.md "$CF_SCOPE" "$root")
 base=$(cf_commit "the project's standing check" check.sh "$cf_check" "$scoped")
 
-candidate=''; merge=''; wrong=''; head=''
+candidate=''; merge=''; wrong=''; head=''; old=''; dup=''
 
 # The branch the shape's candidate is put on. Every milestone shape uses the milestone's own, and
 # the planning shapes use the planning lane's, because the lane's branch is what `completion_chain`
@@ -185,6 +185,37 @@ case "$shape" in
     candidate=$(cf_commit "the milestone's work" docs/one.md "one" "$base")
     merge=$(cf_merge "merge m02" "$candidate" "$base" "$candidate")
     ;;
+  # A message-only history rewrite after the dispatch: the baseline Baton recorded is the old image
+  # of `$base`, a commit with the same tree and a different message, and it is on no branch. The
+  # merge sits on the rewritten history, where `$base` is the baseline's equivalent.
+  rewritten)
+    candidate=$(cf_commit "the milestone's work" docs/one.md "one" "$base")
+    merge=$(cf_merge "merge m02" "$candidate" "$base" "$candidate")
+    old=$(git -C "$repo" commit-tree "$(git -C "$repo" rev-parse "$base^{tree}")" -p "$scoped" \
+      -m "the project's standing check
+
+Claude-Session: https://example.invalid/session")
+    ;;
+  # The same rewrite, but the recorded baseline's file differs from the one the new history holds,
+  # so no ancestor shares its tree: the rewrite changed a file, and that is not followed.
+  rewritten-changed)
+    candidate=$(cf_commit "the milestone's work" docs/one.md "one" "$base")
+    merge=$(cf_merge "merge m02" "$candidate" "$base" "$candidate")
+    old=$(cf_commit "the project's standing check, as the old history had it" check.sh "$cf_check
+# a line the rewrite removed" "$scoped")
+    ;;
+  # The rewritten history holds two commits with the baseline's tree, an empty commit beside the
+  # equivalent, so there is no single answer and none is chosen.
+  rewritten-ambiguous)
+    dup=$(git -C "$repo" commit-tree "$(git -C "$repo" rev-parse "$base^{tree}")" -p "$base" \
+      -m "an empty commit")
+    candidate=$(cf_commit "the milestone's work" docs/one.md "one" "$dup")
+    merge=$(cf_merge "merge m02" "$candidate" "$dup" "$candidate")
+    old=$(git -C "$repo" commit-tree "$(git -C "$repo" rev-parse "$base^{tree}")" -p "$scoped" \
+      -m "the project's standing check
+
+Claude-Session: https://example.invalid/session")
+    ;;
   *) echo "completion-fixture: unknown shape $shape" >&2; exit 2 ;;
 esac
 
@@ -196,6 +227,10 @@ cf_say CANDIDATE "$candidate"
 cf_say MERGE "$merge"
 [ -z "$wrong" ] || cf_say WRONG "$wrong"
 [ -z "$head" ] || cf_say HEAD "$head"
+[ -z "$old" ] || cf_say OLD "$old"
+[ -z "$dup" ] || cf_say DUP "$dup"
+cf_lost=${old:-$wrong}
+[ -z "$cf_lost" ] || cf_say TREE "$(git -C "$repo" rev-parse "$cf_lost^{tree}")"
 
 # The substitution into the scenario's own home/. A second run finds no placeholder left and
 # changes nothing, which is what lets the cmd be run twice.

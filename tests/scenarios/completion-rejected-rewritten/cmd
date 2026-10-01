@@ -1,0 +1,3 @@
+echo "== M02's handover was rejected completion-chain under the old rule and sits in rejected/; the session writes it again unchanged after a rewrite-aware relay lands: it is judged anew and consumed once, and the rejected copy is left as the record =="
+sh "$ROOT/tests/completion-fixture.sh" rewritten
+sh "$ROOT/tests/consume-once.sh"
