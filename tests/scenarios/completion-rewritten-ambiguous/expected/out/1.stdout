@@ -1,0 +1,2 @@
+== M02 dispatched at a baseline a rewrite replaced, with two ancestors of the merge sharing its tree: the equivalent is ambiguous, so the chain is refused and says so ==
+rejected  M02-11111111-2222-4333-8444-555555555555.json → @TMP@/home/rejected/M02-11111111-2222-4333-8444-555555555555.json (completion-chain: the dispatch baseline @OLD@ is not an ancestor of m02 at @CANDIDATE@, so the branch is not this attempt's; 2 ancestors of @MERGE@ share its tree @TREE@ (@DUP@ @BASELINE@), so its equivalent is ambiguous)

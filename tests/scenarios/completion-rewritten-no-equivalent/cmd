@@ -1,0 +1,3 @@
+echo "== M02 dispatched at a baseline a rewrite replaced while changing a file in it: no ancestor of the merge shares its tree, so the chain is refused and says so =="
+sh "$ROOT/tests/completion-fixture.sh" rewritten-changed
+sh "$ROOT/tests/consume-once.sh"
