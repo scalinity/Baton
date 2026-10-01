@@ -196,6 +196,7 @@ case "$shape" in
 
 Claude-Session: https://example.invalid/session")
     ;;
+  # Only a commit's tree is compared, never its parents, so the old image here may sit anywhere.
   # The same rewrite, but the recorded baseline's file differs from the one the new history holds,
   # so no ancestor shares its tree: the rewrite changed a file, and that is not followed.
   rewritten-changed)

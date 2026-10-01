@@ -226,6 +226,8 @@ completion_chain() {
     # read would arrive as "no ancestor shares the tree", the wrong reason for a refusal.
     cc_hist=$(git -C "$cc_repo" log --format='%H %T' "$cc_m" 2>/dev/null) \
       || { echo "the history of $cc_m could not be read in $cc_repo, so no equivalent of the dispatch baseline $cc_base can be found"; return 1; }
+    # `git log` lists the merge and the tip as well, so a baseline whose tree is theirs is ambiguous
+    # or a stand-in the scope test refuses, never a false acceptance.
     cc_twins=$(printf '%s\n' "$cc_hist" | awk -v t="$cc_tree" '$2 == t { print $1 }')
     cc_twin_n=$(printf '%s' "$cc_twins" | awk 'END { print NR }')
     cc_why="the dispatch baseline $cc_base is not an ancestor of $cc_branch at $cc_t, so the branch is not this attempt's"
@@ -233,7 +235,9 @@ completion_chain() {
       0) echo "$cc_why; no ancestor of $cc_m shares its tree $cc_tree, so no rewrite that kept every file explains it"
          return 1 ;;
       1) cc_rewritten=$cc_base; cc_base=$cc_twins ;;
-      *) echo "$cc_why; $cc_twin_n ancestors of $cc_m share its tree $cc_tree ($(printf '%s' "$cc_twins" | tr '\n' ' ' | sed 's/ $//')), so its equivalent is ambiguous"
+      *) cc_shown=$(printf '%s\n' "$cc_twins" | head -3 | tr '\n' ' ' | sed 's/ $//')
+         [ "$cc_twin_n" -le 3 ] || cc_shown="$cc_shown …"
+         echo "$cc_why; $cc_twin_n ancestors of $cc_m share its tree $cc_tree ($cc_shown), so its equivalent is ambiguous"
          return 1 ;;
     esac
   fi
@@ -262,7 +266,7 @@ completion_chain() {
     --argjson c "$(printf '%s' "$cc_changed" | jq -Rsc 'split("\n") | map(select(length > 0))')" \
     '{baseline: $b, candidate: $t, integration: $m, branch: $br, changed_paths: $c}
      | if $r != "" then . + {recorded_baseline: $r,
-         baseline_basis: "the recorded baseline is not an ancestor of the integration commit; this is its one ancestor with an identical tree"}
+         baseline_basis: "the recorded baseline is an ancestor of neither the branch tip nor the integration commit; this is the one ancestor of the integration commit with an identical tree"}
        else . end'
 }
 
