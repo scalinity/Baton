@@ -414,6 +414,20 @@ gate and an owed artifact, and it spends an admission slot. Nothing waits on its
 or a tick, because a slot held while its own answer is awaited is a lane nothing closes.
 _Avoid_: judgment request (that is the other role), helper session, subagent
 
+**Scope guard**:
+The judgment session that answers whether work still serves the confirmed intent record, on the
+reserved lane `M00-scope`, at plan adoption and at every close-out. It is given that record and the
+work, and nothing that argues for the work — not the brief, the plan's reasoning or an earlier
+verdict — and it runs with no tools and nothing inherited. Until it passes, the plan is not adopted
+and the close-out's successors are held.
+_Avoid_: reviewer, approval, sign-off
+
+**Drift**:
+The scope guard's finding that the work pursues something the goal does not ask for, breaks a
+constraint or does what a non-goal rules out. It always reaches a person, and only a person's ruling
+releases it.
+_Avoid_: deviation, scope creep (when the guard's finding is meant)
+
 **Planning lane**:
 The judgment session that writes a project's plan, on the reserved milestone id `M00-plan`. It runs
 for a project whose registration owes a plan, reads the repository and the confirmed goal, and writes

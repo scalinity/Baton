@@ -73,7 +73,7 @@ which gives its acceptance to M16; there is nothing for a person to clear.
 | REQ-ARTIFACT | 01–11 | **M01** (09: the gate; 04: the api-error hook), **M02** (01–08), **M10** (10, 11: the completion chain and Baton's own fields; 06 amended) |
 | REQ-TICK | 01–09 | M01 (08: the seams; 09: the installed relay), **M03** (01–07) |
 | REQ-STOP | 01–14 | M03 (08, 09, 10, 14), **M04** (01–07, 13), **M05** (11, 14 hand-back), M06 (12), M07-b (14: Remote Control messages), M15-b (08 amended: proven sleep comes off a transcript's age) |
-| REQ-ESC | 01–14 | M02 (11: `status`), M03 (02: the Mac message; 10: the gap), **M05** (01, 03–07, 09), M06 (04 project scope), M07 (08), **M15** (12, 13: the disposition table and the silent record; 05, 06 amended), **M15-b** (14: the host's account of a gap; 10–13 amended) |
+| REQ-ESC | 01–14 | M02 (11: `status`), M03 (02: the Mac message; 10: the gap), **M05** (01, 03–07, 09), M06 (04 project scope), M07 (08), **M15** (12, 13: the disposition table and the silent record; 05, 06 amended), **M15-b** (14: the host's account of a gap; 10–13 amended), M15-c (04 amended: `drift`) |
 | REQ-PLAN | 01–10 | **M01** (01–05, 06 for Baton, 07, 08), M08 (06 for Reclaim, superseded), M17 (08: the precondition report), **M11** (06 extended, 09, 10: the registered adaptation and the table's location) |
 | REQ-DISPATCH | 01–11 | **M01** (03–06, 08, 10), M03 (03 prune reserved), **M06** (01, 02, 09), **M07** (03 worktrees kept, 07), **M17** (11), M10 (09 amended: the one read of a target's tree) |
 | REQ-PERM | 01–05 | **M01** (01–04), M05 (02: `allow` as writer), M06 (05), M11 (02, 04: the rail derived for an arbitrary project from one recipe) |
@@ -82,8 +82,9 @@ which gives its acceptance to M16; there is nothing for a person to clear.
 | REQ-SETUP | 01–08 | **M01** (05), **M03** (01, 04, 07, 08), M07 (06), M03 (02, 03: checked, recorded) |
 | REQ-LIFE | 01–04 | **M07-b** (01–04) |
 | REQ-ONBOARD | 01–10 | **M11** (01–10), M12 (02 amended: generation authors the target's own plan and briefs) |
-| REQ-GENERATE | 01–12 | **M12** (01–12) |
+| REQ-GENERATE | 01–12 | **M12** (01–12), M15-c (11 amended: the guard at the boundary) |
 | REQ-BUDGET | 01–04 | **M14** (01–04) |
+| REQ-SCOPE | 01–05 | **M15-c** (01–05) |
 
 Every requirement in `docs/SPEC.md` §2 appears above; every milestone owns at least one in bold
 except M07 and M08, which are acceptance and onboarding.
@@ -150,6 +151,17 @@ the record it made instead of a message, and that last part is this milestone's 
 `status_render` re-derives only the *active* gap, so preserving the log alone does not satisfy it.
 The third file is held to five lines — read the newest recorded gap, print it unless the live line already names that marker — with the rendering and the reading both in the introduced file. M15-b's
 acceptance holds in full, so it is `done` and no `stopped` artifact is written (D-152).
+
+M15-c **crossed the count at seven and was not split** (D-204), inventoried before the first counted
+edit. The scope guard is the plan's second judgment role, and a judgment role is three counted
+files by M15's own measurement: `lib/dispatch.sh` (the lane's branch and its isolated launch),
+`lib/inbox.sh` (the verdict handover, and the request written onto the close-out's `consumed`
+event) and `lib/stops.sh` (one line standing the ladder off the lane). Each boundary is one more —
+`lib/planning.sh` at the line M12 marked, `lib/tick.sh` for the pass and the successors' hold — and
+the class is two, `lib/notify.sh` (one word) and `lib/disposition.sh` (the arm). No coherent split
+brings that under the threshold: the role alone is three, and a role without a boundary judges
+nothing that waits on it. Every decision is in the introduced `lib/scope.sh`. M15-c's acceptance
+holds in full, so it is `done` and no `stopped` artifact is written (D-152).
 
 A milestone is split before implementation if its checklist has more than about 15 items or
 touches more than two counted `lib/` files beyond the ones it introduces. By the owner's amendment
