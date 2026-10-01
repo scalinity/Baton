@@ -1,0 +1,14 @@
+set -eu
+# An earlier replan of M02 was adopted from a proved planning completion, and M02, redispatched from
+# it, came back blocked by M09 and was parked without a message. The request for that park wrote
+# `plan_owed` and the tick ended before its `requested` event. The plan on `main` is the one the
+# earlier replan adopted, the scope guard has already passed it, and the earlier request is the newest
+# on record — so a generation pass that ran first would measure that plan as landed, adopt it as the
+# answer to this park, and close the park in silence. The replan pass runs first and writes the
+# missing event, after which nothing has landed for this request: the planning lane is dispatched
+# for it, with no Mac message, and the second run writes nothing new.
+"$BATON" tick || true
+printf '%s\n' '--- the registration after the tick ---'
+jq -c '{plan_owed: (.plan_owed.replan // "cleared"), start: .start.at}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.at >= "2026-09-19T10") | {kind, milestone, class, outcome, attempts, replan, how, attempt}' "$BATON_HOME/log.jsonl"

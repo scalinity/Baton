@@ -629,8 +629,9 @@ replan_route() {
   replan_request "$1" "$rrt_park" || true
 }
 
-# replan_pass <project> <rows json>: the per-tick half, run beside `planning_pass` so that an
-# exhaustion that pass records is acted on in the same tick. For every standing park this route
+# replan_pass <project> <rows json>: the per-tick half, run just before `planning_pass`, so that a
+# request whose event was lost is whole before generation reads the newest `requested` event; an
+# exhaustion that pass records is acted on by the next tick's. For every standing park this route
 # raised:
 #
 #   * **answered** — an `adopted` event names its `at`: nothing. `onboard_commit` removes `plan_owed`
@@ -672,7 +673,13 @@ replan_pass() {
     esac
     if [ "$rps_owed" = "$rps_at" ]; then
       case "$rps_state" in
-        unrequested) replan_requested_event "$1" "$rps_k" || rps_status=1 ;;
+        unrequested)
+          if replan_requested_event "$1" "$rps_k"; then
+            render_row out action 'replan    %s/%s · requested · the request a tick ended part-way through is completed\n' \
+              "$(render_token out lane "$1")" "$(render_token out milestone "$(printf '%s' "$rps_k" | jq -r .milestone)")"
+          else
+            rps_status=1
+          fi ;;
         exhausted)
           replan_deliver "$1" "$rps_k" exhausted \
             "$(planning_attempts "$1" 2>/dev/null || printf 'its') replan attempts, none adopted; repair the plan, then run baton onboard $(project_path "$1" 2>/dev/null || printf '<path>')" \

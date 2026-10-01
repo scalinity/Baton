@@ -1,3 +1,4 @@
+replan    Fixture/M02 · 3 replan attempts, none adopted; repair the plan, then run baton onboard @TMP@/Fixture · the park's message is delivered now
 --- the registration ---
 {"plan_format":"native","owed":{"owner":"M15-d","reason":"attempt 3 wrote a plan Baton will not adopt: 1 thing to repair, the first being docs/MILESTONES.md row 1 leaves M01 blank, and Baton proved M01 complete","replan":{"milestone":"M02","class":"unfinished-twice","at":"2026-09-18T12:01:00+01:00"}},"start":["M01"]}
 --- what the ticks recorded ---

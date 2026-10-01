@@ -435,6 +435,17 @@ tick_run() {
     #    pass asks whether the planning lane has a live session, and a listing the service failed to
     #    produce would answer no for every lane alike. A plan waiting one more minute costs nothing.
     if [ "$tr_rows_ok" = yes ]; then
+      #    The replan route's per-tick half, before generation. A request whose event a tick never
+      #    wrote is repaired here first, because `planning_landed` and `planning_attempts` key on the
+      #    newest `requested` event: read before the repair, that is an earlier replan's, whose proved
+      #    completion would have the plan already on `main` measured, passed and adopted as the answer
+      #    to a park it was never asked about. The pass also delivers a park raised without a message
+      #    once its replan can no longer arrive (`lib/disposition.sh`); an exhaustion generation records
+      #    below is delivered by the next tick's pass, a minute later.
+      replan_pass "$tr_key" "$tr_rows" || {
+        render_row out action 'replan      %s · the replan pass failed this tick\n' "$(render_token out lane "$tr_key")"
+        tr_status=3
+      }
       if tr_planning=$(planning_pass "$tr_key" "$tr_rows"); then
         render_lines "$(printf '%s' "$tr_planning" | jq -c .lines)" action
         tr_cands=$(printf '%s' "$tr_cands" | jq -c \
@@ -443,13 +454,6 @@ tick_run() {
         render_row out action 'generate    %s · the plan generation pass failed this tick\n' "$(render_token out lane "$tr_key")"
         tr_status=3
       fi
-      #    The replan route's per-tick half, after generation so that an exhaustion that pass has just
-      #    recorded is delivered in the same tick: a park raised without a message is told to the
-      #    person once its replan can no longer arrive (`lib/disposition.sh`).
-      replan_pass "$tr_key" "$tr_rows" || {
-        render_row out action 'replan      %s · the replan pass failed this tick\n' "$(render_token out lane "$tr_key")"
-        tr_status=3
-      }
       #    The scope guard's pass, beside generation and before the self-check for generation's
       #    reason: the guard of a plan awaiting adoption belongs to a project that fails the
       #    self-check. Its one candidate joins the same list (`lib/scope.sh`).

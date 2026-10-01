@@ -5,10 +5,10 @@ set -eu
 # unchanged) and commissions no fourth.
 #
 # The park has told nobody, and the route that answered for it is over, so its own message is
-# delivered now, once: the `delivered` event first, naming the park by its `at`, and then the message —
-# the park's class, its carries and its verb, led by one sentence saying the replan was tried and how
-# to end it. calls.log holds exactly one osascript across both runs; the second run finds the park
-# delivered and sends nothing. The park stands as it was, under its own class: no class is spent.
+# delivered by the second run's replan pass, which runs before generation, once: the `delivered` event
+# first, naming the park by its `at`, and then the message — the park's class, its carries and its verb,
+# led by one sentence saying the replan was tried and how to end it. calls.log holds exactly one
+# osascript across both runs. The park stands as it was, under its own class: no class is spent.
 # The project stays held, because the refused plan is still the one on main, until a person repairs it
 # and runs `baton onboard`, which drops `plan_owed`.
 "$BATON" tick || true

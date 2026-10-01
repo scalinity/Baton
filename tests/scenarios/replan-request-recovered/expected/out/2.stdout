@@ -1,8 +1,3 @@
-backgrounded · 0badc0d1 · Baton · Fixture · M00-plan
-session   0badc0d1-0000-4000-8000-000000000000 (attempt 4)
-worktree  @TMP@/home/worktrees/Fixture/M00-plan (branch m00-plan)
-settings  @TMP@/home/settings/Fixture-M00-plan.json
-prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
 --- the registration ---
 {"plan_format":"native","owed":{"owner":"M15-e","reason":"M02 is parked unfinished-twice, and the plan is what is wrong","replan":{"milestone":"M02","class":"unfinished-twice","at":"2026-09-19T07:30:00+01:00"}},"start":["M01"]}
 --- what the ticks recorded ---
