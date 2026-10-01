@@ -130,10 +130,12 @@ planning_landed() {
 # `{milestone, class, at, detail}`, naming the standing park that asked for it — or status 1 when the
 # plan owed is M12's first plan rather than a replacement. The one test for "this generation replaces
 # a plan", asked of the registration, as `planning_owed` asks it whether anything is owed at all.
+# A record with no `at` is not a replan: `at` is the key the park is found again by, and a replan
+# whose adoption could close nothing would leave the lane parked under the plan it replaced.
 planning_replan() {
   prp_f=$BATON_HOME/projects/$1/project.json
   [ -f "$prp_f" ] || return 1
-  jq -ce '.plan_owed.replan | select(type == "object" and (.milestone // "") != "")' "$prp_f" 2>/dev/null
+  jq -ce '.plan_owed.replan | select(type == "object" and (.milestone // "") != "" and (.at // "") != "")' "$prp_f" 2>/dev/null
 }
 
 # planning_history <project key>: what Baton's own record says has happened to the project's
@@ -557,7 +559,9 @@ planning_prompt() {
   ppt_key=$1; ppt_c=$2; ppt_doc=$3; ppt_defects=$4; ppt_attempt=$5
   ppt_check=$(printf '%s' "$ppt_doc" | jq -r '.check.command // ""')
   [ -n "$ppt_check" ] || ppt_check='(none detected; say so rather than inventing one)'
-  ppt_replan=$(printf '%s' "$ppt_doc" | jq -c '.plan_owed.replan | select(type == "object" and (.milestone // "") != "")')
+  # The registration's own reading, so the prompt and the validator cannot disagree about whether this
+  # is a replan; `ppt_doc` is that same file, read by the caller a moment ago.
+  ppt_replan=$(planning_replan "$ppt_key") || ppt_replan=''
   ppt_kept=''
   if [ -n "$ppt_replan" ]; then
     ppt_hist=$(planning_history "$ppt_key") || return 1
@@ -1109,15 +1113,14 @@ planning_adopt() {
   else
     pa_kept=$(printf '%s' "$pa_res" | jq -r '[.tables.milestones[] | select(.status == "done")] | length')
     pa_rm=$(printf '%s' "$pa_replan" | jq -r .milestone)
-    pa_rc=$(printf '%s' "$pa_replan" | jq -r '.class // ""')
     pa_rat=$(printf '%s' "$pa_replan" | jq -r '.at // ""')
     planning_record "$pa_key" adopted "$pa_attempt" \
       "$(jq -nc --arg p "$pa_plan" --argjson n "$pa_count" --argjson k "$pa_kept" --argjson r "$pa_replan" \
-         '{plan: $p, milestones: $n, kept_done: $k, replan: ($r | {milestone, class})}')"
+         '{plan: $p, milestones: $n, kept_done: $k, replan: ($r | {milestone, class, at})}')"
     pa_lines="$pa_lines$(render_plain 'replanned %s · %s · %s milestone%s, %s kept done · the plan %s was parked under is replaced' \
       "$pa_key" "$pa_plan" "$pa_count" "$pa_plural" "$pa_kept" "$pa_rm")
 "
-    planning_close_park "$pa_key" "$pa_rm" "$pa_rc" "$pa_rat"
+    planning_close_park "$pa_key" "$pa_rm" "$pa_rat"
   fi
   [ -z "$pa_start" ] || pa_lines="$pa_lines$(render_plain 'starting  %s · %s' "$pa_key" "$pa_start")
 "
@@ -1132,7 +1135,7 @@ planning_verdict() {
     '{adopted: $a, lines: ($l | split("\n") | map(select(length > 0)))}'
 }
 
-# planning_close_park <project key> <milestone> <class> <park at>: the replan's one act on the park
+# planning_close_park <project key> <milestone> <park at>: the replan's one act on the park
 # that asked for it, once the plan it was parked under has been replaced. A helper of
 # `planning_adopt` alone, which is why it writes that function's line collector.
 #
@@ -1142,30 +1145,40 @@ planning_verdict() {
 # of `disposition_of`, and anything but `replan` is left standing with a line saying so. That is the
 # whole of why a replan cannot clear an escalation of any other class: it never resolves one.
 #
-# A resolution that could not be written leaves the park standing, which holds the lane rather than
-# freeing it; the line says so and the adoption stands, because the plan is adopted either way and a
-# park is the safe side to err on.
+# A park that no longer stands is said so on a line, so that `status` showing no park and the log
+# showing no resolution from this adoption are explained rather than left to look like a miss.
+#
+# A resolution that could not be written — or a tick that ended between the adoption and this — leaves
+# the park standing with `plan_owed` already gone, so nothing here retries it. The lane is held rather
+# than freed, which is the side to err on, and the `adopted` event names the park's `at`, which is
+# what lets the request in `docs/milestones/M15-e.md` tell an answered park from a new one rather than
+# asking for the plan just adopted to be replaced again.
 planning_close_park() {
   pcp_parked=$(derive_parked "$1") || { render_failure err "$pcp_parked"; return 0; }
-  pcp_park=$(printf '%s' "$pcp_parked" | jq -c --arg m "$2" --arg at "$4" \
+  pcp_park=$(printf '%s' "$pcp_parked" | jq -c --arg m "$2" --arg at "$3" \
     'first(.parked[] | select(.scope == "lane" and .milestone == $m and .at == $at)) // empty')
-  [ -n "$pcp_park" ] || return 0
+  if [ -z "$pcp_park" ]; then
+    pa_lines="$pa_lines$(render_plain 'replanned %s/%s · the park raised at %s no longer stands, so there is nothing to close' \
+      "$1" "$2" "$3")
+"
+    return 0
+  fi
   pcp_class=$(printf '%s' "$pcp_park" | jq -r .class)
   pcp_d=$(disposition_of escalation "$pcp_class" "$(printf '%s' "$pcp_park" | jq -c '.carries // {}')" 2>/dev/null) || pcp_d=''
   if [ "$pcp_d" != replan ]; then
     pa_lines="$pa_lines$(render_plain 'replanned %s/%s · the park raised at %s is %s, which is not a replan'"'"'s to close · it stands' \
-      "$1" "$2" "$4" "$pcp_class")
+      "$1" "$2" "$3" "$pcp_class")
 "
     return 0
   fi
   if ! resolve "$1" "$2" "$(printf '%s' "$pcp_park" | jq -r '.session // ""')" \
-       "$(printf '%s' "$pcp_park" | jq -r '.attempt // ""')" "$4" edit; then
-    pa_lines="$pa_lines$(render_plain 'replanned %s/%s · the park raised at %s could not be closed · it stands' "$1" "$2" "$4")
+       "$(printf '%s' "$pcp_park" | jq -r '.attempt // ""')" "$3" edit; then
+    pa_lines="$pa_lines$(render_plain 'replanned %s/%s · the park raised at %s could not be closed · it stands' "$1" "$2" "$3")
 "
     return 0
   fi
   pa_lines="$pa_lines$(render_plain 'unparked  %s/%s · the plan it was parked under (%s) is replaced · the park raised at %s is closed' \
-    "$1" "$2" "$pcp_class" "$4")
+    "$1" "$2" "$pcp_class" "$3")
 "
 }
 
