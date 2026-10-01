@@ -88,7 +88,7 @@ which gives its acceptance to M16; there is nothing for a person to clear.
 | REQ-SETUP | 01–08 | **M01** (05), **M03** (01, 04, 07, 08), M07 (06), M03 (02, 03: checked, recorded) |
 | REQ-LIFE | 01–04 | **M07-b** (01–04) |
 | REQ-ONBOARD | 01–10 | **M11** (01–10), M12 (02 amended: generation authors the target's own plan and briefs) |
-| REQ-GENERATE | 01–12 | **M12** (01–12), M15-c (11 amended: the guard at the boundary) |
+| REQ-GENERATE | 01–18 | **M12** (01–12), M15-c (11 amended: the guard at the boundary), **M15-d** (13–15: a replacement measured against Baton's record, its prompt, its adoption), **M15-e** (16–18: the request, the hold while it runs, the park's delivery when it ends) |
 | REQ-BUDGET | 01–04 | **M14** (01–04) |
 | REQ-SCOPE | 01–05 | **M15-c** (01–05) |
 
