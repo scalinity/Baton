@@ -446,15 +446,23 @@ rejection_resolve_check() {
 # the request again — delivers the park's own message once, and spends no new class (clause 2 above).
 # `replan_pass` is the per-tick half that notices each of those.
 
-# replan_gate <project> <milestone> <rows json>: whether a replan may be requested for a park of this
-# milestone. Nothing and status 0 when it may; one sentence and status 1 when it may not, which is
-# the reason the park goes to the person instead. A reading that fails refuses, because the refusal
-# is the side that tells somebody.
+# replan_gate <project> <milestone> <class> <rows json>: whether a replan may be requested for a park
+# of this milestone and class. Nothing and status 0 when it may; one sentence and status 1 when it may
+# not, which is the reason the park goes to the person instead. A reading that fails refuses, because
+# the refusal is the side that tells somebody.
 #
 # The conditions, cheapest first, and each is a certain refusal further down the line:
 #
 #   * **No plan already owed.** `plan_owed` is one record; a second request would overwrite the
 #     first one's park, or a first plan's reason, and leave that one with nobody coming for it.
+#   * **No replan already tried for this run of endings.** An adoption closes the park with an
+#     `edit`, and `declared_step` judges the ending again under the new plan: a blocker the new plan
+#     still does not hold parks the lane again from the same ending, and one more `unfinished` after
+#     the redispatch makes the run longer, not new. Either way the replan was tried and the lane came
+#     back the same way, so a second request would be the same answer asked for again, silently and
+#     with no bound — each request starts `planningAttempts` afresh. The run is the lane's trailing
+#     session-written endings of the class's reason, and an `adopted` replan of this milestone and
+#     class after its first one refuses: the park goes to the person, as it did before the route.
 #   * **A confirmed goal** — the planning input, as `planning_pass` refuses a first plan without one.
 #   * **A `native` plan registered at `docs/MILESTONES.md`.** A replacement is read as strictly as a
 #     first plan and proved against the planning lane's scope, which is that path and the briefs, so an
@@ -478,6 +486,21 @@ replan_gate() {
     echo "a plan is already owed ($(printf '%s' "$rgt_owed" | jq -r '.reason // "no reason recorded"'))"
     return 1
   fi
+  rgt_log=$(log_json) || { echo "Baton's record of the project could not be read"; return 1; }
+  rgt_tried=$(printf '%s' "$rgt_log" | jq -r --arg p "$1" --arg m "$2" --arg c "$3" --arg pm "$PLANNING_ID" '
+    ({"unfinished-twice": "unfinished", "blocked": "blocked"}[$c] // $c) as $r
+    | [ to_entries[] | {i: .key} + .value | select(.project == $p) ] as $ev
+    | ([ $ev[] | select(.kind == "consumed" and .milestone == $m and .written_by == "session") ]
+       | reverse) as $s
+    | (([ range(0; $s | length) | select($s[.].reason != $r) ] | first) // ($s | length)) as $n
+    | (if $n == 0 then -1 else $s[$n - 1].i end) as $from
+    | [ $ev[] | select(.kind == "plan_generation" and .milestone == $pm and .outcome == "adopted"
+                       and .replan.milestone == $m and .replan.class == $c and .i > $from) ]
+    | last | .at // empty') || { echo "Baton's record of the project could not be read"; return 1; }
+  if [ -n "$rgt_tried" ]; then
+    echo "a replan for this $3 was adopted at $rgt_tried and $2 has come back the same way"
+    return 1
+  fi
   if ! jq -e '(.goal // "") != ""' "$rgt_f" > /dev/null 2>&1; then
     echo "the registration carries no confirmed goal to replan against · run baton onboard $(project_path "$1" 2>/dev/null || printf '<path>')"
     return 1
@@ -488,7 +511,7 @@ replan_gate() {
     echo "the plan is ${rgt_fmt:-of no recorded format} at ${rgt_plan:-no recorded path}, and only a native plan at $PLANNING_PLAN can have a replacement adopted"
     return 1
   fi
-  rgt_fl=$(derive_in_flight "$1" "$3") || { echo "the open lanes could not be read"; return 1; }
+  rgt_fl=$(derive_in_flight "$1" "$4") || { echo "the open lanes could not be read"; return 1; }
   rgt_open=$(printf '%s' "$rgt_fl" | jq -r --arg m "$2" --arg s "$SCOPE_ID" '
     [ (.in_flight + .no_row)[] | .milestone | select(. != $m and . != $s) ] | unique | join(", ")')
   if [ -n "$rgt_open" ]; then
@@ -592,7 +615,7 @@ replan_requested_event() {
 # `replan_pass`'s to find on the next tick — the gate is asked again there and the message delivered
 # if it refuses — so the park is still this function's and the status is 0.
 replan_route() {
-  if ! rrt_no=$(replan_gate "$1" "$2" "$7"); then
+  if ! rrt_no=$(replan_gate "$1" "$2" "$5" "$7"); then
     render_row out action 'replan    %s/%s · not requested: %s · the park goes to the person\n' \
       "$(render_token out lane "$1")" "$(render_token out milestone "$2")" "$rrt_no"
     return 1
@@ -662,7 +685,7 @@ replan_pass() {
         replan_deliver "$1" "$rps_k" ended "the replan was ended without a plan being adopted" || rps_status=1 ;;
       unrequested)
         rps_m=$(printf '%s' "$rps_k" | jq -r .milestone)
-        if rps_no=$(replan_gate "$1" "$rps_m" "$2"); then
+        if rps_no=$(replan_gate "$1" "$rps_m" "$(printf '%s' "$rps_k" | jq -r .class)" "$2"); then
           replan_request "$1" "$rps_k" || rps_status=1
         else
           replan_deliver "$1" "$rps_k" refused "no replan could be requested: $rps_no" || rps_status=1

@@ -1,0 +1,1 @@
+Seeded for this scenario: a scope guard has already judged this plan, and passed it, before the scenario begins.

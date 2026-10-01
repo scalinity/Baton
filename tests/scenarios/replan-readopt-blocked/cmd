@@ -1,0 +1,12 @@
+set -eu
+# M02 came back blocked by M09, which no plan holds, and was parked without a message while a replan
+# was requested. The planning session's plan is proved and the scope guard has passed it, so this tick
+# adopts it and closes M02's park as an edit — but the new plan still holds no M09, so the declared
+# stop parks M02 again from the same ending. A replan was adopted for this run of endings and the
+# lane came back the same way: no second request is made, and the park reaches the person with its
+# Mac message, once across both runs.
+"$BATON" tick || true
+printf '%s\n' '--- the registration after the tick ---'
+jq -c '{plan_owed: (.plan_owed // "cleared")}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the tick recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, outcome, replan, how}' "$BATON_HOME/log.jsonl"
