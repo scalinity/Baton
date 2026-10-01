@@ -4,12 +4,10 @@ set -eu
 # and the repair being to write done back. The park on M02 stands, and with attempts to spare the
 # next replan attempt is dispatched at once, its prompt carrying the defect.
 #
-# The M01 dispatch beside it is the measured gap this milestone leaves, recorded here rather than
-# hidden: the refused plan is on main, where the planning session merged it, and the project has
-# handovers in force, so the tick reads that plan live and the old starting handover's `run` for M01
-# meets a row that now reads blank. Nothing writes `plan_owed.replan` in production until
-# docs/milestones/M15-e.md, whose hold on the project while a replan is owed is what removes this
-# dispatch; that milestone moves this expectation.
+# M01 is not dispatched again. The refused plan is on main, where the planning session merged it,
+# and the old starting handover's `run` for M01 would meet a row that now reads blank — but step 5 is
+# skipped for a project owing a replan (docs/milestones/M15-e.md's hold), so nothing of the project
+# but the planning lane is dispatched until a plan is adopted.
 "$BATON" tick || true
 printf '%s\n' '--- the registration ---'
 jq -c '{plan, plan_format, owed: ((.plan_owed // {}) | {owner, replan: (.replan.milestone // null), defects: [(.defects // [])[] | .what]}), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"

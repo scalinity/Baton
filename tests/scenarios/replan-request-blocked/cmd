@@ -1,0 +1,16 @@
+set -eu
+# M02 stopped blocked on M09, which the plan neither holds nor makes eligible nor shows in flight, so
+# nothing is coming to unblock it. That is the second class `disposition_of` assigns `replan` — a graph
+# with an edge nothing will satisfy is the plan being wrong — and the request's gate holds as it does
+# in replan-request. The park is raised without a Mac message, with the blocked lane's receipt
+# (blocker-and-instructions), and the request names it: `plan_owed.replan` carries class `blocked`,
+# which is what the replan prompt tells the planning session it is answering. The second tick
+# dispatches the planning lane; nothing in calls.log is an osascript.
+"$BATON" tick || true
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

@@ -1,0 +1,8 @@
+holds              0 held
+owed               1 a plan is already owed (a first plan is owed)
+adapted            1 the plan is adapted at docs/MILESTONES.md, and only a native plan at docs/MILESTONES.md can have a replacement adopted
+elsewhere          1 the plan is native at PLAN.md, and only a native plan at docs/MILESTONES.md can have a replacement adopted
+project-park       1 the project is parked (plan-unreadable)
+planning-leftover  0 held
+planning-live      1 another lane runs from this plan (M00-plan)
+sibling-rowless    1 another lane runs from this plan (M03)

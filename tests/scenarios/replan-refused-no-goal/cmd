@@ -1,0 +1,14 @@
+set -eu
+# M02 has ended unfinished twice, as in replan-request, but the registration's confirmed goal is empty:
+# a confirmation that never completed, or a hand edit that emptied it. The goal is the planning input
+# and there is no second source for it, so no replan is requested. The line says why and names the verb
+# that supplies a goal, `baton onboard <path>`, and the park is raised by `escalate` as it always has
+# been — with its Mac message, because the route that would have answered it is not available. Nothing
+# is owed, no `requested` event is written, and step 5 is not held.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

@@ -1,0 +1,5 @@
+[cwd @TMP@] claude agents --json
+osascript -e 'display notification "blocked by M09, which the plan neither holds nor makes eligible nor shows in flight · the session said: M02 needs the schema M09 publishes · edit the plan, or baton answer M02 \"<ruling>\"" with title "Baton · Fixture/M02 · blocked"'
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json
+[cwd @TMP@] claude agents --json

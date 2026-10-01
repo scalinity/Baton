@@ -1,0 +1,12 @@
+replanned Fixture · docs/MILESTONES.md · 3 milestones, 1 kept done · the plan M02 was parked under is replaced
+unparked  Fixture/M02 · the plan it was parked under (blocked) is replaced · the park raised at 2026-09-18T12:01:00+01:00 is closed
+starting  Fixture · M02, M03
+replan    Fixture/M02 · not requested: a replan for this blocked was adopted at 2026-09-19T08:00:00+01:00 and M02 has come back the same way · the park goes to the person
+blocked   Fixture/M02 · nothing is coming to unblock M09 · the lane is parked
+--- the registration after the tick ---
+{"plan_owed":"cleared"}
+--- what the tick recorded ---
+{"kind":"onboarded","milestone":null,"class":null,"channel":null,"outcome":null,"replan":null,"how":null}
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"channel":null,"outcome":"adopted","replan":{"milestone":"M02","class":"blocked","at":"2026-09-18T12:01:00+01:00"},"how":null}
+{"kind":"resolution","milestone":"M02","class":null,"channel":null,"outcome":null,"replan":null,"how":"edit"}
+{"kind":"escalation","milestone":"M02","class":"blocked","channel":["notification"],"outcome":null,"replan":null,"how":null}

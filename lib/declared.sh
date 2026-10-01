@@ -1,8 +1,9 @@
 #!/bin/sh
 # lib/declared.sh — the declared stops of REQ-STOP-12: an ending the session chose and named, with a
-# reason and a detail it wrote. `unfinished` redispatches and escalates on the second in a row;
-# `blocked` waits silently for a blocker that is coming and escalates one that is not; a handover
-# `wait` whose target nothing is going to finish notifies once.
+# reason and a detail it wrote. `unfinished` redispatches and parks on the second in a row;
+# `blocked` waits silently for a blocker that is coming and parks on one that is not; a handover
+# `wait` whose target nothing is going to finish notifies once. Both parks are the plan being wrong,
+# so each asks for a replan first and escalates only when one cannot be requested (`replan_route`).
 #
 # The seam against lib/stops.sh is who named the ending (D-070): there, Baton detected it and climbs
 # a ladder over it; here, the session declared it. `stops_run` drives both.
@@ -104,8 +105,16 @@ declared_step() {
             return 0 ;;
           ruling) return 0 ;;
         esac
-        escalate "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice lane \
-          "$(splits_carries "$dst_run" "$dst_m" unfinished)"
+        # The class's disposition is `replan`: the plan is what is wrong, so where the request's gate
+        # passes the park is raised without a message and a planning session is asked for the plan
+        # instead (`replan_route`). Where it does not, the person is told, because the route is not
+        # available — the line `replan_route` printed says why.
+        dst_carries=$(splits_carries "$dst_run" "$dst_m" unfinished)
+        if replan_route "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice "$dst_carries" "$4" \
+             "$(printf 'unfinished %s/%s · twice in a row · the lane is parked without a message, because the plan is what is wrong' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")")"; then
+          return 0
+        fi
+        escalate "$1" "$dst_m" "$dst_s" "$dst_a" unfinished-twice lane "$dst_carries"
         render_row out action 'unfinished %s/%s · twice in a row · the lane is parked with both splits\n' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")"
       else
         # Not a failure ending: the session came back and said what it had done, which is the
@@ -147,9 +156,15 @@ declared_step() {
           dst_says="blocked by $dst_by, which the plan neither holds nor makes eligible nor shows in flight"
           [ "$dst_state" != waiting ] || dst_says="blocked by $dst_by, which is in the plan but is neither done, eligible nor in flight, so nothing is coming to unblock it"
           [ -z "$dst_detail" ] || dst_says="$dst_says · the session said: $dst_detail"
-          escalate "$1" "$dst_m" "$dst_s" "$dst_a" blocked lane \
-            "$(jq -nc --arg b "$dst_by" --arg s "$dst_state" --arg d "$dst_says" \
-               '{blocked_by: $b, blocker_state: $s, detail: $d}')"
+          dst_carries=$(jq -nc --arg b "$dst_by" --arg s "$dst_state" --arg d "$dst_says" \
+            '{blocked_by: $b, blocker_state: $s, detail: $d}')
+          # A graph with an edge nothing will satisfy is the plan being wrong, the same route as
+          # `unfinished-twice` above, and the same fallback to the person when the gate refuses.
+          if replan_route "$1" "$dst_m" "$dst_s" "$dst_a" blocked "$dst_carries" "$4" \
+               "$(printf 'blocked   %s/%s · nothing is coming to unblock %s · the lane is parked without a message, because the plan is what is wrong' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")" "$(render_token out milestone "$dst_by")")"; then
+            return 0
+          fi
+          escalate "$1" "$dst_m" "$dst_s" "$dst_a" blocked lane "$dst_carries"
           render_row out action 'blocked   %s/%s · nothing is coming to unblock %s · the lane is parked\n' "$(render_token out lane "$1")" "$(render_token out milestone "$dst_m")" "$(render_token out milestone "$dst_by")"
           ;;
       esac

@@ -1,0 +1,9 @@
+replan    Fixture/M02 · not requested: 1 done row Baton never proved complete (M01): a replacement would be refused for keeping such a row done, or would blank it and have it built again · the park goes to the person
+unfinished Fixture/M02 · twice in a row · the lane is parked with both splits
+--- the registration ---
+{"plan_format":"native","owed":null,"start":["M01"]}
+--- what the ticks recorded ---
+{"kind":"escalation","milestone":"M02","class":"unfinished-twice","channel":["notification"],"receipt":"instructions","outcome":null,"attempts":null,"replan":null,"why":null,"how":null,"attempt":2}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+parked  Fixture/M02 · unfinished-twice · M02 ended unfinished twice in a row; the newest says: split at item 2: saying it back is its own session · the previous says: split at checklist item 5; M02-b takes the derivations · edit the plan; a split is a plan edit

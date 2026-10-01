@@ -1,0 +1,7 @@
+--- the registration after the tick ---
+{"plan_owed":"cleared"}
+--- what the tick recorded ---
+{"kind":"onboarded","milestone":null,"class":null,"channel":null,"outcome":null,"replan":null,"how":null}
+{"kind":"plan_generation","milestone":"M00-plan","class":null,"channel":null,"outcome":"adopted","replan":{"milestone":"M02","class":"blocked","at":"2026-09-18T12:01:00+01:00"},"how":null}
+{"kind":"resolution","milestone":"M02","class":null,"channel":null,"outcome":null,"replan":null,"how":"edit"}
+{"kind":"escalation","milestone":"M02","class":"blocked","channel":["notification"],"outcome":null,"replan":null,"how":null}

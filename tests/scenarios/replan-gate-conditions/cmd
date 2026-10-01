@@ -1,0 +1,43 @@
+set -eu
+. "$ROOT/tests/lib-load.sh"
+# The request's gate asked directly, for M02's unfinished-twice, in the states no tick-level scenario
+# reaches. The gate writes nothing; each case changes one fact, asks, and puts the files back, so both
+# runs of this file see the same starting home.
+#
+#   holds              the starting state: replan-request's, where every condition is met
+#   owed               a plan already owed: refused, because plan_owed is one record
+#   adapted            an adapted plan: refused, a replacement of one can never be adopted
+#   elsewhere          a native plan registered at another path: refused for the same reason
+#   project-park       a project-scope park: refused, the planning lane could not start under it
+#   planning-leftover  a planning attempt that ended without completing and has no live row: held,
+#                      because the planning lane works only while a plan is owed
+#   planning-live      the same attempt with a live row: refused, a planning session is running
+#   sibling-rowless    another milestone's lane with no live row: refused, it runs from this plan
+reg=$BATON_HOME/projects/Fixture/project.json
+log=$BATON_HOME/log.jsonl
+cp "$reg" "$BATON_HOME/reg.keep"; cp "$log" "$BATON_HOME/log.keep"
+rows=$(cat "$SCENARIO/rows.json")
+ask() {
+  if out=$(replan_gate Fixture M02 unfinished-twice "$2"); then st=0; else st=1; fi
+  printf '%-18s %s %s\n' "$1" "$st" "${out:-held}"
+  cp "$BATON_HOME/reg.keep" "$reg"; cp "$BATON_HOME/log.keep" "$log"
+}
+dispatch_line() {
+  printf '{"at":"2026-09-18T13:00:00+01:00","kind":"dispatch","project":"Fixture","milestone":"%s","session":"%s","attempt":4,"name":"Baton · Fixture · %s","model":"opus","remote":false,"worktree":"/w","branch":"m","worktree_reused":false,"settings":"/s","prompt_path":"/p","prompt_sha256":"0000000000000000000000000000000000000000000000000000000000000000"}\n' "$1" "$2" "$1"
+}
+ask holds "$rows"
+jq '.plan_owed = {reason: "a first plan is owed", owner: "M11"}' "$BATON_HOME/reg.keep" > "$reg"
+ask owed "$rows"
+jq '.plan_format = "adapted"' "$BATON_HOME/reg.keep" > "$reg"
+ask adapted "$rows"
+jq '.plan = "PLAN.md"' "$BATON_HOME/reg.keep" > "$reg"
+ask elsewhere "$rows"
+printf '%s\n' '{"at":"2026-09-18T13:00:00+01:00","kind":"escalation","project":"Fixture","milestone":"M00-plan","class":"plan-unreadable","scope":"project","carries":{"detail":"x"},"channel":["notification"]}' >> "$log"
+ask project-park "$rows"
+dispatch_line M00-plan g4 >> "$log"
+ask planning-leftover "$rows"
+dispatch_line M00-plan g4 >> "$log"
+ask planning-live "$(printf '%s' "$rows" | jq -c '. + [{sessionId: "g4", pid: 4242, state: "working"}]')"
+dispatch_line M03 c1 >> "$log"
+ask sibling-rowless "$rows"
+rm "$BATON_HOME/reg.keep" "$BATON_HOME/log.keep"

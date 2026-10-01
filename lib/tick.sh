@@ -242,7 +242,16 @@ tick_project() {
   # original no longer has a row is a worry that has ended without anyone acting; all three are facts
   # every later check reads, and a lane freed here is one step 4 acts on in the same tick rather than
   # a minute later. A lane whose condition still stands is parked again by the rule that parked it.
-  edit_reread_check "$1" "$2" "$3" || return 1
+  #
+  # Not while a replan is owed. The planning session merges its plan to `main` before Baton measures
+  # it, and that merge changes the brief and the work plan every re-read receipt hashes — so read
+  # here, a plan Baton then refuses would release the replan's own park as a person's edit and free
+  # the lane under the refused plan. The re-read waits for the replan to end: an adoption closes the
+  # park itself (`planning_close_park`), and once nothing is owed the next tick reads whatever has
+  # changed, a person's edit included.
+  if ! planning_replan "$1" > /dev/null 2>&1; then
+    edit_reread_check "$1" "$2" "$3" || return 1
+  fi
   question_resolve_check "$1" "$3" || return 1
   fork_resolve_check "$1" "$3" || return 1
   tp_over=$(takeover_check "$1" "$3") || return 1
@@ -426,6 +435,17 @@ tick_run() {
     #    pass asks whether the planning lane has a live session, and a listing the service failed to
     #    produce would answer no for every lane alike. A plan waiting one more minute costs nothing.
     if [ "$tr_rows_ok" = yes ]; then
+      #    The replan route's per-tick half, before generation. A request whose event a tick never
+      #    wrote is repaired here first, because `planning_landed` and `planning_attempts` key on the
+      #    newest `requested` event: read before the repair, that is an earlier replan's, whose proved
+      #    completion would have the plan already on `main` measured, passed and adopted as the answer
+      #    to a park it was never asked about. The pass also delivers a park raised without a message
+      #    once its replan can no longer arrive (`lib/disposition.sh`); an exhaustion generation records
+      #    below is delivered by the next tick's pass, a minute later.
+      replan_pass "$tr_key" "$tr_rows" || {
+        render_row out action 'replan      %s · the replan pass failed this tick\n' "$(render_token out lane "$tr_key")"
+        tr_status=3
+      }
       if tr_planning=$(planning_pass "$tr_key" "$tr_rows"); then
         render_lines "$(printf '%s' "$tr_planning" | jq -c .lines)" action
         tr_cands=$(printf '%s' "$tr_cands" | jq -c \
@@ -540,6 +560,15 @@ tick_run() {
     # Step 5 skips a project a project-scope park holds: nothing new starts on ground a person has
     # been asked to fix, while the lanes already running carried on through steps 3 and 4 above.
     project_held "$tr_key" > /dev/null && continue
+    # And a project owing a replan, beside it and for a reason of the same kind: the plan its lanes run
+    # from is being replaced. The planning session merges to `main` before Baton adopts or refuses
+    # what it wrote, so step 5 would read that plan live — a refused plan's blanked `done` dispatched
+    # again from the handover in force, or its new row raised as `omitted`, a message about a plan
+    # Baton refused. The planning lane and the scope guard reach the dispatch through their own passes
+    # in step 1, so they run on; and `scope_hold` filters step 5's candidates, which there are none of
+    # here, so the two holds compose. The hold ends when `plan_owed` does: an adoption, or a person's
+    # `baton onboard` after the attempts are spent.
+    planning_replan "$tr_key" > /dev/null 2>&1 && continue
     # The close-out boundary: a successor whose dependency's close-out the scope guard has not passed
     # is held out of the candidates. A hold that cannot be read dispatches nothing for the project.
     if tr_doc=$(dispositions_intersect "$tr_key" "$tr_plan" "$tr_rows") \

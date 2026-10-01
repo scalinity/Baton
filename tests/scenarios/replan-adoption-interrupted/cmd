@@ -1,0 +1,16 @@
+set -eu
+# The replan M02's silent park asked for was adopted, and the tick that adopted it ended inside
+# `planning_adopt`, after `onboard_commit` had written the registration — `plan_owed` removed, the
+# starting handover written afresh — and before the `adopted` event and the park's resolution. So the
+# park stands, nothing is owed, and no event says it was answered: read as a replan a person ended,
+# it would be delivered with a Mac message saying no plan was adopted. The request carries the
+# starting handover's `at` as it stood, and the registration's is newer, so the pass reads the park
+# as answered and sends nothing; with nothing owed the re-read closes it as the edit it is, and M02 is
+# redispatched from its new brief. No osascript, and the second run changes nothing.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true

@@ -1,0 +1,47 @@
+{
+  "path": "@TMP@/Fixture",
+  "goal": "a fixture project.",
+  "done": "every milestone reads done.",
+  "constraints": [
+    "POSIX shell only."
+  ],
+  "non_goals": [
+    "a rewrite in another language."
+  ],
+  "plan_format": "native",
+  "onboarded_at": "2026-09-18T08:00:00+01:00",
+  "cli": {
+    "version": "2.1.278 (Claude Code)",
+    "checked_at": "2026-09-18T08:00:00+01:00"
+  },
+  "plan": "docs/MILESTONES.md",
+  "start": {
+    "at": "2026-09-18T08:00:00+01:00",
+    "eligible": [
+      {
+        "milestone": "M01",
+        "brief": {
+          "path": "docs/milestones/M01.md",
+          "heading": "Copy-ready session prompt"
+        },
+        "disposition": "run"
+      }
+    ]
+  },
+  "plan_owed": {
+    "reason": "attempt 3 wrote a plan Baton will not adopt: 1 thing to repair, the first being docs/MILESTONES.md row 1 leaves M01 blank, and Baton proved M01 complete",
+    "owner": "M15-d",
+    "replan": {
+      "milestone": "M02",
+      "class": "unfinished-twice",
+      "at": "2026-09-18T12:01:00+01:00",
+      "detail": "M02 ended unfinished twice in a row; the newest says: split at item 2: saying it back is its own session"
+    },
+    "defects": [
+      {
+        "what": "docs/MILESTONES.md row 1 leaves M01 blank, and Baton proved M01 complete",
+        "repair": "write done in the Status cell of M01 in docs/MILESTONES.md and commit it on main"
+      }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+unparked  Fixture/M02 · the brief and the work plan it answers to changed since the unfinished-twice park · Baton acts on the lane again
+redispatch Fixture/M02 · the brief or the work plan changed after two unfinished endings, so attempt 3 starts from it
+backgrounded · 0badc0d1 · Baton · Fixture · M02
+session   0badc0d1-0000-4000-8000-000000000000 (attempt 3)
+worktree  @TMP@/home/worktrees/Fixture/M02 (branch m02)
+settings  @TMP@/home/settings/Fixture-M02.json
+prompt    @TMP@/home/prompts/0badc0d1-0000-4000-8000-000000000000/1.txt
+--- the registration ---
+{"plan_format":"native","owed":null,"start":["M02","M03"]}
+--- what the ticks recorded ---
+{"kind":"resolution","milestone":"M02","class":null,"channel":null,"receipt":null,"outcome":null,"attempts":null,"replan":null,"why":null,"how":"edit","attempt":2}
+{"kind":"dispatch","milestone":"M02","class":null,"channel":null,"receipt":null,"outcome":null,"attempts":null,"replan":null,"why":null,"how":null,"attempt":3}
+--- status ---
+last tick 2026-09-19T08:00:00+01:00 (0 s ago) · unattended needs the lid open or clamshell
+in flight  Fixture/M02 · 0badc0d1-0000-4000-8000-000000000000 · opus · attempt 3 · 0 s

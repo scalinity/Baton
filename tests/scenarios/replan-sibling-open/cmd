@@ -1,0 +1,17 @@
+set -eu
+# M02 has ended unfinished twice and every other condition of the request's gate holds, but M03 is in
+# flight, running from the plan a replan would replace. A plan is not replaced under a lane running
+# from it, so no replan is requested: the line names M03 and the park goes to the person with its Mac
+# message, as it did before the replan route existed. The gate's cost is this: a project that always
+# has a sibling running never replans, and each of its replan-class parks reaches a person instead.
+#
+# The scope guard's lane is open beside it — dispatched, live, no verdict yet — and the line does not
+# name it: the guard writes nothing in any repository and is given no plan to run from, and it runs at
+# every close-out, so counting it would refuse most requests for a lane a replan cannot affect.
+"$BATON" tick || true
+printf '%s\n' '--- the registration ---'
+jq -c '{plan_format, owed: (if .plan_owed then (.plan_owed | {owner, reason, replan: (if .replan then (.replan | {milestone, class, at}) else null end)}) else null end), start: [.start.eligible[] | .milestone]}' "$BATON_HOME/projects/Fixture/project.json"
+printf '%s\n' '--- what the ticks recorded ---'
+jq -c 'select(.at >= "2026-09-19T08") | {kind, milestone, class, channel, receipt: (.carries.reread.policy // null), outcome, attempts, replan, why, how, attempt}' "$BATON_HOME/log.jsonl"
+printf '%s\n' '--- status ---'
+"$BATON" status || true
