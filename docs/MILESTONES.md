@@ -53,6 +53,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M16 | Cold live trial on Reclaim | M14, M15-c | opus | medium | | | Unregistered Reclaim completes at least three cold milestones with one intent confirmation and a live budget pause/resume | No |
 | M17 | Dispatch preconditions before worktree creation | – | opus | high | | done | Plan reports every eligible milestone's unmet dispatch preconditions in one pass; dispatch refuses them before creating a branch, worktree or settings, retaining the existing retry bound | No |
 | M17-b | One rendering layer for Baton's output | M17 | opus | high | | done | Every verb and Mac message uses lib/render.sh; terminal output is consistent, plain and matchable when piped and under NO_COLOR; behaviour and event-log format stay unchanged; lib/declared.sh:98 stops claiming a person edited the plan (D-136) | No |
+| M19 | Deliberate stops: pause, resume, and a recovery that cannot stay silent | M15-c, M15-d | opus | high | | | `baton pause` and `baton resume` stop and continue a lane without it being read as a crash; a crash whose job left the listing is resumed by session id; a refused recovery rung is logged and escalates | No |
 
 ## Gates
 
