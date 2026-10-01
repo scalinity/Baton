@@ -59,6 +59,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M19-c | A paused lane keeps its place | M19-b, M15-e | opus | medium | | | A paused lane holds its slot under the cap and no dispatch opens a new attempt over it | No |
 | M19-d | Status shows a paused lane | M19-b | opus | medium | | | `baton status` names every paused lane and the stand-down, and never prints a paused lane as in flight | No |
 | M19-e | Stop in Claude.app pauses the lane | M19-b | opus | high | | | Pressing Stop on a Baton session in Claude.app or on the phone pauses its lane instead of reading as a stall or a crash, and typing to the session continues it | No |
+| M20 | A rewritten history does not break a completion proof | – | opus | high | | | After a message-only history rewrite, a completion whose recorded baseline was replaced is proved against its identical-tree equivalent, and a rejected handover written again is consumed | No |
 
 ## Gates
 
