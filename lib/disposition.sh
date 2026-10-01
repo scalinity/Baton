@@ -1,6 +1,9 @@
 #!/bin/sh
 # lib/disposition.sh — what a condition needs from outside Baton, and the record that asks for
-# nothing.
+# nothing; and the replan route, the one disposition whose answer is a plan (the last section). The
+# route calls into `lib/planning.sh` (`PLANNING_ID`, `PLANNING_PLAN`, `planning_*`), `lib/onboard.sh`
+# (`onboard_registration_write`), `lib/scope.sh` (`SCOPE_ID`) and `lib/escalate.sh`, all sourced
+# before any of it runs (`bin/baton`).
 #
 # `lib/escalate.sh` and `lib/notify.sh` answer "how does this reach the person". This answers the
 # question underneath it — whether it should — and it is the first file in Baton that treats the two
@@ -472,8 +475,12 @@ rejection_resolve_check() {
 #     runs from the plan being replaced, and the parked milestone's own lane is the one asking. The
 #     scope guard's lane is the exception: it writes nothing in any repository, it is given no plan to
 #     run from, and it is dispatched at every close-out, so counting it would refuse most requests for
-#     a lane that cannot be affected by one. A project-scope park holds every lane, the planning one
-#     included (`planning_pass`), so a request under one is a session that cannot start.
+#     a lane that cannot be affected by one. The planning lane counts only while its session is live:
+#     it works only while a plan is owed, which the first condition already refuses, so a rowless one
+#     is an attempt that ended without completing — merged and stopped, asked, crashed — and stays open
+#     in the log for good, refusing every later request if it counted. A project-scope park holds every
+#     lane, the planning one included (`planning_pass`), so a request under one is a session that
+#     cannot start.
 #   * **Every `done` row proved.** A replacement may carry `done` only where Baton proved it
 #     (REQ-GENERATE-13): one that keeps an unproved `done` is refused, and requesting it spends
 #     `planningAttempts` sessions on that refusal; one that follows the replan prompt and blanks the
@@ -483,10 +490,10 @@ rejection_resolve_check() {
 replan_gate() {
   rgt_f=$BATON_HOME/projects/$1/project.json
   if rgt_owed=$(planning_owed "$1"); then
-    echo "a plan is already owed ($(printf '%s' "$rgt_owed" | jq -r '.reason // "no reason recorded"'))"
+    printf '%s\n' "a plan is already owed ($(printf '%s' "$rgt_owed" | jq -r '.reason // "no reason recorded"'))"
     return 1
   fi
-  rgt_log=$(log_json) || { echo "Baton's record of the project could not be read"; return 1; }
+  rgt_log=$(log_json) || { printf '%s\n' "Baton's record of the project could not be read"; return 1; }
   rgt_tried=$(printf '%s' "$rgt_log" | jq -r --arg p "$1" --arg m "$2" --arg c "$3" --arg pm "$PLANNING_ID" '
     ({"unfinished-twice": "unfinished", "blocked": "blocked"}[$c] // $c) as $r
     | [ to_entries[] | {i: .key} + .value | select(.project == $p) ] as $ev
@@ -496,41 +503,48 @@ replan_gate() {
     | (if $n == 0 then -1 else $s[$n - 1].i end) as $from
     | [ $ev[] | select(.kind == "plan_generation" and .milestone == $pm and .outcome == "adopted"
                        and .replan.milestone == $m and .replan.class == $c and .i > $from) ]
-    | last | .at // empty') || { echo "Baton's record of the project could not be read"; return 1; }
+    | last | .at // empty') || { printf '%s\n' "Baton's record of the project could not be read"; return 1; }
   if [ -n "$rgt_tried" ]; then
-    echo "a replan for this $3 was adopted at $rgt_tried and $2 has come back the same way"
+    printf '%s\n' "a replan for this $3 was adopted at $rgt_tried and $2 has come back the same way"
     return 1
   fi
   if ! jq -e '(.goal // "") != ""' "$rgt_f" > /dev/null 2>&1; then
-    echo "the registration carries no confirmed goal to replan against · run baton onboard $(project_path "$1" 2>/dev/null || printf '<path>')"
+    printf '%s\n' "the registration carries no confirmed goal to replan against · run baton onboard $(project_path "$1" 2>/dev/null || printf '<path>')"
     return 1
   fi
   rgt_fmt=$(jq -r '.plan_format // ""' "$rgt_f" 2>/dev/null) || rgt_fmt=''
   rgt_plan=$(jq -r '.plan // ""' "$rgt_f" 2>/dev/null) || rgt_plan=''
   if [ "$rgt_fmt" != native ] || [ "$rgt_plan" != "$PLANNING_PLAN" ]; then
-    echo "the plan is ${rgt_fmt:-of no recorded format} at ${rgt_plan:-no recorded path}, and only a native plan at $PLANNING_PLAN can have a replacement adopted"
+    printf '%s\n' "the plan is ${rgt_fmt:-of no recorded format} at ${rgt_plan:-no recorded path}, and only a native plan at $PLANNING_PLAN can have a replacement adopted"
     return 1
   fi
-  rgt_fl=$(derive_in_flight "$1" "$4") || { echo "the open lanes could not be read"; return 1; }
-  rgt_open=$(printf '%s' "$rgt_fl" | jq -r --arg m "$2" --arg s "$SCOPE_ID" '
-    [ (.in_flight + .no_row)[] | .milestone | select(. != $m and . != $s) ] | unique | join(", ")')
+  rgt_fl=$(derive_in_flight "$1" "$4") || { printf '%s\n' "the open lanes could not be read"; return 1; }
+  rgt_open=$(printf '%s' "$rgt_fl" | jq -r --arg m "$2" --arg s "$SCOPE_ID" --arg pm "$PLANNING_ID" '
+    [ (.in_flight[] | .milestone), (.no_row[] | .milestone | select(. != $pm))
+      | select(. != $m and . != $s) ] | unique | join(", ")') \
+    || { printf '%s\n' "the open lanes could not be read"; return 1; }
   if [ -n "$rgt_open" ]; then
-    echo "another lane runs from this plan ($rgt_open)"
+    printf '%s\n' "another lane runs from this plan ($rgt_open)"
     return 1
   fi
-  rgt_pp=$(derive_parked "$1") || { echo "the parks could not be read"; return 1; }
-  rgt_pc=$(printf '%s' "$rgt_pp" | jq -r 'first(.parked[] | select(.scope == "project") | .class) // empty')
+  rgt_pp=$(derive_parked "$1") || { printf '%s\n' "the parks could not be read"; return 1; }
+  rgt_pc=$(printf '%s' "$rgt_pp" | jq -r 'first(.parked[] | select(.scope == "project") | .class) // empty') \
+    || { printf '%s\n' "the parks could not be read"; return 1; }
   if [ -n "$rgt_pc" ]; then
-    echo "the project is parked ($rgt_pc)"
+    printf '%s\n' "the project is parked ($rgt_pc)"
     return 1
   fi
-  rgt_doc=$(plan_of_project "$1" 2>/dev/null) || { echo "the plan could not be read"; return 1; }
-  rgt_hist=$(planning_history "$1") || { echo "Baton's record of the project could not be read"; return 1; }
+  rgt_doc=$(plan_of_project "$1" 2>/dev/null) || { printf '%s\n' "the plan could not be read"; return 1; }
+  rgt_hist=$(planning_history "$1") || { printf '%s\n' "Baton's record of the project could not be read"; return 1; }
   rgt_un=$(jq -nc --argjson p "$rgt_doc" --argjson h "$rgt_hist" \
-    '[ $p.milestones[] | select(.status == "done") | .id ] - $h.preserved')
-  rgt_n=$(printf '%s' "$rgt_un" | jq length)
+    '[ $p.milestones[] | select(.status == "done") | .id ] - $h.preserved') \
+    || { printf '%s\n' "the plan's done rows could not be counted"; return 1; }
+  rgt_n=$(printf '%s' "$rgt_un" | jq length) || rgt_n=''
+  case "$rgt_n" in
+    ''|*[!0-9]*) printf '%s\n' "the plan's done rows could not be counted"; return 1 ;;
+  esac
   if [ "$rgt_n" -gt 0 ]; then
-    echo "$rgt_n done row$([ "$rgt_n" -eq 1 ] || printf s) Baton never proved complete ($(printf '%s' "$rgt_un" | jq -r 'if length > 5 then (.[0:5] | join(", ")) + ", …" else join(", ") end')): a replacement would be refused for keeping such a row done, or would blank it and have it built again"
+    printf '%s\n' "$rgt_n done row$([ "$rgt_n" -eq 1 ] || printf s) Baton never proved complete ($(printf '%s' "$rgt_un" | jq -r 'if length > 5 then (.[0:5] | join(", ")) + ", …" else join(", ") end')): a replacement would be refused for keeping such a row done, or would blank it and have it built again"
     return 1
   fi
 }
