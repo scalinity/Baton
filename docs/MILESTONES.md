@@ -58,6 +58,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M19-b | Pause: stand the relay down, or one lane | M19 | opus | high | | | `baton pause` stops every running lane and admits nothing until `baton resume`; `baton pause <milestone>` does it for one lane; a paused lane is never read as a crash, a stall or a wait to retry | No |
 | M19-c | A paused lane keeps its place | M19-b, M15-e | opus | medium | | | A paused lane holds its slot under the cap and no dispatch opens a new attempt over it | No |
 | M19-d | Status shows a paused lane | M19-b | opus | medium | | | `baton status` names every paused lane and the stand-down, and never prints a paused lane as in flight | No |
+| M19-e | Stop in Claude.app pauses the lane | M19-b | opus | high | | | Pressing Stop on a Baton session in Claude.app or on the phone pauses its lane instead of reading as a stall or a crash, and typing to the session continues it | No |
 
 ## Gates
 
