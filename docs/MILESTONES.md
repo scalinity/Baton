@@ -24,6 +24,7 @@ Rules for every session (also in `CLAUDE.md`):
 - Before the close-out merge, merge a `main` that moved while the session ran into the session's own branch in its worktree, keep every side's whole row change and every decision row, and check after the merge that no D-number appears twice (`CLAUDE.md`, Handing over, step 2).
 - Hand over every milestone the dependency column now makes eligible with a disposition each; in this plan that is one milestone at a time, and the artifact says so.
 - Never use Python. No third-party packages. Never touch a target project's code; Reclaim is read, never written, and never dispatched before M16, which onboards it (SCOPE §9 retired M08 and its gate).
+- Never kill a process you did not start: no `pkill`, `killall` or `kill` by pattern; stop your own background run by its pid (`CLAUDE.md`, Hard rules).
 
 ## Order and dependencies
 

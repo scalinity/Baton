@@ -138,6 +138,11 @@ reason.
   a brief names, and never one named `Baton · Reclaim · …`. From M16 on the relay itself, the tick
   and `baton onboard`, starts and resumes Reclaim's sessions; this rule binds every Baton session,
   M16's observing session included.
+- **Never kill a process you did not start.** No `pkill`, `killall` or `kill` by name or pattern: stop
+  your own background run by the pid you started it with. A pattern such as `pkill -f tests/run.sh`
+  matches Baton's own standing checks and other sessions' runs too: on 2026-10-01 at 22:51:37 one
+  session's `pkill -f "tests/run.sh"`, meant for its own run, killed the checks of M15-c's and M15-e's
+  merges, which were then recorded as failed and parked the project `main-broken`.
 - **Builds and tests are shell fixtures.** `sh tests/run.sh` is authorised for every session; every
   check is reported as passed, failed or unrun with its output. `sh install.sh` is authorised at
   close-out, on `main`, once the standing check has passed there.
