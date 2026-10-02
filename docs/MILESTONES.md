@@ -56,7 +56,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M17 | Dispatch preconditions before worktree creation | – | opus | high | | done | Plan reports every eligible milestone's unmet dispatch preconditions in one pass; dispatch refuses them before creating a branch, worktree or settings, retaining the existing retry bound | No |
 | M17-b | One rendering layer for Baton's output | M17 | opus | high | | done | Every verb and Mac message uses lib/render.sh; terminal output is consistent, plain and matchable when piped and under NO_COLOR; behaviour and event-log format stay unchanged; lib/declared.sh:98 stops claiming a person edited the plan (D-136) | No |
 | M19 | A recovery that reaches a person | M15-c, M15-d | sonnet | high | | | A crash whose session left the listing is resumed by id, or redispatched when no transcript remains; a recovery Baton cannot perform is logged, counted once and parks the lane `ladder-end` within three ticks | No |
-| M19-b | Pause: stand the relay down, or one lane | M19 | opus | high | | | `baton pause` stops every running lane and admits nothing until `baton resume`; `baton pause <milestone>` does it for one lane; a paused lane is never read as a crash, a stall or a wait to retry | No |
+| M19-b | Pause: stand the relay down, or one lane | M19, M22 | opus | high | | | `baton pause` stops every running lane and admits nothing until `baton resume`; `baton pause <milestone>` does it for one lane; a paused lane is never read as a crash, a stall or a wait to retry | No |
 | M19-c | A paused lane keeps its place | M19-b, M15-e | sonnet | medium | | | A paused lane holds its slot under the cap and no dispatch opens a new attempt over it | No |
 | M19-d | Status shows a paused lane | M19-b | sonnet | medium | | | `baton status` names every paused lane and the stand-down, and never prints a paused lane as in flight | No |
 | M19-e | Stop in Claude.app pauses the lane | M19-b | sonnet | high | | | Pressing Stop on a Baton session in Claude.app or on the phone pauses its lane instead of reading as a stall or a crash, and typing to the session continues it | No |
@@ -65,6 +65,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M15-g | A replan must replace something | M15-e, M20 | opus | high | | | A replan is adopted only when the planning session changed the plan or a brief after the request, and a refused candidate is undone before the next attempt | No |
 | M15-h | After a replan, the new plan's dispositions win; queued work is not nothing coming | M15-f | sonnet | high | | | After an adoption the new plan's next milestone dispatches with no stall or disagreement, and a milestone blocked on queued work is never replanned | No |
 | M21 | No false "Baton was not running" alarms | – | sonnet | high | | done | While ticks run, even slow ones, no gap message reaches the Mac, and a reboot outside the assessed window no longer makes a gap unknown | No |
+| M22 | A ruling continues the session it was given to | – | sonnet | high | | | After baton answer the parked session reappears in Claude.app under its own name and carries on with the ruling, never a renamed copy beside an archived original | No |
 
 ## Gates
 
