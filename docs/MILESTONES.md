@@ -66,6 +66,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M15-h | After a replan, the new plan's dispositions win; queued work is not nothing coming | M15-f | sonnet | high | | | After an adoption the new plan's next milestone dispatches with no stall or disagreement, and a milestone blocked on queued work is never replanned | No |
 | M21 | No false "Baton was not running" alarms | – | sonnet | high | | done | While ticks run, even slow ones, no gap message reaches the Mac, and a reboot outside the assessed window no longer makes a gap unknown | No |
 | M22 | A ruling continues the session it was given to | – | sonnet | high | | | After baton answer the parked session reappears in Claude.app under its own name and carries on with the ruling, never a renamed copy beside an archived original | No |
+| M23 | A verb holding the lock is Baton running | M21 | sonnet | high | | | baton answer, baton onboard or any verb that holds the lock for a minute or more raises no gap message | No |
 
 ## Gates
 
