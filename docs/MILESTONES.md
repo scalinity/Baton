@@ -64,7 +64,7 @@ Rules for every session (also in `CLAUDE.md`):
 | M15-f | The scope guard holds every route to a successor | M15-e | sonnet | high | | | No successor starts while its dependency's scope check is owed or running: not in the window between the dependency's done and its consumed handover, and not by the blocked redispatch | No |
 | M15-g | A replan must replace something | M15-e, M20 | opus | high | | | A replan is adopted only when the planning session changed the plan or a brief after the request, and a refused candidate is undone before the next attempt | No |
 | M15-h | After a replan, the new plan's dispositions win; queued work is not nothing coming | M15-f | sonnet | high | | | After an adoption the new plan's next milestone dispatches with no stall or disagreement, and a milestone blocked on queued work is never replanned | No |
-| M21 | No false "Baton was not running" alarms | – | sonnet | high | | | While ticks run, even slow ones, no gap message reaches the Mac, and a reboot outside the assessed window no longer makes a gap unknown | No |
+| M21 | No false "Baton was not running" alarms | – | sonnet | high | | done | While ticks run, even slow ones, no gap message reaches the Mac, and a reboot outside the assessed window no longer makes a gap unknown | No |
 
 ## Gates
 
