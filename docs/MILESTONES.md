@@ -70,6 +70,8 @@ Rules for every session (also in `CLAUDE.md`):
 | M23 | A verb holding the lock is Baton running | M21 | sonnet | high | | | baton answer, baton onboard or any verb that holds the lock for a minute or more raises no gap message | No |
 | M24 | A hand dispatch clears its own omitted park; a stray key is not a no | – | sonnet | medium | | | baton dispatch of a milestone no handover lists leaves no omitted park, and yes to onboarding registers even after a key pressed while it thought | No |
 | M24-b | A verb waits a moment for the tick instead of refusing | M23 | sonnet | medium | | | A verb typed while a tick holds the lock runs once it frees, within a bound, instead of doing nothing | No |
+| M25 | A dispatched session cannot kill what it did not start | – | sonnet | medium | | | A session that runs pkill or killall is refused by the deny list; stopping its own run by pid still works | No |
+| M25-b | A check killed from outside is run again, not reported as main-broken | M15-g | sonnet | high | | | A standing check ended by a signal Baton did not send, with no failing scenario, is rerun once instead of parking the project main-broken | No |
 
 ## Gates
 
