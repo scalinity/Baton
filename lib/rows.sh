@@ -459,14 +459,16 @@ question_check() {
 }
 
 # gap_check <rows json> [<as-of>]: REQ-ESC-10, derivation 15. The as-of minus the marker, the as-of
-# defaulting to now, reported only when a lane was in flight, waiting or parked during it, and keyed
-# on the marker value so one outage reports once. The gap belongs to no milestone, so the event
+# defaulting to the start of the tick that holds the lock and otherwise to now, reported only when a
+# lane was in flight, waiting or parked during it, and keyed on the marker value so one outage
+# reports once. The gap belongs to no milestone, so the event
 # carries no lane and the key alone is the guard; the marker this tick is about to write changes the
 # key, which is why the second run of a scenario reports nothing.
 #
 # The tick passes the clock it started with, because its own step 2 can run for minutes and a tick
-# is not an outage while it is working; every other caller reads the gap from outside a tick, where
-# now is the honest instant.
+# is not an outage while it is working; a caller that names none and holds the lock is a tick too,
+# and gets the lock's own `at` (the gap_check body below); every other caller reads the gap from
+# outside a tick, where now is the honest instant.
 #
 # **Detection and attribution are two steps and stay two steps.** Everything above this line is
 # unchanged: the threshold, the open-lane test and the marker key decide *that* there was a gap, and
@@ -477,7 +479,20 @@ question_check() {
 # is both halves of "unexplained still notifies, unknown still notifies, and neither is silently
 # suppressed". The event is written in both cases and carries the evidence either way.
 gap_check() {
-  gc_gap=$(derive_gap "$1" "${2:-}") || { render_failure err "$gc_gap"; return 1; }
+  # **A tick measures at the instant it started on every path, and the rule lives here so that no
+  # caller has to remember it.** The tick's opening pass names `tr_now`, but the one that returns
+  # early because `claude agents --json` could not be read names nothing, and that read is the one a
+  # loaded Mac makes slow: measured against the wall clock at the end of it, a tick that started on
+  # schedule reports the seconds it spent waiting as a stretch Baton was not running. With no as-of
+  # given, a caller that holds the lock is a tick, and the lock's own `at` — written by `lock_take`
+  # the instant the lock was taken — is the instant it started. A caller that does not hold the lock
+  # reads the gap from outside a tick, where now is honest.
+  gc_as_of=${2:-}
+  if [ -z "$gc_as_of" ] && [ "$(cat "$BATON_HOME/lock/pid" 2>/dev/null || true)" = "$$" ]; then
+    gc_as_of=$(cat "$BATON_HOME/lock/at" 2>/dev/null || true)
+    iso_epoch "$gc_as_of" > /dev/null 2>&1 || gc_as_of=
+  fi
+  gc_gap=$(derive_gap "$1" "$gc_as_of") || { render_failure err "$gc_gap"; return 1; }
   [ "$(printf '%s' "$gc_gap" | jq -r .report)" = true ] || return 0
   gc_marker=$(printf '%s' "$gc_gap" | jq -r .marker)
   gc_seconds=$(printf '%s' "$gc_gap" | jq -r .gap_seconds)

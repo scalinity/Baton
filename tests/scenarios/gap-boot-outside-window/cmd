@@ -1,0 +1,4 @@
+echo "== a reboot three days before the window, a sleep across the window: the host explains the gap, so no Mac message =="
+"$BATON" tick
+echo
+"$BATON" status

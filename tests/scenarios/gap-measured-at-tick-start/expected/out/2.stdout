@@ -1,0 +1,5 @@
+== a tick that starts 60 s after the last marker and then runs 70 s reports no gap, on the pass that reads the listing and on the pass that gives up on it ==
+after the tick that read the listing: marker 2026-09-12T10:02:10+00:00
+tick exit 3
+after the tick that gave up on it: marker 2026-09-12T10:02:10+00:00
+gap events: 0

@@ -1,0 +1,10 @@
+2026-09-08 22:10:00 +0100 Sleep               	Entering Sleep state due to 'Idle Sleep':TCPKeepAlive=active Using AC (Charge:100%) 3600 secs
+2026-09-08 22:40:00 +0100 Wake                	Wake from Normal Sleep [CDNP] : due to EC.LidOpen/Lid Open Using AC (Charge:100%) 1800 secs
+2026-09-09 07:59:50 +0100 Assertions          	PID 356(powerd) Created InternalPreventSleep "com.apple.powermanagement.darkwakelinger" 00:00:00  id:0x0xd0000a1e
+Sleep/Wakes since boot:41   Dark Wake Count in this sleep cycle:3
+
+Sleep/Wakes since boot:0   Dark Wake Count in this sleep cycle:0
+2026-09-09 08:00:40 +0100 Assertions          	PID 356(powerd) Created InternalPreventSleep "com.apple.powermanagement.darkwakelinger" 00:00:00  id:0x0xd0000a1e
+2026-09-12 09:59:00 +0100 Assertions          	PID 356(powerd) Created InternalPreventSleep "com.apple.powermanagement.darkwakelinger" 00:00:00  id:0x0xd0000a1e
+2026-09-12 10:00:20 +0100 Sleep               	Entering Sleep state due to 'Idle Sleep':TCPKeepAlive=active Using AC (Charge:100%) 3600 secs
+2026-09-12 11:59:10 +0100 DarkWake            	DarkWake from Deep Idle [CDNP] : due to rtc/Maintenance Using AC (Charge:100%) 50 secs

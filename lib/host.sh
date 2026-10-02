@@ -50,6 +50,10 @@ host_cache_file() {
 #
 #   T <epoch> sleep|wake      an actual transition, its timestamp read with its own UTC offset
 #   A <reason>                something that breaks the timeline, positioned between its neighbours
+#   A boot-boundary <lo> <hi> a boot, which carries its own bracket: the epochs of the timestamped
+#                             records of any domain before and after it, `-` for a side with none
+#   S <epoch>                 the current boot as the kernel dates it; first, and absent when the
+#                             host does not answer
 #
 # Prints them; status 1 when the history could not be read at all. `DarkWake` is a `wake`, because
 # the machine is running during one and Baton sometimes ticks in one — treating a lid-closed stretch
@@ -104,13 +108,23 @@ host_transitions() {
           # the word Sleep.
           if (match($0, /Sleep\/Wakes since boot:[0-9]+/)) {
             b = substr($0, RSTART, RLENGTH); sub(/.*:/, "", b); b = b + 0
-            if (seen_boot && b < boot) print "A boot-boundary"
+            # The boot is placed between the timestamped records around it, of any domain: the
+            # newest one already read is its lower bound, and the next one read, whatever it is,
+            # its upper. A reboot has no sleep or wake of its own to stand between, so bracketing it
+            # by those alone stretches it across every quiet hour on either side, and after the
+            # newest boot there may be no later sleep at all.
+            if (seen_boot && b < boot) { np++; plo[np] = seen_stamp ? last : "-" }
             boot = b; seen_boot = 1
             next
           }
           head = $0
           ti = index(head, "\t"); if (ti > 0) head = substr(head, 1, ti - 1)
           nf = split(head, tok, " ")
+          if (nf >= 3 && stamp_ok(tok[1] " " tok[2] " " tok[3])) {
+            last = stamp_epoch(tok[1] " " tok[2] " " tok[3]); seen_stamp = 1
+            for (q = 1; q <= np; q++) print "A boot-boundary " plo[q] " " last
+            np = 0
+          }
           if (nf < 4) next
           domain = tok[4]
           for (i = 5; i <= nf; i++) domain = domain " " tok[i]
@@ -123,7 +137,15 @@ host_transitions() {
           if (seen_t && e < prev) print "A clock-discontinuity"
           prev = e; seen_t = 1
           print "T " e " " (domain == "Sleep" ? "sleep" : "wake")
-        }')
+        }
+        # A boot with no timestamped record after it: its upper bound is open, and `S` below is
+        # what closes it for the boot the machine is running.
+        END { for (q = 1; q <= np; q++) print "A boot-boundary " plo[q] " -" }')
+    # The current boot, from the kernel and not from the history: the one boot whose instant is known
+    # exactly, because the history's counter reset has no timestamp. Absent when the host does not
+    # answer, which leaves the boot placed by its neighbours alone.
+    ht_boot=$("$BATON_SYSCTL" -n kern.boottime 2>/dev/null | sed -n 's/^{ sec = \([0-9][0-9]*\),.*/\1/p') || ht_boot=''
+    [ -z "$ht_boot" ] || ht_recs=$(printf 'S %s\n%s' "$ht_boot" "$ht_recs")
   fi
   if [ -n "$ht_cache" ]; then
     # Written under a dot name and renamed, so a reader never sees half of it. Nothing else holds
@@ -203,7 +225,21 @@ host_window() {
       return (a <= to && b >= from)
     }
     /^T / { n++; te[n] = $2 + 0; tk[n] = $3; next }
-    /^A / { an++; ar[an] = $2; ab[an] = n; next }
+    # An anomaly is positioned by the transitions before it, unless it carries its own bracket: a
+    # boot does, because the parser placed it between the timestamped records of any domain around
+    # it, `-` standing for a side with no record. The newest such boot is the last one in the list.
+    /^A / {
+      an++; ar[an] = $2; ab[an] = n
+      if (NF >= 4) {
+        xb[an] = 1
+        xl[an] = ($3 == "-") ? -9999999999 : $3 + 0
+        xh[an] = ($4 == "-") ? 9999999999 : $4 + 0
+        newest = an
+      }
+      next
+    }
+    # The current boot as the kernel reports it. Absent when the host did not answer.
+    /^S / { booted = $2 + 0; next }
     END {
       INF = 9999999999
       if (fail) unknown("history-unreadable")
@@ -211,10 +247,30 @@ host_window() {
       # The anomalies first, in the order pmset printed them, so one reason is reported and it is
       # always the same one for the same history.
       for (j = 1; j <= an; j++) {
-        lo = (ab[j] >= 1) ? te[ab[j]] : -INF
-        hi = (ab[j] + 1 <= n) ? te[ab[j] + 1] : INF
+        if (xb[j]) {
+          lo = xl[j]; hi = xh[j]
+          # The newest boot is the one the kernel dates exactly, so when its time falls inside the
+          # bracket the bracket is that instant. Anything else is placed by its neighbours alone.
+          if (j == newest && booted > 0 && booted >= lo && booted <= hi) { lo = booted; hi = booted }
+          # A sleep the history closes with a wake on the far side of a boot is not a sleep: the
+          # machine went down and came up. That interval is the one the boot invalidates wherever the
+          # boot itself sits, and a window it touches cannot be read, so it is unknown. The boundary
+          # is printed at the first timestamped record after the reset, so transition ab[j] is the
+          # last one before the boot and ab[j] + 1 the first one after it; a boot with no record
+          # after it has no such pair.
+          if (ab[j] >= 1 && ab[j] + 1 <= n && tk[ab[j]] == "sleep" && tk[ab[j] + 1] == "wake" \
+              && touches(te[ab[j]], te[ab[j] + 1])) unknown(ar[j])
+        } else {
+          lo = (ab[j] >= 1) ? te[ab[j]] : -INF
+          hi = (ab[j] + 1 <= n) ? te[ab[j] + 1] : INF
+        }
         if (touches(lo, hi)) unknown(ar[j])
       }
+      # A boot the history shows no counter reset for — the machine came up inside the window, the
+      # log restarted with it and the reset is not in what pmset printed — is still a boot inside the
+      # window. Every reading of a sleep history across one is a guess, so the kernel date for the
+      # current boot is enough on its own.
+      if (booted > 0 && booted >= from && booted <= to) unknown("boot-boundary")
       # Identical records collapse; the sequence is chronological by construction, because anything
       # that broke that order is already an anomaly above.
       m = 0

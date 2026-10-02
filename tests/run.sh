@@ -202,7 +202,7 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
              BATON_CAFFEINATE="$here/shim/caffeinate" BATON_OSASCRIPT="$here/shim/osascript" BATON_OPEN="$here/shim/open" \
              BATON_SHIM="$tmp/shim" BATON_DAEMON_LOG="$tmp/shim/daemon.log" \
              BATON_TRANSCRIPTS="$tmp/transcripts" BATON_JOBS="$tmp/jobs" BATON_INSTALL_TEST=1 \
-             BATON_PMSET="$here/shim/pmset" \
+             BATON_PMSET="$here/shim/pmset" BATON_SYSCTL="$here/shim/sysctl" \
              BATON="$root/bin/baton" ROOT="$root" SCENARIO="$sc" SHIM="$tmp/shim"
       cd "$tmp"
       set +e

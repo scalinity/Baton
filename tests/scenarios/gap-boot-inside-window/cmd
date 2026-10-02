@@ -1,0 +1,4 @@
+echo "== the machine rebooted inside the window: the sleep history cannot be read across it, so the message stands and says boot-boundary =="
+"$BATON" tick
+echo
+"$BATON" status

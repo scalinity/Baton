@@ -1,0 +1,38 @@
+echo "== ticks of 68 s on a 60 s schedule, every other launchd run finding the lock held by a live holder, for ten intervals: Baton was running throughout, so no gap is reported =="
+# The clock is the scenario's, moved by hand. A tick that starts 60 s after the previous marker and
+# runs 68 s ends 128 s after it began; the launchd run 60 s into it finds the lock held and does
+# nothing, and the next tick starts 60 s after the marker the slow one wrote. The harness copies
+# `now` once and never resets it, and the second run starts from the first's files, so every value
+# is absolute and the marker is put back first.
+t0=$(TZ=UTC date -j -f %Y-%m-%dT%H:%M:%S 2026-09-12T10:00:00 +%s)
+at() { TZ=UTC date -r "$1" +%Y-%m-%dT%H:%M:%S+00:00; }
+printf '%s\n' "$(at "$t0")" > "$BATON_HOME/last-tick"
+rm -rf "$BATON_HOME/lock"
+
+# The claude shim, wrapped: its first act is to move the clock to the instant the tick will have
+# reached by the time it is done, which is what a tick slowed by a loaded host looks like from
+# inside. The listing is the tick's own first read, after it took its clock.
+printf '%s\n' '#!/bin/sh' \
+  'cp "$BATON_SHIM/claude-clock" "$BATON_SHIM/now"' \
+  'exec sh "$ROOT/tests/shim/claude" "$@"' > "$SHIM/slow-claude"
+chmod +x "$SHIM/slow-claude"
+
+s=$((t0 + 60))
+i=0
+while [ "$i" -lt 10 ]; do
+  at "$s" > "$SHIM/now"
+  at "$((s + 68))" > "$SHIM/claude-clock"
+  BATON_CLAUDE="$SHIM/slow-claude" "$BATON" tick
+  echo "tick $((i + 1)): started $(at "$s"), marker $(head -1 "$BATON_HOME/last-tick")"
+  # The launchd run 60 s in, while that tick still holds the lock.
+  mkdir "$BATON_HOME/lock"
+  echo "$$" > "$BATON_HOME/lock/pid"
+  at "$s" > "$BATON_HOME/lock/at"
+  at "$((s + 60))" > "$SHIM/now"
+  out=$("$BATON" tick 2>&1); st=$?
+  echo "skipped run: exit $st"; printf "%s\n" "$out" | sed "s/pid [0-9]*/pid PID/"
+  rm -rf "$BATON_HOME/lock"
+  s=$((s + 128))
+  i=$((i + 1))
+done
+grep -c '"class":"gap"' "$BATON_HOME/log.jsonl" || true

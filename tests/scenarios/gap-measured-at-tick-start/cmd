@@ -1,0 +1,33 @@
+echo "== a tick that starts 60 s after the last marker and then runs 70 s reports no gap, on the pass that reads the listing and on the pass that gives up on it =="
+# D-174 measures a gap against the clock the tick started with. The tick's opening pass names that
+# clock, but the early return taken when `claude agents --json` cannot be read named nothing, so a
+# listing that made the tick wait read as a stretch during which Baton was not running. Both are
+# fixtured here with the same wait: the first tick reads the listing after 70 s and completes, the
+# second gives up on it after 70 s and does not, which leaves the marker where it was.
+# The harness copies `now` once and never resets it, and the second run starts from the first's
+# files, so every clock value is absolute and the marker is put back first.
+t0=$(TZ=UTC date -j -f %Y-%m-%dT%H:%M:%S 2026-09-12T10:00:00 +%s)
+at() { TZ=UTC date -r "$1" +%Y-%m-%dT%H:%M:%S+00:00; }
+printf '%s\n' "$(at "$t0")" > "$BATON_HOME/last-tick"
+
+# The claude shim, wrapped: it moves the clock to the instant the tick will have reached by the time
+# the listing comes back, which is what a loaded host looks like from inside the tick, and fails the
+# listing when `claude-fails` is present.
+printf '%s\n' '#!/bin/sh' \
+  'cp "$BATON_SHIM/claude-clock" "$BATON_SHIM/now"' \
+  'if [ -f "$BATON_SHIM/claude-fails" ]; then echo "claude: the background service is not answering" >&2; exit 1; fi' \
+  'exec sh "$ROOT/tests/shim/claude" "$@"' > "$SHIM/slow-claude"
+chmod +x "$SHIM/slow-claude"
+
+rm -f "$SHIM/claude-fails"
+s=$((t0 + 60))
+at "$s" > "$SHIM/now"; at "$((s + 70))" > "$SHIM/claude-clock"
+BATON_CLAUDE="$SHIM/slow-claude" "$BATON" tick || echo "tick exit $?"
+echo "after the tick that read the listing: marker $(head -1 "$BATON_HOME/last-tick")"
+
+: > "$SHIM/claude-fails"
+s=$(( $(TZ=UTC date -j -f %Y-%m-%dT%H:%M:%S "$(head -1 "$BATON_HOME/last-tick" | sed 's/+00:00$//')" +%s) + 60 ))
+at "$s" > "$SHIM/now"; at "$((s + 70))" > "$SHIM/claude-clock"
+BATON_CLAUDE="$SHIM/slow-claude" "$BATON" tick || echo "tick exit $?"
+echo "after the tick that gave up on it: marker $(head -1 "$BATON_HOME/last-tick")"
+echo "gap events: $(grep -c '"class":"gap"' "$BATON_HOME/log.jsonl" || true)"
