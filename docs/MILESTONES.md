@@ -67,6 +67,8 @@ Rules for every session (also in `CLAUDE.md`):
 | M21 | No false "Baton was not running" alarms | – | sonnet | high | | done | While ticks run, even slow ones, no gap message reaches the Mac, and a reboot outside the assessed window no longer makes a gap unknown | No |
 | M22 | A ruling continues the session it was given to | – | sonnet | high | | | After baton answer the parked session reappears in Claude.app under its own name and carries on with the ruling, never a renamed copy beside an archived original | No |
 | M23 | A verb holding the lock is Baton running | M21 | sonnet | high | | | baton answer, baton onboard or any verb that holds the lock for a minute or more raises no gap message | No |
+| M24 | A hand dispatch clears its own omitted park; a stray key is not a no | – | sonnet | medium | | | baton dispatch of a milestone no handover lists leaves no omitted park, and yes to onboarding registers even after a key pressed while it thought | No |
+| M24-b | A verb waits a moment for the tick instead of refusing | M23 | sonnet | medium | | | A verb typed while a tick holds the lock runs once it frees, within a bound, instead of doing nothing | No |
 
 ## Gates
 
