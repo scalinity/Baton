@@ -1,0 +1,4 @@
+# `baton stop` boots the tick agent out of the login's launchd domain, once. The launchctl shim keeps
+# the loaded state in a file, so the second run finds the agent already gone: nothing to stop, and
+# still exit 0, because the state the person asked for is the state it is in.
+"$BATON" stop

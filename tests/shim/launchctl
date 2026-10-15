@@ -1,0 +1,23 @@
+#!/bin/sh
+# The launchctl shim: the loaded state of the one agent `baton stop` and `baton start` drive, kept as
+# a file so that a scenario's second run sees what the first left behind. `launchctl.loaded` present
+# means the agent is loaded, and `bootstrap` creates it and `bootout` removes it. `launchctl.fail`
+# holds a message: while it exists, `bootout` and `bootstrap` print it to stderr and exit 5, which is
+# launchctl's own "Input/output error" status and changes nothing. `print` answers as a missing
+# service does, exit 113, when the file is absent.
+#
+# It records its argv like every other shim, with the host's uid masked as `UID`, because the uid is
+# the machine's and a recorded call would otherwise differ between the machines that run the suite.
+set -eu
+S=${BATON_SHIM:?}
+printf 'launchctl %s\n' "$(printf '%s' "$*" | sed "s|gui/$(id -u)|gui/UID|g")" >> "$S/calls.log"
+case "${1:-}" in
+  print)
+    [ -f "$S/launchctl.loaded" ] || { echo 'Could not find service "com.baton.tick" in domain for user gui: UID' >&2; exit 113; }
+    ;;
+  bootout|bootstrap)
+    if [ -f "$S/launchctl.fail" ]; then cat "$S/launchctl.fail" >&2; exit 5; fi
+    if [ "$1" = bootout ]; then rm -f "$S/launchctl.loaded"; else : > "$S/launchctl.loaded"; fi
+    ;;
+  *) exit 64 ;;
+esac

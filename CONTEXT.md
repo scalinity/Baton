@@ -357,8 +357,8 @@ _Avoid_: conflict, disagreement (that term is reserved for the two cases that es
 
 **Verb**:
 One of the things the `baton` script does when run by hand or by launchd: `tick`, `answer`,
-`status`, `plan`, `dispatch`, `allow`, `wake`, `onboard`. Every verb runs under the same lock and
-writes the log through the same code path.
+`status`, `plan`, `dispatch`, `allow`, `wake`, `onboard`, `stop`, `start`. Every verb runs under the
+same lock and writes the log through the same code path.
 _Avoid_: command, subcommand, mode
 
 **Onboarding**:

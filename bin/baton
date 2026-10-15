@@ -14,8 +14,9 @@ BATON_TRANSCRIPTS=${BATON_TRANSCRIPTS:-$HOME/.claude/projects}
 BATON_JOBS=${BATON_JOBS:-$HOME/.claude/jobs}
 BATON_PMSET=${BATON_PMSET:-/usr/bin/pmset}
 BATON_SYSCTL=${BATON_SYSCTL:-/usr/sbin/sysctl}
+BATON_LAUNCHCTL=${BATON_LAUNCHCTL:-/bin/launchctl}
 export BATON_CLAUDE BATON_DATE BATON_CAFFEINATE BATON_OSASCRIPT BATON_OPEN BATON_HOME BATON_DAEMON_LOG \
-  BATON_TRANSCRIPTS BATON_JOBS BATON_PMSET BATON_SYSCTL
+  BATON_TRANSCRIPTS BATON_JOBS BATON_PMSET BATON_SYSCTL BATON_LAUNCHCTL
 
 here=$(cd "$(dirname "$0")" && pwd)
 
@@ -69,6 +70,7 @@ fi
 . "$BATON_LIB/waits.sh"
 . "$BATON_LIB/tick.sh"
 . "$BATON_LIB/lifecycle.sh"
+. "$BATON_LIB/agent.sh"
 . "$BATON_LIB/onboard.sh"
 . "$BATON_LIB/planning.sh"
 . "$BATON_LIB/scope.sh"
@@ -81,7 +83,7 @@ claude_env_clean
 # verb is about to write to. Every library reads what this captures; nothing asks again.
 render_init
 
-# usage <out|err>: the eight verbs. The stream is an argument because the same eight rows are the
+# usage <out|err>: the ten verbs. The stream is an argument because the same ten rows are the
 # answer to `baton help` on stdout and the refusal that follows a wrong argument on stderr, and
 # only the caller knows which of the two this is. The verb column is padded before it is styled,
 # because a width counts the escape bytes of a string that was styled first.
@@ -96,6 +98,8 @@ usage() {
   usage_row "$us_stream" 'allow <milestone> '"'"'<rule>'"'" 'write the rule into the project'"'"'s allowlist and the live settings'
   usage_row "$us_stream" 'wake [<milestone> [<text>]]' 'bring a finished session back, carrying the text; with none, list them'
   usage_row "$us_stream" 'onboard <path>' 'register a Git repository, derive its rail and check, read its plan, confirm once'
+  usage_row "$us_stream" 'stop' 'boot the tick agent out of launchd, until the next login or baton start'
+  usage_row "$us_stream" 'start' 'bootstrap the installed tick agent back into launchd'
 }
 
 usage_row() {
@@ -168,6 +172,19 @@ case "$verb" in
     lock_stale_report
     lock_take
     verb_onboard "$2"
+    ;;
+  stop)
+    # Under the lock before the bootout, so the SIGTERM never lands on a tick that is running.
+    [ $# -eq 1 ] || { usage err; exit 2; }
+    lock_stale_report
+    lock_take
+    verb_stop
+    ;;
+  start)
+    [ $# -eq 1 ] || { usage err; exit 2; }
+    lock_stale_report
+    lock_take
+    verb_start
     ;;
   ''|help|-h|--help)
     usage out

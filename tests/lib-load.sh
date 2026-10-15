@@ -27,6 +27,7 @@
 . "$ROOT/lib/waits.sh"
 . "$ROOT/lib/tick.sh"
 . "$ROOT/lib/lifecycle.sh"
+. "$ROOT/lib/agent.sh"
 . "$ROOT/lib/onboard.sh"
 . "$ROOT/lib/planning.sh"
 . "$ROOT/lib/scope.sh"

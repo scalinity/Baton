@@ -1,0 +1,11 @@
+# launchctl refuses the bootout and then the bootstrap: each verb exits 1 with launchctl's own words
+# in its message. The state is set up again on every run, because a failure leaves it as it was.
+base=$(cd "$SHIM/.." && pwd)
+mkdir -p "$base/Library/LaunchAgents"
+[ -f "$base/Library/LaunchAgents/com.baton.tick.plist" ] || printf '<plist></plist>\n' > "$base/Library/LaunchAgents/com.baton.tick.plist"
+: > "$SHIM/launchctl.loaded"
+printf 'Boot-out failed: 5: Input/output error\n' > "$SHIM/launchctl.fail"
+"$BATON" stop || echo "status $?"
+rm -f "$SHIM/launchctl.loaded"
+printf 'Bootstrap failed: 5: Input/output error\n' > "$SHIM/launchctl.fail"
+HOME=$base "$BATON" start || echo "status $?"

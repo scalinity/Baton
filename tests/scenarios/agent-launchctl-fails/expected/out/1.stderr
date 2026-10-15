@@ -1,0 +1,2 @@
+baton: could not stop com.baton.tick: Boot-out failed: 5: Input/output error
+baton: could not start com.baton.tick: Bootstrap failed: 5: Input/output error

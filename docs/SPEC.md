@@ -211,7 +211,7 @@ refused request per interval, never a night.
 
 | ID | Requirement | Acceptance | Decided by |
 |---|---|---|---|
-| REQ-VERB-01 | One script, `baton`, with the verbs `tick`, `answer`, `status`, `plan`, `dispatch`, `allow`, `wake`, `onboard`; every verb takes the lock; `status` and `plan` have no side effects. | `baton` with no verb prints the eight. | Relay or conductor §4, §6; SCOPE §6 M11 |
+| REQ-VERB-01 | One script, `baton`, with the verbs `tick`, `answer`, `status`, `plan`, `dispatch`, `allow`, `wake`, `onboard`, `stop`, `start`; every verb takes the lock; `status` and `plan` have no side effects. | `baton` with no verb prints the ten. | Relay or conductor §4, §6; SCOPE §6 M11; D-217 |
 | REQ-VERB-02 | `baton tick` runs REQ-TICK-04's order for every registered project and writes the marker last. | Fixture double-tick. | Relay or conductor |
 | REQ-VERB-03 | `baton answer <milestone \| project/milestone> <ruling \| n>` per REQ-ESC-06. | Fixtures. | Where an escalation goes §7 |
 | REQ-VERB-04 | `baton status` per REQ-ESC-11, the last tick first. | Rendered fixture. | The dispatch log §6 |
@@ -221,6 +221,8 @@ refused request per interval, never a night.
 | REQ-VERB-08 | `baton wake [<milestone \| project/milestone> [<text>]]` per REQ-LIFE-03. | Fixture `wake-verb`. | D-087 |
 | REQ-VERB-09 | Every person-facing success, warning, error and Mac message of every verb passes through `lib/render.sh`. The rendering context — whether each of stdout and stderr is a terminal that may be decorated, the width, and whether the locale allows UTF-8 — is read once at the verb boundary and passed to each call as its first argument; nothing asks the terminal for itself inside a capture or a pipeline. A stream that is not a decorated terminal receives exactly the bytes the caller's own format string produces: no escape, no re-layout, no transliteration. Set `NO_COLOR`, including set and empty, `TERM` unset or `dumb`, and any non-terminal stream all mean plain; `FORCE_COLOR` is ignored. A decorated terminal below sixty columns puts a record's fields on indented continuation lines, split at separators outside a styled run, and never truncates a path, identifier, timestamp, command or person's words. Returned results, session prompts, archived text, event-log lines and the Mac message's transport stay outside the layer; `render_plain` is where a site says so. | `render-matrix`, `verbs-tty` and `notify-tty-plain` drive a real pseudo-terminal; every other scenario's captured streams are the plain contract. | D-141, D-142, D-143 |
 | REQ-VERB-10 | `baton onboard <path>` per REQ-ONBOARD-01 to 08. | `onboard-*`. | SCOPE §6 M11 |
+| REQ-VERB-11 | `baton stop` boots the tick agent out of launchd: `launchctl bootout gui/<uid>/com.baton.tick`, run with the lock held so that no tick is mid-write or mid-check when the SIGTERM lands. A verb or tick that holds the lock makes it refuse, exit 75, with launchctl not called. An agent that is not loaded is a success that says so, and a launchctl failure exits 1 with launchctl's words. The boot-out lasts until the next login; the plist is not edited and the agent is not disabled. | `agent-stop`, `agent-lock-held`, `agent-launchctl-fails`. | D-217 |
+| REQ-VERB-12 | `baton start` bootstraps `~/Library/LaunchAgents/com.baton.tick.plist` into the login's launchd domain: `launchctl bootstrap gui/<uid> <plist>`. An agent already loaded is a success that says so; no installed plist is a refusal, exit 1, naming `sh install.sh`; a launchctl failure exits 1 with launchctl's words. The first tick fires about a minute after the bootstrap (`StartInterval` 60, no `RunAtLoad`). | `agent-start`, `agent-start-no-plist`, `agent-lock-held`, `agent-launchctl-fails`. | D-217 |
 
 ### 2.11 Setup facts (REQ-SETUP) — what a fresh Mac needs a person to do once
 
@@ -460,8 +462,9 @@ restated here. Three policies sit over them:
 
 ### 7.3 Rollback
 
-The installed relay is a copy: `launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.baton.tick.plist`
-stops the tick, and `git checkout <commit> && sh install.sh` reinstalls any earlier version.
+The installed relay is a copy: `baton stop` boots the tick agent out of launchd
+(`launchctl bootout gui/$(id -u)/com.baton.tick`) and `baton start` bootstraps it back, and a restart
+loads it again. `git checkout <commit> && sh install.sh` reinstalls any earlier version.
 No verb deletes anything under `~/.baton/`, and nothing in Baton removes a milestone worktree
 (REQ-DISPATCH-03).
 

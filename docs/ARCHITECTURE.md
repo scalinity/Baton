@@ -52,6 +52,7 @@ hundred lines, means a Swift command-line tool for that piece.
 │   ├── status.sh             the one view
 │   ├── templates.sh          the continue, finish and ruling texts; the slot line
 │   ├── lifecycle.sh          a finished session: the offline rule, the wake verb, the wake session
+│   ├── agent.sh              the stop and start verbs: the tick agent out of launchd and back in
 │   └── onboard.sh            the onboard verb: the repository, the toolchain, the plan as it stands, one confirmation
 ├── launchd/
 │   └── com.baton.tick.plist  the one agent; install.sh copies it, a person loads it
@@ -524,6 +525,8 @@ reading still uses the last completed tick (D-115). A handled self-check park is
 
 | `baton wake [<milestone \| project/milestone> [<text>]]` | with no milestone, lists every finished session as running or offline with its last activity; with one, refuses a milestone that has not finished, names a running session's thread rather than resuming it, and otherwise resumes the session flaglessly with the text labelled as the person's — the command the wake session runs for each message it receives | a `wake` event with `how: verb` and the prompt sidecar |
 | `baton onboard <path>` | resolves the canonical checkout and the project key; detects the toolchain, and from it the standing check and the allow rules; finds and classifies the plan (`native`, `adapted`, `generated`); makes one judgment request for the intent statement; prints three lines and reads a yes or no; on yes writes the registration, the rail and the starting handover, and reports the plan and its dispatch preconditions through `plan_render` and `plan_preconditions_report`. Refuses a path that is not a Git repository, a key already registered elsewhere, and a `Status` word it will not map. On anything but a yes it writes nothing and returns 1 | `projects/<key>/{project.json,permissions.json}`, one `onboarded` event |
+| `baton stop` | boots `com.baton.tick` out of the login's launchd domain, `launchctl bootout gui/<uid>/com.baton.tick`, with the lock held so no tick is running when the SIGTERM lands; an agent already out is a success that says so | the agent leaves launchd until the next login or `baton start`; nothing under `~/.baton/` |
+| `baton start` | bootstraps `~/Library/LaunchAgents/com.baton.tick.plist` into the login's domain, `launchctl bootstrap gui/<uid> <plist>`; already loaded is a success, no plist is a refusal naming `sh install.sh` | the agent is in launchd, and its first tick fires about a minute later |
 
 Every verb enters through the lock. `status` and `plan` write nothing. `onboard` writes nothing
 before the yes, and everything after it in this process — the relay's own, under the lock — because
@@ -1224,6 +1227,7 @@ is the transcript record's own `timestamp`, carried exactly as it arrived.
 | `BATON_JOBS` | `~/.claude/jobs` | a background session's `<job>/state.json`, read for `bridgeSessionId` when its transcript holds no URL; a scenario's own `jobs/` directory (D-093) |
 | `BATON_PMSET` | `/usr/bin/pmset` | the host's sleep history, `pmset -g log`, for the gap's explanation and the stall's awake age (REQ-ESC-14); the shim prints the scenario's `shim/pmset.log` and exits with `shim/pmset.status` when there is one, and records `pmset -g log` in `calls.log`, so a scenario counts the reads as well as reading the answer. Without either file it succeeds and prints nothing, which is a host that answered and said nothing |
 | `BATON_SYSCTL` | `/usr/sbin/sysctl` | the current boot's time, `sysctl -n kern.boottime`, read once with the sleep history (M21); the shim prints `{ sec = <shim/boottime>, usec = 0 }` and fails without that file, and it does not record its argv, so a host scenario's `calls.log` is the same with or without a boot time |
+| `BATON_LAUNCHCTL` | `/bin/launchctl` | the tick agent's load state and its bootout and bootstrap (D-217): `print gui/<uid>/com.baton.tick` answers whether it is loaded, `bootout` and `bootstrap` change that; the shim keeps the state in `launchctl.loaded`, fails the two changes with the text of `launchctl.fail` when that exists, and records its argv with the uid written as `UID` |
 
 **Scenarios** under `tests/scenarios/<name>/`:
 

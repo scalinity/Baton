@@ -15,6 +15,7 @@ statusline
 stop-failure
 stop-gate
 @BUNDLE@
+agent.sh
 answer.sh
 budget.sh
 candidates.sh

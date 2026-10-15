@@ -1,0 +1,2 @@
+launchctl print gui/UID/com.baton.tick
+launchctl print gui/UID/com.baton.tick

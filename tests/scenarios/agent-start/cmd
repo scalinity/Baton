@@ -1,0 +1,6 @@
+# `baton start` bootstraps the installed plist, once. The second run finds the agent loaded and does
+# nothing. HOME is redirected, as in the install scenarios, so the plist read is the scenario's own.
+base=$(cd "$SHIM/.." && pwd)
+mkdir -p "$base/Library/LaunchAgents"
+[ -f "$base/Library/LaunchAgents/com.baton.tick.plist" ] || printf '<plist></plist>\n' > "$base/Library/LaunchAgents/com.baton.tick.plist"
+HOME=$base "$BATON" start

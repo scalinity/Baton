@@ -1,0 +1,12 @@
+# A tick (or any verb) holds the lock: both verbs refuse with the lock's own message and exit 75, and
+# launchctl is never called. That is the point of taking the lock before the bootout: a SIGTERM must
+# not land on a tick that is mid-write or mid-check. The pid is this shell's, which differs between
+# runs, so it is masked before the diff.
+mkdir -p "$BATON_HOME/lock"
+printf '%s\n' "$$" > "$BATON_HOME/lock/pid"
+printf '2026-09-12T11:59:30+01:00\n' > "$BATON_HOME/lock/at"
+for v in stop start; do
+  "$BATON" "$v" 2> held.err || echo "$v status $?"
+  sed 's/pid [0-9][0-9]*/pid <this shell>/' held.err >&2
+done
+rm -f held.err

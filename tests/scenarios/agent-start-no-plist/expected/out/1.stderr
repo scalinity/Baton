@@ -1,0 +1,1 @@
+baton: no launchd agent at @TMP@/Library/LaunchAgents/com.baton.tick.plist; sh install.sh installs it
