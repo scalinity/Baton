@@ -121,6 +121,7 @@ CF_CHECK_SLOW='#!/bin/sh
 set -eu
 exec sleep 30'
 
+cf_clock=2026-09-12T00:11:00+01:00
 CF_CHECK_CLOCK="$CF_CHECK_PASSES"'
 # …and then eleven minutes pass. The harness freezes the clock at the scenario'"'"'s `now`, so a
 # check cannot spend wall time the tick would see; it moves the shim forward instead, which is the
@@ -130,7 +131,7 @@ CF_CHECK_CLOCK="$CF_CHECK_PASSES"'
 # begins at whatever run 1 left, so what run 1 leaves has to be the same on every machine. That also
 # holds for a scenario whose check runs on both runs, which this one'"'"'s does not — its artifact is
 # archived by the first.
-printf "%s\n" "2026-09-12T00:11:00+01:00" > "${BATON_SHIM:?}/now"'
+printf "%s\n" "'"$cf_clock"'" > "${BATON_SHIM:?}/now"'
 
 case "$shape" in
   check-fails) cf_check=$CF_CHECK_FAILS ;;
@@ -138,6 +139,12 @@ case "$shape" in
   check-clock) cf_check=$CF_CHECK_CLOCK ;;
   *)           cf_check=$CF_CHECK_PASSES ;;
 esac
+
+# The time the clock check moves to, and the pid file that says the tick has started that check:
+# tests/shim/date holds the tick's next reading of the clock until the check has written it.
+if [ "$shape" = check-clock ]; then
+  printf '%s\n%s\n' "$cf_clock" "$BATON_HOME/checks/*/*/pid" > "${BATON_SHIM:?}/clock-latch"
+fi
 
 scoped=$(cf_commit "the milestone's brief declares its scope" docs/milestones/M02.md "$CF_SCOPE" "$root")
 base=$(cf_commit "the project's standing check" check.sh "$cf_check" "$scoped")

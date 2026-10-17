@@ -1,4 +1,25 @@
 #!/bin/sh
 # The clock shim: prints the scenario's now whatever the format asked for.
 set -eu
-cat "${BATON_SHIM:?}/now"
+# A check-clock scenario's check moves the clock, and from the moment the tick has started it the
+# tick reads the moved clock, which is what its expectations were frozen with; a check slowed by the
+# load of other suites had not always written it by then. tests/completion-fixture.sh leaves a latch
+# naming the moved time and the check's pid file. Once that file exists, a reading waits until the
+# check has written the time, for up to thirty seconds, and fails past that, so a check that never
+# runs still fails its scenario.
+if [ -f "${BATON_SHIM:?}/clock-latch" ]; then
+  { read -r ds_target; read -r ds_pidfiles; } < "$BATON_SHIM/clock-latch"
+  for ds_pidfile in $ds_pidfiles; do
+    [ -f "$ds_pidfile" ] || continue
+    ds_n=0
+    until [ "$(cat "$BATON_SHIM/now")" = "$ds_target" ]; do
+      ds_n=$((ds_n + 1))
+      if [ "$ds_n" -gt 300 ]; then
+        echo "date shim: the check has not moved the clock to $ds_target in 30 s" >&2
+        exit 1
+      fi
+      sleep 0.1
+    done
+  done
+fi
+cat "$BATON_SHIM/now"
