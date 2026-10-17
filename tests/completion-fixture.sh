@@ -95,9 +95,10 @@ CF_CHECK_SLOW='#!/bin/sh
 # A check that outlasts its deadline. The scenario registers deadline_seconds 1, so this is a
 # second-order wait and not a slow test: what is being exercised is the poll giving up, which the
 # harness never sees the duration of.
+# `exec`, so the sleep is the check runner'"'"'s own child: a kill that reaches the runner'"'"'s children,
+# the deadline'"'"'s and each scenario'"'"'s cleanup alike, reaches it, and none outlives its scenario.
 set -eu
-sleep 30
-echo "this line is never reached"'
+exec sleep 30'
 
 CF_CHECK_CLOCK="$CF_CHECK_PASSES"'
 # …and then eleven minutes pass. The harness freezes the clock at the scenario'"'"'s `now`, so a
