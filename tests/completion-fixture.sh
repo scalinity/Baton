@@ -19,6 +19,27 @@ shape=${1:?the shape to build}
 repo=$PWD/Fixture
 subs=$PWD/subs
 
+# A check an earlier run of this scenario started has finished before this run builds on it. The
+# tick starts the check detached and reports it pending on that tick, and every expectation but the
+# slow check's was frozen with it finished by the second run, which a check slowed by the load of
+# other suites need not be. So this waits while the check's runner lives and has not written its
+# marker, for up to thirty seconds, after which the scenario fails rather than read a state no
+# expectation holds. A runner that has died without a marker is not waited for.
+if [ "$shape" != check-slow ]; then
+  for cf_pidfile in "${BATON_HOME:?}"/checks/*/*/pid; do
+    [ -f "$cf_pidfile" ] || continue
+    cf_n=0
+    while [ ! -f "${cf_pidfile%/pid}/output.txt.exit" ] && kill -0 "$(cat "$cf_pidfile")" 2>/dev/null; do
+      cf_n=$((cf_n + 1))
+      if [ "$cf_n" -gt 300 ]; then
+        echo "completion-fixture: the check in ${cf_pidfile%/pid} has not finished in 30 s" >&2
+        exit 1
+      fi
+      sleep 0.1
+    done
+  done
+fi
+
 export GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@example \
        GIT_AUTHOR_DATE=2026-09-02T00:00:00+0000 \
        GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example \
