@@ -104,20 +104,12 @@ BATON_DATE=date
 . "$root/lib/log.sh"
 . "$root/lib/derive.sh"
 
-for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
-  if [ -n "$run_owner" ] && ! kill -0 "$run_owner" 2>/dev/null; then
-    echo "run: the owner, pid $run_owner, has gone; this run is abandoned and stops here" >&2
-    exit 3
-  fi
-  if [ -n "$run_deadline" ] && [ "$(( $(date +%s) - run_started ))" -ge "$run_deadline" ]; then
-    echo "run: reached ${run_deadline}s; stopping rather than running unbounded" >&2
-    exit 3
-  fi
-  # A glob that matches nothing is left as its own text by the shell; it names no scenario.
-  [ -d "$sc" ] || continue
+# scenario_run <dir>: one scenario, start to verdict — its fixtures built, its cmd run twice, its
+# state diffed against expected/ — printing its lines and counting a failure in `fails`.
+scenario_run() {
+  sc=$1
   sc=${sc%/}
   name=$(basename "$sc")
-  count=$((count + 1))
   tmp=$tmproot/$name
   mkdir -p "$tmp/shim" "$tmp/out"
 
@@ -277,6 +269,21 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
   if [ "$freeze" = "$name" ] || [ "$freeze" = all ]; then
     rm -rf "$sc/expected"; cp -R "$tmp/got" "$sc/expected"; echo "froze $name"
   fi
+}
+
+for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
+  if [ -n "$run_owner" ] && ! kill -0 "$run_owner" 2>/dev/null; then
+    echo "run: the owner, pid $run_owner, has gone; this run is abandoned and stops here" >&2
+    exit 3
+  fi
+  if [ -n "$run_deadline" ] && [ "$(( $(date +%s) - run_started ))" -ge "$run_deadline" ]; then
+    echo "run: reached ${run_deadline}s; stopping rather than running unbounded" >&2
+    exit 3
+  fi
+  # A glob that matches nothing is left as its own text by the shell; it names no scenario.
+  [ -d "$sc" ] || continue
+  count=$((count + 1))
+  scenario_run "$sc"
 done
 
 echo "$count scenarios, $fails failed"
