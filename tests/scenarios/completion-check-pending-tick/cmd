@@ -12,9 +12,7 @@ if grep -q '"kind":"crash_sighting"' "$BATON_HOME/log.jsonl" 2>/dev/null; then e
 pid=$(cat "$dir/pid" 2>/dev/null || true)
 if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then echo "check still running"; else echo "check not running"; fi
 if [ -n "$pid" ]; then
-  pkill -TERM -P "$pid" 2>/dev/null || true
-  kill -TERM "$pid" 2>/dev/null || true
-  wait "$pid" 2>/dev/null || true
+  sh "$ROOT/tests/check-stop.sh" "$pid"
 fi
 if [ -d "$dir/tree" ]; then
   git -C "$PWD/Fixture" worktree remove --force "$dir/tree" >/dev/null 2>&1 || true
