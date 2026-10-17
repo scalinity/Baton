@@ -27,8 +27,9 @@
 # harness change that moves every expectation at once. BATON_TESTS_ONLY=<glob> runs the scenarios
 # whose names match it and no others; the standing check is the run without it.
 # The scenarios share nothing, so BATON_TESTS_JOBS=<n> of them run at once while the lines are still
-# printed one scenario at a time in name order. The default is a third of the cores: three suites at
-# once is the relay's steady state (D-187), and together they then take every core and no more.
+# printed one scenario at a time in name order. The default is half the cores: three suites at once,
+# the relay's steady state (D-187), then share the cores and each still finishes in half the time one
+# serial run takes (D-218).
 # BATON_TESTS_JOBS=1 and BATON_TESTS_FREEZE run the scenarios one after another in this shell.
 # A run whose BATON_TESTS_OWNER=<pid> has gone stops on its own, and so does one that has reached the
 # BATON_TESTS_DEADLINE=<seconds> a caller named, of which there is none by default; both exit 3,
@@ -526,7 +527,7 @@ run_total=0
 for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
   if [ -d "$sc" ]; then run_total=$((run_total + 1)); fi
 done
-run_jobs=$(( $(/usr/sbin/sysctl -n hw.ncpu 2>/dev/null || echo 1) / 3 ))
+run_jobs=$(( $(/usr/sbin/sysctl -n hw.ncpu 2>/dev/null || echo 1) / 2 ))
 case "${BATON_TESTS_JOBS:-}" in
   '') ;;
   *[!0-9]*|0*) echo "run: BATON_TESTS_JOBS is not a positive whole number ($BATON_TESTS_JOBS); using $run_jobs" >&2 ;;
