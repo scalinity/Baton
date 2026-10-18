@@ -19,6 +19,27 @@ shape=${1:?the shape to build}
 repo=$PWD/Fixture
 subs=$PWD/subs
 
+# A check an earlier run of this scenario started has finished before this run builds on it. The
+# tick starts the check detached and reports it pending on that tick, and every expectation but the
+# slow check's was frozen with it finished by the second run, which a check slowed by the load of
+# other suites need not be. So this waits while the check's runner lives and has not written its
+# marker, for up to thirty seconds, after which the scenario fails rather than read a state no
+# expectation holds. A runner that has died without a marker is not waited for.
+if [ "$shape" != check-slow ]; then
+  for cf_pidfile in "${BATON_HOME:?}"/checks/*/*/pid; do
+    [ -f "$cf_pidfile" ] || continue
+    cf_n=0
+    while [ ! -f "${cf_pidfile%/pid}/output.txt.exit" ] && kill -0 "$(cat "$cf_pidfile")" 2>/dev/null; do
+      cf_n=$((cf_n + 1))
+      if [ "$cf_n" -gt 300 ]; then
+        echo "completion-fixture: the check in ${cf_pidfile%/pid} has not finished in 30 s" >&2
+        exit 1
+      fi
+      sleep 0.1
+    done
+  done
+fi
+
 export GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@example \
        GIT_AUTHOR_DATE=2026-09-02T00:00:00+0000 \
        GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example \
@@ -95,10 +116,12 @@ CF_CHECK_SLOW='#!/bin/sh
 # A check that outlasts its deadline. The scenario registers deadline_seconds 1, so this is a
 # second-order wait and not a slow test: what is being exercised is the poll giving up, which the
 # harness never sees the duration of.
+# `exec`, so the sleep is the check runner'"'"'s own child: a kill that reaches the runner'"'"'s children,
+# the deadline'"'"'s and each scenario'"'"'s cleanup alike, reaches it, and none outlives its scenario.
 set -eu
-sleep 30
-echo "this line is never reached"'
+exec sleep 30'
 
+cf_clock=2026-09-12T00:11:00+01:00
 CF_CHECK_CLOCK="$CF_CHECK_PASSES"'
 # …and then eleven minutes pass. The harness freezes the clock at the scenario'"'"'s `now`, so a
 # check cannot spend wall time the tick would see; it moves the shim forward instead, which is the
@@ -108,7 +131,7 @@ CF_CHECK_CLOCK="$CF_CHECK_PASSES"'
 # begins at whatever run 1 left, so what run 1 leaves has to be the same on every machine. That also
 # holds for a scenario whose check runs on both runs, which this one'"'"'s does not — its artifact is
 # archived by the first.
-printf "%s\n" "2026-09-12T00:11:00+01:00" > "${BATON_SHIM:?}/now"'
+printf "%s\n" "'"$cf_clock"'" > "${BATON_SHIM:?}/now"'
 
 case "$shape" in
   check-fails) cf_check=$CF_CHECK_FAILS ;;
@@ -116,6 +139,12 @@ case "$shape" in
   check-clock) cf_check=$CF_CHECK_CLOCK ;;
   *)           cf_check=$CF_CHECK_PASSES ;;
 esac
+
+# The time the clock check moves to, and the directory whose pid file says the tick has started it:
+# tests/shim/date holds the tick's next reading of the clock until the check has written it.
+if [ "$shape" = check-clock ]; then
+  printf '%s\n%s\n' "$cf_clock" "$BATON_HOME/checks" > "${BATON_SHIM:?}/clock-latch"
+fi
 
 scoped=$(cf_commit "the milestone's brief declares its scope" docs/milestones/M02.md "$CF_SCOPE" "$root")
 base=$(cf_commit "the project's standing check" check.sh "$cf_check" "$scoped")

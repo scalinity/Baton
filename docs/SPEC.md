@@ -421,11 +421,12 @@ restated here. Three policies sit over them:
 - **launchd stays out of the tests**; the tick is invoked directly under the same lock. The live
   proofs — items 36–47 on "Watching a dispatched session" — are run once, by hand, by the milestone
   that owns each, and recorded in that brief's completion evidence.
-- **The standing check** is `sh tests/run.sh`, which runs every fixture and prints one line per
-  scenario. It is what the close-out runs on `main`, and — since M10 — what Baton runs again itself
-  on a detached checkout of the commit the close-out's handover claims, under the registration's
-  `.check.command` (REQ-ARTIFACT-10). Both runs matter and neither replaces the other: the session's
-  says whether it should write `main-broken`, Baton's says whether the chain advances.
+- **The standing check** is `sh tests/run.sh`, which runs every fixture, several at once, and prints
+  one line per scenario in name order. It is what the close-out runs on `main`, and — since M10 —
+  what Baton runs again itself on a detached checkout of the commit the close-out's handover claims,
+  under the registration's `.check.command` (REQ-ARTIFACT-10). Both runs matter and neither
+  replaces the other: the session's says whether it should write `main-broken`, Baton's says
+  whether the chain advances.
 - **Reporting rule.** A check is reported as passed only with its output attached in the brief's
   completion evidence; an unrun check is listed as unrun with the reason. An unrun check is never
   reported as passed.

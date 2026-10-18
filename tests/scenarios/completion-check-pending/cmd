@@ -18,9 +18,7 @@ fi
 # What this scenario asserts is already on the stream and in the inbox; reap so the
 # second run observes a dead producer with no marker and still returns pending.
 if [ -n "$pid" ]; then
-  pkill -TERM -P "$pid" 2>/dev/null || true
-  kill -TERM "$pid" 2>/dev/null || true
-  wait "$pid" 2>/dev/null || true
+  sh "$ROOT/tests/check-stop.sh" "$pid"
 fi
 if [ -d "$dir/tree" ]; then
   git -C "$PWD/Fixture" worktree remove --force "$dir/tree" >/dev/null 2>&1 || true

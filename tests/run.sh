@@ -26,6 +26,13 @@
 # has been read and judged right; BATON_TESTS_FREEZE=all does it for every scenario and is for a
 # harness change that moves every expectation at once. BATON_TESTS_ONLY=<glob> runs the scenarios
 # whose names match it and no others; the standing check is the run without it.
+# The scenarios share nothing, so BATON_TESTS_JOBS=<n> of them run at once while the lines are still
+# printed one scenario at a time in name order. The default is half the cores. Three suites at once,
+# the relay's steady state (D-187), then share the cores, and each finishes in about half the time
+# one serial run takes (D-218).
+# BATON_TESTS_JOBS=1 and BATON_TESTS_FREEZE run the scenarios one after another in this shell.
+# tests/harness-check.sh checks this file's abandons, signal handling and ownership, which no scenario
+# reaches; run it after a change here.
 # A run whose BATON_TESTS_OWNER=<pid> has gone stops on its own, and so does one that has reached the
 # BATON_TESTS_DEADLINE=<seconds> a caller named, of which there is none by default; both exit 3,
 # before the next scenario begins. The run sets LC_ALL=en_US.UTF-8 for itself and refuses, exit 3,
@@ -88,7 +95,125 @@ here=$(cd "$(dirname "$0")" && pwd)
 root=$(dirname "$here")
 tmproot=$(mktemp -d "${TMPDIR:-/tmp}/baton-tests.XXXXXX")
 tmproot=$(cd "$tmproot" && pwd -P)
-trap 'rm -rf "$tmproot"' EXIT
+
+# What the run starts is the run's to stop, and the temporary root goes on every way out: an end, an
+# error, an abandon, and a TERM, INT or HUP from whoever started it. The relay's deadline kill names
+# run.sh alone, and the HUP its launch ignores cannot be trapped. Each worker leads a process group
+# of its own, and every process a scenario starts stays in that group, the detached ones included.
+# `script -q` is the exception: it puts its child in a session of its own, and with HUP ignored that
+# child outlives `script`, so it is found by ancestry before anything is stopped and its group is
+# remembered after the child has been handed to launchd. The serial loop has no worker group, so a
+# process a scenario detached is left to end on its own there, as it always was, and so is one whose
+# worker was killed from outside: a dead leader's group id can be reused once the group empties.
+# cleanup stops claims and releases the workers, which an idle one obeys within 0.2 s; it then TERMs
+# the group of each worker still busy, while its leader lives, and every other process the run owns,
+# gives what is left at least five seconds before it KILLs it by pid, and removes the root. Its
+# result counts: a root it could not remove fails a run that had passed.
+workers=
+cleanup_done=
+cleanup_status=0
+run_signalled=
+
+# cleanup_list: the processes the run owns, other than its live workers, into $cl_pids, and the pty
+# session groups seen so far into $cl_sessions. Owned is a descendant of this shell, a member of a
+# group of a worker that was alive when cleanup began, or a member of a session group. This shell's
+# own group is never one: a shell with job control makes it the group of a whole pipeline, whose
+# other members (`| tail`, `| tee`) the run did not start.
+cleanup_list() {
+  ps -A -o pid=,ppid=,pgid= > "$tmproot/.ps" 2>/dev/null &
+  cl_ps=$!
+  wait "$cl_ps"
+  awk -v main="$$" -v ps="$cl_ps" -v groups="$cl_groups" -v live="$(jobs -rp | tr '\n' ' ')" \
+      -v sessions="$cl_sessions" '
+    { pid[NR] = $1; ppid[NR] = $2; pgid[NR] = $3 }
+    END {
+      n = split(groups, a, " "); for (i = 1; i <= n; i++) group[a[i]] = 1
+      n = split(live, a, " "); for (i = 1; i <= n; i++) worker[a[i]] = 1
+      n = split(sessions, a, " "); for (i = 1; i <= n; i++) session[a[i]] = 1
+      desc[main] = 1
+      do {
+        grew = 0
+        for (i = 1; i <= NR; i++) if (!(pid[i] in desc) && (ppid[i] in desc)) { desc[pid[i]] = 1; grew = 1 }
+      } while (grew)
+      for (i = 1; i <= NR; i++) if ((pid[i] in desc) && pid[i] != main && pid[i] == pgid[i] && !(pid[i] in group)) session[pid[i]] = 1
+      for (s in session) print "s", s
+      for (i = 1; i <= NR; i++) {
+        if (pid[i] == main || pid[i] == ps || (pid[i] in worker)) continue
+        if ((pid[i] in desc) || (pgid[i] in group) || (pgid[i] in session)) print "p", pid[i]
+      }
+    }' "$tmproot/.ps" > "$tmproot/.owned"
+  cl_pids=
+  while read -r cl_kind cl_id; do
+    case "$cl_kind" in
+      s) case " $cl_sessions " in *" $cl_id "*) ;; *) cl_sessions="$cl_sessions $cl_id" ;; esac ;;
+      p) cl_pids="$cl_pids $cl_id" ;;
+    esac
+  done < "$tmproot/.owned"
+}
+
+# cleanup: once per run, whichever way it ends; a second call returns the first one's result.
+cleanup() {
+  if [ -n "$cleanup_done" ]; then return "$cleanup_status"; fi
+  cleanup_done=1
+  set +e +m
+  cl_groups=$(jobs -rp | tr '\n' ' ')
+  cl_sessions=
+  cleanup_list
+  if [ -d "$tmproot/.run" ]; then
+    : > "$tmproot/.run/stop"
+    for cl_w in $workers; do : > "$tmproot/.run/release.$cl_w"; done
+  fi
+  cl_n=0
+  while [ -n "$(jobs -rp)" ] && [ "$cl_n" -lt 10 ]; do cl_n=$((cl_n + 1)); sleep 0.1; done
+  for cl_w in $(jobs -rp); do kill -TERM -- "-$cl_w" 2>/dev/null; done
+  cleanup_list
+  for cl_p in $cl_pids; do kill -TERM "$cl_p" 2>/dev/null; done
+  cl_n=0
+  while :; do
+    cleanup_list
+    cl_live=$(jobs -rp)
+    if [ -z "$cl_pids" ] && [ -z "$cl_live" ]; then break; fi
+    cl_n=$((cl_n + 1))
+    if [ "$cl_n" -ge 50 ]; then
+      for cl_p in $cl_pids $cl_live; do kill -KILL "$cl_p" 2>/dev/null; done
+      break
+    fi
+    sleep 0.1
+  done
+  wait 2>/dev/null
+  for cl_log in "$tmproot"/.run/worker-*.log; do
+    if [ -s "$cl_log" ]; then cat "$cl_log" >&2; fi
+  done
+  rm -rf "$tmproot" 2>/dev/null || { sleep 0.2; rm -rf "$tmproot"; }
+  if [ -e "$tmproot" ]; then
+    echo "run: could not remove $tmproot" >&2
+    cleanup_status=1
+  fi
+  return "$cleanup_status"
+}
+
+# The exit status stands unless cleanup failed on a run that had passed. A signal is handled once —
+# a second TERM during cleanup changes nothing — and then raised again with its default action, so
+# whoever sent it sees the run die of it. A signal that arrives while an exit is already cleaning up
+# lets that cleanup finish and is raised after it.
+run_exit() {
+  re_status=$?
+  cleanup || [ "$re_status" -ne 0 ] || re_status=1
+  if [ -n "$run_signalled" ]; then trap - "$run_signalled" EXIT; kill -"$run_signalled" "$$"; fi
+  exit "$re_status"
+}
+run_signal() {
+  [ -z "$run_signalled" ] || return 0
+  run_signalled=$1
+  [ -z "$cleanup_done" ] || return 0
+  cleanup || :
+  trap - "$1" EXIT
+  kill -"$1" "$$"
+}
+trap run_exit EXIT
+trap 'run_signal TERM' TERM
+trap 'run_signal INT' INT
+trap 'run_signal HUP' HUP
 fails=0
 count=0
 freeze=${BATON_TESTS_FREEZE:-}
@@ -104,20 +229,25 @@ BATON_DATE=date
 . "$root/lib/log.sh"
 . "$root/lib/derive.sh"
 
-for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
+# run_abandoned: whether the owner has gone or the deadline has passed, saying which on stderr.
+run_abandoned() {
   if [ -n "$run_owner" ] && ! kill -0 "$run_owner" 2>/dev/null; then
     echo "run: the owner, pid $run_owner, has gone; this run is abandoned and stops here" >&2
-    exit 3
+    return 0
   fi
   if [ -n "$run_deadline" ] && [ "$(( $(date +%s) - run_started ))" -ge "$run_deadline" ]; then
     echo "run: reached ${run_deadline}s; stopping rather than running unbounded" >&2
-    exit 3
+    return 0
   fi
-  # A glob that matches nothing is left as its own text by the shell; it names no scenario.
-  [ -d "$sc" ] || continue
+  return 1
+}
+
+# scenario_run <dir>: one scenario, start to verdict — its fixtures built, its cmd run twice, its
+# state diffed against expected/ — printing its lines and counting a failure in `fails`.
+scenario_run() {
+  sc=$1
   sc=${sc%/}
   name=$(basename "$sc")
-  count=$((count + 1))
   tmp=$tmproot/$name
   mkdir -p "$tmp/shim" "$tmp/out"
 
@@ -277,7 +407,159 @@ for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
   if [ "$freeze" = "$name" ] || [ "$freeze" = all ]; then
     rm -rf "$sc/expected"; cp -R "$tmp/got" "$sc/expected"; echo "froze $name"
   fi
+}
+
+# run_serial: the scenarios one after another, in this shell.
+run_serial() {
+  for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
+    if run_abandoned; then exit 3; fi
+    # A glob that matches nothing is left as its own text by the shell; it names no scenario.
+    [ -d "$sc" ] || continue
+    count=$((count + 1))
+    scenario_run "$sc"
+  done
+}
+
+# worker <scenario dir>...: one of the run's workers, started as a job that leads its own process
+# group. It takes, in name order, each scenario of the list it is given that no other worker has
+# claimed and runs it exactly as run_serial does, its lines and its failure count going to files
+# under $rundir. It stops claiming when the run says stop, when a scenario of its own ended in an
+# error (a serial run would have stopped there), when the owner or the deadline abandons the run,
+# and when the shell that started it has gone, which it tells by its own parent becoming launchd
+# (pids are reused within a run, so `kill -0` on the shell cannot tell). Then it waits to be
+# released, so a group the run signals always has its leader alive; if its shell has gone, nothing
+# will release it, and it KILLs its own group instead.
+worker() {
+  set +e
+  wk_self=$(exec sh -c 'echo $PPID')
+  wk_stop=
+  trap 'wk_stop=1' TERM
+  for sc in "$@"; do
+    [ -d "$sc" ] || continue
+    sc=${sc%/}
+    name=${sc##*/}
+    [ ! -e "$rundir/claim/$name" ] || continue
+    [ -z "$wk_stop" ] && [ ! -e "$rundir/stop" ] || break
+    ! worker_orphaned || break
+    if [ -n "$run_owner$run_deadline" ] && wk_message=$(run_abandoned 2>&1); then
+      mkdir "$rundir/abandoned" 2>/dev/null && printf '%s\n' "$wk_message" > "$rundir/abandoned/message"
+      break
+    fi
+    mkdir "$rundir/claim/$name" 2>/dev/null || continue
+    ( set -e; fails=0; scenario_run "$sc"; echo "$fails" > "$rundir/$name.fails" ) > "$rundir/$name.out" 2> "$rundir/$name.err"
+    wk_status=$?
+    echo "$wk_status" > "$rundir/$name.status" && mv "$rundir/$name.status" "$rundir/$name.done"
+    if [ "$wk_status" -ne 0 ]; then : > "$rundir/stop"; break; fi
+  done
+  : > "$rundir/idle.$wk_self"
+  until [ -e "$rundir/release.$wk_self" ]; do
+    # `kill -KILL 0` reaches the caller's whole group, so it is sent only from a group this worker
+    # leads, as the probe found jobs do; a worker in any other group leaves without it.
+    if worker_orphaned; then
+      [ "$(ps -o pgid= -p "$wk_self" 2>/dev/null | tr -d ' ')" != "$wk_self" ] || kill -KILL 0
+      exit 1
+    fi
+    sleep 0.2
+  done
+}
+worker_orphaned() { [ "$(ps -o ppid= -p "$wk_self" 2>/dev/null | tr -d ' ')" = 1 ]; }
+
+# run_busy: whether a worker is still running a scenario: alive, a job this shell has not reaped,
+# and not yet idle.
+run_busy() {
+  rb_live=" $(jobs -rp | tr '\n' ' ') "
+  for rb_w in $workers; do
+    case "$rb_live" in *" $rb_w "*) [ -e "$rundir/idle.$rb_w" ] || return 0 ;; esac
+  done
+  return 1
+}
+
+# run_jobs_probe: whether a job started here leads a process group of its own, which is what the
+# workers' ownership rests on.
+run_jobs_probe() {
+  set -m
+  sleep 5 &
+  jp_pid=$!
+  set +m
+  jp_group=$(ps -o pgid= -p "$jp_pid" 2>/dev/null | tr -d ' ')
+  kill "$jp_pid" 2>/dev/null || :
+  wait "$jp_pid" 2>/dev/null || :
+  [ "$jp_group" = "$jp_pid" ]
+}
+
+# run_parallel <n>: n workers take the scenarios, and this shell prints each scenario's lines in name
+# order once it has finished. A result is believed only if it adds up: one verdict line, and a
+# failure count equal to its FAIL lines, the mtimes check's included. A scenario that ended in an
+# error ends the run with its status once everything before it has been printed, as the serial loop
+# stops there. A name no worker will finish is an abandon when the owner or the deadline said so,
+# and a harness error otherwise. The scenarios are listed once, here, and the workers and the
+# printing loop walk that one list, so this shell waits only for names a worker will reach.
+run_parallel() {
+  rp_n=$1
+  set -- "$here"/scenarios/${BATON_TESTS_ONLY:-*}/
+  rundir=$tmproot/.run
+  mkdir "$rundir" "$rundir/claim"
+  rp_k=0
+  set -m
+  while [ "$rp_k" -lt "$rp_n" ]; do
+    rp_k=$((rp_k + 1))
+    worker "$@" < /dev/null > "$rundir/worker-$rp_k.log" 2>&1 &
+    workers="$workers $!"
+  done
+  set +m
+  for sc in "$@"; do
+    [ -d "$sc" ] || continue
+    sc=${sc%/}
+    name=${sc##*/}
+    until [ -e "$rundir/$name.done" ]; do
+      if ! run_busy && [ ! -e "$rundir/$name.done" ]; then
+        if [ -e "$rundir/abandoned" ]; then cat "$rundir/abandoned/message" >&2 || :; exit 3; fi
+        echo "run: no worker finished $name" >&2
+        exit 1
+      fi
+      sleep 0.1
+    done
+    rp_status=$(cat "$rundir/$name.done")
+    case "$rp_status" in
+      0) ;;
+      ''|*[!0-9]*) echo "run: $name ended with no status" >&2; exit 1 ;;
+      *) cat "$rundir/$name.out"; cat "$rundir/$name.err" >&2; exit "$rp_status" ;;
+    esac
+    rp_fails=$(cat "$rundir/$name.fails" 2>/dev/null || true)
+    case "$rp_fails" in ''|*[!0-9]*) rp_fails=none ;; esac
+    rp_verdicts=$(grep -c -x -F -e "ok    $name" -e "FAIL  $name" "$rundir/$name.out" || true)
+    rp_failed=$(grep -c '^FAIL  ' "$rundir/$name.out" || true)
+    if [ "$rp_verdicts" != 1 ] || [ "$rp_fails" != "$rp_failed" ]; then
+      cat "$rundir/$name.out"; cat "$rundir/$name.err" >&2
+      echo "run: the result of $name does not add up: $rp_verdicts verdict lines, a failure count of $rp_fails, $rp_failed FAIL lines" >&2
+      exit 1
+    fi
+    cat "$rundir/$name.out"
+    if [ -s "$rundir/$name.err" ]; then cat "$rundir/$name.err" >&2; fi
+    fails=$((fails + rp_fails))
+    count=$((count + 1))
+  done
+}
+
+run_total=0
+for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
+  if [ -d "$sc" ]; then run_total=$((run_total + 1)); fi
 done
+run_jobs=$(( $(/usr/sbin/sysctl -n hw.ncpu 2>/dev/null || echo 1) / 2 ))
+case "${BATON_TESTS_JOBS:-}" in
+  '') ;;
+  *[!0-9]*|0*) echo "run: BATON_TESTS_JOBS is not a positive whole number ($BATON_TESTS_JOBS); using $run_jobs" >&2 ;;
+  *) run_jobs=$BATON_TESTS_JOBS ;;
+esac
+if [ -n "$freeze" ] || [ "$run_jobs" -lt 2 ] || [ "$run_total" -lt 2 ]; then
+  run_serial
+elif run_jobs_probe; then
+  if [ "$run_jobs" -gt "$run_total" ]; then run_jobs=$run_total; fi
+  run_parallel "$run_jobs"
+else
+  echo "run: a job started here does not lead a process group of its own, so the scenarios run one after another" >&2
+  run_serial
+fi
 
 echo "$count scenarios, $fails failed"
 [ "$fails" -eq 0 ]
