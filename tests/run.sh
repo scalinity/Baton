@@ -190,15 +190,18 @@ cleanup() {
 
 # The exit status stands unless cleanup failed on a run that had passed. A signal is handled once —
 # a second TERM during cleanup changes nothing — and then raised again with its default action, so
-# whoever sent it sees the run die of it.
+# whoever sent it sees the run die of it. A signal that arrives while an exit is already cleaning up
+# lets that cleanup finish and is raised after it.
 run_exit() {
   re_status=$?
   cleanup || [ "$re_status" -ne 0 ] || re_status=1
+  if [ -n "$run_signalled" ]; then trap - "$run_signalled" EXIT; kill -"$run_signalled" "$$"; fi
   exit "$re_status"
 }
 run_signal() {
   [ -z "$run_signalled" ] || return 0
-  run_signalled=1
+  run_signalled=$1
+  [ -z "$cleanup_done" ] || return 0
   cleanup || :
   trap - "$1" EXIT
   kill -"$1" "$$"
