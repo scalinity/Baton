@@ -64,6 +64,7 @@ hundred lines, means a Swift command-line tool for that piece.
 │   ├── run.sh                the standing check: every scenario, several at once, one line each
 │   ├── shim/claude           the claude shim; date, caffeinate, osascript and open shims beside it
 │   ├── completion-fixture.sh the baseline, candidate and merge commits a completion chain is judged against
+│   ├── harness-check.sh      run.sh's own abandons, signals and ownership, which no scenario reaches
 │   ├── payloads/             hook payloads copied from .scratch/baton/prototype/obs/
 │   └── scenarios/<name>/     a fixture project, an inbox, a log, a rows file, and expected/
 └── docs/
@@ -1298,7 +1299,10 @@ shell. The run owns everything it starts: on every exit, and on TERM, INT or HUP
 deadline kill names `run.sh` alone), it releases its workers, TERMs the group of any still busy
 together with every descendant and every pty session a `script -q` child opened, KILLs what is left
 after five seconds, and removes its temporary root; a root it cannot remove fails a run that had
-passed. A worker whose run has gone finishes the scenario in hand and kills its own group.
+passed. A worker whose run has gone finishes the scenario in hand and kills its own group. No
+scenario reaches these paths, so `tests/harness-check.sh`, run after a change to `tests/run.sh`,
+checks them: an abandon exits 3, a TERM mid-run or during the exit cleanup leaves no worker group
+and no root, a pipeline's reader outlives the run, and jobs lead their own groups.
 
 Two timings a scenario depends on are waited for rather than raced. `tests/completion-fixture.sh`,
 which the completion scenarios run first in both runs, waits while a check an earlier run started is

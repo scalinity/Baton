@@ -31,6 +31,8 @@
 # the relay's steady state (D-187), then share the cores and each still finishes in half the time one
 # serial run takes (D-218).
 # BATON_TESTS_JOBS=1 and BATON_TESTS_FREEZE run the scenarios one after another in this shell.
+# tests/harness-check.sh checks this file's abandons, signal handling and ownership, which no scenario
+# reaches; run it after a change here.
 # A run whose BATON_TESTS_OWNER=<pid> has gone stops on its own, and so does one that has reached the
 # BATON_TESTS_DEADLINE=<seconds> a caller named, of which there is none by default; both exit 3,
 # before the next scenario begins. The run sets LC_ALL=en_US.UTF-8 for itself and refuses, exit 3,
