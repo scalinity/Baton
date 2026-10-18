@@ -449,7 +449,12 @@ worker() {
   done
   : > "$rundir/idle.$wk_self"
   until [ -e "$rundir/release.$wk_self" ]; do
-    if worker_orphaned; then kill -KILL 0; fi
+    # `kill -KILL 0` reaches the caller's whole group, so it is sent only from a group this worker
+    # leads, as the probe found jobs do; a worker in any other group leaves without it.
+    if worker_orphaned; then
+      [ "$(ps -o pgid= -p "$wk_self" 2>/dev/null | tr -d ' ')" != "$wk_self" ] || kill -KILL 0
+      exit 1
+    fi
     sleep 0.2
   done
 }
