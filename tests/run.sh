@@ -500,7 +500,7 @@ run_parallel() {
     name=${sc##*/}
     until [ -e "$rundir/$name.done" ]; do
       if ! run_busy && [ ! -e "$rundir/$name.done" ]; then
-        if [ -e "$rundir/abandoned" ]; then cat "$rundir/abandoned/message" >&2; exit 3; fi
+        if [ -e "$rundir/abandoned" ]; then cat "$rundir/abandoned/message" >&2 || :; exit 3; fi
         echo "run: no worker finished $name" >&2
         exit 1
       fi
