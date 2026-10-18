@@ -96,17 +96,19 @@ root=$(dirname "$here")
 tmproot=$(mktemp -d "${TMPDIR:-/tmp}/baton-tests.XXXXXX")
 tmproot=$(cd "$tmproot" && pwd -P)
 
-# Everything the run starts is the run's to stop, and the temporary root goes on every way out: an
-# end, an error, an abandon, and a TERM or INT from whoever started it. The relay's deadline kill
-# names run.sh alone, and the HUP its launch ignores cannot be trapped. Each worker leads a process
-# group of its own, and every process a scenario starts stays in that group, the detached ones
-# included. `script -q` is the exception: it puts its child in a session of its own, and with HUP
-# ignored that child outlives `script`, so it is found by ancestry before anything is stopped and
-# its group is remembered after the child has been handed to launchd. cleanup stops claims and
-# releases the workers, which an idle one obeys within 0.2 s; it then TERMs the group of each worker
-# still busy, while its leader lives, and every other process the run owns, gives what is left five
-# seconds before it KILLs it by pid, and removes the root. Its result counts: a root it could not
-# remove fails a run that had passed.
+# What the run starts is the run's to stop, and the temporary root goes on every way out: an end, an
+# error, an abandon, and a TERM, INT or HUP from whoever started it. The relay's deadline kill names
+# run.sh alone, and the HUP its launch ignores cannot be trapped. Each worker leads a process group
+# of its own, and every process a scenario starts stays in that group, the detached ones included.
+# `script -q` is the exception: it puts its child in a session of its own, and with HUP ignored that
+# child outlives `script`, so it is found by ancestry before anything is stopped and its group is
+# remembered after the child has been handed to launchd. The serial loop has no worker group, so a
+# process a scenario detached is left to end on its own there, as it always was, and so is one whose
+# worker was killed from outside: a dead leader's group id can be reused once the group empties.
+# cleanup stops claims and releases the workers, which an idle one obeys within 0.2 s; it then TERMs
+# the group of each worker still busy, while its leader lives, and every other process the run owns,
+# gives what is left at least five seconds before it KILLs it by pid, and removes the root. Its
+# result counts: a root it could not remove fails a run that had passed.
 workers=
 cleanup_done=
 cleanup_status=0

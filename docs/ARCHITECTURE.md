@@ -1295,14 +1295,19 @@ failure count to files the run reads back, believing a result only if it adds up
 and a failure count equal to its FAIL lines. A scenario that ends in an error ends the run with its
 status, as the serial loop stops there. `BATON_TESTS_JOBS=1`, `BATON_TESTS_FREEZE`, a single
 scenario and a shell whose jobs get no process group of their own run the scenarios one after
-another in the run's own shell. The run owns everything it starts: on every exit, and on TERM, INT
-or HUP (the relay's deadline kill names `run.sh` alone), it releases its workers, TERMs the group of
-any still busy together with every descendant and every pty session a `script -q` child opened,
-KILLs what is left after five seconds, and removes its temporary root; a root it cannot remove
-fails a run that had passed. A worker whose run has gone finishes the scenario in hand and kills its
-own group. No scenario reaches these paths, so `tests/harness-check.sh`, run after a change to
-`tests/run.sh`, checks them: an abandon exits 3, a TERM mid-run or during the exit cleanup leaves
-no worker group and no root, a pipeline's reader outlives the run, and jobs lead their own groups.
+another in the run's own shell. The run owns what it starts: on every exit, and on TERM, INT or HUP
+(the relay's deadline kill names `run.sh` alone), it releases its workers, TERMs the group of any
+still busy together with every descendant and every pty session a `script -q` child under it has
+opened, KILLs what is left after at least five seconds, and removes its temporary root; a root it
+cannot remove fails a run that had passed. Its own process group is never one it stops, because a
+shell with job control puts a pipeline's other commands in it. A process a scenario detached is
+reached through its worker's group, so the serial loop, which has none, leaves one to end on its
+own, as it always did, and so does a worker killed from outside: a dead leader's group id can be
+reused once the group empties, and stopping by it could reach a process the run did not start. A
+worker whose run has gone finishes the scenario in hand and kills its own group. No scenario
+reaches these paths, so `tests/harness-check.sh`, run after a change to `tests/run.sh`, checks
+them: an abandon exits 3, a TERM mid-run or during the exit cleanup leaves no worker group and no
+root, a pipeline's reader outlives the run, and jobs lead their own groups.
 
 Two timings a scenario depends on are waited for rather than raced. `tests/completion-fixture.sh`,
 which the completion scenarios run first in both runs, waits while a check an earlier run started is
