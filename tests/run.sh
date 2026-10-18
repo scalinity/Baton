@@ -514,7 +514,7 @@ run_parallel() {
     esac
     rp_fails=$(cat "$rundir/$name.fails" 2>/dev/null || true)
     case "$rp_fails" in ''|*[!0-9]*) rp_fails=none ;; esac
-    rp_verdicts=$(grep -c -x -e "ok    $name" -e "FAIL  $name" "$rundir/$name.out" || true)
+    rp_verdicts=$(grep -c -x -F -e "ok    $name" -e "FAIL  $name" "$rundir/$name.out" || true)
     rp_failed=$(grep -c '^FAIL  ' "$rundir/$name.out" || true)
     if [ "$rp_verdicts" != 1 ] || [ "$rp_fails" != "$rp_failed" ]; then
       cat "$rundir/$name.out"; cat "$rundir/$name.err" >&2
