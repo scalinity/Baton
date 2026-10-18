@@ -112,7 +112,9 @@ run_signalled=
 
 # cleanup_list: the processes the run owns, other than its live workers, into $cl_pids, and the pty
 # session groups seen so far into $cl_sessions. Owned is a descendant of this shell, a member of a
-# group of a worker that was alive when cleanup began, or a member of a session group.
+# group of a worker that was alive when cleanup began, or a member of a session group. This shell's
+# own group is never one: a shell with job control makes it the group of a whole pipeline, whose
+# other members (`| tail`, `| tee`) the run did not start.
 cleanup_list() {
   ps -A -o pid=,ppid=,pgid= > "$tmproot/.ps" 2>/dev/null &
   cl_ps=$!
@@ -129,7 +131,7 @@ cleanup_list() {
         grew = 0
         for (i = 1; i <= NR; i++) if (!(pid[i] in desc) && (ppid[i] in desc)) { desc[pid[i]] = 1; grew = 1 }
       } while (grew)
-      for (i = 1; i <= NR; i++) if ((pid[i] in desc) && pid[i] == pgid[i] && !(pid[i] in group)) session[pid[i]] = 1
+      for (i = 1; i <= NR; i++) if ((pid[i] in desc) && pid[i] != main && pid[i] == pgid[i] && !(pid[i] in group)) session[pid[i]] = 1
       for (s in session) print "s", s
       for (i = 1; i <= NR; i++) {
         if (pid[i] == main || pid[i] == ps || (pid[i] in worker)) continue
