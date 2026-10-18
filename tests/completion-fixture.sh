@@ -140,10 +140,10 @@ case "$shape" in
   *)           cf_check=$CF_CHECK_PASSES ;;
 esac
 
-# The time the clock check moves to, and the pid file that says the tick has started that check:
+# The time the clock check moves to, and the directory whose pid file says the tick has started it:
 # tests/shim/date holds the tick's next reading of the clock until the check has written it.
 if [ "$shape" = check-clock ]; then
-  printf '%s\n%s\n' "$cf_clock" "$BATON_HOME/checks/*/*/pid" > "${BATON_SHIM:?}/clock-latch"
+  printf '%s\n%s\n' "$cf_clock" "$BATON_HOME/checks" > "${BATON_SHIM:?}/clock-latch"
 fi
 
 scoped=$(cf_commit "the milestone's brief declares its scope" docs/milestones/M02.md "$CF_SCOPE" "$root")

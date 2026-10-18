@@ -4,12 +4,12 @@ set -eu
 # A check-clock scenario's check moves the clock, and from the moment the tick has started it the
 # tick reads the moved clock, which is what its expectations were frozen with; a check slowed by the
 # load of other suites had not always written it by then. tests/completion-fixture.sh leaves a latch
-# naming the moved time and the check's pid file. Once that file exists, a reading waits until the
-# check has written the time, for up to thirty seconds, and fails past that, so a check that never
-# runs still fails its scenario.
+# naming the moved time and the directory of the checks' pid files. Once a pid file exists, a reading
+# waits until the check has written the time, for up to thirty seconds, and fails past that, so a
+# check that never runs still fails its scenario.
 if [ -f "${BATON_SHIM:?}/clock-latch" ]; then
-  { read -r ds_target; read -r ds_pidfiles; } < "$BATON_SHIM/clock-latch"
-  for ds_pidfile in $ds_pidfiles; do
+  { read -r ds_target; read -r ds_checks; } < "$BATON_SHIM/clock-latch"
+  for ds_pidfile in "$ds_checks"/*/*/pid; do
     [ -f "$ds_pidfile" ] || continue
     ds_n=0
     until [ "$(cat "$BATON_SHIM/now")" = "$ds_target" ]; do
