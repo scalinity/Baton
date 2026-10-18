@@ -416,20 +416,21 @@ run_serial() {
   done
 }
 
-# worker: one of the run's workers, started as a job that leads its own process group. It takes, in
-# name order, each scenario no other worker has claimed and runs it exactly as run_serial does, its
-# lines and its failure count going to files under $rundir. It stops claiming when the run says stop,
-# when a scenario of its own ended in an error (a serial run would have stopped there), when the
-# owner or the deadline abandons the run, and when the shell that started it has gone, which it tells
-# by its own parent becoming launchd (pids are reused within a run, so `kill -0` on the shell cannot
-# tell). Then it waits to be released, so a group the run signals always has its leader alive; if its
-# shell has gone, nothing will release it, and it KILLs its own group instead.
+# worker <scenario dir>...: one of the run's workers, started as a job that leads its own process
+# group. It takes, in name order, each scenario of the list it is given that no other worker has
+# claimed and runs it exactly as run_serial does, its lines and its failure count going to files
+# under $rundir. It stops claiming when the run says stop, when a scenario of its own ended in an
+# error (a serial run would have stopped there), when the owner or the deadline abandons the run,
+# and when the shell that started it has gone, which it tells by its own parent becoming launchd
+# (pids are reused within a run, so `kill -0` on the shell cannot tell). Then it waits to be
+# released, so a group the run signals always has its leader alive; if its shell has gone, nothing
+# will release it, and it KILLs its own group instead.
 worker() {
   set +e
   wk_self=$(exec sh -c 'echo $PPID')
   wk_stop=
   trap 'wk_stop=1' TERM
-  for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
+  for sc in "$@"; do
     [ -d "$sc" ] || continue
     sc=${sc%/}
     name=${sc##*/}
@@ -482,19 +483,22 @@ run_jobs_probe() {
 # failure count equal to its FAIL lines, the mtimes check's included. A scenario that ended in an
 # error ends the run with its status once everything before it has been printed, as the serial loop
 # stops there. A name no worker will finish is an abandon when the owner or the deadline said so,
-# and a harness error otherwise.
+# and a harness error otherwise. The scenarios are listed once, here, and the workers and the
+# printing loop walk that one list, so this shell waits only for names a worker will reach.
 run_parallel() {
+  rp_n=$1
+  set -- "$here"/scenarios/${BATON_TESTS_ONLY:-*}/
   rundir=$tmproot/.run
   mkdir "$rundir" "$rundir/claim"
   rp_k=0
   set -m
-  while [ "$rp_k" -lt "$1" ]; do
+  while [ "$rp_k" -lt "$rp_n" ]; do
     rp_k=$((rp_k + 1))
-    worker < /dev/null > "$rundir/worker-$rp_k.log" 2>&1 &
+    worker "$@" < /dev/null > "$rundir/worker-$rp_k.log" 2>&1 &
     workers="$workers $!"
   done
   set +m
-  for sc in "$here"/scenarios/${BATON_TESTS_ONLY:-*}/; do
+  for sc in "$@"; do
     [ -d "$sc" ] || continue
     sc=${sc%/}
     name=${sc##*/}
