@@ -1286,23 +1286,23 @@ and from the 1 a run ends with when a scenario fails or the harness itself error
 pipe `tests/payloads/*.json` (copied from the prototype's `obs/`, two constructed) into a hook
 through `cmd`. launchd is never in the tests.
 
-The scenarios share nothing, so the run takes `BATON_TESTS_JOBS` of them at once, by default half
-of `hw.ncpu`, which three suites at once, the relay's steady state, share with each still finishing
-in half the time of one serial run (D-218), and still prints one scenario's lines at a time in name
-order. Each worker is a job that leads its own process group; it claims scenarios in name order
-with `mkdir`, runs each exactly as the serial loop does, and writes its lines and its failure count
-to files the run reads back, believing a result only if it adds up: one verdict line, and a failure
-count equal to its FAIL lines. A scenario that ends in an error ends the run with its status, as the
-serial loop stops there. `BATON_TESTS_JOBS=1`, `BATON_TESTS_FREEZE`, a single scenario and a shell
-whose jobs get no process group of their own run the scenarios one after another in the run's own
-shell. The run owns everything it starts: on every exit, and on TERM, INT or HUP (the relay's
-deadline kill names `run.sh` alone), it releases its workers, TERMs the group of any still busy
-together with every descendant and every pty session a `script -q` child opened, KILLs what is left
-after five seconds, and removes its temporary root; a root it cannot remove fails a run that had
-passed. A worker whose run has gone finishes the scenario in hand and kills its own group. No
-scenario reaches these paths, so `tests/harness-check.sh`, run after a change to `tests/run.sh`,
-checks them: an abandon exits 3, a TERM mid-run or during the exit cleanup leaves no worker group
-and no root, a pipeline's reader outlives the run, and jobs lead their own groups.
+The scenarios share nothing, so the run takes `BATON_TESTS_JOBS` of them at once and still prints
+one scenario's lines at a time in name order. The default is half of `hw.ncpu`: three suites at
+once, the relay's steady state, then share the cores, and each finishes in about half the time of
+one serial run (D-218). Each worker is a job that leads its own process group; it claims scenarios
+in name order with `mkdir`, runs each exactly as the serial loop does, and writes its lines and its
+failure count to files the run reads back, believing a result only if it adds up: one verdict line,
+and a failure count equal to its FAIL lines. A scenario that ends in an error ends the run with its
+status, as the serial loop stops there. `BATON_TESTS_JOBS=1`, `BATON_TESTS_FREEZE`, a single
+scenario and a shell whose jobs get no process group of their own run the scenarios one after
+another in the run's own shell. The run owns everything it starts: on every exit, and on TERM, INT
+or HUP (the relay's deadline kill names `run.sh` alone), it releases its workers, TERMs the group of
+any still busy together with every descendant and every pty session a `script -q` child opened,
+KILLs what is left after five seconds, and removes its temporary root; a root it cannot remove
+fails a run that had passed. A worker whose run has gone finishes the scenario in hand and kills its
+own group. No scenario reaches these paths, so `tests/harness-check.sh`, run after a change to
+`tests/run.sh`, checks them: an abandon exits 3, a TERM mid-run or during the exit cleanup leaves
+no worker group and no root, a pipeline's reader outlives the run, and jobs lead their own groups.
 
 Two timings a scenario depends on are waited for rather than raced. `tests/completion-fixture.sh`,
 which the completion scenarios run first in both runs, waits while a check an earlier run started is

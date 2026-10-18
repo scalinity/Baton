@@ -27,9 +27,9 @@
 # harness change that moves every expectation at once. BATON_TESTS_ONLY=<glob> runs the scenarios
 # whose names match it and no others; the standing check is the run without it.
 # The scenarios share nothing, so BATON_TESTS_JOBS=<n> of them run at once while the lines are still
-# printed one scenario at a time in name order. The default is half the cores: three suites at once,
-# the relay's steady state (D-187), then share the cores and each still finishes in half the time one
-# serial run takes (D-218).
+# printed one scenario at a time in name order. The default is half the cores. Three suites at once,
+# the relay's steady state (D-187), then share the cores, and each finishes in about half the time
+# one serial run takes (D-218).
 # BATON_TESTS_JOBS=1 and BATON_TESTS_FREEZE run the scenarios one after another in this shell.
 # tests/harness-check.sh checks this file's abandons, signal handling and ownership, which no scenario
 # reaches; run it after a change here.
