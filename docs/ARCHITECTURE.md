@@ -61,7 +61,7 @@ hundred lines, means a Swift command-line tool for that piece.
 │   ├── stop-failure          writes the api-error artifact
 │   └── statusline            writes ~/.baton/status/<session_id>.json
 ├── tests/
-│   ├── run.sh                the standing check: every scenario, one line each
+│   ├── run.sh                the standing check: every scenario, several at once, one line each
 │   ├── shim/claude           the claude shim; date, caffeinate, osascript and open shims beside it
 │   ├── completion-fixture.sh the baseline, candidate and merge commits a completion chain is judged against
 │   ├── payloads/             hook payloads copied from .scratch/baton/prototype/obs/
@@ -1217,7 +1217,7 @@ is the transcript record's own `timestamp`, carried exactly as it arrived.
 | Variable | Default | The shim's role |
 |---|---|---|
 | `BATON_CLAUDE` | `/Users/danny/.local/bin/claude` | `--bg` prints `backgrounded · <id>` (and `Starting background service…` on stderr when told to) and later writes an inbox artifact from the scenario; `agents --json` answers from `rows.json`; `stop` and `--bg --resume` append their argv to `calls.log`; `stop` takes the pid off the session's row — after `stop.fail` failed listings and `stop.linger` listings that still show it, when a scenario sets them — and a resume that wakes the session gives it back; `--bg --resume` prints the success note by default, the copy-fork note when the session's row still has a pid, and a scenario's own `note:` line otherwise, on either stream, with its own exit code; `bg.color` wraps every id in the colour escapes the real CLI prints whenever `FORCE_COLOR` is in the environment |
-| `BATON_DATE` | `date` | prints the scenario's `now` for both runs: the clock is frozen, so changes arise from scenario activity rather than elapsed real time |
+| `BATON_DATE` | `date` | prints the scenario's `now` for both runs: the clock is frozen, so changes arise from scenario activity rather than elapsed real time; under a `check-clock` fixture's latch, a reading taken once the tick has started the check waits until the check has moved the clock |
 | `BATON_CAFFEINATE` | `/usr/bin/caffeinate` | appends its argv to `calls.log` and exits |
 | `BATON_HOME` | `~/.baton` | the scenario's own state directory |
 | `BATON_DAEMON_LOG` | `~/.claude/daemon.log` | the service's own log, read only for `bg settled <id> (crashed): <detail>` when a backgrounded worker never gets a row (item 47); the claude shim writes the line when told to |
@@ -1270,20 +1270,43 @@ whenever `tests/project/` changed. A `dispatch` event's `prompt_sha256` is recom
 the one rule and replaced by `sha256-matches-sidecar` or a mismatch note before the diff, because
 the sidecar carries the temporary path. `BATON_TESTS_FREEZE=<name>` rewrites that scenario's
 `expected/` from the run, for a fixture whose output has been read and judged right, and `all` every
-one; `BATON_TESTS_ONLY=<glob>` runs the matching scenarios alone. Before each scenario the run stops,
+one; `BATON_TESTS_ONLY=<glob>` runs the matching scenarios alone. Before each scenario begins the run stops,
 exiting 3, when `BATON_TESTS_OWNER` — a pid a caller names as the process that lives exactly as long
 as it wants the result — no longer answers `kill -0`; with no owner named nothing stops a run, so a
 run detached on purpose is never at risk, and with `BATON_TESTS_FREEZE` set the owner is ignored,
 because a freeze stopped midway leaves expectations partly rewritten. A value that is not a pid is
 ignored with a message. It stops likewise when the `BATON_TESTS_DEADLINE` whole seconds a caller
 named have elapsed since the run began, there being no default and so no bound unless one is asked
-for; a scenario already started finishes first. The run sets
+for; scenarios already started finish first. The run sets
 `LC_ALL=en_US.UTF-8` for itself, the locale the expectations were frozen under, and exits 3 before
 running anything where `locale -a` does not list it. It unsets `NO_COLOR` and `FORCE_COLOR` and sets
 neither, so every scenario starts from one baseline and one that tests colour chooses its own. Exit 3 is distinct from the 0 of a passing run
 and from the 1 a run ends with when a scenario fails or the harness itself errors. Hook scenarios
 pipe `tests/payloads/*.json` (copied from the prototype's `obs/`, two constructed) into a hook
 through `cmd`. launchd is never in the tests.
+
+The scenarios share nothing, so the run takes `BATON_TESTS_JOBS` of them at once, by default half
+of `hw.ncpu`, which three suites at once, the relay's steady state, share with each still finishing
+in half the time of one serial run (D-218), and still prints one scenario's lines at a time in name
+order. Each worker is a job that leads its own process group; it claims scenarios in name order
+with `mkdir`, runs each exactly as the serial loop does, and writes its lines and its failure count
+to files the run reads back, believing a result only if it adds up: one verdict line, and a failure
+count equal to its FAIL lines. A scenario that ends in an error ends the run with its status, as the
+serial loop stops there. `BATON_TESTS_JOBS=1`, `BATON_TESTS_FREEZE`, a single scenario and a shell
+whose jobs get no process group of their own run the scenarios one after another in the run's own
+shell. The run owns everything it starts: on every exit, and on TERM, INT or HUP (the relay's
+deadline kill names `run.sh` alone), it releases its workers, TERMs the group of any still busy
+together with every descendant and every pty session a `script -q` child opened, KILLs what is left
+after five seconds, and removes its temporary root; a root it cannot remove fails a run that had
+passed. A worker whose run has gone finishes the scenario in hand and kills its own group.
+
+Two timings a scenario depends on are waited for rather than raced. `tests/completion-fixture.sh`,
+which the completion scenarios run first in both runs, waits while a check an earlier run started is
+alive and has not written its marker, for up to thirty seconds, so the second run collects a finished
+check as its expectation holds; for the `check-clock` shape it also leaves the date shim's latch, so
+the tick that started the check reads the clock the check moved. `tests/check-stop.sh` ends a
+fixture's detached check runner by stopping it before its child is killed, so it cannot write a
+marker on the way out.
 
 ---
 
